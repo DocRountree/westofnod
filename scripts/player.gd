@@ -16,7 +16,7 @@ const SWIM_UP_SPEED := 2.4
 const SINK_SPEED := 0.6
 const CURRENT_SPEED := 1.4 # m/s at full river flow (as inland_water.gdshader's river_speed)
 
-var island: IslandData
+var world: WorldData
 var head: Node3D # eye point; pitches with the mouse
 var camera: Camera3D
 var third_person := false
@@ -96,7 +96,7 @@ func _physics_process(delta: float) -> void:
 		return
 	var input := Input.get_vector("move_left", "move_right", "move_forward", "move_back")
 	var dir := (transform.basis * Vector3(input.x, 0.0, input.y)).normalized()
-	var water := island.water_at(global_position.x, global_position.z) if island else Vector3.ZERO
+	var water := world.water_at(global_position.x, global_position.z) if world else Vector3.ZERO
 	var depth := water.x - global_position.y # how deep the feet are
 	var in_water := depth > 0.6
 	var head_under := water.x > head.global_position.y

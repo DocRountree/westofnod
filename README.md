@@ -1,17 +1,12 @@
 # West of Nod
 
-A Godot 4 prototype: one island whose terrain comes from simulation, rendered as one
-continuous surface with no tiles and no popping. You can walk, sprint, swim (as in
-Minecraft) and fly over it.
+A Godot 4 vertical slice: 8 × 8 km of real terrain (Hanalei Bay and valley on Kauai,
+from USGS elevation data) with rivers, sea, forest, rocks, grass and atmosphere, rendered
+as one continuous world with no popping. Walk, sprint, swim (as in Minecraft) and fly.
 
 ## Running
 
-Open the folder in **Godot 4.3+** and press Play. The island is simulated with compute
-shaders, so you need a Vulkan renderer (Forward+ or Mobile); the Compatibility renderer
-won't work. The first run simulates the island (about a minute on a laptop GPU, a few
-seconds on a desktop one) and caches it in `user://islands/`; later runs load it. Delete
-the cache after changing the generator. Compute shaders are compiled from source, so an
-export needs `*.glsl` in its non-resource export filter.
+Open the folder in **Godot 4.3+** (Forward+ renderer) and press Play.
 
 | Input | Action |
 |---|---|
@@ -22,65 +17,46 @@ export needs `*.glsl` in its non-resource export filter.
 | F5 | toggle third-person camera |
 | Esc | release the mouse |
 
-## Simulation (`scripts/sim/`, `shaders/sim/`)
+## Data (`tools/dem/bake_slice.py` → `data/slice/`)
 
-`IslandGenerator` runs five stages over an 8 km square domain:
+Source: USGS 3DEP 1/3 arc-second (~10 m) DEM, tile n23w160, public domain. The baker
+reads only the needed window of the cloud-optimised GeoTIFF and writes:
 
-1. **Landscape** (`landscape.glsl`, 256², GPU). Tectonic uplift against fluvial incision
-   (the stream power law) plus hillslope diffusion, run to near steady state. Ridges,
-   valleys and drainage basins come out of it. The uplift is strongest in a ridged
-   mountain core set off to one side, so the other side keeps broad coastal plains.
-   Below the coast: a shelf, then the drop to the ocean floor.
-2. **Erosion** (`hydraulic.glsl`, 1024², GPU). A "virtual pipes" shallow-water model
-   with sediment transport (Mei et al. 2007) and thermal slumping. Rain runs off,
-   carves gullies and drops sediment where it slows: fans at the foot of slopes, deltas
-   where rivers meet the sea (the sea is a sink at sea level).
-3. **Hydrology** (`hydrology.gd`, 512², CPU). Landslide dams and glacial hollows; a
-   priority flood fills every depression to its spill point, so lakes have levels and
-   outlets; drainage areas; river chains with hydraulic-geometry widths.
-4. **Rivers** (`rivers.gd`, `meander.gd`, CPU). Chains are smoothed and joined;
-   small streams sway irregularly. The gentle, wide reaches meander by curvature-driven
-   migration (after Howard & Knutson), cutting off necks into oxbows, and **the
-   history is kept**: every few steps the channel's course is recorded with its time,
-   and every cutoff with when it happened.
-5. **Compose** (`compose.glsl`, 2048² at 4 m, GPU). From the eroded heightfield and the
-   rivers: the meander belt becomes a floodplain blending into the hillsides; each
-   recorded past course gives scroll bars and swales (the ground it last swept);
-   oxbows are open water while young and silt up into marsh and then faint scars;
-   natural levees line the active channel; channels and lakes are cut in. Out come
-   the island's height, water level, material and water maps (`IslandData`).
+- `heights.png` — 2048² at 4 m (16 bits as high/low bytes): the DEM projected to local
+  metres, upsampled, with slope-scaled fractal detail below 10 m, and a sea floor shelf
+  built from distance to the coast.
+- `rivers.json` — drainage routed on the real terrain (priority flood, D8, area): river
+  centrelines with hydraulic-geometry widths and water levels that only fall downstream.
+  Their channels are carved into the heights.
+- `masks.png` — rock (slope, convex crests), wetness (drainage area on flat ground),
+  forest density, sand (low, gentle, by the sea).
 
-The prototype is one island. For an infinite archipelago the same generator runs per
-island: each island is a closed drainage system, so islands never depend on each other.
+To rebake (or move the window: `LAT0, LON0`): `pip install numpy scipy rasterio pillow`,
+then `python tools/dem/bake_slice.py .`
 
 ## Rendering (`scripts/world/`, `shaders/render/`)
 
-- **Terrain**: CDLOD (Strugar's continuous distance-dependent LOD). A quadtree over the
-  one height map picks patches each frame; each patch morphs into the next coarser
-  level toward the end of its range, so there are no cracks and no pops. Normals and
-  materials are per pixel, from the finest mip a pixel can show.
-- **Rivers and lakes** use the same patches raised to the water level map, so the
-  waterline never drifts. Where there is water comes from a mip-filtered coverage map:
-  a river thinner than a pixel at its distance becomes a fine line, never blobs. Far
-  away the terrain shader paints the same coverage as water.
-- **Water shading** (`water_common.gdshaderinc`): refraction with depth absorption (red
-  first), light scattered in the body and through crests, Schlick Fresnel; Godot adds
-  the sky reflection and sun glints. Small waves are analytic and faded by pixel
-  footprint (no textures, no sparkle). Rivers flow: their waves run downstream and the
-  pattern is carried by the current.
-- **Ocean**: Gerstner waves on a camera-centred grid, faded where too short for the
-  grid. They read the real sea floor from the height map, shrink as the water shoals
-  and vanish at the shore, so the sea never climbs onto land.
-- **Collision**: a height map window of the same samples, following the player.
+- **Terrain**: one CDLOD quadtree over the height map; patches morph into the next
+  coarser level toward the end of their range, so there are no cracks and no pops.
+  Normals and materials are per pixel, from the finest mip a pixel can show.
+- **Rivers**: ribbon meshes along the centrelines at their water level, edges tucked
+  under the banks. Each vertex carries the downstream direction and speed; the small
+  waves are carried by the current, so rivers visibly flow.
+- **Sea**: Gerstner waves on a camera-centred grid; they read the sea floor from the
+  height map and shrink to nothing at the shore, and the terrain hides them on land.
+- **Water lighting**: refraction with depth absorption, light scattered in the water,
+  Fresnel; Godot adds sky reflections and sun glints.
+- **Trees, rocks, grass**: placed on the GPU, one per world cell around the camera
+  (anchored, never shuffling), by the masks. Detailed trees near, simple crowns far
+  (cross-faded), then the terrain's canopy colour beyond; every band fades with a
+  dither, so nothing pops in.
+- **Atmosphere**: aerial perspective, height fog, volumetric haze, a low sun.
 
 ## Layout
 
-- `scripts/main.gd` builds the scene and runs the generator on a worker thread.
-- `scripts/sim/`: `island_generator.gd`, `hydrology.gd`, `rivers.gd`, `meander.gd`,
-  `compute.gd`.
-- `scripts/world/`: `island_data.gd` (maps, textures, queries, cache),
-  `cdlod.gd`, `terrain_collider.gd`.
+- `scripts/main.gd` builds the scene.
+- `scripts/world/`: `world_data.gd` (loads the data, textures, height and water
+  queries), `cdlod.gd`, `river_meshes.gd`, `scatter_field.gd`, `prop_meshes.gd`,
+  `terrain_collider.gd`.
 - `scripts/player.gd`, `scripts/hud.gd`.
-- `tools/render_island.gd` renders top-down maps:
-  `godot --path . -s tools/render_island.gd -- <out_dir> [full|test] [seed] [x z span]`.
 - `tools/shot.tscn` is a scripted fly-through that saves screenshots.

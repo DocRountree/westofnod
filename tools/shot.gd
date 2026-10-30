@@ -1,7 +1,7 @@
 extends Node
 ## Test driver: loads the game, waits for the island, and saves screenshots
 ## from the ground, low and high over the rivers, at the sea and far out.
-## godot --path . tools/shot.tscn -- <out_dir> [--test]
+## godot --path . tools/shot.tscn -- <out_dir>
 
 var out_dir := "user://"
 var main: Node
@@ -41,12 +41,12 @@ func _run() -> void:
 	while main.player.frozen:
 		await _wait(0.5)
 		if Time.get_ticks_msec() - t0 > 900000:
-			print("TIMEOUT waiting for the island")
+			print("TIMEOUT waiting for the world")
 			get_tree().quit()
 			return
-	print("island after %d ms" % (Time.get_ticks_msec() - t0))
+	print("world after %d ms" % (Time.get_ticks_msec() - t0))
 	var p: Player = main.player
-	var isl: IslandData = main.island
+	var isl: WorldData = main.world
 	var s := p.global_position
 	await _wait(3.0)
 	await _shot("01_spawn")
@@ -59,14 +59,16 @@ func _run() -> void:
 	await _shot("04_aerial")
 	await _view(s + Vector3(0, 150, 0), PI, -0.3)
 	await _shot("05_aerial_back")
-	await _view(Vector3(0, 900, 0), 0.6, -0.6)
+	await _view(Vector3(0, 700, 2500), 0.0, -0.35)
 	await _shot("06_high")
+	await _view(s + Vector3(0, 8, 0), PI * 0.3, -0.05)
+	await _shot("06b_valley")
 	# The coast at sea level, looking along the shore.
 	var best := Vector3.INF
 	for i in 400:
 		var a := TAU * i / 400.0
-		for r in range(800, 4000, 20):
-			var q := Vector3(cos(a) * r, 0.0, sin(a) * r)
+		for r in range(50, 4000, 20):
+			var q := s + Vector3(cos(a) * r, 0.0, sin(a) * r)
 			if isl.height_at(q.x, q.z) < -1.5:
 				if best == Vector3.INF or q.distance_to(s) < best.distance_to(s):
 					best = q

@@ -1,6 +1,6 @@
 class_name Cdlod
 extends Node3D
-## CDLOD quadtree over the island's square domain. Each frame (when the camera
+## CDLOD quadtree over the world's square domain. Each frame (when the camera
 ## has moved) it picks the patches to draw: a node is split while the camera is
 ## within the range of the next finer level, so detail falls off with distance
 ## in powers of two; every patch is one instance of the same GRID x GRID mesh.
@@ -12,7 +12,7 @@ const GRID := 32
 const RANGE_FACTOR := 2.4 # range of a level, in patch sizes
 const MORPH_START := 0.6 # fraction of a level's range where morphing begins
 
-var data: IslandData
+var data: WorldData
 var materials: Array[ShaderMaterial] = []
 var levels := 0
 var leaf := 0.0 # world size of a level-0 patch
@@ -21,11 +21,11 @@ var _mm: MultiMesh
 var _last_cam := Vector3.INF
 
 
-func setup(island: IslandData, mats: Array[ShaderMaterial]) -> void:
-	data = island
+func setup(world: WorldData, mats: Array[ShaderMaterial]) -> void:
+	data = world
 	materials = mats
-	leaf = GRID * island.cell()
-	levels = ceili(log(island.domain / leaf) / log(2.0))
+	leaf = GRID * world.cell()
+	levels = ceili(log(world.domain / leaf) / log(2.0))
 	for k in levels + 2:
 		ranges.append(leaf * pow(2.0, k) * RANGE_FACTOR)
 	_mm = MultiMesh.new()
@@ -40,10 +40,10 @@ func setup(island: IslandData, mats: Array[ShaderMaterial]) -> void:
 		mi.custom_aabb = AABB(Vector3(-1e5, -1e4, -1e5), Vector3(2e5, 2e4, 2e5))
 		add_child(mi)
 	for m in mats:
-		m.set_shader_parameter("height_tex", island.height_tex)
-		m.set_shader_parameter("map_size", float(island.size))
-		m.set_shader_parameter("map_domain", island.domain)
-		m.set_shader_parameter("map_origin", island.origin)
+		m.set_shader_parameter("height_tex", world.height_tex)
+		m.set_shader_parameter("map_size", float(world.size))
+		m.set_shader_parameter("map_domain", world.domain)
+		m.set_shader_parameter("map_origin", world.origin)
 
 
 ## Reselects patches around the camera. Cheap; call every frame.

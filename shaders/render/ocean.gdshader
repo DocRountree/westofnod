@@ -3,12 +3,12 @@ render_mode blend_mix, depth_draw_always, cull_disabled, specular_schlick_ggx;
 
 // Open sea. Six Gerstner waves displace a camera-centred grid (UV.x carries the
 // grid spacing; waves too short for it fade out, so nothing aliases). Waves
-// feel the real sea floor from the island's height map: they shrink as the
+// feel the real sea floor from the world's height map: they shrink as the
 // water shoals, and are gone at the shore, so swell never climbs onto land.
 // Per pixel: analytic wave normal plus small waves, refraction and depth
 // absorption, crest scattering, foam where the waves pinch and at the swash.
 
-#include "res://shaders/render/island_maps.gdshaderinc"
+#include "res://shaders/render/height_map.gdshaderinc"
 #include "res://shaders/render/water_common.gdshaderinc"
 
 uniform float amplitude = 0.6;

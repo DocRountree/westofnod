@@ -1,21 +1,19 @@
 shader_type spatial;
 render_mode diffuse_burley, specular_schlick_ggx;
 
-// The island's terrain: CDLOD patches over one height map (no tiles, no
-// near/far switch). Normals and materials are per pixel, from the finest mip
-// the pixel can show, so detail fades smoothly with distance instead of
-// popping, and nothing follows the mesh grid.
+// The terrain: CDLOD patches over one height map (no tiles, no near/far
+// switch). Normals and materials are per pixel, from the finest mip the pixel
+// can show, so detail fades smoothly with distance instead of popping.
 //
-// Colours are natural and untextured for now: grass in broad patches, drier up
-// high; floodplain meadow; damp swales and silted oxbows; gravel river beds;
-// sandy fans and deltas; rock on steep ground; beaches and the sea floor.
-// Distant rivers are painted from their mip-filtered coverage, so a river too
-// thin for its distance thins into a line instead of breaking into blobs.
+// Materials come from the baked masks (rock, wetness, forest, sand): grass in
+// broad patches, dark forest floor under the canopy (and, beyond where trees
+// are drawn, the canopy's own colour, so forests don't end at a line), damp
+// ground in hollows, rock on steep ground and crests, beaches, the sea floor.
 
-#include "res://shaders/render/island_maps.gdshaderinc"
+#include "res://shaders/render/height_map.gdshaderinc"
 
-uniform sampler2D material_tex : filter_linear_mipmap, repeat_disable; // floodplain, wet, bed, deposit
-uniform sampler2D wattr_tex : filter_linear_mipmap, repeat_disable;    // water coverage, flow, kind
+uniform sampler2D mask_tex : filter_linear_mipmap, repeat_disable; // rock, wet, forest, sand
+uniform float trees_end = 1800.0; // where the drawn trees have faded out
 
 varying vec3 world_pos;
 
@@ -53,45 +51,35 @@ void fragment() {
 	vec3 n = normal_m(p, pixel_mip(fp));
 	NORMAL = normalize((VIEW_MATRIX * vec4(n, 0.0)).xyz);
 	float h = world_pos.y;
-	vec4 mat = texture(material_tex, map_uv(p));
-	vec4 wa = texture(wattr_tex, map_uv(p));
+	vec4 m = texture(mask_tex, map_uv(p));
+	float dist = distance(world_pos, CAMERA_POSITION_WORLD);
 
-	float patches = vnoise(p / 220.0) * 0.6 + vnoise(p / 55.0) * 0.4;
-	vec3 grass = mix(vec3(0.30, 0.40, 0.16), vec3(0.47, 0.47, 0.26), clamp(patches * 1.1 - 0.2 + smoothstep(80.0, 260.0, h) * 0.6, 0.0, 1.0));
-	vec3 meadow = mix(vec3(0.27, 0.42, 0.15), vec3(0.34, 0.45, 0.18), patches);
-	vec3 marsh = vec3(0.27, 0.35, 0.17);
-	vec3 gravel = mix(vec3(0.45, 0.43, 0.39), vec3(0.55, 0.53, 0.48), vnoise(p / 7.0));
-	vec3 fan = mix(vec3(0.55, 0.50, 0.38), vec3(0.62, 0.57, 0.44), patches);
-	vec3 rock = mix(vec3(0.30, 0.29, 0.27), vec3(0.47, 0.45, 0.42), vnoise(p / 11.0) * 0.6 + vnoise(p / 70.0) * 0.4);
-	vec3 sand = mix(vec3(0.70, 0.64, 0.49), vec3(0.78, 0.72, 0.56), patches);
-	vec3 seabed = mix(vec3(0.62, 0.58, 0.45), vec3(0.45, 0.43, 0.36), smoothstep(-2.0, -25.0, h));
+	float patches = vnoise(p / 240.0) * 0.6 + vnoise(p / 60.0) * 0.4;
+	vec3 grass = mix(vec3(0.26, 0.38, 0.13), vec3(0.40, 0.44, 0.20), clamp(patches * 1.2 - 0.2, 0.0, 1.0));
+	vec3 forest_floor = vec3(0.17, 0.20, 0.10);
+	vec3 canopy = mix(vec3(0.11, 0.22, 0.08), vec3(0.16, 0.27, 0.09), patches);
+	vec3 rock = mix(vec3(0.30, 0.28, 0.25), vec3(0.46, 0.42, 0.37), vnoise(p / 9.0) * 0.6 + vnoise(p / 50.0) * 0.4);
+	vec3 soil = vec3(0.32, 0.24, 0.16);
+	vec3 sand = mix(vec3(0.74, 0.68, 0.52), vec3(0.82, 0.76, 0.58), patches);
+	vec3 seabed = mix(vec3(0.64, 0.60, 0.46), vec3(0.40, 0.42, 0.36), smoothstep(-2.0, -20.0, h));
 
 	vec3 col = grass;
-	col = mix(col, meadow, smoothstep(0.2, 0.8, mat.r));
-	col = mix(col, fan, smoothstep(0.3, 0.9, mat.a) * 0.35 * (1.0 - mat.r) * smoothstep(0.85, 0.97, n.y));
-	col = mix(col, marsh, smoothstep(0.25, 0.8, mat.g) * 0.7);
-	float rocky = smoothstep(0.78, 0.6, n.y);
+	// Under the trees: forest floor near by; far away, where trees are no longer
+	// drawn, the canopy colour takes over so a forest stays a forest.
+	float far = smoothstep(trees_end * 0.75, trees_end, dist);
+	col = mix(col, mix(forest_floor, canopy, far), smoothstep(0.2, 0.8, m.b));
+	col = mix(col, mix(col, vec3(0.20, 0.30, 0.12), 0.6), m.g); // damp ground
+	col = mix(col, soil, smoothstep(0.75, 0.55, n.y) * 0.6);
+	float rocky = max(m.r, smoothstep(0.62, 0.45, n.y));
 	col = mix(col, rock, rocky);
-	col = mix(col, gravel, smoothstep(0.3, 0.8, mat.b));
-	// Beaches above the waterline (not on floodplains reaching the sea), sea floor below.
-	float beach = (1.0 - smoothstep(0.8, 1.6, h + (patches - 0.5) * 0.6)) * (1.0 - smoothstep(0.2, 0.6, mat.r));
-	col = mix(col, sand, beach * (1.0 - rocky * 0.7));
-	col = mix(col, seabed, 1.0 - smoothstep(-1.5, 0.0, h));
-	// Damp just above the waterline.
-	col *= mix(1.0, 0.75, (1.0 - smoothstep(0.0, 0.5, h)) * step(-0.3, h));
-	// Mottling, fading out where its cells shrink below a pixel.
-	float fine = mix(0.5, vnoise(p * 0.6), 1.0 - smoothstep(0.4, 1.2, fp * 0.6)) * 0.5
-			+ mix(0.5, vnoise(p * 2.7), 1.0 - smoothstep(0.4, 1.2, fp * 2.7)) * 0.5;
-	col *= 0.9 + 0.2 * fine;
-	// Distant rivers and lakes: their coverage, mip-averaged, painted as water.
-	float dist = distance(world_pos, CAMERA_POSITION_WORLD);
-	float far_water = wa.r * smoothstep(250.0, 700.0, dist);
-	col = mix(col, vec3(0.13, 0.20, 0.24), far_water);
-	// Aerial perspective: far land turns blue-grey.
-	float haze = 1.0 - exp(-dist / 5000.0);
-	col = mix(col, vec3(dot(col, vec3(0.3, 0.59, 0.11))) * vec3(0.65, 0.8, 1.15), haze * 0.6);
+	col = mix(col, sand, m.a * (1.0 - rocky * 0.7));
+	col = mix(col, seabed, 1.0 - smoothstep(-1.0, 0.2, h));
+	col *= mix(1.0, 0.78, (1.0 - smoothstep(0.0, 0.6, h)) * step(-0.3, h)); // damp line
+	float fine = mix(0.5, vnoise(p * 0.7), 1.0 - smoothstep(0.4, 1.2, fp * 0.7)) * 0.5
+			+ mix(0.5, vnoise(p * 3.1), 1.0 - smoothstep(0.4, 1.2, fp * 3.1)) * 0.5;
+	col *= 0.88 + 0.24 * fine;
 
 	ALBEDO = pow(col, vec3(2.2));
-	ROUGHNESS = mix(mix(0.95, 0.85, rocky), 0.1, far_water);
-	SPECULAR = mix(0.25, 0.5, far_water);
+	ROUGHNESS = mix(0.95, 0.82, rocky);
+	SPECULAR = 0.25;
 }

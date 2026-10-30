@@ -1,4 +1,4 @@
-// The island's full-resolution maps (IslandData), shared by terrain and water.
+// The world height map (WorldData), shared by terrain, water and scattered props.
 // Heights are 32-bit floats, fetched texel by texel and filtered here (exact at
 // any mip). Mip m's texel j is the mean of 2^m base samples, so its centre sits
 // (2^m - 1) / 2 samples in from sample j * 2^m.

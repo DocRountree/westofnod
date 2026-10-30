@@ -1,0 +1,15 @@
+{
+ "size": 2048,
+ "cell": 4.0,
+ "origin": [
+  -4094.0,
+  -4094.0
+ ],
+ "h_min": -60.0,
+ "h_scale": 0.025,
+ "source": "USGS 3DEP 1/3 arc-second DEM, tile n23w160 (public domain)",
+ "centre_lat_lon": [
+  22.196,
+  -159.495
+ ]
+}
