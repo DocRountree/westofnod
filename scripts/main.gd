@@ -37,6 +37,7 @@ func _ready() -> void:
 	river_material = ShaderMaterial.new()
 	river_material.shader = load("res://shaders/render/river.gdshader")
 	river_material.set_shader_parameter("sun_direction", _sun.global_basis.z)
+	river_material.set_shader_parameter("overlap", RiverMeshes.OVERLAP)
 	var rivers := MeshInstance3D.new()
 	rivers.mesh = RiverMeshes.build(world)
 	rivers.material_override = river_material
@@ -137,12 +138,7 @@ func _build_environment() -> void:
 	# environment fog is only used under water.
 	env.fog_enabled = false
 	env.fog_sky_affect = 0.0
-	# A little volumetric haze near by, for light shafts; blue, not white.
-	env.volumetric_fog_enabled = true
-	env.volumetric_fog_density = 0.0004
-	env.volumetric_fog_albedo = Color(0.75, 0.85, 1.0)
-	env.volumetric_fog_length = 300.0
-	env.volumetric_fog_anisotropy = 0.3
+	env.volumetric_fog_enabled = false # (it greyed everything near by)
 	env.glow_enabled = true
 	env.glow_intensity = 0.3
 	env.glow_hdr_threshold = 1.6 # only the sun on the water blooms

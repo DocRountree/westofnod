@@ -46,8 +46,13 @@ then `python tools/dem/bake_slice.py .`
   waves are carried by the current, so rivers visibly flow.
 - **Sea**: Gerstner waves on a camera-centred grid; they read the sea floor from the
   height map and shrink to nothing at the shore, and the terrain hides them on land.
-- **Water lighting**: refraction with depth absorption, light scattered in the water,
-  Fresnel; Godot adds sky reflections and sun glints.
+- **Water lighting** is ported from DocRountree/game (`water_core.gdshaderinc`, its river
+  shader's optics and "Adrift" flowing ripples in `water_ripples.gdshaderinc`):
+  refraction never pulling in what's in front of the water, Beer-Lambert absorption,
+  the body's own colour (clear high up, silty low down, sea water at the mouth),
+  Fresnel, a capped GGX sun highlight, and gloss falling away with distance. With MSAA
+  the depth buffer can't be read, so the water's thickness falls back to the channel
+  depth (rivers) or the sea floor (sea) and the view angle.
 - **Trees**: placed on the GPU, one per world cell around the camera (anchored, never
   shuffling), by the forest mask. Detailed trees near (with shadows), simple crowns
   farther out (no shadows), cross-faded. As each far tree dithers out, the terrain
@@ -63,7 +68,8 @@ then `python tools/dem/bake_slice.py .`
 - **Atmosphere** (`aerial.gdshaderinc`): aerial perspective written to each shader's
   FOG, after lighting: skylight scattered into the view (blue fills in first, as in
   Rayleigh scattering), thinner with height, warmer toward the sun. Distant greens
-  desaturate and turn blue. Plus light volumetric haze and a low sun.
+  desaturate and turn blue (blue scatters ~3x more than red, so middle distance goes
+  blue before far distance fades to the horizon colour).
 
 ## Layout
 
