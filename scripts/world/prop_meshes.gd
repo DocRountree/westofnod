@@ -1,7 +1,7 @@
 class_name PropMeshes
 extends RefCounted
-## Procedural meshes for the scattered props. COLOR.r marks the part (0 trunk /
-## stone, 1 foliage); COLOR.g is height within the prop (0..1) for wind sway.
+## Procedural meshes for the scattered props. COLOR.r marks the part (0 trunk, 1
+## foliage); COLOR.g is height within the prop (0..1) for wind sway.
 
 
 ## A broadleaf tree, ~10 m: trunk and a canopy of lumpy blobs.
@@ -11,25 +11,15 @@ static func tree(detail: int, seed: int) -> ArrayMesh:
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	_cylinder(st, Vector3.ZERO, 0.28, 0.16, 5.5, 6 if detail > 0 else 4)
-	var blobs := 5 if detail > 0 else 1
+	var blobs := 3 if detail > 0 else 1
 	for b in blobs:
-		var c := Vector3(rng.randf_range(-1.6, 1.6), rng.randf_range(5.5, 8.0), rng.randf_range(-1.6, 1.6))
-		var r := rng.randf_range(2.0, 2.8)
+		var c := Vector3(rng.randf_range(-1.3, 1.3), rng.randf_range(5.8, 7.8), rng.randf_range(-1.3, 1.3))
+		var r := rng.randf_range(2.4, 3.0)
 		if detail == 0:
 			c = Vector3(0, 6.8, 0)
 			r = 3.4
 		_blob(st, c, Vector3(r, r * 0.8, r), detail, rng, 1.0)
-	st.generate_normals()
-	return st.commit()
-
-
-## A boulder, ~1 m: a flattened, dented sphere.
-static func rock(seed: int) -> ArrayMesh:
-	var rng := RandomNumberGenerator.new()
-	rng.seed = seed
-	var st := SurfaceTool.new()
-	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	_blob(st, Vector3(0, 0.25, 0), Vector3(1.0, 0.65, 0.85), 2, rng, 0.0)
+	st.index() # shared vertices: the vertex shader (which places the tree) runs once per corner
 	st.generate_normals()
 	return st.commit()
 

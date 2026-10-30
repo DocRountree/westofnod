@@ -13,6 +13,8 @@ var ocean: MeshInstance3D
 var ocean_material: ShaderMaterial
 var river_material: ShaderMaterial
 var fields: Array[ScatterField] = []
+
+const TREES_END := 1800.0 # where the far trees have dithered out
 var _sun: DirectionalLight3D
 
 
@@ -56,21 +58,27 @@ func _ready() -> void:
 	floor_mi.position.y = WorldData.OCEAN_FLOOR - 0.5
 	add_child(floor_mi)
 
-	# Props: near trees in detail, far trees as simpler crowns (the two bands
-	# cross-fade), then the terrain's canopy colour beyond; rocks; grass.
+	# Trees: detailed near (with shadows); simple crowns farther out, larger and
+	# sparser, no shadows; the two bands cross-fade. Beyond, the terrain draws
+	# the canopy itself, fading in under the far trees as they dither out.
 	var tree_shader: Shader = load("res://shaders/render/tree.gdshader")
-	fields.append(ScatterField.new(world, PropMeshes.tree(1, 3), tree_shader, 7.0, 320.0, Vector2(-1, 0)))
-	fields.append(ScatterField.new(world, PropMeshes.tree(0, 5), tree_shader, 7.0, 1800.0, Vector2(220, 300)))
-	fields.append(ScatterField.new(world, PropMeshes.rock(11), load("res://shaders/render/rock.gdshader"),
-			5.0, 300.0, Vector2(-1, 0)))
+	var near_trees := ScatterField.new(world, PropMeshes.tree(1, 3), tree_shader, 7.0, 260.0, Vector2(-1, 0))
+	var far_trees := ScatterField.new(world, PropMeshes.tree(0, 5), tree_shader, 14.0, TREES_END,
+			Vector2(190.0, 250.0), {"size_scale": 1.35})
+	far_trees.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	far_trees.material.set_shader_parameter("fade_out_start", TREES_END * 0.6)
+	# Grass: geometric clumps close by, shrinking away by 40 m; the terrain
+	# shader's grass carries on from there.
 	var grass := ScatterField.new(world, PropMeshes.grass(13), load("res://shaders/render/grass.gdshader"),
-			0.8, 45.0, Vector2(-1, 0))
+			0.8, 40.0, Vector2(-1, 0))
+	grass.material.set_shader_parameter("fade_out_start", 15.0)
 	grass.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	fields.append(grass)
+	fields.append_array([near_trees, far_trees, grass])
 	for f in fields:
 		add_child(f)
-	# The far trees' outer band must match the terrain's switch to canopy colour.
-	terrain_mat.set_shader_parameter("trees_end", 1800.0)
+	terrain_mat.set_shader_parameter("trees_start", TREES_END * 0.45)
+	terrain_mat.set_shader_parameter("trees_end", TREES_END)
+	terrain_mat.set_shader_parameter("sun_direction", _sun.global_basis.z)
 
 	collider = TerrainCollider.new()
 	collider.world = world
@@ -131,7 +139,8 @@ func _build_environment() -> void:
 	env.volumetric_fog_length = 400.0
 	env.volumetric_fog_anisotropy = 0.3
 	env.glow_enabled = true
-	env.glow_intensity = 0.4
+	env.glow_intensity = 0.3
+	env.glow_hdr_threshold = 1.6 # only the sun on the water blooms
 	var we := WorldEnvironment.new()
 	we.environment = env
 	add_child(we)
@@ -141,7 +150,7 @@ func _build_environment() -> void:
 	_sun.light_energy = 1.4
 	_sun.light_color = Color(1.0, 0.95, 0.86)
 	_sun.shadow_enabled = true
-	_sun.directional_shadow_max_distance = 800.0
+	_sun.directional_shadow_max_distance = 350.0
 	_sun.directional_shadow_split_1 = 0.05
 	_sun.directional_shadow_split_2 = 0.15
 	_sun.directional_shadow_split_3 = 0.4

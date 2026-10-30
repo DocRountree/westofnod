@@ -1,7 +1,7 @@
 # West of Nod
 
 A Godot 4 vertical slice: 8 × 8 km of real terrain (Hanalei Bay and valley on Kauai,
-from USGS elevation data) with rivers, sea, forest, rocks, grass and atmosphere, rendered
+from USGS elevation data) with rivers, sea, forest, grass and atmosphere, rendered
 as one continuous world with no popping. Walk, sprint, swim (as in Minecraft) and fly.
 
 ## Running
@@ -46,10 +46,11 @@ then `python tools/dem/bake_slice.py .`
   height map and shrink to nothing at the shore, and the terrain hides them on land.
 - **Water lighting**: refraction with depth absorption, light scattered in the water,
   Fresnel; Godot adds sky reflections and sun glints.
-- **Trees, rocks, grass**: placed on the GPU, one per world cell around the camera
-  (anchored, never shuffling), by the masks. Detailed trees near, simple crowns far
-  (cross-faded), then the terrain's canopy colour beyond; every band fades with a
-  dither, so nothing pops in.
+- **Trees and grass**: placed on the GPU, one per world cell around the camera
+  (anchored, never shuffling), by the masks. Detailed trees near (with shadows),
+  simple crowns farther out (no shadows), cross-faded; as the far ones dither out the
+  terrain draws the canopy (lit crowns and gaps), so forests reach the horizon. Grass
+  clumps shrink away within 40 m, where the terrain's own grass texture carries on.
 - **Atmosphere**: aerial perspective, height fog, volumetric haze, a low sun.
 
 ## Layout

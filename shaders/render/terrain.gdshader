@@ -6,14 +6,22 @@ render_mode diffuse_burley, specular_schlick_ggx;
 // can show, so detail fades smoothly with distance instead of popping.
 //
 // Materials come from the baked masks (rock, wetness, forest, sand): grass in
-// broad patches, dark forest floor under the canopy (and, beyond where trees
-// are drawn, the canopy's own colour, so forests don't end at a line), damp
-// ground in hollows, rock on steep ground and crests, beaches, the sea floor.
+// broad patches, dark forest floor under the trees, damp ground in hollows,
+// rock on steep ground and crests, beaches, the sea floor.
+//
+// Two things stand in for geometry at range. Grass: fine blade streaks and
+// tufts in the ground colour, so the ground stays grassy where the grass
+// clumps end. Forest: as the far trees dither out, the canopy itself is drawn
+// on the ground: a cell of crowns about tree-sized, each a lit dome with dark
+// gaps between (its own normal, so the sun shades it), so a distant forested
+// mountainside stays a forest.
 
 #include "res://shaders/render/height_map.gdshaderinc"
 
 uniform sampler2D mask_tex : filter_linear_mipmap, repeat_disable; // rock, wet, forest, sand
-uniform float trees_end = 1800.0; // where the drawn trees have faded out
+uniform float trees_start = 1000.0; // where the far trees begin to dither out
+uniform float trees_end = 2200.0;   // where they are gone
+uniform vec3 sun_direction = vec3(0.4, 0.6, 0.6);
 
 varying vec3 world_pos;
 
@@ -35,6 +43,23 @@ float hash(ivec2 c) {
 	v = v * 747796405u + 2891336453u;
 	v = ((v >> ((v >> 28u) + 4u)) ^ v) * 277803737u;
 	return float((v >> 22u) ^ v) / 4294967295.0;
+}
+
+// Nearest cell feature (Worley): returns (distance to it, distance to the
+// second nearest, cell hash).
+vec3 worley(vec2 p) {
+	vec2 fi = floor(p);
+	float d1 = 9.0, d2 = 9.0, id = 0.0;
+	for (int j = -1; j <= 1; j++) {
+		for (int i = -1; i <= 1; i++) {
+			ivec2 c = ivec2(fi) + ivec2(i, j);
+			vec2 o = vec2(hash(c), hash(c + ivec2(17, 31))) * 0.8 + 0.1;
+			float d = length(vec2(c) + o - p);
+			if (d < d1) { d2 = d1; d1 = d; id = hash(c + ivec2(5, 3)); }
+			else if (d < d2) { d2 = d; }
+		}
+	}
+	return vec3(d1, d2, id);
 }
 
 float vnoise(vec2 p) {
@@ -63,21 +88,38 @@ void fragment() {
 	vec3 sand = mix(vec3(0.74, 0.68, 0.52), vec3(0.82, 0.76, 0.58), patches);
 	vec3 seabed = mix(vec3(0.64, 0.60, 0.46), vec3(0.40, 0.42, 0.36), smoothstep(-2.0, -20.0, h));
 
+	// Grass texture: blade streaks and tufts, fading out by footprint.
+	float blades = mix(0.5, vnoise(p * vec2(9.0, 1.3)) * 0.5 + vnoise(p * vec2(1.4, 8.0)) * 0.5,
+			1.0 - smoothstep(0.03, 0.12, fp));
+	float tufts = mix(0.5, vnoise(p * 1.7), 1.0 - smoothstep(0.2, 0.6, fp));
+	grass *= 0.86 + 0.18 * blades + 0.12 * (tufts - 0.5);
+
 	vec3 col = grass;
-	// Under the trees: forest floor near by; far away, where trees are no longer
-	// drawn, the canopy colour takes over so a forest stays a forest.
-	float far = smoothstep(trees_end * 0.75, trees_end, dist);
-	col = mix(col, mix(forest_floor, canopy, far), smoothstep(0.2, 0.8, m.b));
+	col = mix(col, forest_floor, smoothstep(0.2, 0.8, m.b));
 	col = mix(col, mix(col, vec3(0.20, 0.30, 0.12), 0.6), m.g); // damp ground
 	col = mix(col, soil, smoothstep(0.75, 0.55, n.y) * 0.6);
 	float rocky = max(m.r, smoothstep(0.62, 0.45, n.y));
 	col = mix(col, rock, rocky);
+
+	// Distant canopy: crowns ~11 m across, lit as domes, dark gaps between.
+	float canopy_w = smoothstep(trees_start, trees_end, dist) * smoothstep(0.25, 0.75, m.b) * (1.0 - rocky);
+	if (canopy_w > 0.0) {
+		vec2 q = p / 11.0;
+		vec3 w = worley(q);
+		float crown = clamp(1.0 - w.x * 1.6, 0.0, 1.0);
+		float gap = smoothstep(0.0, 0.12, w.y - w.x);
+		// Fake dome normal: tilt toward the crown's edge, then light it.
+		vec2 cell_c = floor(q) + 0.5;
+		vec3 dome = normalize(vec3((q - cell_c) * (1.0 - crown) * 1.5, 1.0).xzy);
+		float lit = clamp(dot(dome, normalize(sun_direction)) * 0.6 + 0.55, 0.3, 1.1);
+		vec3 crowns = canopy * mix(0.75, 1.15, w.z) * lit * mix(0.45, 1.0, gap);
+		col = mix(col, crowns, canopy_w);
+	}
 	col = mix(col, sand, m.a * (1.0 - rocky * 0.7));
 	col = mix(col, seabed, 1.0 - smoothstep(-1.0, 0.2, h));
 	col *= mix(1.0, 0.78, (1.0 - smoothstep(0.0, 0.6, h)) * step(-0.3, h)); // damp line
-	float fine = mix(0.5, vnoise(p * 0.7), 1.0 - smoothstep(0.4, 1.2, fp * 0.7)) * 0.5
-			+ mix(0.5, vnoise(p * 3.1), 1.0 - smoothstep(0.4, 1.2, fp * 3.1)) * 0.5;
-	col *= 0.88 + 0.24 * fine;
+	float fine = mix(0.5, vnoise(p * 0.7), 1.0 - smoothstep(0.4, 1.2, fp * 0.7));
+	col *= 0.92 + 0.16 * fine;
 
 	ALBEDO = pow(col, vec3(2.2));
 	ROUGHNESS = mix(0.95, 0.82, rocky);
