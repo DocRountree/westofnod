@@ -1,17 +1,16 @@
 class_name TerrainGenerator
 extends RefCounted
-## Worker thread: plans islands (Archipelago/IslandPlanner, cached), gathers each
-## tile's river/lake/coast primitives, runs shaders/terrain_gen.glsl on a local
-## RenderingDevice and builds mesh arrays from the result.
+## Worker thread. Simulates islands on demand (Island + IslandSim, cached),
+## gathers each tile's island grids and river segments, runs
+## shaders/terrain_gen.glsl on a local RenderingDevice and builds mesh arrays.
 
-const INFLUENCE := 260.0 # metres a valley segment can shape the terrain
-const GRAD_RADIUS_M := 6.0 # erosion gradient stencil
 const OUT_STRIDE := 8 # floats per output vertex
 
 var seed: int = 1337
+var arch: Archipelago
 
-var _spirv: RDShaderSPIRV
 var _rd: RenderingDevice
+var _sim: IslandSim
 var _shader: RID
 var _pipeline: RID
 var _thread: Thread
@@ -20,15 +19,11 @@ var _sem := Semaphore.new()
 var _jobs: Array = []
 var _results: Array = []
 var _running := true
-var _arch := Archipelago.new()
+var _islands := {} # id -> Island
 
 
 func start() -> void:
-	_arch.seed = seed
-	var file: RDShaderFile = load("res://shaders/terrain_gen.glsl")
-	_spirv = file.get_spirv()
-	if _spirv.compile_error_compute != "":
-		push_error("terrain_gen.glsl: " + _spirv.compile_error_compute)
+	arch = Archipelago.new(seed)
 	_thread = Thread.new()
 	_thread.start(_loop)
 
@@ -64,7 +59,8 @@ func _loop() -> void:
 	if _rd == null:
 		push_error("No RenderingDevice: run with the Forward+ or Mobile renderer (Vulkan).")
 		return
-	_shader = _rd.shader_create_from_spirv(_spirv)
+	_sim = IslandSim.new(_rd)
+	_shader = Compute.load_shader(_rd, "res://shaders/terrain_gen.glsl")
 	_pipeline = _rd.compute_pipeline_create(_shader)
 	while true:
 		_sem.wait()
@@ -80,7 +76,7 @@ func _loop() -> void:
 		if job.kind == 2:
 			res["spawn"] = _find_spawn()
 		else:
-			var data := _generate(job)
+			var data := generate(job)
 			res["data"] = data
 			res["arrays"] = TerrainMesher.build(data, null, int(job.n), float(job.spacing))
 			res["water"] = TerrainMesher.build_water(data, int(job.n), float(job.spacing))
@@ -89,118 +85,117 @@ func _loop() -> void:
 		_mutex.unlock()
 	_rd.free_rid(_pipeline)
 	_rd.free_rid(_shader)
+	_sim.free_rids()
 	_rd.free()
 
 
+## Builds (once) and returns an island. Only call from the worker thread.
+func island(desc: Dictionary) -> Island:
+	if not _islands.has(desc.id):
+		var t0 := Time.get_ticks_msec()
+		var isl := Island.new(desc).build(_sim)
+		print("island r=%.0f m simulated in %d ms %s" % [isl.radius, Time.get_ticks_msec() - t0, isl.stats])
+		_islands[desc.id] = isl
+	return _islands[desc.id]
+
+
 func _find_spawn() -> Vector3:
-	for isl in _arch.islands_in(Rect2(-10, -10, 20, 20)):
-		var plan := _arch.plan(isl)
-		if plan.spawn != Vector3.INF:
-			return plan.spawn
-	return Vector3(0, 120, 0)
+	var pick := {}
+	for desc in arch.islands_in(Rect2(-100, -100, 200, 200).grow(Archipelago.CELL)):
+		if pick.is_empty() or desc.r > pick.r:
+			pick = desc
+	if pick.is_empty():
+		return Vector3(0, 60, 0)
+	var best := island(pick)
+	if best.spawn != Vector3.INF:
+		return best.spawn
+	# No suitable river: the highest-up inland cell short of the mountains.
+	var k_best := 0
+	for k in best.n * best.n:
+		if best.sd[k] > best.sd[k_best] and best.h[k] < 60.0:
+			k_best = k
+	var p := best.cell_pos(k_best)
+	return Vector3(p.x, best.h[k_best] + 3.0, p.y)
 
 
-## Collects primitives near the tile, relative to its origin.
+## Collects island grids (cropped) and river segments near the tile, relative to
+## its origin.
 func _gather(origin: Vector2, rect: Rect2) -> Dictionary:
+	var grids := PackedFloat32Array()
+	var info := PackedFloat32Array()
 	var segs := PackedFloat32Array()
-	var lakes := PackedFloat32Array()
-	var lobes := PackedFloat32Array()
-	var peaks := PackedFloat32Array()
-	var reach := rect.grow(INFLUENCE)
-	for isl in _arch.islands_in(rect.grow(500.0)):
-		var plan := _arch.plan(isl)
-		var s := plan.segs
-		for i in range(0, s.size(), IslandPlanner.SEG_STRIDE):
-			var x0 := minf(s[i], s[i + 2])
-			var x1 := maxf(s[i], s[i + 2])
-			var z0 := minf(s[i + 1], s[i + 3])
-			var z1 := maxf(s[i + 1], s[i + 3])
-			if x1 < reach.position.x or x0 > reach.end.x or z1 < reach.position.y or z0 > reach.end.y:
-				continue
-			segs.append_array([s[i] - origin.x, s[i + 1] - origin.y, s[i + 2] - origin.x, s[i + 3] - origin.y])
-			segs.append_array(s.slice(i + 4, i + 12))
-		var lk := plan.lakes
-		for i in range(0, lk.size(), IslandPlanner.LAKE_STRIDE):
-			if rect.grow(lk[i + 2] * 1.3 + 600.0).has_point(Vector2(lk[i], lk[i + 1])):
-				lakes.append_array([lk[i] - origin.x, lk[i + 1] - origin.y])
-				lakes.append_array(lk.slice(i + 2, i + 8))
-		var lb := plan.lobe_data
-		for i in range(0, lb.size(), IslandPlanner.LOBE_STRIDE):
-			lobes.append_array([lb[i] - origin.x, lb[i + 1] - origin.y])
-			lobes.append_array(lb.slice(i + 2, i + IslandPlanner.LOBE_STRIDE))
-		var pk := plan.peak_data
-		for i in range(0, pk.size(), IslandPlanner.PEAK_STRIDE):
-			peaks.append_array([pk[i] - origin.x, pk[i + 1] - origin.y, pk[i + 2], pk[i + 3]])
-	return {"segs": segs, "lakes": lakes, "lobes": lobes, "peaks": peaks}
+	for desc in arch.islands_in(rect):
+		var isl := island(desc)
+		# Crop the grid to the tile plus the bicubic stencil.
+		var g0 := Vector2i(floori((rect.position.x - isl.origin.x) / isl.dx) - 2,
+				floori((rect.position.y - isl.origin.y) / isl.dx) - 2)
+		var g1 := Vector2i(ceili((rect.end.x - isl.origin.x) / isl.dx) + 2,
+				ceili((rect.end.y - isl.origin.y) / isl.dx) + 2)
+		g0 = g0.clamp(Vector2i.ZERO, Vector2i(isl.n - 1, isl.n - 1))
+		g1 = g1.clamp(Vector2i.ZERO, Vector2i(isl.n - 1, isl.n - 1))
+		var w := g1.x - g0.x + 1
+		var hgt := g1.y - g0.y + 1
+		if w < 4 or hgt < 4:
+			continue
+		var crop_origin := isl.origin + Vector2(g0) * isl.dx - origin
+		info.append_array([crop_origin.x, crop_origin.y, isl.dx, w, hgt, grids.size() / 4, 0, 0])
+		for j in range(g0.y, g1.y + 1):
+			var row := (j * isl.n + g0.x) * 4
+			grids.append_array(isl.grid.slice(row, row + w * 4))
+		# River segments from the buckets the tile touches.
+		var seen := {}
+		var b0 := Vector2i(floori(rect.position.x / Island.BUCKET), floori(rect.position.y / Island.BUCKET))
+		var b1 := Vector2i(floori(rect.end.x / Island.BUCKET), floori(rect.end.y / Island.BUCKET))
+		for bz in range(b0.y, b1.y + 1):
+			for bx in range(b0.x, b1.x + 1):
+				for si in isl.buckets.get(Vector2i(bx, bz), PackedInt32Array()):
+					if seen.has(si):
+						continue
+					seen[si] = true
+					var s: int = si * Island.SEG_STRIDE
+					var sg := isl.segs
+					segs.append_array([sg[s] - origin.x, sg[s + 1] - origin.y, sg[s + 2] - origin.x, sg[s + 3] - origin.y])
+					segs.append_array(sg.slice(s + 4, s + Island.SEG_STRIDE))
+	return {"grids": grids, "info": info, "segs": segs}
 
 
-func _buffer(data: PackedFloat32Array) -> RID:
-	if data.is_empty():
-		data = PackedFloat32Array([0, 0, 0, 0])
-	var bytes := data.to_byte_array()
-	return _rd.storage_buffer_create(bytes.size(), bytes)
-
-
-func _generate(job: Dictionary) -> PackedFloat32Array:
+## Runs the terrain shader for a tile job. Returns out_n^2 vertices of
+## OUT_STRIDE floats (see TerrainMesher).
+func generate(job: Dictionary) -> PackedFloat32Array:
 	var n: int = job.n
 	var s: float = job.spacing
 	var origin: Vector2 = job.origin
-	var grad_r := maxi(1, roundi(GRAD_RADIUS_M / s))
-	var fine_pad := grad_r + 1 # 1-vertex normal ring + gradient stencil
-	var fine_n := n + 1 + 2 * fine_pad
 	var out_n := n + 3
-	var rect := Rect2(origin - Vector2.ONE * fine_pad * s, Vector2.ONE * (fine_n - 1) * s)
+	var rect := Rect2(origin - Vector2(s, s), Vector2.ONE * (out_n - 1) * s)
 	var prim := _gather(origin, rect)
-
 	var bufs: Array[RID] = [
-		_buffer(prim.segs),
-		_buffer(prim.lakes),
-		_buffer(prim.lobes),
-		_buffer(prim.peaks),
-		_rd.storage_buffer_create(fine_n * fine_n * 16),
-		_rd.storage_buffer_create(fine_n * fine_n * 16),
-		_rd.storage_buffer_create(out_n * out_n * 32),
+		Compute.buffer(_rd, prim.grids),
+		Compute.buffer(_rd, prim.info),
+		Compute.buffer(_rd, prim.segs),
+		_rd.storage_buffer_create(out_n * out_n * OUT_STRIDE * 4),
 	]
-	var uniforms: Array[RDUniform] = []
-	for i in bufs.size():
-		var u := RDUniform.new()
-		u.uniform_type = RenderingDevice.UNIFORM_TYPE_STORAGE_BUFFER
-		u.binding = i
-		u.add_id(bufs[i])
-		uniforms.append(u)
-	var uset := _rd.uniform_set_create(uniforms, _shader, 0)
-
+	var uset := Compute.uniform_set(_rd, _shader, bufs)
+	var pcb := PackedByteArray()
+	pcb.resize(48)
+	pcb.encode_s32(0, prim.info.size() / 8)
+	pcb.encode_s32(4, prim.segs.size() / Island.SEG_STRIDE)
+	pcb.encode_s32(8, out_n)
+	pcb.encode_u32(12, seed)
+	pcb.encode_float(16, origin.x)
+	pcb.encode_float(20, origin.y)
+	pcb.encode_float(24, s)
+	pcb.encode_float(28, s * 2.5) # skip erosion octaves the grid can't resolve
+	pcb.encode_float(32, Island.BANK_REACH)
 	var cl := _rd.compute_list_begin()
 	_rd.compute_list_bind_compute_pipeline(cl, _pipeline)
 	_rd.compute_list_bind_uniform_set(cl, uset, 0)
-	for stage in 2:
-		var pcb := PackedByteArray()
-		pcb.resize(64)
-		pcb.encode_s32(0, stage)
-		pcb.encode_s32(4, prim.segs.size() / IslandPlanner.SEG_STRIDE)
-		pcb.encode_s32(8, prim.lakes.size() / IslandPlanner.LAKE_STRIDE)
-		pcb.encode_s32(12, prim.lobes.size() / IslandPlanner.LOBE_STRIDE)
-		pcb.encode_s32(16, prim.peaks.size() / IslandPlanner.PEAK_STRIDE)
-		pcb.encode_s32(20, fine_n)
-		pcb.encode_s32(24, out_n)
-		pcb.encode_s32(28, fine_pad)
-		pcb.encode_float(32, origin.x)
-		pcb.encode_float(36, origin.y)
-		pcb.encode_float(40, s)
-		pcb.encode_float(44, s * 2.5) # skip erosion octaves the grid can't resolve
-		pcb.encode_u32(48, seed)
-		pcb.encode_float(52, INFLUENCE)
-		pcb.encode_float(56, grad_r)
-		var dim := fine_n if stage == 0 else out_n
-		var groups := ceili(dim / 8.0)
-		_rd.compute_list_set_push_constant(cl, pcb, pcb.size())
-		_rd.compute_list_dispatch(cl, groups, groups, 1)
-		_rd.compute_list_add_barrier(cl)
+	_rd.compute_list_set_push_constant(cl, pcb, pcb.size())
+	var groups := ceili(out_n / 8.0)
+	_rd.compute_list_dispatch(cl, groups, groups, 1)
 	_rd.compute_list_end()
 	_rd.submit()
 	_rd.sync()
-
-	var out := _rd.buffer_get_data(bufs[6]).to_float32_array()
+	var out := _rd.buffer_get_data(bufs[3]).to_float32_array()
 	_rd.free_rid(uset)
 	for b in bufs:
 		_rd.free_rid(b)

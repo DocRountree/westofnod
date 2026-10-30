@@ -1,9 +1,9 @@
 class_name TerrainMesher
 extends RefCounted
 ## Builds heightfield mesh arrays from generator output.
-## data: out_n*out_n vertices of 8 floats (height, alluvium 0..1, gully depth,
-## channel cut, water level, water kind, 0, 0) covering the (n+1)^2 vertex grid
-## plus a one-vertex ring used for seamless normals.
+## data: out_n*out_n vertices of 8 floats (height, floodplain 0..1, gully depth,
+## channel cut, water level, water kind (1 river, 2 lake/oxbow), flow x, flow z)
+## covering the (n+1)^2 vertex grid plus a one-vertex ring for seamless normals.
 ## delta: optional per-ring-vertex height edits (digging), same layout, or null.
 
 static var _index_cache := {}
@@ -103,12 +103,15 @@ static func make_mesh(arrays: Dictionary, n: int) -> ArrayMesh:
 
 
 ## River and lake surfaces: a sheet at each vertex's water level, kept only where
-## the grid has water (around it the sheet sits below the banks). Empty if none.
+## the grid has water (around it the sheet sits below the banks). UV carries the
+## river flow (direction x speed). Empty if none.
 static func build_water(data: PackedFloat32Array, n: int, s: float) -> Dictionary:
 	var w := n + 1
 	var on := n + 3
 	var verts := PackedVector3Array()
 	verts.resize(w * w)
+	var flow := PackedVector2Array()
+	flow.resize(w * w)
 	var wet := PackedByteArray()
 	wet.resize(w * w)
 	var any := false
@@ -116,6 +119,7 @@ static func build_water(data: PackedFloat32Array, n: int, s: float) -> Dictionar
 		for i in w:
 			var r := ((j + 1) * on + i + 1) * 8
 			verts[j * w + i] = Vector3(i * s, data[r + 4], j * s)
+			flow[j * w + i] = Vector2(data[r + 6], data[r + 7])
 			if data[r + 5] > 0.5:
 				wet[j * w + i] = 1
 				any = true
@@ -131,4 +135,4 @@ static func build_water(data: PackedFloat32Array, n: int, s: float) -> Dictionar
 	var normals := PackedVector3Array()
 	normals.resize(w * w)
 	normals.fill(Vector3.UP)
-	return {"verts": verts, "normals": normals, "indices": idx}
+	return {"verts": verts, "normals": normals, "indices": idx, "flow": flow}

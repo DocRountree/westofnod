@@ -3,6 +3,7 @@ extends Node3D
 ## Streams terrain around a focus point: 64 m chunks at 1 m resolution near the
 ## player (mesh + collision + river/lake water, diggable), and 1 km tiles at 16 m
 ## resolution out to the horizon so neighbouring islands are visible.
+## (Trees are switched off for now.)
 
 signal spawn_found(position: Vector3)
 
@@ -18,7 +19,6 @@ const MAX_IN_FLIGHT := 2
 const OUT_N := CHUNK_CELLS + 3
 
 var generator := TerrainGenerator.new()
-var block_world: BlockWorld
 var focus := Vector3.ZERO
 var spawned := false
 
@@ -31,9 +31,7 @@ var _near := {} # Vector2i -> chunk Dictionary
 var _far := {} # Vector2i -> Node3D
 var _in_flight := {} # Vector3i(kind, x, z) -> true
 var _edits := {} # Vector2i -> PackedFloat32Array (OUT_N^2 height deltas)
-var _trees_done := {}
 var _spawn_requested := false
-var _forest := FastNoiseLite.new()
 
 
 func _ready() -> void:
@@ -43,8 +41,6 @@ func _ready() -> void:
 	far_material.shader = near_material.shader
 	far_material.set_shader_parameter("near_cutoff", FAR_CUTOFF)
 	far_material.set_shader_parameter("channel_tint", 0.0)
-	_forest.seed = generator.seed
-	_forest.frequency = 1.0 / 260.0
 	generator.start()
 
 
@@ -196,7 +192,6 @@ func _add_near(res: Dictionary) -> void:
 
 	_near[key] = {"node": node, "mesh": mi, "shape": shape, "data": res.data,
 			"arrays": arrays, "origin": res.origin}
-	_place_trees(key)
 
 
 func _build_water(water: Dictionary, material: ShaderMaterial) -> MeshInstance3D:
@@ -206,6 +201,7 @@ func _build_water(water: Dictionary, material: ShaderMaterial) -> MeshInstance3D
 	arr.resize(Mesh.ARRAY_MAX)
 	arr[Mesh.ARRAY_VERTEX] = water.verts
 	arr[Mesh.ARRAY_NORMAL] = water.normals
+	arr[Mesh.ARRAY_TEX_UV] = water.flow
 	arr[Mesh.ARRAY_INDEX] = water.indices
 	var mesh := ArrayMesh.new()
 	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arr)
@@ -301,35 +297,3 @@ func dig(p: Vector3, radius: float = 1.3, depth: float = 0.7) -> int:
 			ch.mesh.mesh = TerrainMesher.make_mesh(ch.arrays, CHUNK_CELLS)
 			ch.shape.map_data = ch.arrays.heights
 	return mat
-
-
-# ------------------------------------------------------------------ spawn & trees
-
-func _place_trees(key: Vector2i) -> void:
-	if _trees_done.has(key) or block_world == null:
-		return
-	_trees_done[key] = true
-	var ch: Dictionary = _near[key]
-	var rng := RandomNumberGenerator.new()
-	rng.seed = hash(Vector3i(key.x, key.y, generator.seed))
-	const STEP := 6
-	for gz in range(0, CHUNK_CELLS, STEP):
-		for gx in range(0, CHUNK_CELLS, STEP):
-			var x := mini(gx + rng.randi_range(0, STEP - 1), CHUNK_CELLS - 1)
-			var z := mini(gz + rng.randi_range(0, STEP - 1), CHUNK_CELLS - 1)
-			var roll := rng.randf()
-			var wx: float = ch.origin.x + x + 0.5
-			var wz: float = ch.origin.y + z + 0.5
-			var density := 0.015 + 0.25 * clampf(_forest.get_noise_2d(wx, wz) * 1.6 + 0.2, 0.0, 1.0)
-			if roll > density:
-				continue
-			var v := z * (CHUNK_CELLS + 1) + x
-			var h: float = ch.arrays.heights[v]
-			var n: Vector3 = ch.arrays.normals[v]
-			var col: Color = ch.arrays.colors[v]
-			var r := ((z + 1) * OUT_N + x + 1) * TerrainGenerator.OUT_STRIDE
-			if h < 2.0 or h > 120.0 or n.y < 0.86 or col.b * 2.0 > 0.05 \
-					or ch.data[r + 4] > h - 1.5:
-				continue
-			var hmin := minf(h, height_at(wx, wz))
-			block_world.add_tree(Vector3i(floori(wx), floori(hmin - 0.4), floori(wz)), rng)

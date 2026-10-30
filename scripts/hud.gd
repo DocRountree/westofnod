@@ -80,6 +80,6 @@ func _process(_delta: float) -> void:
 	if player == null:
 		return
 	var p := player.global_position
-	info.text = "%d fps   x %.0f  y %.1f  z %.0f%s\nWASD move · Space jump/swim · Shift sprint · F fly (Space/Ctrl up/down)\nLMB dig / break · RMB place · 1-9 / wheel select · C craft (log→planks, sand→glass) · Esc release mouse" % [
+	info.text = "%d fps   x %.0f  y %.1f  z %.0f%s\nWASD move · Space jump/swim · Ctrl sprint · F fly (Space/Shift up/down) · F5 third person\nLMB dig / break · RMB place · 1-9 / wheel select · C craft (log→planks, sand→glass) · Esc release mouse" % [
 		Engine.get_frames_per_second(), p.x, p.y, p.z, "   [fly]" if player.flying else ""]
 	underwater.visible = player.camera.global_position.y < 0.0

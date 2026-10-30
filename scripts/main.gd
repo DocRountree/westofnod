@@ -36,7 +36,6 @@ func _ready() -> void:
 	blocks = BlockWorld.new()
 	add_child(blocks)
 	terrain = TerrainWorld.new()
-	terrain.block_world = blocks
 	terrain.water_material = water_material
 	terrain.far_water_material = far_water
 	add_child(terrain)
