@@ -203,11 +203,13 @@ def masks(h, rivers_area, rng):
     gz, gx = np.gradient(h, CELL)
     slope = np.hypot(gx, gz)
     curv = ndimage.laplace(ndimage.gaussian_filter(h, 2)) / CELL ** 2
-    rock = np.clip((slope - 0.75) / 0.6, 0, 1)
-    rock = np.maximum(rock, np.clip(-curv * 6.0, 0, 1) * np.clip((slope - 0.4) / 0.4, 0, 1))
+    # Bare rock only on cliffs and sharp crests: Kauai's ridges are forested
+    # almost to the top.
+    rock = np.clip((slope - 1.3) / 0.6, 0, 1)
+    rock = np.maximum(rock, np.clip(-curv * 4.0, 0, 1) * np.clip((slope - 0.9) / 0.4, 0, 1))
     wet = np.clip(np.log10(np.maximum(rivers_area, 1.0)) / 6.0 - 0.45, 0, 1) * (slope < 0.25)
     patch = fractal(h.shape, rng, [(64, 1.0), (16, 0.5)])
-    forest = np.clip(0.75 + 0.5 * patch - rock * 1.5 - np.clip((0.05 - slope) * 10, 0, 1) * 0.5, 0, 1)
+    forest = np.clip(0.85 + 0.4 * patch - rock * 1.2 - np.clip((0.05 - slope) * 10, 0, 1) * 0.5, 0, 1)
     forest *= (h > 3.0)
     near_sea = ndimage.distance_transform_edt(h > 0.0) * CELL < 80.0
     sand = ((h > -2.0) & (h < 3.0) & (slope < 0.2) & near_sea).astype(float)

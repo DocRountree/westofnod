@@ -15,6 +15,7 @@ Open the folder in **Godot 4.3+** (Forward+ renderer) and press Play.
 | Ctrl + W, head under water | sprint-swim wherever you look |
 | F | toggle fly mode (Space / Shift to go up / down) |
 | F5 | toggle third-person camera |
+| C | climb rock too steep to walk (WASD over the rock, Space lets go) |
 | Esc | release the mouse |
 
 ## Data (`tools/dem/bake_slice.py` → `data/slice/`)
@@ -53,6 +54,10 @@ then `python tools/dem/bake_slice.py .`
   place: it reruns the placement hash (`scatter_hash.gdshaderinc`). So forests reach
   the horizon without changing as they go flat.
 - **Grass** is a terrain texture (blade streaks and tufts).
+- **Player** (`scripts/avatar.gd`): a stylised figure animated procedurally with two-bone
+  IK. Walking: feet step in turn, arms swing. Climbing: hands and feet hold points on
+  the rock and move one at a time to new holds ahead. Climbing switches to third
+  person; the camera's spring arm is a sphere and it is kept above the terrain.
 - **Atmosphere**: aerial perspective, height fog, volumetric haze, a low sun.
 
 ## Layout

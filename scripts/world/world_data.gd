@@ -68,6 +68,13 @@ func height_at(x: float, z: float) -> float:
 	return lerpf(lerpf(heights[k], heights[k + 1], fx), lerpf(heights[k + size], heights[k + size + 1], fx), fz)
 
 
+## Surface normal at (x, z), from the heights a cell either side.
+func normal_at(x: float, z: float) -> Vector3:
+	var e := cell()
+	return Vector3(height_at(x - e, z) - height_at(x + e, z), 2.0 * e,
+			height_at(x, z - e) - height_at(x, z + e)).normalized()
+
+
 ## Water surface over (x, z): Vector3(level, flow x, flow z); the sea (0) unless
 ## a river stands higher here.
 func water_at(x: float, z: float) -> Vector3:

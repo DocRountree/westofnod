@@ -12,20 +12,52 @@ uniform float refraction = 0.03;
 
 const float G = 9.81;
 
-// Small analytic waves: slopes of 24 short deep-water waves around direction
-// `base`, wavelengths 4 m .. 0.12 m (x scale), each faded by the pixel
-// footprint fp so distant water averages out instead of sparkling.
+// Gradient noise with its analytic derivative (Quilez): returns (value, d/dx, d/dy).
+vec2 wgrad(ivec2 c) {
+	uint v = uint(c.x) * 1597334677u ^ uint(c.y) * 3812015801u;
+	v = v * 747796405u + 2891336453u;
+	v = ((v >> ((v >> 28u) + 4u)) ^ v) * 277803737u;
+	float a = float((v >> 22u) ^ v) / 4294967295.0 * TAU;
+	return vec2(cos(a), sin(a));
+}
+
+vec3 noise_d(vec2 p) {
+	vec2 fi = floor(p);
+	ivec2 i = ivec2(fi);
+	vec2 f = p - fi;
+	vec2 u = f * f * f * (f * (f * 6.0 - 15.0) + 10.0);
+	vec2 du = 30.0 * f * f * (f * (f - 2.0) + 1.0);
+	vec2 ga = wgrad(i), gb = wgrad(i + ivec2(1, 0)), gc = wgrad(i + ivec2(0, 1)), gd = wgrad(i + ivec2(1, 1));
+	float va = dot(ga, f), vb = dot(gb, f - vec2(1, 0)), vc = dot(gc, f - vec2(0, 1)), vd = dot(gd, f - vec2(1, 1));
+	float v = va + u.x * (vb - va) + u.y * (vc - va) + u.x * u.y * (va - vb - vc + vd);
+	vec2 d = ga + u.x * (gb - ga) + u.y * (gc - ga) + u.x * u.y * (ga - gb - gc + gd)
+			+ du * (u.yx * (va - vb - vc + vd) + vec2(vb, vc) - va);
+	return vec3(v, d);
+}
+
+// Small waves: slopes of five octaves of noise ripples, each stretched across
+// its own direction (so crests are elongated, as on real water), turned by an
+// irregular angle from the last, drifting at its own deep-water speed, and
+// faded by the pixel footprint fp so distant water averages instead of
+// sparkling. Noise, not a sum of sines: no interference patterns.
 vec2 small_waves(vec2 p, float t, float fp, float base, float spread, float scale, float steepness) {
 	vec2 slope = vec2(0.0);
-	float lambda = 4.0 * scale;
-	for (int i = 0; i < 24; i++) {
-		float ang = base + spread * sin(float(i) * 2.39996) * (0.4 + 0.6 * fract(float(i) * 0.618));
+	float lambda = 3.0 * scale;
+	float ang = base;
+	const float TURN[5] = float[](0.0, 0.83, -1.21, 0.47, -0.66);
+	for (int i = 0; i < 5; i++) {
+		ang = base + TURN[i] * spread;
 		vec2 d = vec2(cos(ang), sin(ang));
+		vec2 e = vec2(-d.y, d.x);
 		float k = TAU / lambda;
-		float st = steepness * clamp((lambda - 4.0 * fp) / (4.0 * fp), 0.0, 1.0);
-		float th = k * dot(d, p) - sqrt(G * k + 0.074 * k * k * k) * t + float(i) * 1.913;
-		slope += d * st * cos(th);
-		lambda *= 0.86;
+		float speed = sqrt(G / k + 0.074 * k);
+		// Coordinates along / across the travel direction, stretched across.
+		vec2 q = vec2(dot(p, d) - speed * t, dot(p, e) * 0.45) / lambda;
+		vec3 n = noise_d(q + vec2(float(i) * 17.3, float(i) * 5.9));
+		vec2 g = (d * n.y + e * n.z * 0.45) / lambda; // back to world gradient
+		float fade = clamp((lambda - 3.0 * fp) / (3.0 * fp), 0.0, 1.0);
+		slope += g * steepness * lambda * fade;
+		lambda *= 0.52;
 	}
 	return slope;
 }

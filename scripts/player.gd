@@ -1,7 +1,9 @@
 class_name Player
 extends CharacterBody3D
 ## First/third-person controller (F5 toggles): walk/sprint/jump, swim (as in
-## Minecraft, see _swim()) and an optional fly mode.
+## Minecraft, see _swim()), climb rock too steep to walk (C toggles; see
+## _climb()) and an optional fly mode. The figure (Avatar) is animated
+## procedurally; the third-person camera never goes inside the terrain.
 
 const WALK_SPEED := 4.6
 const SPRINT_SPEED := 7.5
@@ -14,7 +16,10 @@ const SWIM_SPEED := 2.2
 const SWIM_SPRINT_SPEED := 5.6
 const SWIM_UP_SPEED := 2.4
 const SINK_SPEED := 0.6
-const CURRENT_SPEED := 1.4 # m/s at full river flow (as inland_water.gdshader's river_speed)
+const CURRENT_SPEED := 1.4 # m/s at full river flow (as river.gdshader's river_speed)
+const CLIMB_SPEED := 1.4
+const CLIMB_OFFSET := 0.45 # body centre off the rock
+const CLIMBABLE := 0.85 # surface normal y below which ground counts as a wall
 
 var world: WorldData
 var head: Node3D # eye point; pitches with the mouse
@@ -22,7 +27,11 @@ var camera: Camera3D
 var third_person := false
 var swimming := false # sprint-swimming
 var _arm: SpringArm3D
-var _body_mesh: MeshInstance3D
+var avatar: Avatar
+var climbing := false
+var _was_third_person := false
+var _grip_offset := Vector2.ZERO # rock point under the hands, relative to the origin
+var _cs: CollisionShape3D
 var flying := false
 var frozen := true
 
@@ -31,10 +40,10 @@ func _ready() -> void:
 	var shape := CapsuleShape3D.new()
 	shape.radius = 0.3
 	shape.height = 1.8
-	var cs := CollisionShape3D.new()
-	cs.shape = shape
-	cs.position.y = 0.9
-	add_child(cs)
+	_cs = CollisionShape3D.new()
+	_cs.shape = shape
+	_cs.position.y = 0.9
+	add_child(_cs)
 	head = Node3D.new()
 	head.position.y = 1.62
 	add_child(head)
@@ -50,17 +59,11 @@ func _ready() -> void:
 	camera.near = 0.08
 	camera.fov = 75.0
 	_arm.add_child(camera)
-	_body_mesh = MeshInstance3D.new()
-	var cap := CapsuleMesh.new()
-	cap.radius = 0.3
-	cap.height = 1.8
-	_body_mesh.mesh = cap
-	_body_mesh.position.y = 0.9
-	var body_mat := StandardMaterial3D.new()
-	body_mat.albedo_color = Color(0.75, 0.32, 0.18)
-	_body_mesh.material_override = body_mat
-	_body_mesh.visible = false
-	add_child(_body_mesh)
+	avatar = Avatar.new()
+	avatar.visible = false
+	add_child(avatar)
+	_arm.shape = SphereShape3D.new() # a ball, not a ray: no peeking through slopes
+	_arm.shape.radius = 0.25
 	floor_max_angle = deg_to_rad(52.0)
 	floor_snap_length = 0.6
 
@@ -81,14 +84,38 @@ func _unhandled_input(event: InputEvent) -> void:
 			KEY_F:
 				flying = not flying
 			KEY_F5:
-				set_third_person(not third_person)
+				if not climbing:
+					set_third_person(not third_person)
+			KEY_C:
+				set_climbing(not climbing)
 
 
 func set_third_person(on: bool) -> void:
 	third_person = on
 	_arm.spring_length = THIRD_PERSON_DISTANCE if on else 0.0
 	_arm.position.x = 0.45 if on else 0.0
-	_body_mesh.visible = on
+	avatar.visible = on
+
+
+## Climbing grips the rock under (or just in front of) the player, if it is
+## steep enough; the view goes third person for the climb.
+func set_climbing(on: bool) -> void:
+	if on == climbing or world == null:
+		return
+	if on:
+		var fwd := -global_basis.z
+		var p := global_position + fwd * 0.6
+		if world.normal_at(p.x, p.z).y > CLIMBABLE and world.normal_at(global_position.x, global_position.z).y > CLIMBABLE:
+			return # nothing steep here to climb
+		flying = false
+		_was_third_person = third_person
+		set_third_person(true)
+		_grip_offset = Vector2(fwd.x, fwd.z) * 0.6
+	else:
+		set_third_person(_was_third_person)
+		velocity = Vector3.ZERO
+	climbing = on
+	_cs.disabled = on
 
 
 func _physics_process(delta: float) -> void:
@@ -101,6 +128,9 @@ func _physics_process(delta: float) -> void:
 	var in_water := depth > 0.6
 	var head_under := water.x > head.global_position.y
 
+	if climbing:
+		_climb(delta)
+		return
 	if flying:
 		var vy := 0.0
 		if Input.is_action_pressed("jump"):
@@ -122,6 +152,53 @@ func _physics_process(delta: float) -> void:
 		velocity.x = move_toward(velocity.x, dir.x * speed, accel * delta)
 		velocity.z = move_toward(velocity.z, dir.z * speed, accel * delta)
 	move_and_slide()
+	# The figure faces where it is going and steps along.
+	var hv := Vector3(velocity.x, 0.0, velocity.z)
+	if hv.length() > 0.3:
+		var want := Basis.looking_at(hv.normalized(), Vector3.UP)
+		avatar.global_basis = avatar.global_basis.orthonormalized().slerp(want, minf(1.0, delta * 10.0))
+	else:
+		avatar.global_basis = Basis(Vector3.UP, avatar.global_rotation.y)
+	if avatar.visible:
+		avatar.walk(delta, hv.length(), is_on_floor() or flying)
+
+
+## Climbing: hands and feet on the rock, moving over its surface. W/S climb up
+## and down the fall line, A/D traverse; Space lets go. Over the top (or down
+## onto ground gentle enough to stand on) the climb ends by itself.
+func _climb(delta: float) -> void:
+	var input := Input.get_vector("move_left", "move_right", "move_forward", "move_back")
+	var g := Vector2(global_position.x, global_position.z) + _grip_offset
+	var n := world.normal_at(g.x, g.y)
+	var up_t := (Vector3.UP - n * n.y).normalized()
+	var right := up_t.cross(n)
+	var move := (right * input.x - up_t * input.y) * CLIMB_SPEED * delta
+	var before := Vector3(g.x, world.height_at(g.x, g.y), g.y)
+	g += Vector2(move.x, move.z)
+	var surface := Vector3(g.x, world.height_at(g.x, g.y), g.y)
+	n = world.normal_at(g.x, g.y)
+	up_t = (Vector3.UP - n * n.y).normalized()
+	right = up_t.cross(n)
+	if Input.is_action_just_pressed("jump") or (n.y > CLIMBABLE + 0.05 and input.length() > 0.1):
+		# Let go, or step out onto ground you can stand on.
+		global_position = surface + Vector3.UP * 0.05
+		set_climbing(false)
+		return
+	var centre := surface + n * CLIMB_OFFSET
+	global_position = centre - up_t * 1.0
+	_grip_offset = Vector2(surface.x, surface.z) - Vector2(global_position.x, global_position.z)
+	velocity = Vector3.ZERO
+	avatar.global_basis = Basis(right, up_t, n)
+	avatar.climb(n, up_t, surface - before)
+
+
+func _process(_delta: float) -> void:
+	# Keep the camera above the ground (the spring arm keeps it off slopes).
+	if world and third_person:
+		var c := camera.global_position
+		var h := world.height_at(c.x, c.z) + 0.4
+		if c.y < h:
+			camera.global_position = Vector3(c.x, h, c.z)
 
 
 ## Swimming, as in Minecraft: you slowly sink unless you hold jump, which swims

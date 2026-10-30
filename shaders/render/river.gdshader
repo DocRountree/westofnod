@@ -10,8 +10,8 @@ render_mode blend_mix, depth_draw_always, cull_disabled, specular_schlick_ggx;
 #include "res://shaders/render/water_common.gdshaderinc"
 
 uniform float river_speed = 1.6; // m/s at full speed
-uniform vec3 silt_color = vec3(0.10, 0.11, 0.07);
-uniform float murk = 0.25;
+uniform vec3 silt_color = vec3(0.07, 0.085, 0.05);
+uniform float murk = 0.55;
 
 varying vec3 world_pos;
 varying vec2 flow;
@@ -40,7 +40,7 @@ void fragment() {
 	vec3 to_eye = normalize(CAMERA_POSITION_WORLD - world_pos);
 	float thickness;
 	vec3 up = water_body(SCREEN_UV, VERTEX, slope, n_world, to_eye, 0.0, INV_PROJECTION_MATRIX,
-			vec3(murk), silt_color, 0.35, thickness);
+			vec3(murk), silt_color, 0.65, thickness);
 	float fresnel = schlick(n_world, to_eye);
 	// White water where it runs fast over shallows.
 	float foam = smoothstep(0.65, 1.0, speed) * (1.0 - smoothstep(0.05, 0.5, thickness))

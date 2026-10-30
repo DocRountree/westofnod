@@ -85,6 +85,7 @@ func _ready() -> void:
 	player = Player.new()
 	player.world = world
 	add_child(player)
+	player.avatar.world = world
 	player.global_position = world.spawn
 	collider.follow(player.global_position)
 	player.frozen = false

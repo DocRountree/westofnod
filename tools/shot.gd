@@ -1,7 +1,7 @@
 extends Node
 ## Test driver: loads the game, waits for the island, and saves screenshots
 ## from the ground, low and high over the rivers, at the sea and far out.
-## godot --path . tools/shot.tscn -- <out_dir>
+## godot --path . tools/shot.tscn -- <out_dir> [--climb]  (--climb: only the climbing test)
 
 var out_dir := "user://"
 var main: Node
@@ -49,7 +49,48 @@ func _run() -> void:
 	var isl: WorldData = main.world
 	var s := p.global_position
 	await _wait(3.0)
-	await _shot("01_spawn")
+	if not OS.get_cmdline_user_args().has("--climb"):
+		await _shot("01_spawn")
+	# Third person, walking.
+	p.set_third_person(true)
+	Input.action_press("move_forward")
+	await _wait(1.5)
+	await _shot("01b_third_person_walk")
+	Input.action_release("move_forward")
+	# Climb: find steep rock near by, grip it, climb for a few seconds.
+	var rock := Vector3.INF
+	for r in range(20, 4000, 10):
+		for i in 36:
+			var a := TAU * i / 36.0
+			var q := s + Vector3(cos(a), 0, sin(a)) * r
+			if isl.normal_at(q.x, q.z).y < 0.6:
+				rock = q
+				break
+		if rock != Vector3.INF:
+			break
+	if rock != Vector3.INF:
+		var nrm := isl.normal_at(rock.x, rock.z)
+		var base := rock + Vector3(nrm.x, 0, nrm.z).normalized() * 0.8
+		p.flying = false
+		p.global_position = Vector3(base.x, isl.height_at(base.x, base.z) + 0.1, base.z)
+		p.rotation.y = atan2(nrm.x, nrm.z) # face the rock
+		p.head.rotation.x = -0.2
+		await _wait(0.5)
+		p.set_climbing(true)
+		print("climbing: ", p.climbing, " at ", p.global_position)
+		Input.action_press("move_forward")
+		await _wait(3.0)
+		await _shot("01c_climb")
+		p.rotate_y(0.8)
+		await _wait(1.5)
+		await _shot("01d_climb_side")
+		Input.action_release("move_forward")
+		print("climbed to ", p.global_position)
+		p.set_climbing(false)
+		p.set_third_person(false)
+	if OS.get_cmdline_user_args().has("--climb"):
+		get_tree().quit()
+		return
 	p.rotate_y(PI * 0.5)
 	await _wait(1.0)
 	await _shot("02_spawn_side")
