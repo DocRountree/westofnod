@@ -1,5 +1,5 @@
 extends Node
-## Test driver: loads the game, waits for spawn, exercises dig/place, and saves
+## Test driver: loads the game, waits for spawn, exercises digging, and saves
 ## screenshots. godot --path . tools/shot.tscn -- <out_dir>
 
 var out_dir := "user://"
@@ -43,19 +43,13 @@ func _run() -> void:
 		p.rotate_y(PI / 2)
 		await _wait(1.0)
 		await _shot("02_look_%d" % i)
-	# dig a few times + place blocks
+	# dig a few times
 	p.head.rotation.x = -1.0
 	for i in 4:
-		p._break()
-	p._select(6)
-	p.head.rotation.x = -0.6
-	p._place()
-	p.rotate_y(0.3)
-	p._place()
+		p._dig()
 	p.head.rotation.x = -0.9
 	await _wait(1.0)
-	await _shot("03_dig_place")
-	print("inventory ", p.inventory)
+	await _shot("03_dig")
 	p.flying = true
 	# river close-up from low altitude
 	p.global_position += Vector3(0, 25, 0)
@@ -101,7 +95,6 @@ func _run() -> void:
 			tw._far[k].visible = true
 		for k in tw._near:
 			tw._near[k].node.visible = false
-		main.blocks.visible = false
 		await _wait(1.0)
 		await _shot("07_no_near")
 		for k in tw._near:

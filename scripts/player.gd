@@ -1,9 +1,7 @@
 class_name Player
 extends CharacterBody3D
 ## First/third-person controller (F5 toggles): walk/sprint/jump, swim, optional
-## fly mode, and block interaction (dig terrain / break blocks, place blocks).
-
-signal inventory_changed
+## fly mode, and digging into the terrain.
 
 const WALK_SPEED := 4.6
 const SPRINT_SPEED := 7.5
@@ -13,11 +11,8 @@ const GRAVITY := 24.0
 const REACH := 6.0
 const MOUSE_SENS := 0.0025
 const THIRD_PERSON_DISTANCE := 4.5
-const HOTBAR := [BlockWorld.DIRT, BlockWorld.GRASS, BlockWorld.STONE, BlockWorld.SAND,
-		BlockWorld.GRAVEL, BlockWorld.LOG, BlockWorld.PLANKS, BlockWorld.LEAVES, BlockWorld.GLASS]
 
 var terrain: TerrainWorld
-var blocks: BlockWorld
 var head: Node3D # eye point; pitches with the mouse
 var camera: Camera3D
 var third_person := false
@@ -25,10 +20,7 @@ var _arm: SpringArm3D
 var _body_mesh: MeshInstance3D
 var flying := false
 var frozen := true
-var selected := 0
-var inventory := {}
 var _cooldown := 0.0
-var _outline: MeshInstance3D
 
 
 func _ready() -> void:
@@ -67,12 +59,6 @@ func _ready() -> void:
 	add_child(_body_mesh)
 	floor_max_angle = deg_to_rad(52.0)
 	floor_snap_length = 0.6
-	for t in HOTBAR:
-		inventory[t] = 0
-	inventory[BlockWorld.PLANKS] = 16
-	inventory[BlockWorld.GLASS] = 8
-	_outline = _make_outline()
-	get_parent().add_child.call_deferred(_outline)
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -81,12 +67,6 @@ func _unhandled_input(event: InputEvent) -> void:
 			Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 			get_viewport().set_input_as_handled()
 			return
-		if event.button_index == MOUSE_BUTTON_WHEEL_UP:
-			_select(selected - 1)
-		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
-			_select(selected + 1)
-		elif event.button_index == MOUSE_BUTTON_RIGHT:
-			_place()
 	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
 		rotate_y(-event.relative.x * MOUSE_SENS)
 		head.rotation.x = clampf(head.rotation.x - event.relative.y * MOUSE_SENS, -1.55, 1.55)
@@ -98,11 +78,6 @@ func _unhandled_input(event: InputEvent) -> void:
 				flying = not flying
 			KEY_F5:
 				set_third_person(not third_person)
-			KEY_C:
-				_craft()
-			_:
-				if event.keycode >= KEY_1 and event.keycode <= KEY_9:
-					_select(event.keycode - KEY_1)
 
 
 func set_third_person(on: bool) -> void:
@@ -110,11 +85,6 @@ func set_third_person(on: bool) -> void:
 	_arm.spring_length = THIRD_PERSON_DISTANCE if on else 0.0
 	_arm.position.x = 0.45 if on else 0.0
 	_body_mesh.visible = on
-
-
-func _select(i: int) -> void:
-	selected = posmod(i, HOTBAR.size())
-	inventory_changed.emit()
 
 
 func _physics_process(delta: float) -> void:
@@ -151,9 +121,8 @@ func _physics_process(delta: float) -> void:
 	_cooldown -= delta
 	if Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT) \
 			and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED and _cooldown <= 0.0:
-		_break()
+		_dig()
 		_cooldown = 0.22
-	_update_outline()
 
 
 func _ray() -> Dictionary:
@@ -164,88 +133,7 @@ func _ray() -> Dictionary:
 	return get_world_3d().direct_space_state.intersect_ray(q)
 
 
-func _break() -> void:
+func _dig() -> void:
 	var hit := _ray()
-	if hit.is_empty():
-		return
-	var kind: String = hit.collider.get_meta("kind", "")
-	if kind == "blocks":
-		var c := Vector3i((hit.position - hit.normal * 0.5).floor())
-		var t := blocks.get_block(c)
-		if t != BlockWorld.AIR:
-			blocks.set_block(c, BlockWorld.AIR)
-			_give(t)
-	elif kind == "terrain":
-		_give(terrain.dig(hit.position))
-
-
-func _place() -> void:
-	var t: int = HOTBAR[selected]
-	if inventory.get(t, 0) <= 0:
-		return
-	var hit := _ray()
-	if hit.is_empty():
-		return
-	var c := Vector3i((hit.position + hit.normal * 0.5).floor())
-	if blocks.get_block(c) != BlockWorld.AIR:
-		return
-	# Don't place a block inside ourselves.
-	var me := AABB(global_position - Vector3(0.3, 0.0, 0.3), Vector3(0.6, 1.8, 0.6))
-	if me.intersects(AABB(Vector3(c), Vector3.ONE)):
-		return
-	blocks.set_block(c, t)
-	inventory[t] -= 1
-	inventory_changed.emit()
-
-
-func _give(t: int) -> void:
-	if inventory.has(t):
-		inventory[t] += 1
-		inventory_changed.emit()
-
-
-## The only "recipes": a log splits into 4 planks, sand smelts into glass.
-func _craft() -> void:
-	var t: int = HOTBAR[selected]
-	if t == BlockWorld.LOG and inventory[t] > 0:
-		inventory[t] -= 1
-		inventory[BlockWorld.PLANKS] += 4
-	elif t == BlockWorld.SAND and inventory[t] > 0:
-		inventory[t] -= 1
-		inventory[BlockWorld.GLASS] += 1
-	inventory_changed.emit()
-
-
-func _make_outline() -> MeshInstance3D:
-	var im := ImmediateMesh.new()
-	im.surface_begin(Mesh.PRIMITIVE_LINES)
-	var e := 0.005
-	var corners := []
-	for i in 8:
-		corners.append(Vector3(i & 1, (i >> 1) & 1, (i >> 2) & 1) * (1.0 + 2.0 * e) - Vector3.ONE * e)
-	for a in 8:
-		for b in range(a + 1, 8):
-			var d: int = a ^ b
-			if d == 1 or d == 2 or d == 4:
-				im.surface_add_vertex(corners[a])
-				im.surface_add_vertex(corners[b])
-	im.surface_end()
-	var mat := StandardMaterial3D.new()
-	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mat.albedo_color = Color(0, 0, 0, 0.8)
-	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	var mi := MeshInstance3D.new()
-	mi.mesh = im
-	mi.material_override = mat
-	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	mi.visible = false
-	return mi
-
-
-func _update_outline() -> void:
-	var hit := _ray()
-	if hit.is_empty() or hit.collider.get_meta("kind", "") != "blocks":
-		_outline.visible = false
-		return
-	_outline.visible = true
-	_outline.global_position = Vector3((hit.position - hit.normal * 0.5).floor())
+	if not hit.is_empty() and hit.collider.get_meta("kind", "") == "terrain":
+		terrain.dig(hit.position)

@@ -1,13 +1,13 @@
 extends Node3D
-## Builds the scene: sky/fog, sun, ocean, streamed terrain, blocks, player, HUD.
+## Builds the scene: sky/fog, sun, ocean, streamed terrain, player, HUD.
 
 var terrain: TerrainWorld
-var blocks: BlockWorld
 var player: Player
 var hud: Hud
 var env: Environment
 var ocean: MeshInstance3D
 var water_material: ShaderMaterial
+var _sun: DirectionalLight3D
 
 
 func _ready() -> void:
@@ -19,22 +19,25 @@ func _ready() -> void:
 	ocean = MeshInstance3D.new()
 	ocean.mesh = _ocean_mesh()
 	ocean_material.set_shader_parameter("amplitude", 0.6)
+	ocean_material.set_shader_parameter("sun_direction", _sun.global_basis.z)
 	ocean.material_override = ocean_material
 	ocean.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	ocean.extra_cull_margin = 16.0
 	add_child(ocean)
-	# Rivers and lakes: the same Gerstner set shrunk to short, low ripples.
+	# Rivers and lakes: the same waves shrunk to short, low ripples, in
+	# siltier water; rivers carry their flow in the mesh UVs.
 	water_material = ShaderMaterial.new()
 	water_material.shader = water_shader
 	water_material.set_shader_parameter("amplitude", 0.35)
 	water_material.set_shader_parameter("length_scale", 0.12)
-	water_material.set_shader_parameter("fade_start", 60.0)
-	water_material.set_shader_parameter("fade_end", 250.0)
+	water_material.set_shader_parameter("mesh_spacing", TerrainWorld.NEAR_SPACING)
+	water_material.set_shader_parameter("murk", 0.12)
+	water_material.set_shader_parameter("silt_color", Vector3(0.07, 0.09, 0.06))
+	water_material.set_shader_parameter("sun_direction", _sun.global_basis.z)
 	var far_water := water_material.duplicate()
 	far_water.set_shader_parameter("near_cutoff", TerrainWorld.FAR_CUTOFF)
+	far_water.set_shader_parameter("mesh_spacing", TerrainWorld.FAR_SPACING)
 
-	blocks = BlockWorld.new()
-	add_child(blocks)
 	terrain = TerrainWorld.new()
 	terrain.water_material = water_material
 	terrain.far_water_material = far_water
@@ -43,15 +46,12 @@ func _ready() -> void:
 
 	player = Player.new()
 	player.terrain = terrain
-	player.blocks = blocks
 	add_child(player)
 	player.global_position = Vector3(0, 160, 0)
 
 	hud = Hud.new()
 	hud.player = player
 	add_child(hud)
-	player.inventory_changed.connect(hud.refresh)
-	hud.refresh.call_deferred()
 	hud.status.text = "Generating archipelago..."
 
 
@@ -80,12 +80,12 @@ func _build_environment() -> void:
 	we.environment = env
 	add_child(we)
 
-	var sun := DirectionalLight3D.new()
-	sun.rotation_degrees = Vector3(-38, -35, 0)
-	sun.light_energy = 1.15
-	sun.shadow_enabled = true
-	sun.directional_shadow_max_distance = 160.0
-	add_child(sun)
+	_sun = DirectionalLight3D.new()
+	_sun.rotation_degrees = Vector3(-38, -35, 0)
+	_sun.light_energy = 1.15
+	_sun.shadow_enabled = true
+	_sun.directional_shadow_max_distance = 160.0
+	add_child(_sun)
 
 
 ## Radial grid centred on the camera: ~0.5 m spacing up close, growing

@@ -236,35 +236,10 @@ func height_at(x: float, z: float) -> float:
 			lerpf(hs[(j + 1) * w + i], hs[(j + 1) * w + i + 1], fx), fz)
 
 
-## Block type you get from digging the surface at p (mirrors terrain.gdshader).
-func surface_material(p: Vector3) -> int:
-	var k := near_key(p)
-	if not _near.has(k):
-		return BlockWorld.DIRT
-	var ch: Dictionary = _near[k]
-	var i := clampi(roundi(p.x - ch.origin.x), 0, CHUNK_CELLS)
-	var j := clampi(roundi(p.z - ch.origin.y), 0, CHUNK_CELLS)
-	var v := j * (CHUNK_CELLS + 1) + i
-	var h: float = ch.arrays.heights[v]
-	var col: Color = ch.arrays.colors[v]
-	var n: Vector3 = ch.arrays.normals[v]
-	var dug := col.a * 3.0
-	if dug > 2.0 or n.y < 0.7:
-		return BlockWorld.STONE
-	if h < 1.25:
-		return BlockWorld.SAND
-	if col.b * 2.0 > 0.4:
-		return BlockWorld.GRAVEL
-	if dug > 0.2:
-		return BlockWorld.DIRT
-	return BlockWorld.GRASS
-
-
 # ------------------------------------------------------------------ digging
 
-## Lowers the terrain around p with a smooth brush. Returns the block type removed.
-func dig(p: Vector3, radius: float = 1.3, depth: float = 0.7) -> int:
-	var mat := surface_material(p)
+## Lowers the terrain around p with a smooth brush.
+func dig(p: Vector3, radius: float = 1.3, depth: float = 0.7) -> void:
 	var k0 := Vector2i(floori((p.x - radius - 2.0) / NEAR_SIZE), floori((p.z - radius - 2.0) / NEAR_SIZE))
 	var k1 := Vector2i(floori((p.x + radius + 2.0) / NEAR_SIZE), floori((p.z + radius + 2.0) / NEAR_SIZE))
 	for kz in range(k0.y, k1.y + 1):
@@ -296,4 +271,3 @@ func dig(p: Vector3, radius: float = 1.3, depth: float = 0.7) -> int:
 					o0.x - 2, o0.y - 2, o1.x, o1.y)
 			ch.mesh.mesh = TerrainMesher.make_mesh(ch.arrays, CHUNK_CELLS)
 			ch.shape.map_data = ch.arrays.heights
-	return mat

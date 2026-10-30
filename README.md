@@ -1,9 +1,8 @@
 # West of Nod
 
-A small Minecraft-style demo in Godot 4 where the world is **not voxels**: the ground is a
-continuous heightfield on an infinite procedural archipelago. Blocks are the only items. You
-dig the terrain (it deforms smoothly and gives you dirt, grass, sand, gravel or stone)
-and place grid-aligned blocks on top of the continuous ground.
+A Godot 4 exploration demo on an infinite procedural archipelago whose terrain is built from
+simulated hydrology. The ground is a continuous heightfield; you can walk, swim, fly and dig
+into it (it deforms smoothly).
 
 ## Running
 
@@ -17,10 +16,7 @@ so an export needs `*.glsl` in its non-resource export filter.
 | WASD, Space, Ctrl | move, jump/swim up, sprint |
 | F | toggle fly mode (Space / Shift to go up / down) |
 | F5 | toggle third-person camera |
-| Left mouse | dig terrain / break block |
-| Right mouse | place selected block |
-| 1–9, wheel | select hotbar slot |
-| C | craft: log → 4 planks, sand → glass |
+| Left mouse | dig terrain |
 | Esc | release the mouse |
 
 Trees are switched off for now.
@@ -89,12 +85,20 @@ touches, plus the river segments bucketed near it, in tile-relative coordinates.
 segment only shapes ground within its floor width plus a fixed reach. Its banks rise
 far above any terrain before that reach, so neighbouring tiles agree exactly.
 
-**Water.** All water uses Gerstner waves: a sum of six trochoidal waves with analytic
-normals, plus foam on pinched crests and at the shoreline. The ocean is a radial grid
-that follows the camera, with waves that flatten with distance. Lakes reuse the same set
-shrunk to short ripples. River sheets carry their flow in UV: waves turn to run
-downstream and are carried by the current, the surface ripples are advected along the
-flow (a two-phase flow map), and fast shallow water breaks white.
+**Water** (`shaders/water.gdshader`, one shader for ocean, lakes and rivers).
+- **Geometry:** six Gerstner waves, each faded where it is too short for the local mesh
+  spacing.
+- **Normals:** analytic, plus 24 small analytic waves from a deep-water spectrum spread
+  around the wind. Each is faded by the pixel footprint, so distant water averages out
+  instead of sparkling.
+- **Lighting:** Godot's lighting gives the sky reflection and sun glints. The shader adds
+  the light coming up through the water: the refracted background absorbed with depth
+  (red first), light scattered in the water body and through thin crests, and a Schlick
+  Fresnel. Rivers and lakes are siltier.
+- **Foam:** breaks on pinched crests, along the swash line and over fast shallow riffles.
+- **Rivers:** they carry their flow in UV. Their waves run downstream, and the whole
+  pattern is advected along the current with two copies half a cycle apart, cross-faded.
+  So rivers visibly flow the right way everywhere.
 
 ## Layout
 
@@ -102,10 +106,9 @@ flow (a two-phase flow map), and fast shallow water breaks white.
 - `scripts/archipelago.gd` places islands; `island.gd`, `island_sim.gd` and `meander.gd`
   simulate each island and build its lakes and rivers.
 - `scripts/terrain_world.gd` streams 64 m near chunks (mesh, height-map collision, river
-  and lake water, digging) and 1 km far tiles out to the horizon, and places trees.
+  and lake water, digging) and 1 km far tiles out to the horizon.
 - `scripts/terrain_generator.gd` / `terrain_mesher.gd` gather each tile's primitives, run
   the GPU pipeline on a worker thread and build the meshes.
-- `scripts/block_world.gd` stores blocks sparsely and meshes them per 16×16 column.
 - `scripts/player.gd`, `scripts/hud.gd` handle the controller, interaction and hotbar.
 - `tools/heightmap_preview.gd` renders hillshaded previews of the final terrain:
   `godot --path . -s tools/heightmap_preview.gd -- <out_dir> <spacing> <tiles> <x> <z>`.

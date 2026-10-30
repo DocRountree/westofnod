@@ -125,6 +125,27 @@ static func build_water(data: PackedFloat32Array, n: int, s: float) -> Dictionar
 				any = true
 	if not any:
 		return {}
+	# Dry vertices on the edge of the water take their wet neighbours' level, so
+	# the sheet stays flat out to where it meets the bank instead of dropping
+	# away (which left a saw-toothed waterline).
+	var edge := PackedVector3Array(verts)
+	for j in w:
+		for i in w:
+			var a := j * w + i
+			if wet[a] == 1:
+				continue
+			var lvl := -INF
+			for dj in range(-1, 2):
+				for di in range(-1, 2):
+					var ni := i + di
+					var nj := j + dj
+					if ni >= 0 and nj >= 0 and ni < w and nj < w and wet[nj * w + ni] == 1:
+						if verts[nj * w + ni].y > lvl:
+							lvl = verts[nj * w + ni].y
+							flow[a] = flow[nj * w + ni]
+			if lvl > -INF:
+				edge[a].y = lvl
+	verts = edge
 	var idx := PackedInt32Array()
 	for j in n:
 		for i in n:
