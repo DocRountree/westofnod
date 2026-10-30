@@ -8,6 +8,7 @@ render_mode blend_mix, depth_draw_always, cull_disabled, specular_schlick_ggx;
 // water visibly moves the right way everywhere. Edges feather into the banks.
 
 #include "res://shaders/render/water_common.gdshaderinc"
+#include "res://shaders/render/aerial.gdshaderinc"
 
 uniform float river_speed = 1.6; // m/s at full speed
 uniform vec3 silt_color = vec3(0.07, 0.085, 0.05);
@@ -48,6 +49,7 @@ void fragment() {
 	ALBEDO = vec3(0.85) * foam;
 	ROUGHNESS = mix(0.05, 0.6, foam);
 	SPECULAR = 0.5;
+	FOG = aerial_fog(world_pos, CAMERA_POSITION_WORLD);
 	EMISSION = up * (1.0 - fresnel) * (1.0 - foam);
 	ALPHA = smoothstep(0.0, 0.12, thickness);
 	if (!FRONT_FACING) {

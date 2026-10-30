@@ -5,6 +5,9 @@ render_mode diffuse_burley, cull_back;
 // foliage colour vary per tree; the crowns sway in the wind.
 
 #include "res://shaders/render/scatter.gdshaderinc"
+#include "res://shaders/render/aerial.gdshaderinc"
+
+varying vec3 w_pos;
 
 uniform float density = 1.0;
 uniform float size_scale = 1.0; // far crowns stand for more than one tree
@@ -31,6 +34,7 @@ void vertex() {
 	VERTEX = basis * v + pos - MODEL_MATRIX[3].xyz;
 	NORMAL = basis * NORMAL;
 	part = COLOR.r;
+	w_pos = pos + basis * v;
 }
 
 void fragment() {
@@ -38,6 +42,7 @@ void fragment() {
 	vec3 leaves = mix(leaf_a, leaf_b, v_rand);
 	ALBEDO = pow(mix(bark, leaves, part), vec3(2.2));
 	ROUGHNESS = 0.85;
+	FOG = aerial_fog(w_pos, CAMERA_POSITION_WORLD);
 	SPECULAR = 0.2;
 	// Light through the leaves.
 	BACKLIGHT = leaves * 0.2 * part;

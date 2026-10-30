@@ -85,7 +85,7 @@ func _run() -> void:
 		await _wait(1.5)
 		await _shot("01d_climb_side")
 		Input.action_release("move_forward")
-		print("climbed to ", p.global_position)
+		print("climbed to ", p.global_position, "  hand/foot gaps to the rock (m): ", p.avatar.contact_gaps())
 		p.set_climbing(false)
 		p.set_third_person(false)
 	if OS.get_cmdline_user_args().has("--climb"):

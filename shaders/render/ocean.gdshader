@@ -10,6 +10,7 @@ render_mode blend_mix, depth_draw_always, cull_disabled, specular_schlick_ggx;
 
 #include "res://shaders/render/height_map.gdshaderinc"
 #include "res://shaders/render/water_common.gdshaderinc"
+#include "res://shaders/render/aerial.gdshaderinc"
 
 uniform float amplitude = 0.6;
 uniform float wind_angle = 0.35;
@@ -102,6 +103,7 @@ void fragment() {
 	ALBEDO = vec3(0.85) * foam;
 	ROUGHNESS = mix(0.03, 0.6, foam);
 	SPECULAR = 0.5;
+	FOG = aerial_fog(world_pos, CAMERA_POSITION_WORLD);
 	EMISSION = up * (1.0 - fresnel) * (1.0 - foam);
 	ALPHA = smoothstep(0.0, 0.12, thickness);
 	if (!FRONT_FACING) {

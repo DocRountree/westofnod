@@ -21,6 +21,7 @@ render_mode diffuse_burley, specular_schlick_ggx;
 
 #include "res://shaders/render/height_map.gdshaderinc"
 #include "res://shaders/render/scatter_hash.gdshaderinc"
+#include "res://shaders/render/aerial.gdshaderinc"
 
 uniform sampler2D mask_tex : filter_linear_mipmap, repeat_disable; // rock, wet, forest, sand
 // The far trees (tree.gdshader in the far ScatterField): where they begin to
@@ -145,6 +146,7 @@ void fragment() {
 	col *= 0.92 + 0.16 * fine;
 
 	ALBEDO = pow(col, vec3(2.2));
+	FOG = aerial_fog(world_pos, CAMERA_POSITION_WORLD);
 	ROUGHNESS = mix(0.95, 0.82, rocky);
 	SPECULAR = 0.25;
 }

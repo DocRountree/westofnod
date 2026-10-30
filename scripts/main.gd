@@ -19,6 +19,8 @@ const FAR_FADE := 0.6 # ... starting at this fraction of TREES_END
 const FAR_CELL := 14.0 # far tree cell (terrain.gdshader reproduces their placement)
 const FAR_SCALE := 1.35
 var _sun: DirectionalLight3D
+var _hazed: Array[ShaderMaterial] = []
+var _under := false
 
 
 func _ready() -> void:
@@ -79,6 +81,13 @@ func _ready() -> void:
 	terrain_mat.set_shader_parameter("canopy_scale", FAR_SCALE)
 	terrain_mat.set_shader_parameter("sun_direction", _sun.global_basis.z)
 
+	# Aerial perspective (aerial.gdshaderinc) needs the sun on every surface it hazes.
+	_hazed = [terrain_mat, river_material, ocean_material]
+	for f in fields:
+		_hazed.append(f.material)
+	for m in _hazed:
+		m.set_shader_parameter("haze_sun_dir", _sun.global_basis.z)
+
 	collider = TerrainCollider.new()
 	collider.world = world
 	add_child(collider)
@@ -105,7 +114,7 @@ func _set_map(m: ShaderMaterial) -> void:
 func _build_environment() -> void:
 	var sky_mat := ProceduralSkyMaterial.new()
 	sky_mat.sky_top_color = Color(0.24, 0.42, 0.72)
-	sky_mat.sky_horizon_color = Color(0.68, 0.76, 0.84)
+	sky_mat.sky_horizon_color = Color(0.70, 0.80, 0.92) # = the haze colour at the horizon
 	sky_mat.sky_curve = 0.12
 	# Below the horizon (past the ocean grid's edge, seen from high up): the hazy sea.
 	sky_mat.ground_horizon_color = Color(0.6, 0.68, 0.76)
@@ -124,19 +133,15 @@ func _build_environment() -> void:
 	env.tonemap_exposure = 1.05
 	env.ssao_enabled = true
 	env.ssao_radius = 2.0
-	# Aerial perspective: distant ridges fade into the sky's colour.
-	env.fog_enabled = true
-	env.fog_light_color = Color(0.62, 0.72, 0.84)
-	env.fog_density = 0.00022
-	env.fog_aerial_perspective = 0.85
+	# Distance haze is the shaders' aerial perspective (aerial.gdshaderinc); the
+	# environment fog is only used under water.
+	env.fog_enabled = false
 	env.fog_sky_affect = 0.0
-	env.fog_height = 400.0
-	env.fog_height_density = 0.0006
-	# Haze that hangs in the valleys and catches the sun.
+	# A little volumetric haze near by, for light shafts; blue, not white.
 	env.volumetric_fog_enabled = true
-	env.volumetric_fog_density = 0.0009
-	env.volumetric_fog_albedo = Color(0.9, 0.93, 1.0)
-	env.volumetric_fog_length = 400.0
+	env.volumetric_fog_density = 0.0004
+	env.volumetric_fog_albedo = Color(0.75, 0.85, 1.0)
+	env.volumetric_fog_length = 300.0
 	env.volumetric_fog_anisotropy = 0.3
 	env.glow_enabled = true
 	env.glow_intensity = 0.3
@@ -202,5 +207,10 @@ func _process(_delta: float) -> void:
 	ocean.global_position = Vector3(snappedf(cam.x, 4.0), 0.0, snappedf(cam.z, 4.0))
 	collider.follow(player.global_position)
 	var under := cam.y < world.water_at(cam.x, cam.z).x
-	env.fog_density = 0.06 if under else 0.00022
-	env.fog_light_color = Color(0.05, 0.22, 0.28) if under else Color(0.62, 0.72, 0.84)
+	if under != _under:
+		_under = under
+		env.fog_enabled = under
+		env.fog_density = 0.06
+		env.fog_light_color = Color(0.05, 0.22, 0.28)
+		for m in _hazed:
+			m.set_shader_parameter("underwater", under)

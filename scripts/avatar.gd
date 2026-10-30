@@ -5,9 +5,10 @@ extends Node3D
 ## Limbs are two-bone chains solved by analytic IK toward targets:
 ##  - walking: feet step along the ground in turn (a foot stays planted while
 ##    the other swings forward, lifted), arms swing against the legs;
-##  - climbing: hands and feet hold points on the rock. One limb at a time
-##    (right hand, left foot, left hand, right foot) lets go, reaches to a new
-##    hold ahead in the direction of climbing, and grips; the others stay put.
+##  - climbing: hands and feet hold points on the rock surface (found by
+##    projecting onto the terrain along its normal). One limb at a time (right
+##    hand, left foot, left hand, right foot) lets go, reaches to a new hold
+##    ahead in the direction of climbing, and grips; the others stay put.
 ## The body is oriented by the player: upright when walking, facing into the
 ## rock when climbing.
 
@@ -151,14 +152,16 @@ func walk(delta: float, speed: float, on_floor: bool) -> void:
 		leg.hold = Vector3.INF
 
 
-## Climbing: body centre, wall normal n, climbing "up" tangent, how far the
-## body moved along the wall this frame (signed vector).
-func climb(n: Vector3, up_t: Vector3, moved: Vector3) -> void:
+## Climbing. surface: the rock point under the body's centre; n: its normal;
+## up_t: up the fall line; moved: how far the body moved over the rock this
+## frame. Each limb holds a point on the rock surface; in turn (right hand,
+## left foot, left hand, right foot) one lets go and reaches, in an arc off the
+## rock, to a new hold ahead in the direction of travel.
+func climb(surface: Vector3, n: Vector3, up_t: Vector3, moved: Vector3) -> void:
 	var right := up_t.cross(n)
 	_hips.position.y = 0.95
 	_climb_dist += moved.length()
 	var dir := moved.normalized() if moved.length() > 1e-5 else up_t
-	# Which limb is moving: a quarter of each 0.8 m cycle each.
 	var cycle := fmod(_climb_dist / 0.8, 1.0)
 	var order := ["r_arm", "l_leg", "l_arm", "r_leg"]
 	var active := int(cycle * 4.0) % 4
@@ -168,24 +171,42 @@ func climb(n: Vector3, up_t: Vector3, moved: Vector3) -> void:
 		var l: Dictionary = _limbs[name]
 		var is_arm := name.ends_with("arm")
 		var side := -1.0 if name.begins_with("l") else 1.0
+		var reach: float = l.len[0] + l.len[1]
+		# Where this limb would rest: on the rock around the body, hands above
+		# the shoulders, feet below the hips.
+		var rest := surface + (up_t * 0.75 + right * side * 0.3 if is_arm else -up_t * 0.7 + right * side * 0.2)
+		rest = on_rock(rest)
 		var sock: Vector3 = l.root.global_position
-		# Rest hold: hands up and out, feet down and out, on the rock.
-		var rest := sock + (up_t * 0.42 + right * side * 0.22 if is_arm else -up_t * 0.62 + right * side * 0.16)
-		var ahead := rest + dir * 0.3
-		ahead = _on_rock(ahead, n)
-		if l.hold == Vector3.INF or l.hold.distance_to(rest) > 0.9:
-			l.hold = _on_rock(rest, n)
+		if l.hold == Vector3.INF or l.hold.distance_to(sock) > reach * 1.05:
+			l.hold = rest # out of reach (or no hold yet): take the rest hold
 		var target: Vector3 = l.hold
 		if k == active and moved.length() > 1e-5:
-			# Reaching: off the rock in an arc, onto the next hold.
-			target = l.hold.lerp(ahead, t) + n * sin(t * PI) * 0.12
+			var next := on_rock(rest + dir * 0.35)
+			target = l.hold.lerp(next, t) + n * sin(t * PI) * 0.15
 			if t > 0.9:
-				l.hold = ahead
+				l.hold = next
 		_solve(l, target, n if is_arm else n + up_t * 0.3)
 
 
-func _on_rock(p: Vector3, n: Vector3) -> Vector3:
+## The point on the terrain surface nearest p (a few steps along the normal),
+## lifted a little so a hand rests on it rather than in it.
+func on_rock(p: Vector3) -> Vector3:
 	if world == null:
 		return p
-	var h := world.height_at(p.x, p.z)
-	return Vector3(p.x, h, p.z) + n * 0.05
+	for i in 3:
+		var n := world.normal_at(p.x, p.z)
+		var off := (p.y - world.height_at(p.x, p.z)) * n.y # distance above the surface, along n
+		p -= n * off
+	return p + world.normal_at(p.x, p.z) * 0.04
+
+
+## How far each hand and foot is from the terrain surface (m): for checks.
+func contact_gaps() -> Dictionary:
+	var out := {}
+	for name in _limbs:
+		var l: Dictionary = _limbs[name]
+		var b: Node3D = l.b
+		var tip: Vector3 = b.global_position - b.global_basis.z * l.len[1]
+		var n := world.normal_at(tip.x, tip.z)
+		out[name] = snappedf((tip.y - world.height_at(tip.x, tip.z)) * n.y, 0.01)
+	return out

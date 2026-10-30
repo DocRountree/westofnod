@@ -189,7 +189,7 @@ func _climb(delta: float) -> void:
 	_grip_offset = Vector2(surface.x, surface.z) - Vector2(global_position.x, global_position.z)
 	velocity = Vector3.ZERO
 	avatar.global_basis = Basis(right, up_t, n)
-	avatar.climb(n, up_t, surface - before)
+	avatar.climb(surface, n, up_t, surface - before)
 
 
 func _process(_delta: float) -> void:

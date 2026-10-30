@@ -211,6 +211,11 @@ def masks(h, rivers_area, rng):
     patch = fractal(h.shape, rng, [(64, 1.0), (16, 0.5)])
     forest = np.clip(0.85 + 0.4 * patch - rock * 1.2 - np.clip((0.05 - slope) * 10, 0, 1) * 0.5, 0, 1)
     forest *= (h > 3.0)
+    # Tree line: trees thin out with height (wind, cloud and thin soil on the
+    # summits) and on exposed crests, which the high ground keeps bare first.
+    crest = np.clip(-ndimage.laplace(ndimage.gaussian_filter(h, 6)) / CELL ** 2 * 40.0, 0, 1)
+    line = 640.0 - 260.0 * crest + 60.0 * patch
+    forest *= np.clip((line - h) / 120.0, 0, 1)
     near_sea = ndimage.distance_transform_edt(h > 0.0) * CELL < 80.0
     sand = ((h > -2.0) & (h < 3.0) & (slope < 0.2) & near_sea).astype(float)
     sand = ndimage.gaussian_filter(sand, 1.5)

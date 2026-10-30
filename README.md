@@ -29,8 +29,9 @@ reads only the needed window of the cloud-optimised GeoTIFF and writes:
 - `rivers.json` — drainage routed on the real terrain (priority flood, D8, area): river
   centrelines with hydraulic-geometry widths and water levels that only fall downstream.
   Their channels are carved into the heights.
-- `masks.png` — rock (slope, convex crests), wetness (drainage area on flat ground),
-  forest density, sand (low, gentle, by the sea).
+- `masks.png` — rock (cliffs, sharp crests), wetness (drainage area on flat ground),
+  forest density (with a tree line: thinning with height, lower on exposed crests),
+  sand (low, gentle, by the sea).
 
 To rebake (or move the window: `LAT0, LON0`): `pip install numpy scipy rasterio pillow`,
 then `python tools/dem/bake_slice.py .`
@@ -56,9 +57,13 @@ then `python tools/dem/bake_slice.py .`
 - **Grass** is a terrain texture (blade streaks and tufts).
 - **Player** (`scripts/avatar.gd`): a stylised figure animated procedurally with two-bone
   IK. Walking: feet step in turn, arms swing. Climbing: hands and feet hold points on
-  the rock and move one at a time to new holds ahead. Climbing switches to third
+  the rock surface (projected onto the terrain along its normal) and move one at a
+  time to new holds ahead. Climbing switches to third
   person; the camera's spring arm is a sphere and it is kept above the terrain.
-- **Atmosphere**: aerial perspective, height fog, volumetric haze, a low sun.
+- **Atmosphere** (`aerial.gdshaderinc`): aerial perspective written to each shader's
+  FOG, after lighting: skylight scattered into the view (blue fills in first, as in
+  Rayleigh scattering), thinner with height, warmer toward the sun. Distant greens
+  desaturate and turn blue. Plus light volumetric haze and a low sun.
 
 ## Layout
 
