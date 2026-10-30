@@ -1,24 +1,22 @@
 class_name Player
 extends CharacterBody3D
 ## First/third-person controller (F5 toggles): walk/sprint/jump, swim (as in
-## Minecraft, see _swim()), optional
-## fly mode, and digging into the terrain.
+## Minecraft, see _swim()) and an optional fly mode.
 
 const WALK_SPEED := 4.6
 const SPRINT_SPEED := 7.5
 const FLY_SPEED := 30.0
 const JUMP_VELOCITY := 7.6
 const GRAVITY := 24.0
-const REACH := 6.0
 const MOUSE_SENS := 0.0025
 const THIRD_PERSON_DISTANCE := 4.5
 const SWIM_SPEED := 2.2
 const SWIM_SPRINT_SPEED := 5.6
 const SWIM_UP_SPEED := 2.4
 const SINK_SPEED := 0.6
-const CURRENT_SPEED := 1.4 # m/s at full river flow (as water.gdshader's river_speed)
+const CURRENT_SPEED := 1.4 # m/s at full river flow (as inland_water.gdshader's river_speed)
 
-var terrain: TerrainWorld
+var island: IslandData
 var head: Node3D # eye point; pitches with the mouse
 var camera: Camera3D
 var third_person := false
@@ -27,7 +25,6 @@ var _arm: SpringArm3D
 var _body_mesh: MeshInstance3D
 var flying := false
 var frozen := true
-var _cooldown := 0.0
 
 
 func _ready() -> void:
@@ -99,7 +96,7 @@ func _physics_process(delta: float) -> void:
 		return
 	var input := Input.get_vector("move_left", "move_right", "move_forward", "move_back")
 	var dir := (transform.basis * Vector3(input.x, 0.0, input.y)).normalized()
-	var water := terrain.water_at(global_position.x, global_position.z) if terrain else Vector3.ZERO
+	var water := island.water_at(global_position.x, global_position.z) if island else Vector3.ZERO
 	var depth := water.x - global_position.y # how deep the feet are
 	var in_water := depth > 0.6
 	var head_under := water.x > head.global_position.y
@@ -125,12 +122,6 @@ func _physics_process(delta: float) -> void:
 		velocity.x = move_toward(velocity.x, dir.x * speed, accel * delta)
 		velocity.z = move_toward(velocity.z, dir.z * speed, accel * delta)
 	move_and_slide()
-
-	_cooldown -= delta
-	if Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT) \
-			and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED and _cooldown <= 0.0:
-		_dig()
-		_cooldown = 0.22
 
 
 ## Swimming, as in Minecraft: you slowly sink unless you hold jump, which swims
@@ -159,17 +150,3 @@ func _swim(delta: float, dir: Vector3, depth: float, head_under: bool, flow: Vec
 	velocity = velocity.move_toward(target, 9.0 * delta)
 	if Input.is_action_pressed("jump") and is_on_wall() and depth < 1.6:
 		velocity.y = 4.2 # climb out onto the bank
-
-
-func _ray() -> Dictionary:
-	var from := head.global_position
-	var to := from - head.global_basis.z * REACH
-	var q := PhysicsRayQueryParameters3D.create(from, to)
-	q.exclude = [get_rid()]
-	return get_world_3d().direct_space_state.intersect_ray(q)
-
-
-func _dig() -> void:
-	var hit := _ray()
-	if not hit.is_empty() and hit.collider.get_meta("kind", "") == "terrain":
-		terrain.dig(hit.position)

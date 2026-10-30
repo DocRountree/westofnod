@@ -1,29 +1,27 @@
 class_name Meander
 extends RefCounted
-## Curvature-driven meander migration on a straight valley, in the form of
-## Howard & Knutson (1984).
+## Meander migration with history, on a straight valley (x along it, y across).
 ##
-## The centreline is a chain of points in valley coordinates (x along the valley,
-## y across it), seeded with a small irregular sway. Each step every point moves
-## sideways by
-##     R(s) = -C(s) + 2.5 * (upstream-weighted average of C)
-## where C is the local curvature. The upstream average is an exponential kernel,
-## computed with one recursive pass. With this sign and a long kernel, short bends
-## grow and long ones straighten, so the channel winds tightly (a few widths per
-## bend) down the middle of its floodplain. When two parts of the channel come
-## within a channel width of each other, the neck is cut: the river takes the
-## shortcut and the loop is left behind as an oxbow. The valley walls confine
-## the belt to |y| < belt(x).
+## Curvature-driven migration in the form of Howard & Knutson (1984): each step
+## every point moves sideways by R(s) = -C(s) + 2.5 * (upstream-weighted average
+## of C), C the local curvature. The valley walls confine the belt to
+## |y| < belt(x). When two parts of the channel come within a width of each
+## other the neck is cut: the river takes the shortcut, and the loop is left as
+## an oxbow.
+##
+## The history is the point: every SNAP steps the channel's course is recorded
+## with its time, and every cutoff with the time it happened. The terrain
+## composer turns these into scroll bars and swales (the ground each past
+## channel swept), oxbow lakes that silt up with age, and scars.
 
-const STEPS := 280
+const STEPS := 320
+const SNAP := 6
 const OMEGA := -1.0
 const GAMMA := 2.5
 
 
-## length: valley length (m). w: channel width (m). belt: half-width of the
-## meander belt sampled every belt_ds metres along x. Index 0 is downstream.
-## Returns {pts: PackedVector2Array (x, y), oxbows: Array of {pts, age}} where
-## age is 0 for the newest cutoff and 1 for one from the very start.
+## Index 0 is downstream. Returns {pts: final course, snaps: [{pts, t}],
+## oxbows: [{pts, t}]}, t in 0..1 (1 = now), points in valley coordinates.
 static func migrate(length: float, w: float, belt: PackedFloat32Array, belt_ds: float,
 		rng: RandomNumberGenerator) -> Dictionary:
 	var ds := maxf(w, 3.0)
@@ -41,6 +39,7 @@ static func migrate(length: float, w: float, belt: PackedFloat32Array, belt_ds: 
 	var decay := exp(-ds / (4.0 * w))
 	var neck := 1.25 * w
 	var min_sep := ceili(PI * 2.0 * w / ds) + 2
+	var snaps: Array = []
 	var oxbows: Array = []
 
 	for step in STEPS:
@@ -55,7 +54,6 @@ static func migrate(length: float, w: float, belt: PackedFloat32Array, belt_ds: 
 		cs.resize(n)
 		for i in range(1, n - 1):
 			cs[i] = 0.25 * curv[i - 1] + 0.5 * curv[i] + 0.25 * curv[i + 1]
-		# Upstream (higher index) average of curvature.
 		var acc := 0.0
 		var rate := PackedFloat32Array()
 		rate.resize(n)
@@ -65,11 +63,8 @@ static func migrate(length: float, w: float, belt: PackedFloat32Array, belt_ds: 
 		var moved := PackedVector2Array(pts)
 		for i in range(2, n - 2):
 			var t := (pts[i + 1] - pts[i - 1]).normalized()
-			var nrm := Vector2(-t.y, t.x)
-			# Positive rate erodes the outer bank: right of a left-turning bend.
-			var p := pts[i] + nrm * 0.22 * ds * clampf(rate[i] * w, -1.0, 1.0)
-			var bi := clampi(int(p.x / belt_ds), 0, belt.size() - 1)
-			var b := belt[bi]
+			var p := pts[i] + Vector2(-t.y, t.x) * 0.22 * ds * clampf(rate[i] * w, -1.0, 1.0)
+			var b := belt[clampi(int(p.x / belt_ds), 0, belt.size() - 1)]
 			if absf(p.y) > b:
 				p.y -= signf(p.y) * (absf(p.y) - b) * 0.7
 			p.x = clampf(p.x, 0.0, length)
@@ -77,23 +72,24 @@ static func migrate(length: float, w: float, belt: PackedFloat32Array, belt_ds: 
 		pts = _resample(moved, ds)
 		var cut := _find_cutoff(pts, neck, min_sep)
 		if cut.x >= 0:
-			oxbows.append({"pts": pts.slice(cut.x, cut.y + 1), "step": step})
+			oxbows.append({"pts": pts.slice(cut.x, cut.y + 1), "t": float(step) / STEPS})
 			var kept := pts.slice(0, cut.x + 1)
 			kept.append_array(pts.slice(cut.y))
 			pts = _resample(kept, ds)
-
+		if step % SNAP == 0:
+			snaps.append({"pts": pts, "t": float(step) / STEPS})
 	# Drop oxbows the channel has since swept through.
 	var grid := _hash(pts, w * 2.0)
 	var out_ox: Array = []
 	for ox in oxbows:
 		var ok := true
 		for p in ox.pts:
-			if _near(grid, pts, p, w * 2.0, w * 1.6):
+			if _near(grid, pts, p, w * 2.0, w * 1.4):
 				ok = false
 				break
 		if ok:
-			out_ox.append({"pts": ox.pts, "age": 1.0 - float(ox.step) / STEPS})
-	return {"pts": pts, "oxbows": out_ox}
+			out_ox.append(ox)
+	return {"pts": pts, "snaps": snaps, "oxbows": out_ox}
 
 
 static func _resample(pts: PackedVector2Array, ds: float) -> PackedVector2Array:
