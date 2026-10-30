@@ -1,11 +1,14 @@
 class_name TerrainMesher
 extends RefCounted
 ## Builds heightfield mesh arrays from generator output.
-## data: out_n*out_n vertices of 8 floats (height, floodplain 0..1, gully depth,
-## channel cut, water level, water kind (1 river, 2 lake/oxbow), flow x, flow z)
+## data: out_n*out_n vertices of 12 floats (height, floodplain 0..1, gully depth,
+## channel cut, water level, water kind (1 river, 2 lake/oxbow), flow x, flow z,
+## water coverage 0..1, unused x3)
 ## covering the (n+1)^2 vertex grid plus a one-vertex ring for seamless normals.
 ## Meshes carry positions only; shading data goes to the GPU as textures().
 ## delta: optional per-ring-vertex height edits (digging), same layout, or null.
+
+const S := TerrainGenerator.OUT_STRIDE
 
 static var _index_cache := {}
 
@@ -33,7 +36,7 @@ static func indices(n: int) -> PackedInt32Array:
 
 static func height_at(data: PackedFloat32Array, delta, out_n: int, i: int, j: int) -> float:
 	var r := j * out_n + i
-	var h := data[r * 8]
+	var h := data[r * S]
 	if delta != null:
 		h += delta[r]
 	return h
@@ -69,22 +72,24 @@ static func update_rect(arrays: Dictionary, data: PackedFloat32Array, delta, n: 
 
 
 ## Per-pixel shading data for a tile, over the vertex grid plus its ring
-## (texel (i + 1, j + 1) is vertex (i, j)): [heights (RF, edited), attributes
-## (RGBAH: floodplain 0..1, gully depth m, channel cut m, dug depth m)].
+## (texel (i + 1, j + 1) is vertex (i, j)): [heights (RGF: edited height, dug
+## depth m), attributes (RGBAH: floodplain 0..1, gully depth m, channel cut m,
+## water coverage 0..1)].
 static func textures(data: PackedFloat32Array, delta, n: int) -> Array:
 	var on := n + 3
 	var hb := PackedFloat32Array()
 	var ab := PackedFloat32Array()
-	hb.resize(on * on)
+	hb.resize(on * on * 2)
 	ab.resize(on * on * 4)
 	for r in on * on:
 		var d: float = 0.0 if delta == null else delta[r]
-		hb[r] = data[r * 8] + d
-		ab[r * 4] = data[r * 8 + 1]
-		ab[r * 4 + 1] = data[r * 8 + 2]
-		ab[r * 4 + 2] = data[r * 8 + 3]
-		ab[r * 4 + 3] = -d
-	var himg := Image.create_from_data(on, on, false, Image.FORMAT_RF, hb.to_byte_array())
+		hb[r * 2] = data[r * S] + d
+		hb[r * 2 + 1] = -d
+		ab[r * 4] = data[r * S + 1]
+		ab[r * 4 + 1] = data[r * S + 2]
+		ab[r * 4 + 2] = data[r * S + 3]
+		ab[r * 4 + 3] = data[r * S + 8]
+	var himg := Image.create_from_data(on, on, false, Image.FORMAT_RGF, hb.to_byte_array())
 	var aimg := Image.create_from_data(on, on, false, Image.FORMAT_RGBAF, ab.to_byte_array())
 	aimg.convert(Image.FORMAT_RGBAH)
 	return [himg, aimg]
@@ -102,8 +107,10 @@ static func make_mesh(arrays: Dictionary, n: int) -> ArrayMesh:
 
 ## River and lake surfaces: a sheet at each vertex's water level, kept only where
 ## the grid has water (around it the sheet sits below the banks). UV carries the
-## river flow (direction x speed). Empty if none.
-static func build_water(data: PackedFloat32Array, n: int, s: float) -> Dictionary:
+## river flow (direction x speed). Empty if none. Coarse tiles leave rivers out
+## (rivers=false): they are narrower than the grid and are painted onto the
+## terrain from their coverage instead.
+static func build_water(data: PackedFloat32Array, n: int, s: float, rivers: bool = true) -> Dictionary:
 	var w := n + 1
 	var on := n + 3
 	var verts := PackedVector3Array()
@@ -115,10 +122,10 @@ static func build_water(data: PackedFloat32Array, n: int, s: float) -> Dictionar
 	var any := false
 	for j in w:
 		for i in w:
-			var r := ((j + 1) * on + i + 1) * 8
+			var r := ((j + 1) * on + i + 1) * S
 			verts[j * w + i] = Vector3(i * s, data[r + 4], j * s)
 			flow[j * w + i] = Vector2(data[r + 6], data[r + 7])
-			if data[r + 5] > 0.5:
+			if data[r + 5] > (0.5 if rivers else 1.5):
 				wet[j * w + i] = 1
 				any = true
 	if not any:

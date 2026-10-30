@@ -4,7 +4,8 @@ render_mode diffuse_burley, specular_schlick_ggx;
 // Terrain tiles. Meshes carry positions only; everything else is per pixel from
 // two small textures per tile (TerrainMesher.textures(), over the vertex grid
 // plus a one-vertex ring): heights, filtered by hand (32-bit float), for the
-// normal, and attributes (floodplain, gully depth, channel cut, dug depth),
+// normal and dug depth, and attributes (floodplain, gully depth, channel cut,
+// water coverage),
 // filtered by the hardware. So slopes, rock, soil and river beds vary smoothly
 // within each triangle instead of following the 1 m mesh grid.
 //
@@ -16,24 +17,32 @@ uniform sampler2D attr_tex : filter_linear, repeat_disable;
 uniform float spacing = 1.0;
 // Far LOD tiles hide themselves where the detailed near chunks take over.
 uniform float near_cutoff = 0.0;
-// Far tiles are too coarse to resolve channels; their cuts would show as blotches.
+// Far tiles are too coarse to resolve channels; their cuts would show as
+// blotches. They have no river meshes either: rivers are painted from their
+// coverage instead (0 on near tiles, which mesh their water).
 uniform float channel_tint = 1.0;
+uniform float paint_water = 0.0;
 
 varying vec3 wpos;
 varying vec2 grid; // texel coordinates of this point in the tile textures
 
-// Height at texel coordinates g (texel centres at integers), bilinear.
-float height(vec2 g) {
+// Height (x) and dug depth (y) at texel coordinates g (texel centres at
+// integers), bilinear.
+vec2 height2(vec2 g) {
 	ivec2 n = textureSize(height_tex, 0) - 1;
 	g = clamp(g, vec2(0.0), vec2(n) - 0.001);
 	vec2 fi = floor(g);
 	vec2 f = g - fi;
 	ivec2 c = ivec2(fi);
-	float a = texelFetch(height_tex, c, 0).r;
-	float b = texelFetch(height_tex, min(c + ivec2(1, 0), n), 0).r;
-	float d = texelFetch(height_tex, min(c + ivec2(0, 1), n), 0).r;
-	float e = texelFetch(height_tex, min(c + ivec2(1, 1), n), 0).r;
+	vec2 a = texelFetch(height_tex, c, 0).rg;
+	vec2 b = texelFetch(height_tex, min(c + ivec2(1, 0), n), 0).rg;
+	vec2 d = texelFetch(height_tex, min(c + ivec2(0, 1), n), 0).rg;
+	vec2 e = texelFetch(height_tex, min(c + ivec2(1, 1), n), 0).rg;
 	return mix(mix(a, b, f.x), mix(d, e, f.x), f.y);
+}
+
+float height(vec2 g) {
+	return height2(g).x;
 }
 
 // World normal at g, by central differences one texel wide.
@@ -84,7 +93,8 @@ void fragment() {
 	float alluvium = attr.r;
 	float gully = attr.g;
 	float channel = attr.b;
-	float dug = attr.a;
+	float dug = height2(grid).y;
+	float cover = attr.a;
 	float h = wpos.y;
 	vec2 p = wpos.xz;
 
@@ -126,7 +136,11 @@ void fragment() {
 	// Mottling, so no ground is one flat colour.
 	col *= 0.9 + 0.2 * fine;
 
+	// Distant rivers: dark, glossy water, as wide as their analytic coverage.
+	float wet = smoothstep(0.15, 0.6, cover) * paint_water;
+	col = mix(col, vec3(0.10, 0.17, 0.20), wet);
+
 	ALBEDO = pow(col, vec3(2.2)); // palette above is authored in sRGB
-	ROUGHNESS = mix(0.95, 0.82, rocky);
-	SPECULAR = 0.25;
+	ROUGHNESS = mix(mix(0.95, 0.82, rocky), 0.08, wet);
+	SPECULAR = mix(0.25, 0.5, wet);
 }

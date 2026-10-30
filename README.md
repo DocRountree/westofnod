@@ -13,7 +13,9 @@ so an export needs `*.glsl` in its non-resource export filter.
 
 | Input | Action |
 |---|---|
-| WASD, Space, Ctrl | move, jump/swim up, sprint |
+| WASD, Space, Ctrl | move, jump, sprint |
+| Space / Shift in water | swim up / sink faster (otherwise you slowly sink) |
+| Ctrl + W, head under water | sprint-swim wherever you look |
 | F | toggle fly mode (Space / Shift to go up / down) |
 | F5 | toggle third-person camera |
 | Left mouse | dig terrain |
@@ -96,6 +98,12 @@ far above any terrain before that reach, so neighbouring tiles agree exactly.
   (red first), light scattered in the water body and through thin crests, and a Schlick
   Fresnel. Rivers and lakes are siltier.
 - **Foam:** breaks on pinched crests, along the swash line and over fast shallow riffles.
+- **Distance:** coarse far tiles don't mesh rivers, which are narrower than their
+  grid; they paint them onto the terrain from an analytic water coverage, so distant
+  rivers stay smooth lines instead of breaking into blobs. Lakes only claim ground
+  inside the simulated lake.
+- **Swimming** works as in Minecraft, in the sea, lakes and rivers alike. Rivers carry
+  you downstream.
 - **Rivers:** they carry their flow in UV. Their waves run downstream, and the whole
   pattern is advected along the current with two copies half a cycle apart, cross-faded.
   So rivers visibly flow the right way everywhere.

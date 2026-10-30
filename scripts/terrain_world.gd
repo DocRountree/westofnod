@@ -41,6 +41,7 @@ func _ready() -> void:
 	far_material.shader = near_material.shader
 	far_material.set_shader_parameter("near_cutoff", FAR_CUTOFF)
 	far_material.set_shader_parameter("channel_tint", 0.0)
+	far_material.set_shader_parameter("paint_water", 1.0)
 	generator.start()
 
 
@@ -248,6 +249,27 @@ func height_at(x: float, z: float) -> float:
 	var w := CHUNK_CELLS + 1
 	return lerpf(lerpf(hs[j * w + i], hs[j * w + i + 1], fx),
 			lerpf(hs[(j + 1) * w + i], hs[(j + 1) * w + i + 1], fx), fz)
+
+
+## Water surface over (x, z): the sea (0) or the river/lake level of the nearest
+## wet vertex around it, whichever is higher. Vector3(level, flow x, flow z),
+## flow in 0..1 (direction x speed).
+func water_at(x: float, z: float) -> Vector3:
+	var k := Vector2i(floori(x / NEAR_SIZE), floori(z / NEAR_SIZE))
+	var best := Vector3(0.0, 0.0, 0.0)
+	if not _near.has(k):
+		return best
+	var ch: Dictionary = _near[k]
+	var d: PackedFloat32Array = ch.data
+	var ci := clampi(roundi(x - ch.origin.x), 0, CHUNK_CELLS)
+	var cj := clampi(roundi(z - ch.origin.y), 0, CHUNK_CELLS)
+	var st := TerrainGenerator.OUT_STRIDE
+	for dj in range(-1, 2):
+		for di in range(-1, 2):
+			var r := ((cj + dj + 1) * OUT_N + ci + di + 1) * st
+			if d[r + 5] > 0.5 and d[r + 4] > best.x:
+				best = Vector3(d[r + 4], d[r + 6], d[r + 7])
+	return best
 
 
 # ------------------------------------------------------------------ digging

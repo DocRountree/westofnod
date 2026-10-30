@@ -4,7 +4,7 @@ extends RefCounted
 ## gathers each tile's island grids and river segments, runs
 ## shaders/terrain_gen.glsl on a local RenderingDevice and builds mesh arrays.
 
-const OUT_STRIDE := 8 # floats per output vertex
+const OUT_STRIDE := 12 # floats per output vertex
 
 var seed: int = 1337
 var arch: Archipelago
@@ -80,7 +80,7 @@ func _loop() -> void:
 			res["data"] = data
 			res["arrays"] = TerrainMesher.build(data, null, int(job.n), float(job.spacing))
 			res["images"] = TerrainMesher.textures(data, null, int(job.n))
-			res["water"] = TerrainMesher.build_water(data, int(job.n), float(job.spacing))
+			res["water"] = TerrainMesher.build_water(data, int(job.n), float(job.spacing), job.kind == 0)
 		_mutex.lock()
 		_results.append(res)
 		_mutex.unlock()

@@ -36,7 +36,7 @@ func _init() -> void:
 				for i in n + 1:
 					var gi := k.x * n + i
 					var gj := k.y * n + j
-					var o := ((j + 1) * on + i + 1) * 8
+					var o := ((j + 1) * on + i + 1) * TerrainGenerator.OUT_STRIDE
 					heights[gj * (size + 1) + gi] = d[o]
 					allu[gj * (size + 1) + gi] = d[o + 1]
 					water[gj * (size + 1) + gi] = d[o + 5] if d[o + 4] > d[o] else 0.0

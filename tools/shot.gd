@@ -76,6 +76,16 @@ func _run() -> void:
 			await _shot("03c_sea_%d" % i)
 			p.rotate_y(PI * 0.6)
 			await _wait(6.0)
+		# swim: fall in, sink, then swim up and sprint-swim
+		p.flying = false
+		p.global_position = Vector3(best.x, 0.5, best.z)
+		await _wait(2.0)
+		print("swim: sinking y=%.2f vy=%.2f" % [p.global_position.y, p.velocity.y])
+		Input.action_press("jump")
+		await _wait(1.5)
+		Input.action_release("jump")
+		print("swim: after jump y=%.2f vy=%.2f" % [p.global_position.y, p.velocity.y])
+		p.flying = true
 		p.global_position = start
 	# fly up for an overview
 	p.global_position += Vector3(0, 140, 0)

@@ -26,7 +26,7 @@ layout(local_size_x = 8, local_size_y = 8, local_size_z = 1) in;
 layout(set = 0, binding = 0, std430) restrict readonly buffer Grid { vec4 v[]; } grid; // h, sd, lake level, area
 layout(set = 0, binding = 1, std430) restrict readonly buffer Isl { vec4 v[]; } isl;   // 2 per island
 layout(set = 0, binding = 2, std430) restrict readonly buffer Segs { vec4 v[]; } segs; // 3 per segment
-layout(set = 0, binding = 3, std430) restrict writeonly buffer Out { vec4 v[]; } outb; // 2 per vertex
+layout(set = 0, binding = 3, std430) restrict writeonly buffer Out { vec4 v[]; } outb; // 3 per vertex
 
 layout(push_constant, std430) uniform Params {
 	int n_isl;
@@ -304,17 +304,25 @@ void main() {
 	h -= 0.6 * scar; // silted-up loops: shallow, damp hollows
 
 	// ---- water
+	// Lakes claim only ground inside the simulated lake (not low ground that
+	// merely sits near one, e.g. a floodplain below a dammed lake's level).
 	float wlevel = h - 3.0;
 	float kind_out = 0.0;
-	if (B.lakef > 0.0 && B.lake > NO_LAKE + 1.0 && h < B.lake + 0.5 && (wd > 0.0 || B.lakef > 0.5)) {
+	float cover = 0.0; // fraction of the area around this vertex under water
+	if (B.lakef > 0.3 && B.lake > NO_LAKE + 1.0 && h < B.lake + 0.5 && (wd > 0.0 || B.lakef > 0.5)) {
 		wlevel = B.lake;
 		kind_out = h < B.lake ? 2.0 : 0.0;
+		cover = clamp((B.lake - h) / 0.3, 0.0, 1.0) * smoothstep(0.3, 0.5, B.lakef);
 		flow = vec2(0.0);
 	} else if (wd < 2.5 && wlev > -0.5) {
 		wlevel = wlev - 0.1;
 		kind_out = wd < 0.8 ? wkind : 0.0;
+		// Analytic coverage, so rivers far narrower than the grid still show as
+		// smooth lines on coarse tiles instead of breaking into blobs.
+		cover = clamp(0.5 - wd / pc.spacing, 0.0, 1.0);
 	}
-	int o = (id.y * pc.out_n + id.x) * 2;
+	int o = (id.y * pc.out_n + id.x) * 3;
 	outb.v[o] = vec4(h, max(alluv, scar * 0.5), -eh, cut);
 	outb.v[o + 1] = vec4(wlevel, kind_out, flow);
+	outb.v[o + 2] = vec4(cover, 0.0, 0.0, 0.0);
 }

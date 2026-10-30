@@ -1,6 +1,7 @@
 class_name Player
 extends CharacterBody3D
-## First/third-person controller (F5 toggles): walk/sprint/jump, swim, optional
+## First/third-person controller (F5 toggles): walk/sprint/jump, swim (as in
+## Minecraft, see _swim()), optional
 ## fly mode, and digging into the terrain.
 
 const WALK_SPEED := 4.6
@@ -11,11 +12,17 @@ const GRAVITY := 24.0
 const REACH := 6.0
 const MOUSE_SENS := 0.0025
 const THIRD_PERSON_DISTANCE := 4.5
+const SWIM_SPEED := 2.2
+const SWIM_SPRINT_SPEED := 5.6
+const SWIM_UP_SPEED := 2.4
+const SINK_SPEED := 0.6
+const CURRENT_SPEED := 1.4 # m/s at full river flow (as water.gdshader's river_speed)
 
 var terrain: TerrainWorld
 var head: Node3D # eye point; pitches with the mouse
 var camera: Camera3D
 var third_person := false
+var swimming := false # sprint-swimming
 var _arm: SpringArm3D
 var _body_mesh: MeshInstance3D
 var flying := false
@@ -92,7 +99,10 @@ func _physics_process(delta: float) -> void:
 		return
 	var input := Input.get_vector("move_left", "move_right", "move_forward", "move_back")
 	var dir := (transform.basis * Vector3(input.x, 0.0, input.y)).normalized()
-	var in_water := global_position.y + 0.9 < 0.0
+	var water := terrain.water_at(global_position.x, global_position.z) if terrain else Vector3.ZERO
+	var depth := water.x - global_position.y # how deep the feet are
+	var in_water := depth > 0.6
+	var head_under := water.x > head.global_position.y
 
 	if flying:
 		var vy := 0.0
@@ -102,17 +112,15 @@ func _physics_process(delta: float) -> void:
 			vy -= 1.0
 		var spd := FLY_SPEED * (2.5 if Input.is_action_pressed("sprint") else 1.0)
 		velocity = dir * spd + Vector3.UP * vy * spd * 0.6
+		swimming = false
+	elif in_water:
+		_swim(delta, dir, depth, head_under, Vector2(water.y, water.z))
 	else:
+		swimming = false
 		var speed := SPRINT_SPEED if Input.is_action_pressed("sprint") else WALK_SPEED
-		if in_water:
-			speed *= 0.6
-			velocity.y = move_toward(velocity.y, -1.5, 8.0 * delta)
-			if Input.is_action_pressed("jump"):
-				velocity.y = 3.2
-		else:
-			velocity.y -= GRAVITY * delta
-			if Input.is_action_pressed("jump") and is_on_floor():
-				velocity.y = JUMP_VELOCITY
+		velocity.y -= GRAVITY * delta
+		if Input.is_action_pressed("jump") and is_on_floor():
+			velocity.y = JUMP_VELOCITY
 		var accel := 40.0 if is_on_floor() else 12.0
 		velocity.x = move_toward(velocity.x, dir.x * speed, accel * delta)
 		velocity.z = move_toward(velocity.z, dir.z * speed, accel * delta)
@@ -123,6 +131,34 @@ func _physics_process(delta: float) -> void:
 			and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED and _cooldown <= 0.0:
 		_dig()
 		_cooldown = 0.22
+
+
+## Swimming, as in Minecraft: you slowly sink unless you hold jump, which swims
+## you up (and bobs you at the surface); descend sinks faster; movement is slow.
+## Sprinting with your head under water swims fast wherever you look, up and
+## down included. Swimming into a bank with jump held climbs out. Rivers carry
+## you downstream.
+func _swim(delta: float, dir: Vector3, depth: float, head_under: bool, flow: Vector2) -> void:
+	var look := -head.global_basis.z
+	var forward := Input.get_vector("move_left", "move_right", "move_forward", "move_back").y < -0.3
+	swimming = head_under and forward and Input.is_action_pressed("sprint")
+	var target := Vector3.ZERO
+	if swimming:
+		target = look * SWIM_SPRINT_SPEED
+	else:
+		target = dir * SWIM_SPEED
+		if Input.is_action_pressed("jump"):
+			target.y = SWIM_UP_SPEED
+		elif Input.is_action_pressed("descend"):
+			target.y = -SWIM_UP_SPEED
+		else:
+			target.y = -SINK_SPEED
+	# The current carries you along; water is thick, so velocities ease toward
+	# the target (and a dive is braked).
+	target += Vector3(flow.x, 0.0, flow.y) * CURRENT_SPEED
+	velocity = velocity.move_toward(target, 9.0 * delta)
+	if Input.is_action_pressed("jump") and is_on_wall() and depth < 1.6:
+		velocity.y = 4.2 # climb out onto the bank
 
 
 func _ray() -> Dictionary:

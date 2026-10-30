@@ -227,7 +227,9 @@ void fragment() {
 	// broken up by the small waves themselves rather than a texture.
 	float breakup = clamp(0.5 + 2.5 * dot(dslope, vec2(0.7, 0.7)), 0.0, 1.0);
 	float foam = smoothstep(0.25, 0.6, 1.0 - jac) * breakup;
-	foam = max(foam, (1.0 - smoothstep(0.0, 0.35, thickness)) * smoothstep(0.3, 0.7, breakup) * 0.8);
+	// (The swash line is a few decimetres wide: gone once a pixel is wider than that.)
+	foam = max(foam, (1.0 - smoothstep(0.0, 0.35, thickness)) * smoothstep(0.3, 0.7, breakup) * 0.8
+			* (1.0 - smoothstep(0.15, 0.6, fp)));
 	if (river) {
 		// White water over riffles: fast, shallow flow.
 		foam = max(foam, smoothstep(0.6, 1.0, length(vflow)) * (1.0 - smoothstep(0.1, 0.6, thickness)) * breakup);

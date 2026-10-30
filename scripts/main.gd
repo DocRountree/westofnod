@@ -141,6 +141,7 @@ func _process(_delta: float) -> void:
 			player.global_position = Vector3(p.x, h + 0.5, p.z)
 			player.frozen = false
 			hud.status.text = ""
-	var under := player.camera.global_position.y < 0.0
+	var cam := player.camera.global_position
+	var under := cam.y < terrain.water_at(cam.x, cam.z).x
 	env.fog_density = 0.06 if under else 0.00035
 	env.fog_light_color = Color(0.05, 0.25, 0.35) if under else Color(0.68, 0.78, 0.88)
