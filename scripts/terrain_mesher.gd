@@ -129,6 +129,8 @@ static func build_water(data: PackedFloat32Array, n: int, s: float) -> Dictionar
 	# the sheet stays flat out to where it meets the bank instead of dropping
 	# away (which left a saw-toothed waterline).
 	var edge := PackedVector3Array(verts)
+	var ring := PackedByteArray()
+	ring.resize(w * w)
 	for j in w:
 		for i in w:
 			var a := j * w + i
@@ -145,12 +147,17 @@ static func build_water(data: PackedFloat32Array, n: int, s: float) -> Dictionar
 							flow[a] = flow[nj * w + ni]
 			if lvl > -INF:
 				edge[a].y = lvl
+				ring[a] = 1
 	verts = edge
 	var idx := PackedInt32Array()
 	for j in n:
 		for i in n:
 			var a := j * w + i
-			if wet[a] + wet[a + 1] + wet[a + w] + wet[a + w + 1] == 0:
+			# Also keep the ring of quads around the water (their corners were
+			# levelled above), so the sheet runs into the bank and the waterline
+			# is where it meets the ground, not a stair-step on the grid.
+			if wet[a] + wet[a + 1] + wet[a + w] + wet[a + w + 1] == 0 \
+					and not (ring[a] or ring[a + 1] or ring[a + w] or ring[a + w + 1]):
 				continue
 			idx.append_array([a, a + 1, a + w, a + 1, a + w + 1, a + w])
 	var normals := PackedVector3Array()

@@ -10,16 +10,29 @@ varying vec3 wpos;
 varying vec3 wnorm;
 varying vec4 attr; // r: floodplain 0..1, g: gully/10m, b: channel cut/2m, a: dug/3m
 
-float hash(vec2 p) {
-	return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+// Integer hash: exact at any world coordinate (a sin-based hash loses its
+// precision a few km out and turns into blocky patterns).
+float hash(ivec2 c) {
+	uint v = uint(c.x) * 1597334677u ^ uint(c.y) * 3812015801u;
+	v = v * 747796405u + 2891336453u;
+	v = ((v >> ((v >> 28u) + 4u)) ^ v) * 277803737u;
+	return float((v >> 22u) ^ v) / 4294967295.0;
+}
+
+// Value noise with quintic interpolation (no grid creases), plus a second
+// rotated, offset octave to hide the lattice.
+float vnoise1(vec2 p) {
+	vec2 fi = floor(p);
+	ivec2 i = ivec2(fi);
+	vec2 f = p - fi;
+	vec2 u = f * f * f * (f * (f * 6.0 - 15.0) + 10.0);
+	return mix(mix(hash(i), hash(i + ivec2(1, 0)), u.x),
+			mix(hash(i + ivec2(0, 1)), hash(i + ivec2(1, 1)), u.x), u.y);
 }
 
 float vnoise(vec2 p) {
-	vec2 i = floor(p);
-	vec2 f = fract(p);
-	vec2 u = f * f * (3.0 - 2.0 * f);
-	return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), u.x),
-			mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), u.x), u.y);
+	vec2 q = mat2(vec2(0.8, -0.6), vec2(0.6, 0.8)) * p * 1.93 + vec2(31.7, 11.3);
+	return clamp(0.68 * vnoise1(p) + 0.32 * vnoise1(q), 0.0, 1.0);
 }
 
 void vertex() {
@@ -55,14 +68,14 @@ void fragment() {
 	vec3 col = grass;
 	// Floodplain / fan sediments: greener meadow, silty patches along their margins.
 	col = mix(col, meadow, smoothstep(0.1, 0.7, alluvium));
-	col = mix(col, silt, smoothstep(0.6, 0.9, n2) * smoothstep(0.3, 0.9, alluvium) * 0.5);
+	col = mix(col, silt, smoothstep(0.45, 0.85, vnoise(wpos.xz * 0.09)) * smoothstep(0.3, 0.9, alluvium) * 0.4);
 	// Gully floors and moderately steep ground show soil.
-	col = mix(col, dirt, clamp(smoothstep(0.88, 0.74, n.y) * 0.7 + smoothstep(2.0, 9.0, gully) * 0.55, 0.0, 1.0));
+	col = mix(col, dirt, clamp(smoothstep(0.92, 0.7, n.y) * 0.7 + smoothstep(2.0, 9.0, gully) * 0.55, 0.0, 1.0));
 	col *= 1.0 - 0.25 * smoothstep(2.0, 12.0, gully); // shadowed gully floors
 	// Steep slopes and high ground are bare rock (matches surface_material()).
-	float rocky = 1.0 - smoothstep(0.66, 0.74, n.y);
+	float rocky = 1.0 - smoothstep(0.62, 0.78, n.y);
 	rocky = max(rocky, smoothstep(95.0, 130.0, h + n1 * 25.0) * smoothstep(0.98, 0.82, n.y));
-	rocky = max(rocky, smoothstep(0.6, 1.0, n2) * smoothstep(0.84, 0.76, n.y) * 0.8);
+	rocky = max(rocky, smoothstep(0.55, 0.95, vnoise(wpos.xz * 0.15)) * smoothstep(0.88, 0.72, n.y) * 0.8);
 	col = mix(col, rock, rocky);
 	// River beds.
 	col = mix(col, gravel, smoothstep(0.25, 0.5, channel) * channel_tint);
