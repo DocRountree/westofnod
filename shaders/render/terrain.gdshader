@@ -9,19 +9,30 @@ render_mode diffuse_burley, specular_schlick_ggx;
 // broad patches, dark forest floor under the trees, damp ground in hollows,
 // rock on steep ground and crests, beaches, the sea floor.
 //
-// Two things stand in for geometry at range. Grass: fine blade streaks and
-// tufts in the ground colour, so the ground stays grassy where the grass
-// clumps end. Forest: as the far trees dither out, the canopy itself is drawn
-// on the ground: a cell of crowns about tree-sized, each a lit dome with dark
-// gaps between (its own normal, so the sun shades it), so a distant forested
-// mountainside stays a forest.
+// Grass is a texture: fine blade streaks and tufts in the ground colour.
+//
+// Far trees: as each far tree dithers out, the terrain draws that same tree
+// as a flat crown in exactly its place. It reruns the trees' placement (same
+// cells, same hash, same density test, same size and colour), finds the
+// crowns over this pixel, and shades the topmost as a dome (its own normal,
+// so the sun lights it as it lit the tree), with the crown's shadow cast on
+// the ground beside it. So the forest doesn't change as it goes flat. Once a
+// crown is smaller than a pixel, the pattern fades to its average.
 
 #include "res://shaders/render/height_map.gdshaderinc"
+#include "res://shaders/render/scatter_hash.gdshaderinc"
 
 uniform sampler2D mask_tex : filter_linear_mipmap, repeat_disable; // rock, wet, forest, sand
-uniform float trees_start = 1000.0; // where the far trees begin to dither out
-uniform float trees_end = 2200.0;   // where they are gone
+// The far trees (tree.gdshader in the far ScatterField): where they begin to
+// dither out, their cell size and size scale, and their colours.
+uniform float canopy_start = 1080.0;
+uniform float canopy_cell = 14.0;
+uniform float canopy_scale = 1.35;
+uniform vec3 leaf_a : source_color = vec3(0.13, 0.27, 0.09);
+uniform vec3 leaf_b : source_color = vec3(0.22, 0.34, 0.11);
 uniform vec3 sun_direction = vec3(0.4, 0.6, 0.6);
+const float CROWN_R = 3.3;  // crown radius of the far tree mesh at scale 1
+const float CROWN_H = 6.8;  // crown centre height
 
 varying vec3 world_pos;
 
@@ -45,23 +56,6 @@ float hash(ivec2 c) {
 	return float((v >> 22u) ^ v) / 4294967295.0;
 }
 
-// Nearest cell feature (Worley): returns (distance to it, distance to the
-// second nearest, cell hash).
-vec3 worley(vec2 p) {
-	vec2 fi = floor(p);
-	float d1 = 9.0, d2 = 9.0, id = 0.0;
-	for (int j = -1; j <= 1; j++) {
-		for (int i = -1; i <= 1; i++) {
-			ivec2 c = ivec2(fi) + ivec2(i, j);
-			vec2 o = vec2(hash(c), hash(c + ivec2(17, 31))) * 0.8 + 0.1;
-			float d = length(vec2(c) + o - p);
-			if (d < d1) { d2 = d1; d1 = d; id = hash(c + ivec2(5, 3)); }
-			else if (d < d2) { d2 = d; }
-		}
-	}
-	return vec3(d1, d2, id);
-}
-
 float vnoise(vec2 p) {
 	vec2 fi = floor(p);
 	ivec2 i = ivec2(fi);
@@ -82,7 +76,6 @@ void fragment() {
 	float patches = vnoise(p / 240.0) * 0.6 + vnoise(p / 60.0) * 0.4;
 	vec3 grass = mix(vec3(0.26, 0.38, 0.13), vec3(0.40, 0.44, 0.20), clamp(patches * 1.2 - 0.2, 0.0, 1.0));
 	vec3 forest_floor = vec3(0.17, 0.20, 0.10);
-	vec3 canopy = mix(vec3(0.11, 0.22, 0.08), vec3(0.16, 0.27, 0.09), patches);
 	vec3 rock = mix(vec3(0.30, 0.28, 0.25), vec3(0.46, 0.42, 0.37), vnoise(p / 9.0) * 0.6 + vnoise(p / 50.0) * 0.4);
 	vec3 soil = vec3(0.32, 0.24, 0.16);
 	vec3 sand = mix(vec3(0.74, 0.68, 0.52), vec3(0.82, 0.76, 0.58), patches);
@@ -101,19 +94,49 @@ void fragment() {
 	float rocky = max(m.r, smoothstep(0.62, 0.45, n.y));
 	col = mix(col, rock, rocky);
 
-	// Distant canopy: crowns ~11 m across, lit as domes, dark gaps between.
-	float canopy_w = smoothstep(trees_start, trees_end, dist) * smoothstep(0.25, 0.75, m.b) * (1.0 - rocky);
+	// Far trees, flat: the same trees as tree.gdshader's far field.
+	float canopy_w = smoothstep(canopy_start, canopy_start + 40.0, dist);
 	if (canopy_w > 0.0) {
-		vec2 q = p / 11.0;
-		vec3 w = worley(q);
-		float crown = clamp(1.0 - w.x * 1.6, 0.0, 1.0);
-		float gap = smoothstep(0.0, 0.12, w.y - w.x);
-		// Fake dome normal: tilt toward the crown's edge, then light it.
-		vec2 cell_c = floor(q) + 0.5;
-		vec3 dome = normalize(vec3((q - cell_c) * (1.0 - crown) * 1.5, 1.0).xzy);
-		float lit = clamp(dot(dome, normalize(sun_direction)) * 0.6 + 0.55, 0.3, 1.1);
-		vec3 crowns = canopy * mix(0.75, 1.15, w.z) * lit * mix(0.45, 1.0, gap);
-		col = mix(col, crowns, canopy_w);
+		vec3 sun = normalize(sun_direction);
+		vec2 shadow_dir = -sun.xz / max(sun.y, 0.2);
+		ivec2 c0 = ivec2(floor(p / canopy_cell));
+		float top = -1.0;
+		vec3 crown_col = vec3(0.0);
+		vec3 crown_n = vec3(0.0, 1.0, 0.0);
+		float shadow = 0.0;
+		float aa = fp * 0.7;
+		for (int j = -1; j <= 1; j++) {
+			for (int i = -1; i <= 1; i++) {
+				vec2 tp;
+				float r, seed, turn;
+				cell_prop(c0 + ivec2(i, j), canopy_cell, 1u, tp, r, seed, turn);
+				if (r >= textureLod(mask_tex, map_uv(tp), 0.0).b || height_m(tp, 0) <= 2.0) continue;
+				float sc = mix(0.7, 1.35, seed) * canopy_scale;
+				float R = CROWN_R * sc;
+				vec2 d = p - tp;
+				float dd = length(d);
+				// Its shadow on the ground, cast from the crown's height.
+				float ds = length(p - (tp + shadow_dir * CROWN_H * sc));
+				shadow = max(shadow, 1.0 - smoothstep(R - aa, R + aa, ds));
+				float cover = 1.0 - smoothstep(R - aa, R + aa, dd);
+				float z = sqrt(max(R * R - dd * dd, 0.0)) + CROWN_H * sc;
+				if (cover > 0.0 && z > top) {
+					top = z;
+					crown_n = normalize(vec3(d.x, sqrt(max(R * R - dd * dd, 0.0)) * 0.9 + 0.2 * R, d.y));
+					crown_col = mix(leaf_a, leaf_b, seed) * cover + col * (1.0 - cover);
+				}
+			}
+		}
+		// Footprint fade: crowns below a pixel average out to canopy cover.
+		float resolve = 1.0 - smoothstep(canopy_cell * 0.15, canopy_cell * 0.6, fp);
+		vec3 flat_col = col * (1.0 - 0.45 * shadow);
+		if (top > 0.0) {
+			flat_col = crown_col;
+			n = normalize(mix(n, crown_n, resolve));
+		}
+		vec3 avg = mix(col, mix(leaf_a, leaf_b, 0.5) * 0.85, smoothstep(0.1, 0.9, m.b) * 0.8);
+		col = mix(col, mix(avg, flat_col, resolve), canopy_w);
+		NORMAL = normalize((VIEW_MATRIX * vec4(n, 0.0)).xyz);
 	}
 	col = mix(col, sand, m.a * (1.0 - rocky * 0.7));
 	col = mix(col, seabed, 1.0 - smoothstep(-1.0, 0.2, h));

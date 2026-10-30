@@ -1,7 +1,7 @@
 extends Node3D
 ## Builds the vertical slice: real terrain (Hanalei, Kauai, from USGS elevation
 ## data baked by tools/dem/bake_slice.py) on one CDLOD quadtree, river meshes,
-## the ocean, scattered trees, rocks and grass, sky and atmosphere, the player.
+## the ocean, scattered trees, sky and atmosphere, the player.
 
 var world: WorldData
 var cdlod: Cdlod
@@ -15,6 +15,9 @@ var river_material: ShaderMaterial
 var fields: Array[ScatterField] = []
 
 const TREES_END := 1800.0 # where the far trees have dithered out
+const FAR_FADE := 0.6 # ... starting at this fraction of TREES_END
+const FAR_CELL := 14.0 # far tree cell (terrain.gdshader reproduces their placement)
+const FAR_SCALE := 1.35
 var _sun: DirectionalLight3D
 
 
@@ -59,25 +62,21 @@ func _ready() -> void:
 	add_child(floor_mi)
 
 	# Trees: detailed near (with shadows); simple crowns farther out, larger and
-	# sparser, no shadows; the two bands cross-fade. Beyond, the terrain draws
-	# the canopy itself, fading in under the far trees as they dither out.
+	# sparser, no shadows; the two bands cross-fade. As the far trees dither
+	# out, the terrain draws each of them as a flat crown in exactly its place
+	# (same cells, same hash: see terrain.gdshader), out to the horizon.
 	var tree_shader: Shader = load("res://shaders/render/tree.gdshader")
 	var near_trees := ScatterField.new(world, PropMeshes.tree(1, 3), tree_shader, 7.0, 260.0, Vector2(-1, 0))
-	var far_trees := ScatterField.new(world, PropMeshes.tree(0, 5), tree_shader, 14.0, TREES_END,
-			Vector2(190.0, 250.0), {"size_scale": 1.35})
+	var far_trees := ScatterField.new(world, PropMeshes.tree(0, 5), tree_shader, FAR_CELL, TREES_END,
+			Vector2(190.0, 250.0), {"size_scale": FAR_SCALE})
 	far_trees.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	far_trees.material.set_shader_parameter("fade_out_start", TREES_END * 0.6)
-	# Grass: geometric clumps close by, shrinking away by 40 m; the terrain
-	# shader's grass carries on from there.
-	var grass := ScatterField.new(world, PropMeshes.grass(13), load("res://shaders/render/grass.gdshader"),
-			0.8, 40.0, Vector2(-1, 0))
-	grass.material.set_shader_parameter("fade_out_start", 15.0)
-	grass.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	fields.append_array([near_trees, far_trees, grass])
+	far_trees.material.set_shader_parameter("fade_out_start", TREES_END * FAR_FADE)
+	fields.append_array([near_trees, far_trees])
 	for f in fields:
 		add_child(f)
-	terrain_mat.set_shader_parameter("trees_start", TREES_END * 0.45)
-	terrain_mat.set_shader_parameter("trees_end", TREES_END)
+	terrain_mat.set_shader_parameter("canopy_start", TREES_END * FAR_FADE)
+	terrain_mat.set_shader_parameter("canopy_cell", FAR_CELL)
+	terrain_mat.set_shader_parameter("canopy_scale", FAR_SCALE)
 	terrain_mat.set_shader_parameter("sun_direction", _sun.global_basis.z)
 
 	collider = TerrainCollider.new()

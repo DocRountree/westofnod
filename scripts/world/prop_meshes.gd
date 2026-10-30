@@ -24,25 +24,6 @@ static func tree(detail: int, seed: int) -> ArrayMesh:
 	return st.commit()
 
 
-## A grass clump: a few tapering blades.
-static func grass(seed: int) -> ArrayMesh:
-	var rng := RandomNumberGenerator.new()
-	rng.seed = seed
-	var st := SurfaceTool.new()
-	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	for b in 7:
-		var a := rng.randf() * TAU
-		var base := Vector3(cos(a), 0, sin(a)) * rng.randf_range(0.0, 0.25)
-		var h := rng.randf_range(0.35, 0.75)
-		var lean := Vector3(cos(a), 0, sin(a)) * rng.randf_range(0.05, 0.25)
-		var side := Vector3(-sin(a), 0, cos(a)) * 0.03
-		for v in [[base - side, 0.0], [base + side, 0.0], [base + lean + Vector3(0, h, 0), 1.0]]:
-			st.set_color(Color(1.0, v[1], 0, 1))
-			st.set_normal(Vector3.UP)
-			st.add_vertex(v[0])
-	return st.commit()
-
-
 static func _cylinder(st: SurfaceTool, base: Vector3, r0: float, r1: float, h: float, sides: int) -> void:
 	for i in sides:
 		var a0 := TAU * i / sides

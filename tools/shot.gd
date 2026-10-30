@@ -61,6 +61,8 @@ func _run() -> void:
 	await _shot("05_aerial_back")
 	await _view(Vector3(0, 700, 2500), 0.0, -0.35)
 	await _shot("06_high")
+	await _view(Vector3(0, 300, 1500), 0.0, -0.22)
+	await _shot("06a_forest_band")
 	await _view(s + Vector3(0, 8, 0), PI * 0.3, -0.05)
 	await _shot("06b_valley")
 	# The coast at sea level, looking along the shore.
