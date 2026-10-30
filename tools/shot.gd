@@ -56,8 +56,34 @@ func _run() -> void:
 	await _wait(1.0)
 	await _shot("03_dig_place")
 	print("inventory ", p.inventory)
-	# fly up for an overview
 	p.flying = true
+	# river close-up from low altitude
+	p.global_position += Vector3(0, 25, 0)
+	p.camera.rotation.x = -0.6
+	await _wait(3.0)
+	await _shot("03b_river_low")
+	# Gerstner ocean at sea level, near the closest coast
+	var world: TerrainWorld = main.terrain
+	var start := p.global_position
+	var best := Vector3.INF
+	for k in world._far:
+		var mi: MeshInstance3D = world._far[k]
+		var verts: PackedVector3Array = mi.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]
+		for v in verts:
+			if v.y > -3.0 and v.y < -1.0:
+				var wp := mi.position + Vector3(v.x, 0, v.z)
+				if best == Vector3.INF or wp.distance_to(start) < best.distance_to(start):
+					best = wp
+	if best != Vector3.INF:
+		p.global_position = Vector3(best.x, 2.2, best.z)
+		p.camera.rotation.x = -0.12
+		await _wait(12.0)
+		for i in 2:
+			await _shot("03c_sea_%d" % i)
+			p.rotate_y(PI * 0.6)
+			await _wait(6.0)
+		p.global_position = start
+	# fly up for an overview
 	p.global_position += Vector3(0, 140, 0)
 	p.camera.rotation.x = -0.45
 	await _wait(8.0)
@@ -65,4 +91,25 @@ func _run() -> void:
 	p.rotate_y(PI)
 	await _wait(4.0)
 	await _shot("05_aerial_back")
+	if OS.get_cmdline_user_args().has("--isolate"):
+		var tw: TerrainWorld = main.terrain
+		for k in tw._far:
+			tw._far[k].visible = false
+		await _wait(1.0)
+		await _shot("06_no_far")
+		for k in tw._far:
+			tw._far[k].visible = true
+		for k in tw._near:
+			tw._near[k].node.visible = false
+		main.blocks.visible = false
+		await _wait(1.0)
+		await _shot("07_no_near")
+		for k in tw._near:
+			tw._near[k].node.visible = true
+		for k in tw._far:
+			tw._far[k].visible = false
+		p.global_position.y = 600.0
+		p.camera.rotation.x = -PI / 2
+		await _wait(1.0)
+		await _shot("08_topdown")
 	get_tree().quit()

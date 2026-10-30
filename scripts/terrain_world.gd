@@ -1,7 +1,7 @@
 class_name TerrainWorld
 extends Node3D
 ## Streams terrain around a focus point: 64 m chunks at 1 m resolution near the
-## player (mesh + collision + river water, diggable), and 512 m tiles at 8 m
+## player (mesh + collision + river/lake water, diggable), and 1 km tiles at 16 m
 ## resolution out to the horizon so neighbouring islands are visible.
 
 signal spawn_found(position: Vector3)
@@ -10,9 +10,9 @@ const CHUNK_CELLS := 64
 const NEAR_SPACING := 1.0
 const NEAR_SIZE := 64.0
 const NEAR_RADIUS := 4
-const FAR_SPACING := 8.0
-const FAR_SIZE := 512.0
-const FAR_RADIUS := 4
+const FAR_SPACING := 16.0
+const FAR_SIZE := 1024.0
+const FAR_RADIUS := 3
 const FAR_CUTOFF := 232.0 # far tiles are discarded within this distance of the camera
 const MAX_IN_FLIGHT := 2
 const OUT_N := CHUNK_CELLS + 3
@@ -24,13 +24,15 @@ var spawned := false
 
 var near_material: ShaderMaterial
 var far_material: ShaderMaterial
-var water_material: ShaderMaterial
+var water_material: ShaderMaterial # rivers and lakes near the player
+var far_water_material: ShaderMaterial
 
 var _near := {} # Vector2i -> chunk Dictionary
 var _far := {} # Vector2i -> Node3D
 var _in_flight := {} # Vector3i(kind, x, z) -> true
 var _edits := {} # Vector2i -> PackedFloat32Array (OUT_N^2 height deltas)
 var _trees_done := {}
+var _spawn_requested := false
 var _forest := FastNoiseLite.new()
 
 
@@ -40,6 +42,7 @@ func _ready() -> void:
 	far_material = ShaderMaterial.new()
 	far_material.shader = near_material.shader
 	far_material.set_shader_parameter("near_cutoff", FAR_CUTOFF)
+	far_material.set_shader_parameter("channel_tint", 0.0)
 	_forest.seed = generator.seed
 	_forest.frequency = 1.0 / 260.0
 	generator.start()
@@ -51,14 +54,18 @@ func _exit_tree() -> void:
 
 func _process(_delta: float) -> void:
 	for res in generator.poll():
+		if res.kind == 2:
+			_in_flight.erase(Vector3i(2, 0, 0))
+			spawned = true
+			focus = res.spawn
+			spawn_found.emit(res.spawn)
+			continue
 		var key := Vector3i(res.kind, res.key.x, res.key.y)
 		_in_flight.erase(key)
 		if res.kind == 0:
 			_add_near(res)
 		else:
 			_add_far(res)
-	if not spawned:
-		_try_spawn()
 	_schedule()
 	_unload()
 
@@ -84,11 +91,10 @@ func _schedule() -> void:
 
 func _next_job() -> Dictionary:
 	if not spawned:
-		# Look for a spawn point on the island at the origin first.
-		for k in _ring(Vector2i(-1, -1), 1):
-			if not _far.has(k) and not _in_flight.has(Vector3i(1, k.x, k.y)):
-				return _far_job(k)
-		return {}
+		if _spawn_requested:
+			return {}
+		_spawn_requested = true
+		return {"kind": 2, "key": Vector2i.ZERO}
 	var c := near_key(focus)
 	var best := Vector2i.ZERO
 	var best_d := INF
@@ -136,8 +142,6 @@ func _unload() -> void:
 		if maxi(absi(k.x - c.x), absi(k.y - c.y)) > NEAR_RADIUS + 1:
 			_near[k].node.queue_free()
 			_near.erase(k)
-	if not spawned:
-		return
 	var fc := far_key(focus)
 	for k in _far.keys():
 		if maxi(absi(k.x - fc.x), absi(k.y - fc.y)) > FAR_RADIUS + 1:
@@ -154,6 +158,9 @@ func _add_far(res: Dictionary) -> void:
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	mi.position = Vector3(res.origin.x, -0.8, res.origin.y)
 	add_child(mi)
+	var water := _build_water(res.water, far_water_material)
+	if water:
+		mi.add_child(water)
 	_far[res.key] = mi
 
 
@@ -183,7 +190,7 @@ func _add_near(res: Dictionary) -> void:
 	body.add_child(cs)
 	node.add_child(body)
 
-	var water := _build_river_water(res.river)
+	var water := _build_water(res.water, water_material)
 	if water:
 		node.add_child(water)
 
@@ -192,19 +199,19 @@ func _add_near(res: Dictionary) -> void:
 	_place_trees(key)
 
 
-func _build_river_water(river: Dictionary) -> MeshInstance3D:
-	if river.is_empty():
+func _build_water(water: Dictionary, material: ShaderMaterial) -> MeshInstance3D:
+	if water.is_empty():
 		return null
 	var arr := []
 	arr.resize(Mesh.ARRAY_MAX)
-	arr[Mesh.ARRAY_VERTEX] = river.verts
-	arr[Mesh.ARRAY_NORMAL] = river.normals
-	arr[Mesh.ARRAY_INDEX] = river.indices
+	arr[Mesh.ARRAY_VERTEX] = water.verts
+	arr[Mesh.ARRAY_NORMAL] = water.normals
+	arr[Mesh.ARRAY_INDEX] = water.indices
 	var mesh := ArrayMesh.new()
 	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arr)
 	var mi := MeshInstance3D.new()
 	mi.mesh = mesh
-	mi.material_override = water_material
+	mi.material_override = material
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	return mi
 
@@ -298,35 +305,6 @@ func dig(p: Vector3, radius: float = 1.3, depth: float = 0.7) -> int:
 
 # ------------------------------------------------------------------ spawn & trees
 
-func _try_spawn() -> void:
-	for k in _ring(Vector2i(-1, -1), 1):
-		if not _far.has(k):
-			return
-	# Pick the lowland vertex closest to the origin island's core: on the plain,
-	# above the beach, gentle slope.
-	var best := Vector3.ZERO
-	var best_d := INF
-	for k in _ring(Vector2i(-1, -1), 1):
-		var mesh: ArrayMesh = _far[k].mesh
-		var verts: PackedVector3Array = mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]
-		var normals: PackedVector3Array = mesh.surface_get_arrays(0)[Mesh.ARRAY_NORMAL]
-		var o: Vector3 = _far[k].position
-		for vi in range(0, verts.size(), 3):
-			var v := verts[vi]
-			if v.y < 4.0 or v.y > 14.0 or normals[vi].y < 0.97:
-				continue
-			var wp := Vector3(o.x + v.x, v.y, o.z + v.z)
-			var d := Vector2(wp.x, wp.z).length()
-			if d < best_d:
-				best_d = d
-				best = wp
-	if best_d == INF:
-		best = Vector3(0, 120, 0)
-	spawned = true
-	focus = best
-	spawn_found.emit(best)
-
-
 func _place_trees(key: Vector2i) -> void:
 	if _trees_done.has(key) or block_world == null:
 		return
@@ -349,7 +327,9 @@ func _place_trees(key: Vector2i) -> void:
 			var h: float = ch.arrays.heights[v]
 			var n: Vector3 = ch.arrays.normals[v]
 			var col: Color = ch.arrays.colors[v]
-			if h < 2.0 or h > 75.0 or n.y < 0.86 or col.b * 2.0 > 0.15:
+			var r := ((z + 1) * OUT_N + x + 1) * TerrainGenerator.OUT_STRIDE
+			if h < 2.0 or h > 120.0 or n.y < 0.86 or col.b * 2.0 > 0.05 \
+					or ch.data[r + 4] > h - 1.5:
 				continue
 			var hmin := minf(h, height_at(wx, wz))
 			block_world.add_tree(Vector3i(floori(wx), floori(hmin - 0.4), floori(wz)), rng)

@@ -18,12 +18,12 @@ func _init() -> void:
 	heights.resize((size + 1) * (size + 1))
 	var allu := PackedFloat32Array()
 	allu.resize(heights.size())
-	var chan := PackedFloat32Array()
-	chan.resize(heights.size())
+	var water := PackedFloat32Array()
+	water.resize(heights.size())
 	var t0 := Time.get_ticks_msec()
 	for tj in tiles:
 		for ti in tiles:
-			gen.request({"key": Vector2i(ti, tj), "origin": Vector2(cx - span / 2 + ti * n * s, cz - span / 2 + tj * n * s), "spacing": s, "n": n})
+			gen.request({"kind": 1, "key": Vector2i(ti, tj), "origin": Vector2(cx - span / 2 + ti * n * s, cz - span / 2 + tj * n * s), "spacing": s, "n": n})
 	var got := 0
 	while got < tiles * tiles:
 		OS.delay_msec(20)
@@ -31,15 +31,15 @@ func _init() -> void:
 			got += 1
 			var k: Vector2i = r.key
 			var d: PackedFloat32Array = r.data
-			var on: int = r.out_n
+			var on: int = n + 3
 			for j in n + 1:
 				for i in n + 1:
 					var gi := k.x * n + i
 					var gj := k.y * n + j
-					var o := ((j + 1) * on + i + 1) * 4
+					var o := ((j + 1) * on + i + 1) * 8
 					heights[gj * (size + 1) + gi] = d[o]
 					allu[gj * (size + 1) + gi] = d[o + 1]
-					chan[gj * (size + 1) + gi] = d[o + 3]
+					water[gj * (size + 1) + gi] = d[o + 5] if d[o + 4] > d[o] else 0.0
 	print("generated %d tiles in %d ms" % [tiles * tiles, Time.get_ticks_msec() - t0])
 	gen.stop()
 	var img := Image.create(size + 1, size + 1, false, Image.FORMAT_RGB8)
@@ -57,14 +57,16 @@ func _init() -> void:
 			var c: Color
 			if h < 0.0:
 				c = Color(0.1, 0.25, 0.5).lerp(Color(0.2, 0.55, 0.7), clampf(1.0 + h / 30.0, 0.0, 1.0))
-			elif h < 1.5:
+			elif h < 1.2 and allu[j * (size + 1) + i] < 0.2:
 				c = Color(0.85, 0.8, 0.6)
 			else:
 				c = Color(0.35, 0.55, 0.25).lerp(Color(0.55, 0.5, 0.45), clampf(h / 150.0, 0.0, 1.0))
-				c = c.lerp(Color(0.25, 0.6, 0.2), clampf(allu[j * (size + 1) + i] / 3.0, 0.0, 1.0))
-				if chan[j * (size + 1) + i] > 0.3:
-					c = Color(0.3, 0.45, 0.65)
+				c = c.lerp(Color(0.25, 0.6, 0.2), clampf(allu[j * (size + 1) + i], 0.0, 1.0) * 0.6)
 				c = c * (0.35 + 0.75 * shade)
+				if water[j * (size + 1) + i] > 1.5:
+					c = Color(0.2, 0.45, 0.85)
+				elif water[j * (size + 1) + i] > 0.5:
+					c = Color(0.15, 0.35, 0.8)
 			img.set_pixel(i, j, c)
 	print("height range %.1f .. %.1f" % [hmin, hmax])
 	img.save_png(out_dir.path_join("preview_s%d_%d_%d.png" % [int(s), int(cx), int(cz)]))

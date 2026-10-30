@@ -1,8 +1,9 @@
 class_name TerrainMesher
 extends RefCounted
 ## Builds heightfield mesh arrays from generator output.
-## data: out_n*out_n vec4s (height, alluvium, gully depth, channel depth) covering the
-## (n+1)^2 vertex grid plus a one-vertex ring used for seamless normals.
+## data: out_n*out_n vertices of 8 floats (height, alluvium 0..1, gully depth,
+## channel cut, water level, water kind, 0, 0) covering the (n+1)^2 vertex grid
+## plus a one-vertex ring used for seamless normals.
 ## delta: optional per-ring-vertex height edits (digging), same layout, or null.
 
 static var _index_cache := {}
@@ -31,7 +32,7 @@ static func indices(n: int) -> PackedInt32Array:
 
 static func height_at(data: PackedFloat32Array, delta, out_n: int, i: int, j: int) -> float:
 	var r := j * out_n + i
-	var h := data[r * 4]
+	var h := data[r * 8]
 	if delta != null:
 		h += delta[r]
 	return h
@@ -67,7 +68,7 @@ static func update_rect(arrays: Dictionary, data: PackedFloat32Array, delta, n: 
 			var oi := i + 1
 			var oj := j + 1
 			var r := oj * on + oi
-			var h := data[r * 4]
+			var h := data[r * 8]
 			var dug := 0.0
 			if delta != null:
 				dug = -delta[r]
@@ -79,9 +80,9 @@ static func update_rect(arrays: Dictionary, data: PackedFloat32Array, delta, n: 
 			var v := j * w + i
 			verts[v] = Vector3(i * s, h, j * s)
 			normals[v] = Vector3(hl - hr, 2.0 * s, hd - hu).normalized()
-			# r: alluvium thickness, g: gully depth, b: channel depth, a: dug depth
-			colors[v] = Color(data[r * 4 + 1] / 6.0, data[r * 4 + 2] / 10.0,
-					data[r * 4 + 3] / 2.0, clampf(dug / 3.0, 0.0, 1.0))
+			# r: alluvium, g: gully depth/10, b: channel cut/2, a: dug depth/3
+			colors[v] = Color(data[r * 8 + 1], data[r * 8 + 2] / 10.0,
+					data[r * 8 + 3] / 2.0, clampf(dug / 3.0, 0.0, 1.0))
 			heights[v] = h
 	arrays.verts = verts
 	arrays.normals = normals
@@ -101,9 +102,9 @@ static func make_mesh(arrays: Dictionary, n: int) -> ArrayMesh:
 	return mesh
 
 
-## River surface: a sheet just below the floodplain level, kept only where the grid
-## has a channel (elsewhere it would sit under the ground anyway). Empty if none.
-static func build_river(data: PackedFloat32Array, n: int) -> Dictionary:
+## River and lake surfaces: a sheet at each vertex's water level, kept only where
+## the grid has water (around it the sheet sits below the banks). Empty if none.
+static func build_water(data: PackedFloat32Array, n: int, s: float) -> Dictionary:
 	var w := n + 1
 	var on := n + 3
 	var verts := PackedVector3Array()
@@ -113,11 +114,9 @@ static func build_river(data: PackedFloat32Array, n: int) -> Dictionary:
 	var any := false
 	for j in w:
 		for i in w:
-			var r := ((j + 1) * on + i + 1) * 4
-			var ch := data[r + 3]
-			var surface := data[r] + ch - 0.35
-			verts[j * w + i] = Vector3(i, maxf(surface, 0.02), j)
-			if ch > 0.05 and surface > 0.05:
+			var r := ((j + 1) * on + i + 1) * 8
+			verts[j * w + i] = Vector3(i * s, data[r + 4], j * s)
+			if data[r + 5] > 0.5:
 				wet[j * w + i] = 1
 				any = true
 	if not any:

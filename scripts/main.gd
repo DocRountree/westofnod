@@ -13,21 +13,32 @@ var water_material: ShaderMaterial
 func _ready() -> void:
 	_build_environment()
 
-	water_material = ShaderMaterial.new()
-	water_material.shader = load("res://shaders/water.gdshader")
+	var water_shader: Shader = load("res://shaders/water.gdshader")
+	var ocean_material := ShaderMaterial.new()
+	ocean_material.shader = water_shader
 	ocean = MeshInstance3D.new()
-	var plane := PlaneMesh.new()
-	plane.size = Vector2(16000, 16000)
-	ocean.mesh = plane
-	ocean.material_override = water_material
+	ocean.mesh = _ocean_mesh()
+	ocean_material.set_shader_parameter("amplitude", 0.6)
+	ocean.material_override = ocean_material
 	ocean.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	ocean.extra_cull_margin = 16.0
 	add_child(ocean)
+	# Rivers and lakes: the same Gerstner set shrunk to short, low ripples.
+	water_material = ShaderMaterial.new()
+	water_material.shader = water_shader
+	water_material.set_shader_parameter("amplitude", 0.35)
+	water_material.set_shader_parameter("length_scale", 0.12)
+	water_material.set_shader_parameter("fade_start", 60.0)
+	water_material.set_shader_parameter("fade_end", 250.0)
+	var far_water := water_material.duplicate()
+	far_water.set_shader_parameter("near_cutoff", TerrainWorld.FAR_CUTOFF)
 
 	blocks = BlockWorld.new()
 	add_child(blocks)
 	terrain = TerrainWorld.new()
 	terrain.block_world = blocks
 	terrain.water_material = water_material
+	terrain.far_water_material = far_water
 	add_child(terrain)
 	terrain.spawn_found.connect(_on_spawn_found)
 
@@ -78,6 +89,44 @@ func _build_environment() -> void:
 	add_child(sun)
 
 
+## Radial grid centred on the camera: ~0.5 m spacing up close, growing
+## geometrically out to the horizon, so Gerstner waves have vertices to move.
+func _ocean_mesh() -> ArrayMesh:
+	const SEGMENTS := 192
+	var radii := PackedFloat32Array([0.0])
+	var r := 0.0
+	while r < 9000.0:
+		r += maxf(0.5, r * 0.035)
+		radii.append(r)
+	var verts := PackedVector3Array()
+	var idx := PackedInt32Array()
+	verts.append(Vector3.ZERO)
+	for ri in range(1, radii.size()):
+		for k in SEGMENTS:
+			var a := TAU * k / SEGMENTS
+			verts.append(Vector3(cos(a), 0.0, sin(a)) * radii[ri])
+	for k in SEGMENTS:
+		var k2 := (k + 1) % SEGMENTS
+		idx.append_array([0, 1 + k2, 1 + k])
+	for ri in range(1, radii.size() - 1):
+		var a0 := 1 + (ri - 1) * SEGMENTS
+		var b0 := a0 + SEGMENTS
+		for k in SEGMENTS:
+			var k2 := (k + 1) % SEGMENTS
+			idx.append_array([a0 + k, a0 + k2, b0 + k, a0 + k2, b0 + k2, b0 + k])
+	var normals := PackedVector3Array()
+	normals.resize(verts.size())
+	normals.fill(Vector3.UP)
+	var arr := []
+	arr.resize(Mesh.ARRAY_MAX)
+	arr[Mesh.ARRAY_VERTEX] = verts
+	arr[Mesh.ARRAY_NORMAL] = normals
+	arr[Mesh.ARRAY_INDEX] = idx
+	var mesh := ArrayMesh.new()
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arr)
+	return mesh
+
+
 func _on_spawn_found(pos: Vector3) -> void:
 	player.global_position = pos + Vector3(0, 40, 0)
 	hud.status.text = "Loading terrain..."
@@ -85,7 +134,7 @@ func _on_spawn_found(pos: Vector3) -> void:
 
 func _process(_delta: float) -> void:
 	var p := player.global_position
-	ocean.global_position = Vector3(snappedf(p.x, 64.0), 0.0, snappedf(p.z, 64.0))
+	ocean.global_position = Vector3(snappedf(p.x, 2.0), 0.0, snappedf(p.z, 2.0))
 	if terrain.spawned:
 		terrain.focus = p
 		if player.frozen and terrain.has_collision_at(p):

@@ -22,49 +22,72 @@ so you need a Vulkan renderer (Forward+ or Mobile). The Compatibility renderer w
 
 ## Terrain pipeline
 
-All in `shaders/terrain_gen.glsl`, dispatched per tile by `scripts/terrain_generator.gd`:
+Hydrology comes first: rivers are planned, then the land is built around them, then
+eroded.
 
-1. **Uplift field** (16 m coarse grid). Islands are jittered on a 2.6 km world grid, about 22%
-   of cells are empty ocean, and each island is a smooth union of a few lobes with
-   domain-warped coastlines. Ridged noise forms mountains in island cores, and the ground
-   falls away to a shelf and then the deep sea.
-2. **Diffusion**. Forty explicit steps of nonlinear (Roering-style) hillslope diffusion: flux
-   rises steeply near a critical slope, which gives convex crests and planar flanks. The
-   seabed diffuses faster.
-3. **Erosion filter** (1 m near, 8 m far). The diffused field is sampled bicubically, then
-   carved by a single-pass erosion filter modelled on clayjohn's *Eroded Terrain Noise*
-   shadertoy. Each octave sums gaussian-windowed cosines oriented across the local slope,
-   so the troughs line up into gullies that run downhill. Each octave's direction is bent
-   by the gullies already carved, which makes them branch.
-4. **Alluvium**. Sediment fills every valley up to a smooth surface that follows the
-   diffused topography. On the lowlands that surface sits just below the base, so you get
-   flat floodplains and coastal plains with hills rising out of them. Higher up it sits
-   deeper, so only valley floors fill, leaving flat-bottomed valleys and fans/aprons where
-   gullies open onto the plain. Rivers are a wide-spaced, meandering phasor-noise octave:
-   its trough axes become fixed-width channels cut into the floodplain, with water, and
-   they reach the sea as estuaries.
-5. **Output**. The deposit is smoothed and beaches are flattened. Each vertex also gets
-   alluvium, gully and channel attributes, which drive surface colours and what digging
-   yields.
+**1. Islands** (`scripts/archipelago.gd`). The world is cut into 6.5 km cells. Each cell
+holds 0–3 candidate islands (often none, sometimes a cluster), with radii spread
+log-wise from 150 m islets to 3.3 km small continents. A candidate is dropped if a
+bigger island sits too close, so spacing is irregular but generous. Each coastline is a
+union of up to four star-shaped lobes, with radius given by a Fourier series in angle.
 
-Every stage reads only a bounded neighbourhood on world-aligned grids, and each tile is
-padded by the total stencil reach. That makes tiles seamless without any global pass, so
-the world is infinite. (Float precision degrades far beyond about ±1,000 km.)
+**2. Hydrology** (`scripts/island_planner.gd`, once per island on the CPU, then cached).
+This follows Génevaux et al. 2013, *Terrain generation using procedural models based on
+hydrology*:
+- **Network.** River mouths are spaced along the coast. The network grows inland from
+  them, always expanding the lowest open node. Each new node sits upstream with its
+  elevation raised by the local river gradient (steeper under mountains), so every river
+  flows downhill into the sea.
+- **Tributaries and lakes.** Branching gives tributaries. Some nodes open into lakes, with
+  inflows on the far shore and an outlet back downstream, and some mountain sources rise
+  from tarns.
+- **Width.** Drainage area gives channel width (hydraulic geometry), and channels flare
+  into a funnel-shaped estuary near the mouth.
+- **Meanders and oxbows.** Rivers are smoothed through their nodes. Where a main stem is
+  gentle and wide enough, it meanders: a Kinoshita curve laid out along the valley, with
+  bend size, wavelength (about 14 channel widths) and skew varying bend by bend. Bends
+  whose necks nearly touch are cut off; the river takes the shortcut, and the old loop is
+  left on the floodplain as an oxbow lake.
 
-About the name: "terrain diffusion" here means a physical diffusion process, i.e.
-hillslope diffusion as used in landscape-evolution models. It is not the
-*Terrain Diffusion* neural model; running that would need its trained weights and an ML
-runtime inside Godot. Stages 0–1 are the only part that would change if you swapped one
-in.
+**3. Terrain around the rivers** (`shaders/terrain_gen.glsl`, stage 0, GPU).
+- **Valleys.** Every river and valley segment defines a cross-section: channel,
+  floodplain (wide on lowland rivers, a narrow floor in the mountains), then valley sides
+  rising with a slope that grows inland and under mountains. The ground is the lowest of
+  these profiles, so ridges form where neighbouring valleys meet. Ridges between
+  different rivers are rounded with a smooth minimum.
+- **Hills and mountains** fade in away from the valley floors, scaled by the island's
+  mountain mass.
+- **Coast.** The result is clipped by a coastal profile: beaches, cliffs under
+  mountains, a shelf, then the deep sea.
+- **Lakes** get a sill so they hold water and a shelving basin. Channels are cut last, so
+  every river stays connected to its lake or to the sea.
+
+**4. Erosion filter** (stage 1). A single-pass erosion filter modelled on clayjohn's
+*Eroded Terrain Noise* shadertoy carves the slopes between valleys. Each octave sums
+gaussian-windowed cosines oriented across the local slope, so the troughs line up into
+gullies running downhill, and each octave's direction is bent by the gullies already
+carved, which makes them branch. It fades out on valley floors, near lakes, on beaches and
+at sea.
+
+**Seamlessness.** Each tile receives the river, lake and coast primitives within reach,
+in coordinates relative to the tile. Each pixel only uses primitives within a fixed
+radius, and profiles fade before that radius, so neighbouring tiles agree exactly and the
+world is infinite. (Float precision degrades far beyond about ±1,000 km.)
+
+**Water.** The ocean and the river and lake surfaces use Gerstner waves: a sum of six
+trochoidal waves displacing a radial grid that follows the camera, with analytic normals,
+foam on pinched crests and at the shoreline, and waves flattening with distance. Rivers
+and lakes reuse the same set scaled down to short, low ripples.
 
 ## Layout
 
 - `scripts/main.gd` builds the scene: sky, fog, sun, ocean, world, player, HUD.
+- `scripts/archipelago.gd` / `island_planner.gd` handle island placement and per-island
+  hydrology.
 - `scripts/terrain_world.gd` streams 64 m near chunks (mesh, height-map collision, river
-  water, digging) and 512 m far tiles out to the horizon, places trees, and finds a spawn
-  point.
-- `scripts/terrain_generator.gd` / `terrain_mesher.gd` run the GPU pipeline on a worker
-  thread and build the meshes.
+  and lake water, digging) and 1 km far tiles out to the horizon, and places trees.
+- `scripts/terrain_generator.gd` / `terrain_mesher.gd` gather each tile's primitives, run
+  the GPU pipeline on a worker thread and build the meshes.
 - `scripts/block_world.gd` stores blocks sparsely and meshes them per 16×16 column.
 - `scripts/player.gd`, `scripts/hud.gd` handle the controller, interaction and hotbar.
 - `tools/heightmap_preview.gd` renders hillshaded map previews:

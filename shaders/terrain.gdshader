@@ -3,10 +3,12 @@ render_mode diffuse_burley, specular_schlick_ggx;
 
 // Far LOD tiles hide themselves where the detailed near chunks take over.
 uniform float near_cutoff = 0.0;
+// Far tiles are too coarse to resolve channels; their cuts would show as blotches.
+uniform float channel_tint = 1.0;
 
 varying vec3 wpos;
 varying vec3 wnorm;
-varying vec4 attr; // r: alluvium/6m, g: gully/10m, b: channel/2m, a: dug/3m
+varying vec4 attr; // r: floodplain 0..1, g: gully/10m, b: channel cut/2m, a: dug/3m
 
 float hash(vec2 p) {
 	return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
@@ -36,7 +38,7 @@ void fragment() {
 	float n2 = vnoise(wpos.xz * 0.6);
 	float n3 = vnoise(wpos.xz * 3.7);
 
-	float alluvium = attr.r * 6.0;
+	float alluvium = attr.r;
 	float gully = attr.g * 10.0;
 	float channel = attr.b * 2.0;
 	float dug = attr.a * 3.0;
@@ -52,8 +54,8 @@ void fragment() {
 
 	vec3 col = grass;
 	// Floodplain / fan sediments: greener meadow, silty patches along their margins.
-	col = mix(col, meadow, smoothstep(0.3, 2.0, alluvium));
-	col = mix(col, silt, smoothstep(0.6, 0.9, n2) * smoothstep(0.5, 1.5, alluvium) * 0.5);
+	col = mix(col, meadow, smoothstep(0.1, 0.7, alluvium));
+	col = mix(col, silt, smoothstep(0.6, 0.9, n2) * smoothstep(0.3, 0.9, alluvium) * 0.5);
 	// Gully floors and moderately steep ground show soil.
 	col = mix(col, dirt, clamp(smoothstep(0.88, 0.74, n.y) * 0.7 + smoothstep(2.0, 9.0, gully) * 0.55, 0.0, 1.0));
 	col *= 1.0 - 0.25 * smoothstep(2.0, 12.0, gully); // shadowed gully floors
@@ -63,9 +65,9 @@ void fragment() {
 	rocky = max(rocky, smoothstep(0.6, 1.0, n2) * smoothstep(0.84, 0.76, n.y) * 0.8);
 	col = mix(col, rock, rocky);
 	// River beds.
-	col = mix(col, gravel, smoothstep(0.25, 0.5, channel));
+	col = mix(col, gravel, smoothstep(0.25, 0.5, channel) * channel_tint);
 	// Beach, then sea floor.
-	col = mix(col, sand, 1.0 - smoothstep(1.0, 1.5, h + (n2 - 0.5) * 0.4));
+	col = mix(col, sand, (1.0 - smoothstep(1.0, 1.5, h + (n2 - 0.5) * 0.4)) * (1.0 - smoothstep(0.1, 0.4, alluvium)));
 	col = mix(col, seabed, 1.0 - smoothstep(-2.0, 0.0, h));
 	// Dug ground: soil, then stone deeper down.
 	if (dug > 0.05 && h >= 1.25) {
