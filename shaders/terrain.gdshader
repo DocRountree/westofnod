@@ -47,9 +47,12 @@ void fragment() {
 	}
 	vec3 n = normalize(wnorm);
 	float h = wpos.y;
+	// Fine noise layers fade to their mean once their cells approach pixel size,
+	// so they never read as square pixels or shimmer in the distance.
+	float fp = length(fwidth(wpos.xz));
 	float n1 = vnoise(wpos.xz * 0.05);
-	float n2 = vnoise(wpos.xz * 0.6);
-	float n3 = vnoise(wpos.xz * 3.7);
+	float n2 = mix(0.5, vnoise(wpos.xz * 0.6), 1.0 - smoothstep(0.4, 1.2, fp * 0.6));
+	float n3 = mix(0.5, vnoise(wpos.xz * 1.3), 1.0 - smoothstep(0.4, 1.2, fp * 1.3));
 
 	float alluvium = attr.r;
 	float gully = attr.g * 10.0;
