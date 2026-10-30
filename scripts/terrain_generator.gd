@@ -79,6 +79,7 @@ func _loop() -> void:
 			var data := generate(job)
 			res["data"] = data
 			res["arrays"] = TerrainMesher.build(data, null, int(job.n), float(job.spacing))
+			res["images"] = TerrainMesher.textures(data, null, int(job.n))
 			res["water"] = TerrainMesher.build_water(data, int(job.n), float(job.spacing))
 		_mutex.lock()
 		_results.append(res)

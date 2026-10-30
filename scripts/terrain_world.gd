@@ -150,7 +150,7 @@ func _unload() -> void:
 func _add_far(res: Dictionary) -> void:
 	var mi := MeshInstance3D.new()
 	mi.mesh = TerrainMesher.make_mesh(res.arrays, CHUNK_CELLS)
-	mi.material_override = far_material
+	mi.material_override = _tile_material(far_material, res.images, FAR_SPACING)
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	mi.position = Vector3(res.origin.x, -0.8, res.origin.y)
 	add_child(mi)
@@ -169,9 +169,13 @@ func _add_near(res: Dictionary) -> void:
 	var arrays: Dictionary = res.arrays
 	if delta != null:
 		arrays = TerrainMesher.build(res.data, delta, CHUNK_CELLS, NEAR_SPACING)
+	var images: Array = res.images
+	if delta != null:
+		images = TerrainMesher.textures(res.data, delta, CHUNK_CELLS)
 	var mi := MeshInstance3D.new()
 	mi.mesh = TerrainMesher.make_mesh(arrays, CHUNK_CELLS)
-	mi.material_override = near_material
+	var mat := _tile_material(near_material, images, NEAR_SPACING)
+	mi.material_override = mat
 	node.add_child(mi)
 
 	var body := StaticBody3D.new()
@@ -191,7 +195,17 @@ func _add_near(res: Dictionary) -> void:
 		node.add_child(water)
 
 	_near[key] = {"node": node, "mesh": mi, "shape": shape, "data": res.data,
-			"arrays": arrays, "origin": res.origin}
+			"arrays": arrays, "origin": res.origin, "material": mat}
+
+
+## A tile's own copy of the terrain material, with its height and attribute
+## textures (TerrainMesher.textures) for per-pixel normals and materials.
+func _tile_material(base: ShaderMaterial, images: Array, spacing: float) -> ShaderMaterial:
+	var mat: ShaderMaterial = base.duplicate()
+	mat.set_shader_parameter("height_tex", ImageTexture.create_from_image(images[0]))
+	mat.set_shader_parameter("attr_tex", ImageTexture.create_from_image(images[1]))
+	mat.set_shader_parameter("spacing", spacing)
+	return mat
 
 
 func _build_water(water: Dictionary, material: ShaderMaterial) -> MeshInstance3D:
@@ -270,4 +284,7 @@ func dig(p: Vector3, radius: float = 1.3, depth: float = 0.7) -> void:
 			TerrainMesher.update_rect(ch.arrays, ch.data, delta, CHUNK_CELLS, NEAR_SPACING,
 					o0.x - 2, o0.y - 2, o1.x, o1.y)
 			ch.mesh.mesh = TerrainMesher.make_mesh(ch.arrays, CHUNK_CELLS)
+			var images := TerrainMesher.textures(ch.data, delta, CHUNK_CELLS)
+			ch.material.get_shader_parameter("height_tex").update(images[0])
+			ch.material.get_shader_parameter("attr_tex").update(images[1])
 			ch.shape.map_data = ch.arrays.heights

@@ -4,6 +4,7 @@ extends RefCounted
 ## data: out_n*out_n vertices of 8 floats (height, floodplain 0..1, gully depth,
 ## channel cut, water level, water kind (1 river, 2 lake/oxbow), flow x, flow z)
 ## covering the (n+1)^2 vertex grid plus a one-vertex ring for seamless normals.
+## Meshes carry positions only; shading data goes to the GPU as textures().
 ## delta: optional per-ring-vertex height edits (digging), same layout, or null.
 
 static var _index_cache := {}
@@ -38,18 +39,15 @@ static func height_at(data: PackedFloat32Array, delta, out_n: int, i: int, j: in
 	return h
 
 
-## Returns {verts, normals, colors, heights (vertex heights, row-major, for collision)}.
+## Returns {verts, heights (vertex heights, row-major, for collision)}. Normals
+## and materials are per pixel in terrain.gdshader, from textures().
 static func build(data: PackedFloat32Array, delta, n: int, s: float) -> Dictionary:
 	var w := n + 1
 	var verts := PackedVector3Array()
-	var normals := PackedVector3Array()
-	var colors := PackedColorArray()
 	var heights := PackedFloat32Array()
 	verts.resize(w * w)
-	normals.resize(w * w)
-	colors.resize(w * w)
 	heights.resize(w * w)
-	var arrays := {"verts": verts, "normals": normals, "colors": colors, "heights": heights}
+	var arrays := {"verts": verts, "heights": heights}
 	update_rect(arrays, data, delta, n, s, 0, 0, n, n)
 	return arrays
 
@@ -60,42 +58,42 @@ static func update_rect(arrays: Dictionary, data: PackedFloat32Array, delta, n: 
 	var w := n + 1
 	var on := n + 3
 	var verts: PackedVector3Array = arrays.verts
-	var normals: PackedVector3Array = arrays.normals
-	var colors: PackedColorArray = arrays.colors
 	var heights: PackedFloat32Array = arrays.heights
 	for j in range(maxi(j0, 0), mini(j1, n) + 1):
 		for i in range(maxi(i0, 0), mini(i1, n) + 1):
-			var oi := i + 1
-			var oj := j + 1
-			var r := oj * on + oi
-			var h := data[r * 8]
-			var dug := 0.0
-			if delta != null:
-				dug = -delta[r]
-				h -= dug
-			var hl := height_at(data, delta, on, oi - 1, oj)
-			var hr := height_at(data, delta, on, oi + 1, oj)
-			var hd := height_at(data, delta, on, oi, oj - 1)
-			var hu := height_at(data, delta, on, oi, oj + 1)
-			var v := j * w + i
-			verts[v] = Vector3(i * s, h, j * s)
-			normals[v] = Vector3(hl - hr, 2.0 * s, hd - hu).normalized()
-			# r: alluvium, g: gully depth/10, b: channel cut/2, a: dug depth/3
-			colors[v] = Color(data[r * 8 + 1], data[r * 8 + 2] / 10.0,
-					data[r * 8 + 3] / 2.0, clampf(dug / 3.0, 0.0, 1.0))
-			heights[v] = h
+			var h := height_at(data, delta, on, i + 1, j + 1)
+			verts[j * w + i] = Vector3(i * s, h, j * s)
+			heights[j * w + i] = h
 	arrays.verts = verts
-	arrays.normals = normals
-	arrays.colors = colors
 	arrays.heights = heights
+
+
+## Per-pixel shading data for a tile, over the vertex grid plus its ring
+## (texel (i + 1, j + 1) is vertex (i, j)): [heights (RF, edited), attributes
+## (RGBAH: floodplain 0..1, gully depth m, channel cut m, dug depth m)].
+static func textures(data: PackedFloat32Array, delta, n: int) -> Array:
+	var on := n + 3
+	var hb := PackedFloat32Array()
+	var ab := PackedFloat32Array()
+	hb.resize(on * on)
+	ab.resize(on * on * 4)
+	for r in on * on:
+		var d: float = 0.0 if delta == null else delta[r]
+		hb[r] = data[r * 8] + d
+		ab[r * 4] = data[r * 8 + 1]
+		ab[r * 4 + 1] = data[r * 8 + 2]
+		ab[r * 4 + 2] = data[r * 8 + 3]
+		ab[r * 4 + 3] = -d
+	var himg := Image.create_from_data(on, on, false, Image.FORMAT_RF, hb.to_byte_array())
+	var aimg := Image.create_from_data(on, on, false, Image.FORMAT_RGBAF, ab.to_byte_array())
+	aimg.convert(Image.FORMAT_RGBAH)
+	return [himg, aimg]
 
 
 static func make_mesh(arrays: Dictionary, n: int) -> ArrayMesh:
 	var a := []
 	a.resize(Mesh.ARRAY_MAX)
 	a[Mesh.ARRAY_VERTEX] = arrays.verts
-	a[Mesh.ARRAY_NORMAL] = arrays.normals
-	a[Mesh.ARRAY_COLOR] = arrays.colors
 	a[Mesh.ARRAY_INDEX] = indices(n)
 	var mesh := ArrayMesh.new()
 	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, a)
