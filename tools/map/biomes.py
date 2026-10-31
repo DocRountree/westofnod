@@ -8,10 +8,14 @@ lines split it. Islands not listed (the three northern ones, Baltra and the
 Seymours, the islets) have no biome yet.
 """
 FOREST, MESA, PLAINS, SWAMP, TUNDRA = "forest", "mesa", "plains", "swamp", "tundra"
+ISLAND, COAST = "island", "coast"
 TAIGA, PLATEAU, VOLCANO, MOUNTAINS = "taiga", "plateau", "volcano", "mountains"
 COLOURS = {FOREST: (90, 255, 0), MESA: (255, 240, 0), PLAINS: (255, 0, 140), SWAMP: (30, 140, 125),
            TUNDRA: (205, 230, 240), TAIGA: (20, 95, 60), PLATEAU: (205, 120, 45), VOLCANO: (130, 20, 25),
-           MOUNTAINS: (150, 95, 60)}
+           MOUNTAINS: (150, 95, 60), ISLAND: (255, 170, 60), COAST: (240, 225, 175)}
+# Every island smaller than this one is an "island" biome as a whole.
+SMALL_BELOW = "San Cristobal"
+COAST_KM = 0.9   # the coast: a band this wide along every shore (not tundra), edge fractal
 # Mountains take their biome from what surrounds them (the most common biome
 # in a ring round each range): plains, forest or swamp make taiga; mesa, a
 # plateau; tundra, a volcano. Ranges with nothing assigned round them stay

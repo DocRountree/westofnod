@@ -38,22 +38,35 @@ def biome_layer(h):
     lab, n = ndimage.label(h > 0.0)
     Y, X = np.mgrid[0:S, 0:S]
     lon, lat = lonlat(X, Y)
-    for k, sl in enumerate(ndimage.find_objects(lab)):
-        comp = lab[sl] == k + 1
-        cy, cx = ndimage.center_of_mass(comp)
+    objs = ndimage.find_objects(lab)
+    sizes = ndimage.sum(np.ones_like(lab), lab, range(1, n + 1))
+    # which island each landmass is
+    named = {}
+    for k, sl in enumerate(objs):
+        cy, cx = ndimage.center_of_mass(lab[sl] == k + 1)
         clon, clat = lonlat(cx + sl[1].start, cy + sl[0].start)
-        best, rule = biomes.MATCH_DEG, None
+        best = biomes.MATCH_DEG
         for name, ((ilon, ilat), r) in biomes.ISLANDS.items():
             d = ((clon - ilon) ** 2 + (clat - ilat) ** 2) ** 0.5
             if d < best:
-                best, rule = d, r
-        if rule is None:
+                best, named[k] = d, name
+    ref = [k for k, nm in named.items() if nm == biomes.SMALL_BELOW]
+    small_below = sizes[ref[0]] if ref else 0
+    for k, sl in enumerate(objs):
+        comp = lab[sl] == k + 1
+        if sizes[k] < small_below:
+            rule = lambda lo, la, km: biomes.ISLAND
+        elif k in named:
+            rule = biomes.ISLANDS[named[k]][1]
+        else:
             rule = lambda lo, la, km: None
         sub = out[sl]
         for yy, xx in zip(*np.nonzero(comp)):
             lo, la = lon[sl][yy, xx], lat[sl][yy, xx]
             if biomes.tundra(lo, la):
                 b = biomes.TUNDRA
+            elif sizes[k] < small_below:
+                b = biomes.ISLAND
             elif biomes.swamp(lo, la):
                 b = biomes.SWAMP
             else:
@@ -73,6 +86,12 @@ def biome_layer(h):
         if around.size:
             kind = biomes.MOUNTAIN_BY_SURROUNDINGS.get(names[np.bincount(around).argmax()], biomes.MOUNTAINS)
         out[grow][comp] = names.index(kind)
+    # the coast: a band along every shore that isn't tundra (over everything)
+    sea_km = ndimage.distance_transform_edt(h > 0.0) * (281.0 / S)
+    band = (h > 0.0) & (sea_km < biomes.COAST_KM * 1.6) & (out != names.index(biomes.TUNDRA))
+    for yy, xx in zip(*np.nonzero(band)):
+        if sea_km[yy, xx] + biomes.fractal(lon[yy, xx], lat[yy, xx], 9.0) * 0.12 < biomes.COAST_KM:
+            out[yy, xx] = names.index(biomes.COAST)
     return out
 
 
@@ -137,8 +156,8 @@ def main():
     dr.ellipse([px - 14, pz - 14, px + 14, pz + 14], outline=(255, 40, 40, 255), width=5)
     dr.text((px + 20, pz - 18), "spawn", font=f, fill=(255, 80, 80, 255))
     if mode_biomes:
-        y = S - 620
-        dr.rectangle([20, y - 16, 330, y + 410], fill=(0, 0, 0, 140))
+        y = S - 700
+        dr.rectangle([20, y - 16, 330, y + 490], fill=(0, 0, 0, 140))
         for i, (name, rgb) in enumerate(list(biomes.COLOURS.items()) + [("unassigned", (140, 140, 140))]):
             dr.rectangle([40, y + i * 40, 76, y + i * 40 + 30], fill=rgb + (255,))
             dr.text((92, y + i * 40 - 2), name, font=f, fill=(255, 255, 255, 240))
