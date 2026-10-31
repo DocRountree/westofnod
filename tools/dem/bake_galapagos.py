@@ -43,8 +43,6 @@ LON0, LON1 = -91.72, -89.20
 LAT0, LAT1 = -1.45, 0.68
 SIZE = 8192
 SEED = 1337
-EXAGGERATE = 1.5  # broad shape raised by this fraction of itself
-BROAD = 900.0     # m: the scale of the raised shape (smaller = steeper)
 SPAWN = (-0.700, -90.330)  # Santa Cruz, the southern slopes above Puerto Ayora
 
 
@@ -75,57 +73,106 @@ def read_mosaic():
     return out
 
 
-def erosion_filter(h, cell, land):
-    """A single-pass erosion filter after clayjohn's "Eroded Terrain Noise": per
-    octave, gaussian-windowed cosines on a jittered grid oscillating across the
-    slope, so their troughs line up into gullies running downhill; each octave
-    is bent by the gullies already carved, which makes them branch. Gully depth
-    scales with slope x wavelength. Returns the change in height (carving only)."""
-    n = h.shape[0]
-    hs = ndimage.gaussian_filter(h, 2.0)
-    gz, gx = np.gradient(hs, cell)
-    slope = np.hypot(gx, gz)
-    out = np.zeros_like(h)
-    eg_x = np.zeros_like(h)
-    eg_z = np.zeros_like(h)
-    rng = np.random.default_rng(SEED + 7)
-    wl = 640.0
-    amp = 0.22
-    g = np.arange(n) * cell
-    for octave in range(5):
-        jit = rng.random((4096, 4096, 2)).astype(np.float32)
-        for r0 in range(0, n, 512):
-            sl = slice(r0, r0 + 512)
-            Z, X = np.meshgrid(g[sl] / wl, g / wl, indexing="ij")
-            bx = gx[sl] + eg_x[sl] * 0.7
-            bz = gz[sl] + eg_z[sl] * 0.7
-            L = np.maximum(np.hypot(bx, bz), 1e-5)
-            dx, dz = bz / L, -bx / L  # across the slope
-            ix, iz = np.floor(X), np.floor(Z)
-            fx, fz = X - ix, Z - iz
-            va = np.zeros(X.shape, np.float32); vx = np.zeros_like(va); vz = np.zeros_like(va); wt = np.zeros_like(va)
-            for i in range(-2, 2):
-                for j in range(-2, 2):
-                    cx = (ix - i).astype(np.int64) % 4096
-                    cz = (iz - j).astype(np.int64) % 4096
-                    px = fx + i - (jit[cz, cx, 0] - 0.5)
-                    pz = fz + j - (jit[cz, cx, 1] - 0.5)
-                    w = np.exp(-(px * px + pz * pz) * 2.0)
-                    mag = (px * dx + pz * dz) * 2 * np.pi
-                    va += np.cos(mag) * w
-                    s_ = -np.sin(mag) * 2 * np.pi * w
-                    vx += s_ * dx
-                    vz += s_ * dz
-                    wt += w
-            a = amp * wl * np.minimum(slope[sl], 1.0)
-            out[sl] += a * (va / wt - 1.0) * 0.5
-            eg_x[sl] += a * 0.5 * vx / wt / wl
-            eg_z[sl] += a * 0.5 * vz / wt / wl
-        wl *= 0.5
-        amp *= 0.9
-        print("  octave", octave)
-    # fade out at the coast
-    return out * np.clip(h / 15.0, 0, 1) * land
+# Mountain massifs transplanted onto the islands in place of their volcanoes:
+# (name, Copernicus tile, centre lat, lon, radius m). Real terrain, chosen for
+# being dramatic and craggy rather than conical.
+DONORS = [
+    ("Madeira, Pico Ruivo", "N32_00_W017_00 N32_00_W018_00", 32.76, -16.94, 9000.0),
+    ("Corsica, Monte Cinto", "N42_00_E008_00 N42_00_E009_00", 42.38, 8.95, 12000.0),
+    ("Kefalonia, Mount Ainos", "N38_00_E020_00", 38.15, 20.62, 9000.0),
+    ("Lofoten, Moskenesoya", "N67_00_E013_00", 67.95, 13.05, 9000.0),
+    ("La Gomera", "N28_00_W018_00", 28.10, -17.23, 9000.0),
+]
+CACHE = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".cache")
+
+
+def cached(name, fn):
+    """fn() once, then from tools/dem/.cache (so rebakes don't download again)."""
+    os.makedirs(CACHE, exist_ok=True)
+    path = os.path.join(CACHE, name + ".npy")
+    if os.path.exists(path):
+        return np.load(path)
+    a = fn()
+    np.save(path, a)
+    return a
+
+
+def read_donor(tile, lat, lon, radius):
+    """A donor massif as a square of heights in local metres (30 m cells), centred."""
+    import rasterio
+    from rasterio.windows import from_bounds
+    m_lat = 110574.0
+    m_lon = 111320.0 * math.cos(math.radians(lat))
+    dl, dn = radius / m_lat, radius / m_lon
+    a = None
+    for t in tile.split():  # a massif near a tile edge spans several tiles
+        with rasterio.open(COP.format(t=t)) as src:
+            win = from_bounds(lon - dn, lat - dl, lon + dn, lat + dl, src.transform)
+            b = src.read(1, window=win, boundless=True, fill_value=0, out_shape=(int(2 * radius / 30), int(2 * radius / 30))).astype(np.float32)
+        a = b if a is None else np.maximum(a, b)
+    a[a < -50] = 0.0
+    n = int(2 * radius / 30.0)
+    return ndimage.zoom(a, (n / a.shape[0], n / a.shape[1]), order=1)
+
+
+def transplant(h, cell, land, rng):
+    """Raises donor massifs on each island, keeping the real coastline: the
+    original ground survives in a band along the coast and the massifs rise
+    behind it. Donors are never stretched (that turns ridges into lumps);
+    big islands get several of them, pushed taller the bigger the island."""
+    donors = [cached("donor_%d" % k, lambda d=d: read_donor(*d[1:])) for k, d in enumerate(DONORS)]
+    step = 4  # find islands on a coarse grid
+    lab, nlab = ndimage.label(land[::step, ::step])
+    d_coast = ndimage.distance_transform_edt(land) * cell
+    dc_coarse = d_coast[::step, ::step]
+    out = h.copy()
+    for k, sl in enumerate(ndimage.find_objects(lab)):
+        comp = lab[sl] == k + 1
+        area = comp.sum() * (cell * step) ** 2
+        if area < 3e6:
+            continue
+        # unrealistically tall on the big islands: x1 small, up to x2.3 on Isabela
+        gain = 1.0 + 1.3 * float(np.clip((area - 30e6) / 3000e6, 0, 1)) ** 0.6
+        z0 = max(int(sl[0].start * step) - 64, 0); z1 = min(int(sl[0].stop * step) + 64, h.shape[0])
+        x0 = max(int(sl[1].start * step) - 64, 0); x1 = min(int(sl[1].stop * step) + 64, h.shape[1])
+        dc = d_coast[z0:z1, x0:x1]
+        mh = np.zeros_like(dc)
+        # massif centres: farthest-point sampling over the interior
+        zs, xs = np.nonzero(comp)
+        pz = (zs + sl[0].start) * step * cell
+        px = (xs + sl[1].start) * step * cell
+        inner = dc_coarse[sl][comp]
+        n_mass = max(1, int(round(area / 150e6)))
+        score = inner.copy()
+        names = []
+        for m in range(n_mass):
+            i = int(np.argmax(score))
+            di = int(rng.integers(len(DONORS)))
+            don = donors[di]
+            dr = DONORS[di][4]
+            scale = float(np.clip(inner[i] / (0.8 * dr), 0.45, 1.0))  # shrink only
+            ang = rng.uniform(0, 2 * math.pi)
+            Z, X = np.meshgrid(np.arange(z0, z1) * cell - pz[i], np.arange(x0, x1) * cell - px[i], indexing="ij")
+            u = (X * math.cos(ang) - Z * math.sin(ang)) / scale
+            v = (X * math.sin(ang) + Z * math.cos(ang)) / scale
+            n = don.shape[0]
+            dh = ndimage.map_coordinates(don, [v / 30.0 + n / 2, u / 30.0 + n / 2], order=1, mode="constant", cval=0.0)
+            # round footprint: fade the donor out towards its rim so the
+            # square tile edges never show as cliffs
+            t = np.clip((1.0 - np.hypot(u, v) / dr) / 0.45, 0, 1)
+            dh = np.maximum(dh, 0.0) * gain * (t * t * (3 - 2 * t))
+            mh = np.maximum(mh, dh)
+            dist = np.hypot(pz - pz[i], px - px[i])
+            score = np.minimum(score, dist * 0.5)
+            names.append(DONORS[di][0].split(",")[0])
+        w = np.clip((dc - 120.0) / 900.0, 0, 1)
+        w = w * w * (3 - 2 * w)
+        orig = h[z0:z1, x0:x1]
+        coast = np.minimum(orig, 15.0 + 0.04 * dc)  # the real shore, gently rising
+        new = coast * (1 - w) + np.maximum(mh, coast) * w
+        out[z0:z1, x0:x1] = np.where(land[z0:z1, x0:x1], new, orig)
+        print("  island %.0f km2, x%.2f tall <- %s" % (area / 1e6, gain, ", ".join(names)))
+    return out
 
 
 def main():
@@ -134,7 +181,7 @@ def main():
     os.makedirs(out_dir, exist_ok=True)
     rng = np.random.default_rng(SEED)
     print("reading DEM...")
-    dem = read_mosaic()
+    dem = cached("galapagos_mosaic", read_mosaic)
     lat_c = 0.5 * (LAT0 + LAT1)
     lon_c = 0.5 * (LON0 + LON1)
     m_lat = 110574.0
@@ -153,17 +200,11 @@ def main():
         lat = lat_c - Z / m_lat
         row = (LAT1 - lat) * 3600.0 - 0.5
         col = (lon - LON0) * 3600.0 - 0.5
-        h[r0:r0 + 512] = ndimage.map_coordinates(dem, [row, col], order=1, mode="constant", cval=0.0)
+        h[r0:r0 + 512] = ndimage.map_coordinates(dem, [row, col], order=1, mode="constant", cval=0.0, prefilter=False)
     del dem
     land = h > 0.5
-    # Height exaggeration that adds no cliffs: only the broad shape is raised
-    # (the land blurred over ~1.5 km), so the volcanoes stand taller while
-    # every local slope steepens only by the gentle slope of that broad
-    # shape; coasts stay at sea level.
-    broad = ndimage.gaussian_filter(np.maximum(h, 0.0), BROAD / cell)
-    h = np.where(land, h + EXAGGERATE * broad * np.clip(h / 20.0, 0, 1), h).astype(np.float32)
-    print("erosion filter...")
-    h = np.where(land, h + erosion_filter(h, cell, land), h).astype(np.float32)
+    print("mountains...")
+    h = transplant(h, cell, land, rng).astype(np.float32)
     print("sea floor...")
     d_sea = ndimage.distance_transform_edt(~land) * cell
     floor = -(2.0 + 0.012 * d_sea + 180.0 * (1 - np.exp(-d_sea / 2500.0)))

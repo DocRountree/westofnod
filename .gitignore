@@ -2,3 +2,4 @@
 *.import
 /android/
 export_presets.cfg
+tools/dem/.cache/
