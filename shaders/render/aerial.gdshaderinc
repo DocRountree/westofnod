@@ -8,7 +8,7 @@
 
 uniform vec3 haze_horizon = vec3(0.45, 0.6, 0.86); // what infinitely deep air looks like
 uniform vec3 haze_sun = vec3(0.95, 0.88, 0.75);    // forward-scattered sunlight
-uniform float haze_distance = 2600.0;              // m for 63% of the blue at sea level
+uniform float haze_distance = 9000.0;              // m for 63% of the blue at sea level (clear ocean air)
 uniform float haze_scale_height = 1200.0;
 uniform vec3 haze_sun_dir = vec3(0.4, 0.6, 0.6);   // toward the sun
 uniform bool underwater = false;

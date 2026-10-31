@@ -1,6 +1,6 @@
 extends Node
 ## Test driver: loads the game, waits for the island, and saves screenshots
-## from the ground, low and high over the rivers, at the sea and far out.
+## from the ground, low and high around the spawn, at the sea and far out.
 ## godot --path . tools/shot.tscn -- <out_dir> [--climb]  (--climb: only the climbing test)
 
 var out_dir := "user://"
@@ -100,10 +100,10 @@ func _run() -> void:
 	await _shot("04_aerial")
 	await _view(s + Vector3(0, 150, 0), PI, -0.3)
 	await _shot("05_aerial_back")
-	await _view(Vector3(0, 700, 2500), 0.0, -0.35)
+	await _view(s + Vector3(0, 700, 0), PI * 0.5, -0.25) # west, toward Isabela
 	await _shot("06_high")
-	await _view(Vector3(0, 300, 1500), 0.0, -0.22)
-	await _shot("06a_forest_band")
+	await _view(s + Vector3(0, 4000, 0), PI * 0.5, -0.5)
+	await _shot("06a_very_high")
 	await _view(s + Vector3(0, 8, 0), PI * 0.3, -0.05)
 	await _shot("06b_valley")
 	# The coast at sea level, looking along the shore.

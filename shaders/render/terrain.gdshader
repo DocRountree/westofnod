@@ -29,8 +29,7 @@ uniform sampler2D mask_tex : filter_linear_mipmap, repeat_disable; // rock, wet,
 uniform float canopy_start = 1080.0;
 uniform float canopy_cell = 14.0;
 uniform float canopy_scale = 1.35;
-uniform vec3 leaf_a : source_color = vec3(0.13, 0.27, 0.09);
-uniform vec3 leaf_b : source_color = vec3(0.22, 0.34, 0.11);
+#include "res://shaders/render/tree_colour.gdshaderinc"
 uniform vec3 sun_direction = vec3(0.4, 0.6, 0.6);
 const float CROWN_R = 3.3;  // crown radius of the far tree mesh at scale 1
 const float CROWN_H = 6.8;  // crown centre height
@@ -41,11 +40,11 @@ void vertex() {
 	int lod;
 	float morph;
 	vec2 wp = cdlod_xz(VERTEX, MODEL_MATRIX, INSTANCE_CUSTOM, lod, morph);
-	float h = height_m(wp, lod);
-	if (morph > 0.0) h = mix(h, height_m(wp, lod + 1), morph);
+	float h = terrain_height(wp, max(lod - SUB, 0));
+	if (morph > 0.0) h = mix(h, terrain_height(wp, max(lod + 1 - SUB, 0)), morph);
 	vec3 origin = MODEL_MATRIX[3].xyz;
 	VERTEX = vec3(wp.x - origin.x, h - origin.y, wp.y - origin.z); // instances are only translated
-	NORMAL = normal_m(wp, lod);
+	NORMAL = terrain_normal(wp, max(lod - SUB, 0), map_cell() * exp2(float(max(lod - SUB, 0))) * 0.5);
 	world_pos = vec3(wp.x, h, wp.y);
 }
 
@@ -68,31 +67,32 @@ float vnoise(vec2 p) {
 void fragment() {
 	vec2 p = world_pos.xz;
 	float fp = max(length(fwidth(p)), 0.01);
-	vec3 n = normal_m(p, pixel_mip(fp));
+	int pm = pixel_mip(fp);
+	vec3 n = terrain_normal(p, pm, max(fp, 0.5) * 1.5 + map_cell() * exp2(float(pm)) * 0.25);
 	NORMAL = normalize((VIEW_MATRIX * vec4(n, 0.0)).xyz);
 	float h = world_pos.y;
 	vec4 m = texture(mask_tex, map_uv(p));
 	float dist = distance(world_pos, CAMERA_POSITION_WORLD);
 
 	float patches = vnoise(p / 240.0) * 0.6 + vnoise(p / 60.0) * 0.4;
-	vec3 grass = mix(vec3(0.26, 0.38, 0.13), vec3(0.40, 0.44, 0.20), clamp(patches * 1.2 - 0.2, 0.0, 1.0));
-	vec3 forest_floor = vec3(0.17, 0.20, 0.10);
-	vec3 rock = mix(vec3(0.30, 0.28, 0.25), vec3(0.46, 0.42, 0.37), vnoise(p / 9.0) * 0.6 + vnoise(p / 50.0) * 0.4);
-	vec3 soil = vec3(0.32, 0.24, 0.16);
-	vec3 sand = mix(vec3(0.74, 0.68, 0.52), vec3(0.82, 0.76, 0.58), patches);
-	vec3 seabed = mix(vec3(0.64, 0.60, 0.46), vec3(0.40, 0.42, 0.36), smoothstep(-2.0, -20.0, h));
+	float fine3 = mix(0.5, vnoise(p / 3.0), 1.0 - smoothstep(0.5, 1.5, fp / 3.0));
+	// The Galapagos: dusty arid scrub on the lowlands, green humid highlands,
+	// black and rust-brown lava, pale coral sand, a turquoise shallow sea floor.
+	vec3 arid = mix(vec3(0.50, 0.45, 0.33), vec3(0.42, 0.42, 0.30), clamp(patches * 1.3 - 0.2, 0.0, 1.0));
+	vec3 humid = mix(vec3(0.24, 0.40, 0.14), vec3(0.33, 0.46, 0.18), patches);
+	vec3 lava = mix(vec3(0.10, 0.09, 0.09), vec3(0.24, 0.15, 0.11), smoothstep(0.55, 0.85, vnoise(p / 35.0)));
+	lava *= 0.85 + 0.3 * fine3;
+	vec3 rock = mix(vec3(0.20, 0.19, 0.18), vec3(0.34, 0.31, 0.28), vnoise(p / 9.0) * 0.6 + vnoise(p / 50.0) * 0.4);
+	vec3 soil = vec3(0.36, 0.27, 0.19);
+	vec3 sand = mix(vec3(0.84, 0.80, 0.68), vec3(0.90, 0.86, 0.74), patches);
+	vec3 seabed = mix(vec3(0.70, 0.68, 0.56), vec3(0.42, 0.44, 0.40), smoothstep(-2.0, -25.0, h));
 
-	// Grass texture: blade streaks and tufts, fading out by footprint.
-	float blades = mix(0.5, vnoise(p * vec2(9.0, 1.3)) * 0.5 + vnoise(p * vec2(1.4, 8.0)) * 0.5,
-			1.0 - smoothstep(0.03, 0.12, fp));
-	float tufts = mix(0.5, vnoise(p * 1.7), 1.0 - smoothstep(0.2, 0.6, fp));
-	grass *= 0.86 + 0.18 * blades + 0.12 * (tufts - 0.5);
-
-	vec3 col = grass;
-	col = mix(col, forest_floor, smoothstep(0.2, 0.8, m.b));
-	col = mix(col, mix(col, vec3(0.20, 0.30, 0.12), 0.6), m.g); // damp ground
-	col = mix(col, soil, smoothstep(0.75, 0.55, n.y) * 0.6);
-	float rocky = max(m.r, smoothstep(0.62, 0.45, n.y));
+	vec3 col = mix(arid, humid, smoothstep(0.1, 0.8, m.g));
+	col *= 0.9 + 0.2 * fine3;
+	col = mix(col, col * vec3(0.75, 0.8, 0.7), smoothstep(0.3, 0.9, m.b)); // shade and litter under trees
+	col = mix(col, soil, smoothstep(0.75, 0.55, n.y) * 0.5);
+	col = mix(col, lava, m.r);
+	float rocky = smoothstep(0.62, 0.42, n.y);
 	col = mix(col, rock, rocky);
 
 	// Far trees, flat: the same trees as tree.gdshader's far field.
@@ -111,7 +111,8 @@ void fragment() {
 				vec2 tp;
 				float r, seed, turn;
 				cell_prop(c0 + ivec2(i, j), canopy_cell, 1u, tp, r, seed, turn);
-				if (r >= textureLod(mask_tex, map_uv(tp), 0.0).b || height_m(tp, 0) <= 2.0) continue;
+				vec4 tm = textureLod(mask_tex, map_uv(tp), 0.0);
+				if (r >= tm.b || base_height(tp, 0) <= 2.0) continue;
 				float sc = mix(0.7, 1.35, seed) * canopy_scale;
 				float R = CROWN_R * sc;
 				vec2 d = p - tp;
@@ -124,7 +125,7 @@ void fragment() {
 				if (cover > 0.0 && z > top) {
 					top = z;
 					crown_n = normalize(vec3(d.x, sqrt(max(R * R - dd * dd, 0.0)) * 0.9 + 0.2 * R, d.y));
-					crown_col = mix(leaf_a, leaf_b, seed) * cover + col * (1.0 - cover);
+					crown_col = tree_colour(seed, tm.g) * cover + col * (1.0 - cover);
 				}
 			}
 		}
@@ -135,7 +136,7 @@ void fragment() {
 			flat_col = crown_col;
 			n = normalize(mix(n, crown_n, resolve));
 		}
-		vec3 avg = mix(col, mix(leaf_a, leaf_b, 0.5) * 0.85, smoothstep(0.1, 0.9, m.b) * 0.8);
+		vec3 avg = mix(col, tree_colour(0.5, m.g) * 0.85, smoothstep(0.1, 0.9, m.b) * 0.8);
 		col = mix(col, mix(avg, flat_col, resolve), canopy_w);
 		NORMAL = normalize((VIEW_MATRIX * vec4(n, 0.0)).xyz);
 	}

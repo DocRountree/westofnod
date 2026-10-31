@@ -24,7 +24,7 @@ var _last_cam := Vector3.INF
 func setup(world: WorldData, mats: Array[ShaderMaterial]) -> void:
 	data = world
 	materials = mats
-	leaf = GRID * world.cell()
+	leaf = GRID * world.cell() / 8.0 # three levels finer than the data (SUB in the shader)
 	levels = ceili(log(world.domain / leaf) / log(2.0))
 	for k in levels + 2:
 		ranges.append(leaf * pow(2.0, k) * RANGE_FACTOR)

@@ -55,7 +55,7 @@ func _ready() -> void:
 	_arm.add_excluded_object(get_rid())
 	head.add_child(_arm)
 	camera = Camera3D.new()
-	camera.far = 7000.0
+	camera.far = 120000.0
 	camera.near = 0.08
 	camera.fov = 75.0
 	_arm.add_child(camera)

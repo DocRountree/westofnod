@@ -1,0 +1,19 @@
+{
+ "name": "Galapagos Islands",
+ "size": 8192,
+ "cell": 34.24735281057963,
+ "origin": [
+  -140260.03343572887,
+  -140260.03343572887
+ ],
+ "format": "f16gz",
+ "spawn": [
+  14471.273290988998,
+  34830.81
+ ],
+ "centre_lat_lon": [
+  -0.38499999999999995,
+  -90.46000000000001
+ ],
+ "source": "Copernicus GLO-30 DEM: produced using Copernicus WorldDEM-30 (c) DLR e.V. 2010-2014 and (c) Airbus Defence and Space GmbH 2014-2018 provided under COPERNICUS by the European Union and ESA; all rights reserved"
+}

@@ -1,53 +1,46 @@
 class_name WorldData
 extends RefCounted
-## The vertical slice's baked data (tools/dem/bake_slice.py, from real elevation
-## data): height map, material masks and river centrelines, plus the textures
-## the renderer samples and the queries gameplay needs.
+## The world's baked data (tools/dem/bake_galapagos.py: the Galapagos
+## archipelago from real elevation data): the height map and material masks,
+## the textures the renderer samples, and the queries gameplay needs.
+##
+## The ground's height is the same function here and in the shaders
+## (height_map.gdshaderinc: terrain_height): a smooth cubic B-spline through
+## the 34 m samples, plus procedural relief below them (three octaves of value
+## noise, 40 / 15 / 6 m), so collision matches what is drawn.
 
-const DIR := "res://data/slice/"
-const OCEAN_FLOOR := -60.0
+const DIR := "res://data/world/"
+const OCEAN_FLOOR := -300.0
+const DETAIL := [Vector2(40.0, 3.0), Vector2(15.0, 1.1), Vector2(6.0, 0.4)] # wavelength m, amplitude m
 
 var size: int
 var domain: float
 var origin: Vector2
 var heights := PackedFloat32Array()
-var rivers: Array = [] # {pts: PackedVector2Array, level, width: PackedFloat32Array}
+var rivers: Array = [] # (none in the Galapagos: porous lava)
 var height_tex: ImageTexture
 var mask_tex: ImageTexture
 var spawn := Vector3.ZERO
-
-var _water_cell := 8.0
-var _water_n := 0
-var _water := PackedFloat32Array() # river level per 8 m cell, or -INF
-var _flow := PackedVector2Array()
+var meta := {}
 
 
-func load_slice() -> WorldData:
-	var meta: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(DIR + "slice.json"))
+func load_world() -> WorldData:
+	meta = JSON.parse_string(FileAccess.get_file_as_string(DIR + "world.json"))
 	size = int(meta.size)
 	domain = float(meta.cell) * (size - 1)
 	origin = Vector2(meta.origin[0], meta.origin[1])
-	var h_min: float = meta.h_min
-	var h_scale: float = meta.h_scale
-	var img := Image.load_from_file(DIR + "heights.png")
-	img.convert(Image.FORMAT_LA8)
-	var raw := img.get_data() # 16 bits as (high, low) bytes
-	heights.resize(size * size)
-	for k in size * size:
-		heights[k] = h_min + ((raw[k * 2] << 8) | raw[k * 2 + 1]) * h_scale
-	var hi := Image.create_from_data(size, size, false, Image.FORMAT_RF, heights.to_byte_array())
-	hi.generate_mipmaps()
-	height_tex = ImageTexture.create_from_image(hi)
+	var raw := FileAccess.get_file_as_bytes(DIR + "heights.f16.gz").decompress_dynamic(-1, FileAccess.COMPRESSION_GZIP)
+	var img := Image.create_from_data(size, size, false, Image.FORMAT_RH, raw)
+	var cpu := img.duplicate() as Image
+	cpu.convert(Image.FORMAT_RF)
+	heights = cpu.get_data().to_float32_array()
+	img.generate_mipmaps()
+	height_tex = ImageTexture.create_from_image(img)
 	var mi := Image.load_from_file(DIR + "masks.png")
 	mi.generate_mipmaps()
 	mask_tex = ImageTexture.create_from_image(mi)
-	for r in JSON.parse_string(FileAccess.get_file_as_string(DIR + "rivers.json")):
-		var pts := PackedVector2Array()
-		for p in r.pts:
-			pts.append(Vector2(p[0], p[1]))
-		rivers.append({"pts": pts, "level": PackedFloat32Array(r.level), "width": PackedFloat32Array(r.width)})
-	_rasterise_water()
-	_pick_spawn()
+	var s: Array = meta.spawn
+	spawn = Vector3(s[0], height_at(s[0], s[1]) + 1.0, s[1])
 	return self
 
 
@@ -55,74 +48,78 @@ func cell() -> float:
 	return domain / (size - 1)
 
 
-## Terrain height, bilinear (as the finest rendered level).
-func height_at(x: float, z: float) -> float:
-	var g := (Vector2(x, z) - origin) / cell()
-	if g.x < 0.0 or g.y < 0.0 or g.x > size - 1 or g.y > size - 1:
+func _sample(i: int, j: int) -> float:
+	if i < 0 or j < 0 or i >= size or j >= size:
 		return OCEAN_FLOOR
-	var i := mini(floori(g.x), size - 2)
-	var j := mini(floori(g.y), size - 2)
+	return heights[j * size + i]
+
+
+## The data's smooth surface: a uniform cubic B-spline through the samples.
+func base_height(x: float, z: float) -> float:
+	var g := (Vector2(x, z) - origin) / cell()
+	var i := floori(g.x)
+	var j := floori(g.y)
 	var fx := g.x - i
 	var fz := g.y - j
-	var k := j * size + i
-	return lerpf(lerpf(heights[k], heights[k + 1], fx), lerpf(heights[k + size], heights[k + size + 1], fx), fz)
+	var wx := _bspline(fx)
+	var wz := _bspline(fz)
+	var h := 0.0
+	for b in 4:
+		var row := 0.0
+		for a in 4:
+			row += _sample(i - 1 + a, j - 1 + b) * wx[a]
+		h += row * wz[b]
+	return h
 
 
-## Surface normal at (x, z), from the heights a cell either side.
+static func _bspline(t: float) -> PackedFloat32Array:
+	var t2 := t * t
+	var t3 := t2 * t
+	return PackedFloat32Array([(1.0 - t) * (1.0 - t) * (1.0 - t) / 6.0, (3.0 * t3 - 6.0 * t2 + 4.0) / 6.0,
+			(-3.0 * t3 + 3.0 * t2 + 3.0 * t + 1.0) / 6.0, t3 / 6.0])
+
+
+## Ground height (as drawn, at full detail).
+func height_at(x: float, z: float) -> float:
+	var b := base_height(x, z)
+	return b + detail(x, z) * clampf((b - 0.5) / 3.0, 0.0, 1.0)
+
+
+## Procedural relief below the data's resolution (as terrain_height in the shader).
+static func detail(x: float, z: float) -> float:
+	var d := 0.0
+	for k in DETAIL.size():
+		var o: Vector2 = DETAIL[k]
+		d += (vnoise(x / o.x + 17.0 * k, z / o.x - 9.0 * k) - 0.5) * 2.0 * o.y
+	return d
+
+
+## Value noise in [0, 1] with quintic interpolation; same hash as the shader.
+static func vnoise(x: float, z: float) -> float:
+	var i := floori(x)
+	var j := floori(z)
+	var fx := x - i
+	var fz := z - j
+	var ux := fx * fx * fx * (fx * (fx * 6.0 - 15.0) + 10.0)
+	var uz := fz * fz * fz * (fz * (fz * 6.0 - 15.0) + 10.0)
+	return lerpf(lerpf(_hash(i, j), _hash(i + 1, j), ux), lerpf(_hash(i, j + 1), _hash(i + 1, j + 1), ux), uz)
+
+
+static func _hash(i: int, j: int) -> float:
+	const M := 0xFFFFFFFF
+	var v := (((i & M) * 1597334677) & M) ^ (((j & M) * 3812015801) & M)
+	v = (v * 747796405 + 2891336453) & M
+	v = (((v >> ((v >> 28) + 4)) ^ v) * 277803737) & M
+	return float((v >> 22) ^ v) / 4294967295.0
+
+
+## Surface normal at (x, z).
 func normal_at(x: float, z: float) -> Vector3:
-	var e := cell()
+	var e := 1.0
 	return Vector3(height_at(x - e, z) - height_at(x + e, z), 2.0 * e,
 			height_at(x, z - e) - height_at(x, z + e)).normalized()
 
 
-## Water surface over (x, z): Vector3(level, flow x, flow z); the sea (0) unless
-## a river stands higher here.
-func water_at(x: float, z: float) -> Vector3:
-	var g := ((Vector2(x, z) - origin) / _water_cell).floor()
-	if g.x < 0 or g.y < 0 or g.x >= _water_n or g.y >= _water_n:
-		return Vector3.ZERO
-	var k := int(g.y) * _water_n + int(g.x)
-	if _water[k] > 0.0:
-		return Vector3(_water[k], _flow[k].x, _flow[k].y)
+## Water surface over (x, z): Vector3(level, flow x, flow z). Only the sea here.
+func water_at(_x: float, _z: float) -> Vector3:
 	return Vector3.ZERO
-
-
-func _rasterise_water() -> void:
-	_water_n = ceili(domain / _water_cell) + 1
-	_water.resize(_water_n * _water_n)
-	_water.fill(-INF)
-	_flow.resize(_water_n * _water_n)
-	for r in rivers:
-		var pts: PackedVector2Array = r.pts
-		for i in pts.size():
-			var hw: float = r.width[i] * 0.5
-			var dir := (pts[maxi(i - 1, 0)] - pts[mini(i + 1, pts.size() - 1)]).normalized() # downstream
-			var c := ((pts[i] - origin) / _water_cell).floor()
-			var k := ceili(hw / _water_cell)
-			for dj in range(-k, k + 1):
-				for di in range(-k, k + 1):
-					var gi := int(c.x) + di
-					var gj := int(c.y) + dj
-					if gi < 0 or gj < 0 or gi >= _water_n or gj >= _water_n:
-						continue
-					var q := origin + (Vector2(gi, gj) + Vector2(0.5, 0.5)) * _water_cell
-					if q.distance_to(pts[i]) <= hw + _water_cell * 0.5:
-						var kk := gj * _water_n + gi
-						if r.level[i] > _water[kk]:
-							_water[kk] = r.level[i]
-							_flow[kk] = dir
-
-
-## On the valley floor, beside the largest river, a little way inland.
-func _pick_spawn() -> void:
-	var best: Dictionary = rivers[0]
-	for r in rivers:
-		if r.pts.size() > best.pts.size() and r.width[0] > best.width[0] * 0.8:
-			best = r
-	var pts: PackedVector2Array = best.pts
-	for i in range(pts.size() / 6, pts.size()):
-		if best.level[i] > 3.0:
-			var t := (pts[mini(i + 1, pts.size() - 1)] - pts[i]).normalized()
-			var p: Vector2 = pts[i] + Vector2(-t.y, t.x) * (best.width[i] * 0.5 + 12.0)
-			spawn = Vector3(p.x, height_at(p.x, p.y) + 1.0, p.y)
-			return

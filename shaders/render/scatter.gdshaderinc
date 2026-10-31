@@ -30,7 +30,7 @@ bool scatter(int id, out vec3 pos, out mat3 basis, out float r, out float seed, 
 	cell_prop(c, cell, salt, p, r, seed, a);
 	float d = distance(p, view_pos.xz);
 	fade = smoothstep(fade_in_start, fade_in_end, d) * (1.0 - smoothstep(fade_out_start, fade_out_end, d));
-	pos = vec3(p.x, height_m(p, 0), p.y);
+	pos = vec3(p.x, terrain_height(p, 0), p.y);
 	basis = mat3(vec3(cos(a), 0.0, -sin(a)), vec3(0.0, 1.0, 0.0), vec3(sin(a), 0.0, cos(a)));
 	return fade > 0.0;
 }

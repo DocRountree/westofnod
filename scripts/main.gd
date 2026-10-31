@@ -1,7 +1,7 @@
 extends Node3D
-## Builds the vertical slice: real terrain (Hanalei, Kauai, from USGS elevation
-## data baked by tools/dem/bake_slice.py) on one CDLOD quadtree, river meshes,
-## the ocean, scattered trees, sky and atmosphere, the player.
+## Builds the world: the Galapagos archipelago (real elevation data baked by
+## tools/dem/bake_galapagos.py) on one CDLOD quadtree, the ocean, scattered
+## trees, sky and atmosphere, the player.
 
 var world: WorldData
 var cdlod: Cdlod
@@ -11,7 +11,6 @@ var hud: Hud
 var env: Environment
 var ocean: MeshInstance3D
 var ocean_material: ShaderMaterial
-var river_material: ShaderMaterial
 var fields: Array[ScatterField] = []
 
 const TREES_END := 1800.0 # where the far trees have dithered out
@@ -25,7 +24,7 @@ var _under := false
 
 func _ready() -> void:
 	_build_environment()
-	world = WorldData.new().load_slice()
+	world = WorldData.new().load_world()
 
 	var terrain_mat := ShaderMaterial.new()
 	terrain_mat.shader = load("res://shaders/render/terrain.gdshader")
@@ -33,16 +32,6 @@ func _ready() -> void:
 	cdlod = Cdlod.new()
 	add_child(cdlod)
 	cdlod.setup(world, [terrain_mat])
-
-	river_material = ShaderMaterial.new()
-	river_material.shader = load("res://shaders/render/river.gdshader")
-	river_material.set_shader_parameter("sun_direction", _sun.global_basis.z)
-	river_material.set_shader_parameter("overlap", RiverMeshes.OVERLAP)
-	var rivers := MeshInstance3D.new()
-	rivers.mesh = RiverMeshes.build(world)
-	rivers.material_override = river_material
-	rivers.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	add_child(rivers)
 
 	ocean_material = ShaderMaterial.new()
 	ocean_material.shader = load("res://shaders/render/ocean.gdshader")
@@ -56,7 +45,7 @@ func _ready() -> void:
 	add_child(ocean)
 	var floor_mi := MeshInstance3D.new()
 	var plane := PlaneMesh.new()
-	plane.size = Vector2(80000, 80000)
+	plane.size = Vector2(400000, 400000)
 	floor_mi.mesh = plane
 	var floor_mat := StandardMaterial3D.new()
 	floor_mat.albedo_color = Color(0.3, 0.32, 0.28)
@@ -83,7 +72,7 @@ func _ready() -> void:
 	terrain_mat.set_shader_parameter("sun_direction", _sun.global_basis.z)
 
 	# Aerial perspective (aerial.gdshaderinc) needs the sun on every surface it hazes.
-	_hazed = [terrain_mat, river_material, ocean_material]
+	_hazed = [terrain_mat, ocean_material]
 	for f in fields:
 		_hazed.append(f.material)
 	for m in _hazed:
