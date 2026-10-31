@@ -13,7 +13,7 @@ Open the folder in **Godot 4.3+** (Forward+ renderer) and press Play.
 | WASD, Space, Ctrl | move, jump, sprint |
 | Space / Shift in water | swim up / sink faster (otherwise you slowly sink) |
 | Ctrl + W, head under water | sprint-swim wherever you look |
-| F | toggle fly mode (Space / Shift to go up / down) |
+| Space ×2 | toggle fly mode (Space / Shift to go up / down) |
 | F5 | toggle third-person camera |
 | C | climb rock too steep to walk (WASD over the rock, Space lets go) |
 | Esc | release the mouse |

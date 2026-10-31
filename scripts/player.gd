@@ -8,6 +8,7 @@ extends CharacterBody3D
 const WALK_SPEED := 4.6
 const SPRINT_SPEED := 7.5
 const FLY_SPEED := 30.0
+const DOUBLE_TAP_MS := 300
 const JUMP_VELOCITY := 7.6
 const GRAVITY := 24.0
 const MOUSE_SENS := 0.0025
@@ -33,6 +34,7 @@ var _was_third_person := false
 var _grip_offset := Vector2.ZERO # rock point under the hands, relative to the origin
 var _cs: CollisionShape3D
 var flying := false
+var _last_space := -100000 # ms of the last Space press, for double-tap
 var frozen := true
 
 
@@ -81,8 +83,13 @@ func _unhandled_input(event: InputEvent) -> void:
 		match event.keycode:
 			KEY_ESCAPE:
 				Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
-			KEY_F:
-				flying = not flying
+			KEY_SPACE: # double-tap toggles fly mode
+				var now := Time.get_ticks_msec()
+				if now - _last_space < DOUBLE_TAP_MS:
+					flying = not flying
+					_last_space = -100000
+				else:
+					_last_space = now
 			KEY_F5:
 				if not climbing:
 					set_third_person(not third_person)
