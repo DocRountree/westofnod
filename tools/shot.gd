@@ -1,7 +1,7 @@
 extends Node
 ## Test driver: loads the game, waits for the island, and saves screenshots
 ## from the ground, low and high around the spawn, at the sea and far out.
-## godot --path . tools/shot.tscn -- <out_dir> [--climb]  (--climb: only the climbing test)
+## godot --path . tools/shot.tscn -- <out_dir> [--climb | --sea]  (only the climbing / water tests)
 
 var out_dir := "user://"
 var main: Node
@@ -49,6 +49,10 @@ func _run() -> void:
 	var isl: WorldData = main.world
 	var s := p.global_position
 	await _wait(3.0)
+	if OS.get_cmdline_user_args().has("--sea"):
+		await _sea_shots(s)
+		get_tree().quit()
+		return
 	if not OS.get_cmdline_user_args().has("--climb"):
 		await _shot("01_spawn")
 	# Third person, walking.
@@ -130,3 +134,28 @@ func _run() -> void:
 		Input.action_release("jump")
 		print("swim: after jump y=%.2f" % p.global_position.y)
 	get_tree().quit()
+
+
+## The water: the nearest coast low and from above, the open sea all round.
+func _sea_shots(s: Vector3) -> void:
+	var isl: WorldData = main.world
+	var best := Vector3.INF
+	for i in 200:
+		var a := TAU * i / 200.0
+		for r in range(50, 6000, 20):
+			var q := s + Vector3(cos(a) * r, 0.0, sin(a) * r)
+			if isl.height_at(q.x, q.z) < -1.0:
+				if best == Vector3.INF or q.distance_to(s) < best.distance_to(s):
+					best = q
+				break
+	var toward := atan2(-(best.x - s.x), -(best.z - s.z)) # facing away from land
+	await _view(Vector3(best.x, 3.0, best.z), toward + PI, -0.12, 3.0)
+	await _shot("sea_1_shore")
+	await _view(Vector3(best.x, 40.0, best.z), toward + PI, -0.6, 3.0)
+	await _shot("sea_2_shore_above")
+	var out := best + Vector3(sin(toward), 0, cos(toward)) * -3000.0
+	for k in 4:
+		await _view(Vector3(out.x, 6.0, out.z), k * PI * 0.5, -0.08, 2.0)
+		await _shot("sea_3_open_%d" % k)
+	await _view(Vector3(out.x, 400.0, out.z), toward, -0.25, 3.0)
+	await _shot("sea_4_high")
