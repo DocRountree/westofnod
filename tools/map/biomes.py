@@ -7,8 +7,9 @@ Each island is matched by where its middle lies; within an island a few
 lines split it. Islands not listed (the three northern ones, Baltra and the
 Seymours, the islets) have no biome yet.
 """
-FOREST, MESA, PLAINS, MOUNTAINS = "forest", "mesa", "plains", "mountains"
-COLOURS = {FOREST: (90, 255, 0), MESA: (255, 240, 0), PLAINS: (255, 0, 140), MOUNTAINS: (150, 95, 60)}
+FOREST, MESA, PLAINS, SWAMP, MOUNTAINS = "forest", "mesa", "plains", "swamp", "mountains"
+COLOURS = {FOREST: (90, 255, 0), MESA: (255, 240, 0), PLAINS: (255, 0, 140), SWAMP: (30, 140, 125),
+           MOUNTAINS: (150, 95, 60)}
 # Mountains are their own biome, wherever the ground (smoothed over a few
 # hundred metres) stands this high, whatever the island's biome around them.
 MOUNTAIN_HEIGHT = 330.0
@@ -73,4 +74,23 @@ ISLANDS = {
     "Floreana": ((2.0, -63.0), lambda lon, lat: FOREST),
     "Espanola": ((110.0, -70.0), lambda lon, lat: FOREST),
 }
-MATCH_DEG = 12.0     # how near an island's middle must be to its entry
+MATCH_DEG = 12.0
+
+# Swamps, over whatever island biome is there (mountains still win): bands
+# along a line (lon, lat to lon, lat), half_width km, edges fractal.
+# On Santa Cruz: where the (since dropped) river ran, from 2.5 km above the
+# spawn point down through it to the nearest coast.
+SWAMPS = [((17.33, -20.88), (21.16, -25.44), 2.6)]
+KM_PER_DEG = (281.0 / 360.0, 281.0 / 180.0)   # longitude, latitude
+
+
+def swamp(lon, lat):
+    """Whether (lon, lat) lies in a swamp."""
+    for (a, b, half) in SWAMPS:
+        px, pz = (lon - a[0]) * KM_PER_DEG[0], (lat - a[1]) * KM_PER_DEG[1]
+        dx, dz = (b[0] - a[0]) * KM_PER_DEG[0], (b[1] - a[1]) * KM_PER_DEG[1]
+        t = max(0.0, min(1.0, (px * dx + pz * dz) / (dx * dx + dz * dz)))
+        d = math.hypot(px - t * dx, pz - t * dz)
+        if d + fractal(lon, lat, 6.0) * 0.8 < half:
+            return True
+    return False     # how near an island's middle must be to its entry

@@ -49,7 +49,8 @@ def biome_layer(h):
             continue
         sub = out[sl]
         for yy, xx in zip(*np.nonzero(comp)):
-            sub[yy, xx] = names.index(rule(lon[sl][yy, xx], lat[sl][yy, xx]))
+            lo, la = lon[sl][yy, xx], lat[sl][yy, xx]
+            sub[yy, xx] = names.index(biomes.SWAMP if biomes.swamp(lo, la) else rule(lo, la))
     high = (ndimage.gaussian_filter(h, 3.0) > biomes.MOUNTAIN_HEIGHT) & (h > 0.0)
     out[high] = names.index(biomes.MOUNTAINS)
     return out
@@ -117,7 +118,7 @@ def main():
     dr.text((px + 20, pz - 18), "spawn", font=f, fill=(255, 80, 80, 255))
     if mode_biomes:
         y = S - 460
-        dr.rectangle([20, y - 16, 330, y + 210], fill=(0, 0, 0, 140))
+        dr.rectangle([20, y - 16, 330, y + 250], fill=(0, 0, 0, 140))
         for i, (name, rgb) in enumerate(list(biomes.COLOURS.items()) + [("unassigned", (140, 140, 140))]):
             dr.rectangle([40, y + i * 40, 76, y + i * 40 + 30], fill=rgb + (255,))
             dr.text((92, y + i * 40 - 2), name, font=f, fill=(255, 255, 255, 240))
