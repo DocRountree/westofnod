@@ -13,6 +13,7 @@ Open the folder in **Godot 4.3+** (Forward+ renderer) and press Play.
 | WASD, Space, Ctrl | move, jump, sprint |
 | Space / Shift in water | swim up / sink faster (otherwise you slowly sink) |
 | Ctrl + W, head under water | sprint-swim wherever you look |
+| Z | magnify (a telescope, for now a key); mouse wheel sets the power, 2x-8x |
 | [ / ] | run time backward / forward |
 | F6 | debug: an aurora every night |
 | Space ×2 | toggle fly mode (Space / Shift to go up / down) |
@@ -107,3 +108,17 @@ local time as you travel east or west. About one night in fifty has an
 aurora, seen only north of the northern tip of Isabela (the biggest island);
 the farther north, the higher it stands. The haze is applied to land, sea and
 trees only, never to the sky.
+
+## Magnifying
+
+Z magnifies the view (2x to 8x, mouse wheel). Detail is chosen as if
+everything were that many times nearer: terrain patches, relief, trees (real
+trees, not the terrain's flat crowns), shadows. Only the wedge you see gets
+the extra detail (`ScatterField.magnify`, `Cdlod.magnify`). Stars stay points
+but gather light like a telescope (magnification squared), so fainter ones
+appear: about 104,000 real stars from V 6.5 to 10.5 out of the HYG database
+(`data/faint_stars.f32`, built by `tools/build_faint_stars.py`; HYG (c) David
+Nash / astronexus, CC BY-SA 4.0). Open clusters split into their real stars
+as their glow fades; nebulae show the real stars inside them; galaxies show a
+bright nucleus, and their satellites (M32 and M110 by M31) come up. Globular
+clusters stay glows, as they do at this power.

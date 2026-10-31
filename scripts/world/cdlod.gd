@@ -19,6 +19,9 @@ var leaf := 0.0 # world size of a level-0 patch
 var ranges := PackedFloat32Array()
 var _mm: MultiMesh
 var _last_cam := Vector3.INF
+var zoom := 1.0 ## Magnification: detail as if everything were this many times nearer.
+var _dir := Vector2(0, -1) # horizontal view direction, and the wedge seen (when magnified)
+var _tan := 1.0
 
 
 func setup(world: WorldData, mats: Array[ShaderMaterial]) -> void:
@@ -50,7 +53,7 @@ func setup(world: WorldData, mats: Array[ShaderMaterial]) -> void:
 func update(cam: Vector3) -> void:
 	for m in materials:
 		m.set_shader_parameter("view_pos", cam)
-	if cam.distance_to(_last_cam) < leaf * 0.25:
+	if cam.distance_to(_last_cam) < leaf * 0.25 / zoom:
 		return
 	_last_cam = cam
 	var picked: Array = []
@@ -64,13 +67,51 @@ func update(cam: Vector3) -> void:
 		_mm.set_instance_custom_data(i, Color(lod, ranges[lod] * MORPH_START, ranges[lod], p[1]))
 
 
+## Magnified view: detail by distance / zoom, and only the patches in the
+## wedge seen along dir (horizontal unit vector; tan_half its half-angle).
+func magnify(dir: Vector2, z: float, tan_half: float) -> void:
+	if z == zoom and (z <= 1.01 or (dir.dot(_dir) > 0.9995 and tan_half == _tan)):
+		return
+	zoom = z
+	_dir = dir
+	_tan = tan_half
+	_last_cam = Vector3.INF # reselect
+	for m in materials:
+		m.set_shader_parameter("lod_zoom", zoom)
+
+
+func _in_wedge(cam: Vector3, corner: Vector2, size: float) -> bool:
+	if zoom <= 1.01:
+		return true
+	var c := Vector2(cam.x, cam.z)
+	var perp := Vector2(-_dir.y, _dir.x)
+	var pad := size * 0.75 + 50.0
+	# outside if every corner is past the same edge of the wedge
+	var left := 0
+	var right := 0
+	var back := 0
+	for q: Vector2 in [corner, corner + Vector2(size, 0), corner + Vector2(0, size), corner + Vector2(size, size)]:
+		var r := q - c
+		var along := r.dot(_dir)
+		var across := r.dot(perp)
+		if across > along * _tan + pad:
+			left += 1
+		elif -across > along * _tan + pad:
+			right += 1
+		if along < -pad:
+			back += 1
+	return left < 4 and right < 4 and back < 4
+
+
 func _dist(cam: Vector3, corner: Vector2, size: float) -> float:
 	var q := Vector2(clampf(cam.x, corner.x, corner.x + size), clampf(cam.z, corner.y, corner.y + size))
 	# Same metric as cdlod_xz(): horizontal distance, plus half the height above sea.
-	return Vector2(q.distance_to(Vector2(cam.x, cam.z)), maxf(cam.y, 0.0) * 0.5).length()
+	return Vector2(q.distance_to(Vector2(cam.x, cam.z)), maxf(cam.y, 0.0) * 0.5).length() / zoom
 
 
 func _select(corner: Vector2, size: float, lod: int, cam: Vector3, out: Array) -> void:
+	if not _in_wedge(cam, corner, size):
+		return
 	if lod > 0 and _dist(cam, corner, size) < ranges[lod - 1]:
 		var h := size * 0.5
 		for c in [Vector2(0, 0), Vector2(h, 0), Vector2(0, h), Vector2(h, h)]:

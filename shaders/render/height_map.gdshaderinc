@@ -12,6 +12,9 @@ uniform float map_size = 2048.0;     // samples per side
 uniform float map_domain = 8192.0;   // metres per side
 uniform vec2 map_origin = vec2(-4096.0); // world xz of sample (0, 0)
 uniform vec3 view_pos;               // main camera (also during the shadow pass)
+// Magnification (the telescope): detail is chosen as if everything were this
+// many times nearer, so it holds up when magnified.
+uniform float lod_zoom = 1.0;
 
 const float OCEAN_FLOOR = -300.0;
 // Below the data: three octaves of value noise (wavelength m, amplitude m), as
@@ -107,7 +110,7 @@ float base_height(vec2 p, int m) {
 // Relief below the data, each octave faded out with distance from the main
 // camera (not with the LOD level, so neighbouring levels agree).
 float terrain_detail(vec2 p) {
-	float dist = distance(p, view_pos.xz);
+	float dist = distance(p, view_pos.xz) / lod_zoom;
 	float d = 0.0;
 	for (int k = 0; k < 3; k++) {
 		float fade = 1.0 - smoothstep(DETAIL[k].x * 25.0, DETAIL[k].x * 40.0, dist);
@@ -156,7 +159,7 @@ vec2 cdlod_xz(vec3 vertex, mat4 model, vec4 cd, out int lod, out float morph) {
 	vec2 wp = origin.xz + gp * cd.w;
 	lod = int(cd.x + 0.5);
 	float d = distance(vec3(wp.x, 0.0, wp.y), vec3(view_pos.x, 0.0, view_pos.z));
-	d = length(vec2(d, max(view_pos.y - 0.0, 0.0) * 0.5));
+	d = length(vec2(d, max(view_pos.y - 0.0, 0.0) * 0.5)) / lod_zoom;
 	morph = clamp((d - cd.y) / max(cd.z - cd.y, 1e-3), 0.0, 1.0);
 	gp -= fract(gp * GRID * 0.5) * 2.0 / GRID * morph;
 	return origin.xz + gp * cd.w;

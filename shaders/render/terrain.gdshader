@@ -72,7 +72,7 @@ void fragment() {
 	NORMAL = normalize((VIEW_MATRIX * vec4(n, 0.0)).xyz);
 	float h = world_pos.y;
 	vec4 m = texture(mask_tex, map_uv(p));
-	float dist = distance(world_pos, CAMERA_POSITION_WORLD);
+	float dist = distance(world_pos, CAMERA_POSITION_WORLD) / lod_zoom; // (as if nearer, when magnified)
 
 	float patches = vnoise(p / 240.0) * 0.6 + vnoise(p / 60.0) * 0.4;
 	float fine3 = mix(0.5, vnoise(p / 3.0), 1.0 - smoothstep(0.5, 1.5, fp / 3.0));

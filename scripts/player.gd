@@ -12,6 +12,8 @@ const DOUBLE_TAP_MS := 300
 const JUMP_VELOCITY := 7.6
 const GRAVITY := 24.0
 const MOUSE_SENS := 0.0025
+const FOV := 75.0
+const MAX_ZOOM := 8.0 # (ScatterField.MAX_ZOOM: the tree budget covers this much)
 const THIRD_PERSON_DISTANCE := 4.5
 const SWIM_SPEED := 2.2
 const SWIM_SPRINT_SPEED := 5.6
@@ -34,6 +36,10 @@ var _was_third_person := false
 var _grip_offset := Vector2.ZERO # rock point under the hands, relative to the origin
 var _cs: CollisionShape3D
 var flying := false
+## Magnified view (Z; the wheel sets the power): for now a key, later a
+## telescope item. 1 = off.
+var zoom := 1.0
+var zoom_power := 6.0
 var _stuck_time := 0.0
 var _last_space := -100000 # ms of the last Space press, for double-tap
 var frozen := true
@@ -60,7 +66,7 @@ func _ready() -> void:
 	camera = Camera3D.new()
 	camera.far = 120000.0
 	camera.near = 0.08
-	camera.fov = 75.0
+	camera.fov = FOV
 	_arm.add_child(camera)
 	avatar = Avatar.new()
 	avatar.visible = false
@@ -77,9 +83,14 @@ func _unhandled_input(event: InputEvent) -> void:
 			Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 			get_viewport().set_input_as_handled()
 			return
+	if event is InputEventMouseButton and event.pressed and zoom > 1.0:
+		if event.button_index == MOUSE_BUTTON_WHEEL_UP or event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
+			zoom_power = clampf(zoom_power * (1.15 if event.button_index == MOUSE_BUTTON_WHEEL_UP else 1.0 / 1.15), 2.0, MAX_ZOOM)
+			set_zoom(zoom_power)
 	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
-		rotate_y(-event.relative.x * MOUSE_SENS)
-		head.rotation.x = clampf(head.rotation.x - event.relative.y * MOUSE_SENS, -1.55, 1.55)
+		var sens := MOUSE_SENS / zoom # the view moves as fast on screen, magnified or not
+		rotate_y(-event.relative.x * sens)
+		head.rotation.x = clampf(head.rotation.x - event.relative.y * sens, -1.55, 1.55)
 	if event is InputEventKey and event.pressed and not event.echo:
 		match event.keycode:
 			KEY_ESCAPE:
@@ -96,6 +107,8 @@ func _unhandled_input(event: InputEvent) -> void:
 					set_third_person(not third_person)
 			KEY_C:
 				set_climbing(not climbing)
+			KEY_Z:
+				set_zoom(1.0 if zoom > 1.0 else zoom_power)
 
 
 ## Landing from flight: keep only a walking pace of the flying velocity, so
@@ -107,6 +120,15 @@ func set_flying(on: bool) -> void:
 	if not on:
 		var hv := Vector2(velocity.x, velocity.z).limit_length(SPRINT_SPEED)
 		velocity = Vector3(hv.x, minf(velocity.y, 0.0) * 0.1, hv.y)
+
+
+## Magnify the view by z (1 = normal). Looking through it is first person.
+func set_zoom(z: float) -> void:
+	zoom = maxf(z, 1.0)
+	camera.fov = rad_to_deg(2.0 * atan(tan(deg_to_rad(FOV) * 0.5) / zoom))
+	_arm.spring_length = 0.0 if zoom > 1.0 or not third_person else THIRD_PERSON_DISTANCE
+	_arm.position.x = 0.0 if zoom > 1.0 or not third_person else 0.45
+	avatar.visible = third_person and zoom <= 1.0
 
 
 func set_third_person(on: bool) -> void:

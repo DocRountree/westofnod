@@ -13,6 +13,9 @@ render_mode unshaded, blend_add, depth_draw_never, cull_disabled, fog_disabled, 
 uniform float visibility = 0.0;        // 0 by day, 1 once the sun is well below the horizon
 uniform float pixel_angle = 0.0012;    // radians per screen pixel
 uniform float wobble_px = 0.12;        // seeing at the zenith, in pixels
+// Light gathered through a telescope (West of Nod: magnification squared):
+// stars brighten, fainter ones appear; the brightest stay capped.
+uniform float gain = 1.0;
 
 varying vec3 colour;
 varying vec2 quad;
@@ -34,7 +37,12 @@ void vertex() {
 		}
 		POSITION = PROJECTION_MATRIX * vec4(centre + vec3(offset * pixel_angle * length(centre), 0.0), 1.0);
 	}
-	colour = COLOR.rgb * INSTANCE_CUSTOM.r * visibility * step(0.0, dir.y);   // hidden only below the horizon
+	// Glows brighten less than stars (a telescope can't raise surface
+	// brightness much, but it gathers enough to show faint ones); a star
+	// cluster's glow fades as it resolves into its stars (INSTANCE_CUSTOM.a).
+	float glow = pow(gain, 0.45) * mix(1.0, clamp(1.5 / sqrt(gain), 0.1, 1.0), INSTANCE_CUSTOM.a);
+	float b = kind == 2 ? INSTANCE_CUSTOM.r * glow : min(INSTANCE_CUSTOM.r * gain, 6.0);
+	colour = COLOR.rgb * b * visibility * step(0.0, dir.y);   // hidden only below the horizon
 	quad = VERTEX.xy;
 }
 

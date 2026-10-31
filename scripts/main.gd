@@ -317,6 +317,34 @@ func _update_light() -> void:
 	terrain_material.set_shader_parameter("sun_direction", dir)
 
 
+## The magnified view (Player.zoom): terrain, trees and shadows pick their
+## detail as if everything were zoom times nearer, but only in the wedge seen.
+func _magnify(cam: Vector3) -> void:
+	var z := player.zoom
+	var f := -player.camera.global_basis.z
+	var dir := Vector2(f.x, f.z)
+	dir = dir.normalized() if dir.length() > 1e-3 else Vector2(0, -1)
+	var vp := get_viewport().get_visible_rect().size
+	# horizontal half-angle, widened by the pitch (looking up or down, the
+	# frustum's footprint spreads sideways) and a margin
+	var tan_h := tan(deg_to_rad(player.camera.fov) * 0.5) * vp.x / maxf(vp.y, 1.0)
+	tan_h = tan_h / maxf(sqrt(1.0 - f.y * f.y), 0.2) * 1.15 + 0.01
+	cdlod.magnify(dir, z, tan_h)
+	for m in _hazed:
+		m.set_shader_parameter("lod_zoom", z)
+	var far: ScatterField = fields[1]
+	for fld in fields:
+		var reach := fld.magnify(cam, dir, z, tan_h)
+		if fld == far:
+			# where the far trees end (the budget may end them early), the
+			# terrain's flat crowns take over, as without magnification
+			var end := minf(TREES_END, reach / z)
+			far.material.set_shader_parameter("fade_out_start", end * FAR_FADE)
+			far.material.set_shader_parameter("fade_out_end", end)
+			terrain_material.set_shader_parameter("canopy_start", end * FAR_FADE)
+	_sun.directional_shadow_max_distance = 350.0 * z
+
+
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_F6:
 		aurora.set_forced(not aurora.forced) # debug: an aurora every night
@@ -327,6 +355,7 @@ func _process(_delta: float) -> void:
 	_update_position_on_planet()
 	_update_light()
 	var cam := player.camera.global_position
+	_magnify(cam)
 	cdlod.update(cam)
 	for f in fields:
 		f.update(cam)
