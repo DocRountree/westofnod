@@ -43,7 +43,8 @@ LON0, LON1 = -91.72, -89.20
 LAT0, LAT1 = -1.45, 0.68
 SIZE = 8192
 SEED = 1337
-EXAGGERATE = 0.8  # broad shape raised by this fraction of itself
+EXAGGERATE = 1.5  # broad shape raised by this fraction of itself
+BROAD = 900.0     # m: the scale of the raised shape (smaller = steeper)
 SPAWN = (-0.700, -90.330)  # Santa Cruz, the southern slopes above Puerto Ayora
 
 
@@ -72,6 +73,59 @@ def read_mosaic():
             print("  tile", tile, a.shape)
     out[out < -50] = 0.0
     return out
+
+
+def erosion_filter(h, cell, land):
+    """A single-pass erosion filter after clayjohn's "Eroded Terrain Noise": per
+    octave, gaussian-windowed cosines on a jittered grid oscillating across the
+    slope, so their troughs line up into gullies running downhill; each octave
+    is bent by the gullies already carved, which makes them branch. Gully depth
+    scales with slope x wavelength. Returns the change in height (carving only)."""
+    n = h.shape[0]
+    hs = ndimage.gaussian_filter(h, 2.0)
+    gz, gx = np.gradient(hs, cell)
+    slope = np.hypot(gx, gz)
+    out = np.zeros_like(h)
+    eg_x = np.zeros_like(h)
+    eg_z = np.zeros_like(h)
+    rng = np.random.default_rng(SEED + 7)
+    wl = 640.0
+    amp = 0.22
+    g = np.arange(n) * cell
+    for octave in range(5):
+        jit = rng.random((4096, 4096, 2)).astype(np.float32)
+        for r0 in range(0, n, 512):
+            sl = slice(r0, r0 + 512)
+            Z, X = np.meshgrid(g[sl] / wl, g / wl, indexing="ij")
+            bx = gx[sl] + eg_x[sl] * 0.7
+            bz = gz[sl] + eg_z[sl] * 0.7
+            L = np.maximum(np.hypot(bx, bz), 1e-5)
+            dx, dz = bz / L, -bx / L  # across the slope
+            ix, iz = np.floor(X), np.floor(Z)
+            fx, fz = X - ix, Z - iz
+            va = np.zeros(X.shape, np.float32); vx = np.zeros_like(va); vz = np.zeros_like(va); wt = np.zeros_like(va)
+            for i in range(-2, 2):
+                for j in range(-2, 2):
+                    cx = (ix - i).astype(np.int64) % 4096
+                    cz = (iz - j).astype(np.int64) % 4096
+                    px = fx + i - (jit[cz, cx, 0] - 0.5)
+                    pz = fz + j - (jit[cz, cx, 1] - 0.5)
+                    w = np.exp(-(px * px + pz * pz) * 2.0)
+                    mag = (px * dx + pz * dz) * 2 * np.pi
+                    va += np.cos(mag) * w
+                    s_ = -np.sin(mag) * 2 * np.pi * w
+                    vx += s_ * dx
+                    vz += s_ * dz
+                    wt += w
+            a = amp * wl * np.minimum(slope[sl], 1.0)
+            out[sl] += a * (va / wt - 1.0) * 0.5
+            eg_x[sl] += a * 0.5 * vx / wt / wl
+            eg_z[sl] += a * 0.5 * vz / wt / wl
+        wl *= 0.5
+        amp *= 0.9
+        print("  octave", octave)
+    # fade out at the coast
+    return out * np.clip(h / 15.0, 0, 1) * land
 
 
 def main():
@@ -106,8 +160,10 @@ def main():
     # (the land blurred over ~1.5 km), so the volcanoes stand taller while
     # every local slope steepens only by the gentle slope of that broad
     # shape; coasts stay at sea level.
-    broad = ndimage.gaussian_filter(np.maximum(h, 0.0), 1500.0 / cell)
+    broad = ndimage.gaussian_filter(np.maximum(h, 0.0), BROAD / cell)
     h = np.where(land, h + EXAGGERATE * broad * np.clip(h / 20.0, 0, 1), h).astype(np.float32)
+    print("erosion filter...")
+    h = np.where(land, h + erosion_filter(h, cell, land), h).astype(np.float32)
     print("sea floor...")
     d_sea = ndimage.distance_transform_edt(~land) * cell
     floor = -(2.0 + 0.012 * d_sea + 180.0 * (1 - np.exp(-d_sea / 2500.0)))

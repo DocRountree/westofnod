@@ -26,8 +26,10 @@ using Copernicus WorldDEM-30 © DLR e.V. 2010-2014 and © Airbus Defence and Spa
 The baker reads only the window it needs and writes:
 
 - `heights.f16.gz`: 8192² half floats at 34 m, projected to local metres. The broad
-  shape (land blurred over ~1.5 km) is raised by 80%, so volcanoes stand taller
-  without steepening local slopes into cliffs. The sea floor is synthetic, from
+  shape (land blurred over ~0.9 km) is raised by 150%, so volcanoes stand much
+  taller and steeper without turning into cliff walls. Then a single-pass erosion
+  filter after clayjohn's "Eroded Terrain Noise" (five octaves, 640 m down to 40 m)
+  carves branching gullies down every slope, deeper where it's steeper. The sea floor is synthetic, from
   distance to the coast.
 - `masks.png`: young lava (rough, bare), humid highlands (wetter on the south-east,
   windward side), trees (sparse grey scrub low, green Scalesia forest high, none on
