@@ -25,7 +25,7 @@ const MAX_CURTAINS := 4         ## Must match aurora.gdshader.
 const MAX_SWIRLS := 5           ## Must match aurora.gdshader.
 const MIN_GAP := 15.0           ## km between neighbouring curtains' fold envelopes.
 
-@export_range(0.0, 1.0) var chance := 0.02    ## About one night in fifty.
+@export_range(0.0, 1.0) var chance := 1.0 / 3.0    ## One night in three.
 @export var time_scale := 1.0   ## How fast the display moves and evolves (0 = frozen; for tuning).
 
 var forced := false             ## Debug: an aurora every night (F6).
