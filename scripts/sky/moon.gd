@@ -7,7 +7,8 @@ extends MeshInstance3D
 
 const DISTANCE := 96000.0          ## Beyond the farthest land, inside the camera's far plane (120 km).
 
-@export var size_scale := 5.0      ## Angular size relative to the real moon (0.52 deg), which is only a few pixels.
+@export var size_scale := 3.5      ## Angular size relative to the real moon (0.52 deg), which is only a few pixels.
+@export var zoomed_scale := 1.5    ## ... and once magnified (a little larger than life there too).
 
 
 func _ready() -> void:
@@ -27,7 +28,7 @@ func update_sky(moon_dir: Vector3, sun_dir: Vector3, night: float, pole := Vecto
 	var y := z.cross(x)
 	# drawn larger than life for the naked eye, true to size once magnified
 	var zoom := tan(deg_to_rad(75.0) * 0.5) / tan(deg_to_rad(cam.fov) * 0.5)
-	var size := deg_to_rad(0.52) * maxf(size_scale / maxf(zoom, 1.0), 1.0) * DISTANCE
+	var size := deg_to_rad(0.52) * maxf(size_scale / maxf(zoom, 1.0), zoomed_scale) * DISTANCE
 	global_transform = Transform3D(Basis(x * size, y * size, z), cam.global_position + moon_dir * DISTANCE)
 	var mat := material_override as ShaderMaterial
 	mat.set_shader_parameter("sun_local", Vector3(sun_dir.dot(x), sun_dir.dot(y), sun_dir.dot(z)))
