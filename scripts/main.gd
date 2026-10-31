@@ -162,6 +162,7 @@ func _build_environment() -> void:
 	var starfield := Starfield.new()
 	starfield.catalog = load("res://data/bright_stars.tres")
 	starfield.material_override = _sky_material("starfield", 0)
+	starfield.add_child(MilkyWay.new()) # the faint stars, down to V 17.5
 	var planets := PlanetLayer.new()
 	planets.material_override = _sky_material("planet_layer", 1)
 	var meteors := Meteors.new()

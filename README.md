@@ -122,3 +122,17 @@ Nash / astronexus, CC BY-SA 4.0). Open clusters split into their real stars
 as their glow fades; nebulae show the real stars inside them; galaxies show a
 bright nucleus, and their satellites (M32 and M110 by M31) come up. Globular
 clusters stay glows, as they do at this power.
+
+## The Milky Way
+
+Stars only, no colour, no dust, no painted glow (`shaders/sky/milky_way.gdshader`):
+every star from V 10.5 (where the real catalogues stop) to 17.5, generated on
+the sky from a hash, in counts per magnitude and per patch of sky from a
+star-count model of the Galaxy (a disc concentrated toward the plane, brighter
+toward the centre, and the bulge in Sagittarius). Stars a pixel can separate
+are drawn as points; where they're packed tighter, a pixel shows the summed
+light of the stars that fall in it, as grain fixed to the sky, lifted for the
+dark-adapted eye. Magnifying resolves that grain into stars. On the game's
+fixed date (the December solstice) the galactic centre is up by day, behind
+the sun, as it is in reality; at night the band runs through Carina, Crux,
+Monoceros and Auriga.

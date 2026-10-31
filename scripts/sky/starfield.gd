@@ -93,6 +93,9 @@ func update_sky(equatorial_to_world: Basis, visibility: float) -> void:
 		# magnification (from the field of view) squared: a telescope's light grasp
 		var zoom := tan(deg_to_rad(75.0) * 0.5) / tan(deg_to_rad(cam.fov) * 0.5)
 		mat.set_shader_parameter("gain", maxf(zoom * zoom, 1.0))
+		for c in get_children():
+			if c is MilkyWay:
+				c.update_sky(visibility, deg_to_rad(cam.fov) / maxf(get_viewport().get_visible_rect().size.y, 1.0), maxf(zoom * zoom, 1.0))
 	visible = visibility > 0.0
 
 
