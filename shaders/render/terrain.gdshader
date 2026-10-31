@@ -79,10 +79,11 @@ void fragment() {
 	// The Galapagos: dusty arid scrub on the lowlands, green humid highlands,
 	// black and rust-brown lava, pale coral sand, a turquoise shallow sea floor.
 	vec3 arid = mix(vec3(0.50, 0.45, 0.33), vec3(0.42, 0.42, 0.30), clamp(patches * 1.3 - 0.2, 0.0, 1.0));
-	vec3 humid = mix(vec3(0.24, 0.40, 0.14), vec3(0.33, 0.46, 0.18), patches);
+	vec3 humid = mix(vec3(0.13, 0.27, 0.09), vec3(0.20, 0.34, 0.12), patches); // dark green highland cover
 	vec3 lava = mix(vec3(0.10, 0.09, 0.09), vec3(0.24, 0.15, 0.11), smoothstep(0.55, 0.85, vnoise(p / 35.0)));
 	lava *= 0.85 + 0.3 * fine3;
 	vec3 rock = mix(vec3(0.20, 0.19, 0.18), vec3(0.34, 0.31, 0.28), vnoise(p / 9.0) * 0.6 + vnoise(p / 50.0) * 0.4);
+	rock = mix(rock, vec3(0.14, 0.20, 0.11), m.g * 0.7); // mossy where it's wet
 	vec3 soil = vec3(0.36, 0.27, 0.19);
 	vec3 sand = mix(vec3(0.84, 0.80, 0.68), vec3(0.90, 0.86, 0.74), patches);
 	vec3 seabed = mix(vec3(0.70, 0.68, 0.56), vec3(0.42, 0.44, 0.40), smoothstep(-2.0, -25.0, h));
@@ -92,7 +93,7 @@ void fragment() {
 	col = mix(col, col * vec3(0.75, 0.8, 0.7), smoothstep(0.3, 0.9, m.b)); // shade and litter under trees
 	col = mix(col, soil, smoothstep(0.75, 0.55, n.y) * 0.5);
 	col = mix(col, lava, m.r);
-	float rocky = smoothstep(0.62, 0.42, n.y);
+	float rocky = smoothstep(0.5, 0.32, n.y); // only near-cliffs go bare
 	col = mix(col, rock, rocky);
 
 	// Far trees, flat: the same trees as tree.gdshader's far field.

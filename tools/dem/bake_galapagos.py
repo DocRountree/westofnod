@@ -240,11 +240,11 @@ def main():
     rough = ndimage.gaussian_filter(np.abs(hp), 3.0)
     patch = sum(a * ndimage.zoom(rng.standard_normal((SIZE // s + 3,) * 2), s, order=1)[:SIZE, :SIZE]
                 for s, a in [(256, 1.0), (64, 0.5), (16, 0.25)]).astype(np.float32)
-    lava = np.clip((rough - 1.2) / 2.5, 0, 1) * (h < 1500) * land
+    lava = np.clip((rough - 1.2) / 2.5, 0, 1) * np.clip((250.0 - h) / 100.0, 0, 1) * land  # lowland flows only
     # The humid zone: high ground, wetter facing the south-east trade winds.
     aspect_se = np.clip((gx * -0.6 + gz * -0.8) / np.maximum(slope, 1e-3), -1, 1)  # downslope toward the SE
     humid = np.clip((h - 300.0 - 200.0 * aspect_se * (slope > 0.03)) / 550.0, 0, 1) * land
-    humid *= np.clip((1400.0 - h) / 400.0, 0, 1)
+    humid *= np.clip((2300.0 - h) / 400.0, 0, 1)  # green up the mountains, bare summits
     trees = np.clip(0.08 + 0.12 * patch + 0.85 * humid - lava * 1.5, 0, 1) * (h > 3.0)
     trees *= np.clip((900.0 - h) / 250.0, 0, 1)  # the summits are bare
     near_sea = ndimage.distance_transform_edt(h > 0.0) * cell < 70.0

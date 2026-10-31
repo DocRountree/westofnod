@@ -11,12 +11,12 @@ extends MultiMeshInstance3D
 ## with kind 0 star, 2 deep-sky object (ellipse in the instance basis).
 
 const RADIUS := 100000.0        ## Beyond the farthest land, inside the camera's far plane.
-const STAR_SIZE_PX := 2.2       ## Stars are points: every star the same size.
+const STAR_SIZE_PX := 2.7       ## Stars are points: every star the same size.
 
 @export var catalog: StarCatalog
 ## Uniform boost over real brightness: a magnitude-1 star draws at this level
 ## (1 = screen white). Brighter stars bloom; magnitude 6 is a faint dot.
-@export var brightness := 1.5
+@export var brightness := 2.4
 
 
 func _ready() -> void:
