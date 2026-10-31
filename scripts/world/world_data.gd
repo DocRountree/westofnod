@@ -40,7 +40,7 @@ func load_world() -> WorldData:
 	mi.generate_mipmaps()
 	mask_tex = ImageTexture.create_from_image(mi)
 	var s: Array = meta.spawn
-	spawn = Vector3(s[0], height_at(s[0], s[1]) + 1.0, s[1])
+	spawn = Vector3(s[0], height_at(s[0], s[1]) + 3.0, s[1])
 	return self
 
 

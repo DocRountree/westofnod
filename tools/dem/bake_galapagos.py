@@ -237,6 +237,16 @@ def main():
     Image.fromarray(m, "RGBA").save(os.path.join(out_dir, "masks.png"))
     sx = (SPAWN[1] - lon_c) * m_lon
     sz = -(SPAWN[0] - lat_c) * m_lat
+    # the transplanted mountains may bury the nominal spawn: move it to the
+    # nearest gentle, low ground (flat over ~100 m, not in the sea)
+    gy, gx2 = np.gradient(ndimage.uniform_filter(h, 3), cell)
+    ok = (np.hypot(gx2, gy) < 0.12) & (h > 4.0) & (h < 300.0)
+    ok = ndimage.binary_erosion(ok, iterations=2)
+    zi = int(round((sz + domain / 2) / cell)); xi = int(round((sx + domain / 2) / cell))
+    _, (iz, ix) = ndimage.distance_transform_edt(~ok, return_indices=True)
+    zi, xi = int(iz[zi, xi]), int(ix[zi, xi])
+    sx = xi * cell - domain / 2; sz = zi * cell - domain / 2
+    print("spawn %.0f m up, %.0f m from the nominal point" % (h[zi, xi], math.hypot(sx - (SPAWN[1] - lon_c) * m_lon, sz + (SPAWN[0] - lat_c) * m_lat)))
     with open(os.path.join(out_dir, "world.json"), "w") as f:
         json.dump({
             "name": "Galapagos Islands",
