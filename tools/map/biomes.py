@@ -54,23 +54,21 @@ def fractal(lon, lat, salt=0.0):
 # (lon, lat, km from the nearest mountains) -> biome
 def _isabela(lon, lat, mountain_km):
     if lat + fractal(lon, lat, 1.0) > -14.0:
-        # the long northern arm: split along its spine, forest west, plains east
-        spine = -90.0 + (lat + 10.0) * (-35.0 / 43.0)
-        return PLAINS if lon + fractal(lon, lat, 2.0) > spine else FOREST
+        return _ringed(lon, lat, mountain_km)       # the long northern arm
     return MESA                                      # the southern lobe
 
 
-def _santiago(lon, lat, mountain_km):
+def _ringed(lon, lat, mountain_km):
     # a ring of forest round the mountains, plains from there to the sea
     return FOREST if mountain_km + fractal(lon, lat, 3.0) * 0.8 < 3.5 else PLAINS
 
 
+def _santiago(lon, lat, mountain_km):
+    return _ringed(lon, lat, mountain_km)
+
+
 def _santa_cruz(lon, lat, mountain_km):
-    if lon + fractal(lon, lat, 4.0) > 13.0:
-        return PLAINS                                # the east end
-    if math.hypot(lon - 12.5, lat + 26.0) + fractal(lon, lat, 5.0) * 0.6 < 3.5:
-        return PLAINS                                # a patch on the south shore
-    return FOREST
+    return _ringed(lon, lat, mountain_km)
 
 
 ISLANDS = {
