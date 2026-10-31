@@ -11,7 +11,7 @@ FOREST, MESA, PLAINS, MOUNTAINS = "forest", "mesa", "plains", "mountains"
 COLOURS = {FOREST: (90, 255, 0), MESA: (255, 240, 0), PLAINS: (255, 0, 140), MOUNTAINS: (150, 95, 60)}
 # Mountains are their own biome, wherever the ground (smoothed over a few
 # hundred metres) stands this high, whatever the island's biome around them.
-MOUNTAIN_HEIGHT = 400.0
+MOUNTAIN_HEIGHT = 330.0
 
 import math
 
@@ -45,7 +45,7 @@ def fractal(lon, lat, salt=0.0):
 def _isabela(lon, lat):
     if lat + fractal(lon, lat, 1.0) > -14.0:
         return MESA                                  # the long northern arm
-    coast = -37.0 + (lon + 150.0) * 0.178            # (along the southern lobe's north shore: plains above)
+    coast = -40.0 + (lon + 150.0) * 0.178            # (along the southern lobe's north shore: plains above)
     return PLAINS if lat + fractal(lon, lat, 2.0) > coast else FOREST
 
 
