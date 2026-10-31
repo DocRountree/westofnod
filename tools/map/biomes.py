@@ -15,7 +15,7 @@ COLOURS = {FOREST: (90, 255, 0), MESA: (255, 240, 0), PLAINS: (255, 0, 140), SWA
            MOUNTAINS: (150, 95, 60), ISLAND: (255, 170, 60), COAST: (240, 225, 175)}
 # Every island smaller than this one is an "island" biome as a whole.
 SMALL_BELOW = "San Cristobal"
-COAST_KM = 0.9   # the coast: a band this wide along every shore (not tundra), edge fractal
+COAST_KM = 0.5   # the coast: a band this wide along every shore (not tundra), edge fractal
 # Mountains take their biome from what surrounds them (the most common biome
 # in a ring round each range): plains, forest or swamp make taiga; mesa, a
 # plateau; tundra, a volcano. Ranges with nothing assigned round them stay
