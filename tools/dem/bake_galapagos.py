@@ -195,6 +195,60 @@ def transplant(h, cell, land, rng):
     return out
 
 
+def mesas(h, cell, domain):
+    """The mountains of Isabela's southern lobe (the "plateau" biome on the
+    biome map, tools/map/biomes.py) remade as mesas, as on the Colorado
+    Plateau: each range cut flat at ~45% of its height (the caprock: nearly
+    level, a hint of the old relief left), a sheer wall ~250 m high round it,
+    then the flanks below. The rim follows the
+    range's own valleys (the cut is on the ground smoothed only a little), so
+    the cliffs have alcoves and spurs, and lone summits stand as buttes."""
+    big = ndimage.label(h > 0.0)[0]
+    isabela = big == np.argmax(np.bincount(big.ravel())[1:]) + 1
+    # the southern lobe: south of 14 S on the planet's latitude (main.gd: the
+    # map's north edge is 90 N)
+    z = np.arange(h.shape[0])[:, None]
+    lat = 90.0 - z / (h.shape[0] - 1) * 180.0
+    lobe = isabela & (lat < -14.0)
+    hs = ndimage.gaussian_filter(h, 6.0)
+    mtn, n = ndimage.label((hs > 330.0) & lobe)   # (the biome map's mountains)
+    # all of it at once over the lobe (ranges' slopes overlap)
+    zz, xx = np.nonzero(lobe)
+    w = (slice(zz.min(), zz.max() + 1), slice(xx.min(), xx.max() + 1))
+    hw = h[w].astype(np.float64)
+    top_src = ndimage.gaussian_filter(hw, 2.0)
+    mw = mtn[w]
+    # each spot follows its nearest range
+    dist, (iz, ix) = ndimage.distance_transform_edt(mw == 0, return_indices=True)
+    owner = mw[iz, ix]
+    dist = dist * cell
+    new = hw.copy()
+    for k in range(1, n + 1):
+        rng_ = mw == k
+        peak = float(top_src[rng_].max())
+        cut = 0.45 * peak
+        own = owner == k
+        cap = own & (top_src > cut) & (dist < 2000.0)
+        if not cap.any():
+            continue
+        drop = cut - max(cut - 250.0, cut * 0.55)                # the wall's height
+        d = ndimage.distance_transform_edt(~cap) * cell
+        ring = own & (d > 3000.0) & (d < 4000.0) & (hw > 0.0)
+        base = float(np.percentile(hw[ring], 30)) if ring.any() else 0.0
+        # below the rim: the real ground, lowered by nothing at the lowland's
+        # level up to the wall's height at the rim (so the flanks keep their
+        # ridges and valleys, and there's no seam with the land around)
+        t = np.clip((top_src - base) / max(cut - base, 1.0), 0.0, 1.0)
+        t = t * t * (3 - 2 * t) * np.clip((6000.0 - dist) / 1000.0, 0.0, 1.0)
+        lowered = hw - drop * t
+        new = np.where(own, np.where(cap, cut + 0.06 * (top_src - cut), lowered), new)
+        print("  mesa: peak %.0f m -> caprock %.0f m (wall %.0f m), %.0f km2" % (peak, cut, drop, cap.sum() * cell * cell / 1e6))
+    new = np.where(hw > 0.0, np.maximum(new, np.minimum(hw, 3.0)), hw)   # (no new sea)
+    out = h.copy()
+    out[w] = new.astype(np.float32)
+    return out
+
+
 def main():
     repo = sys.argv[1] if len(sys.argv) > 1 else "."
     out_dir = os.path.join(repo, "data", "world")
@@ -225,6 +279,8 @@ def main():
     land = h > 0.5
     print("mountains...")
     h = transplant(h, cell, land, rng).astype(np.float32)
+    print("mesas...")
+    h = mesas(h, cell, domain).astype(np.float32)
     print("sea floor...")
     d_sea = ndimage.distance_transform_edt(~land) * cell
     floor = -(2.0 + 0.012 * d_sea + 180.0 * (1 - np.exp(-d_sea / 2500.0)))

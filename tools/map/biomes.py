@@ -7,20 +7,20 @@ Each island is matched by where its middle lies; within an island a few
 lines split it. Islands not listed (the three northern ones, Baltra and the
 Seymours, the islets) have no biome yet.
 """
-FOREST, MESA, PLAINS, SWAMP, TUNDRA = "forest", "mesa", "plains", "swamp", "tundra"
+FOREST, MESA, PRAIRIE, SWAMP, TUNDRA = "forest", "mesa", "prairie", "swamp", "tundra"
 ISLAND, COAST = "island", "coast"
 TAIGA, PLATEAU, VOLCANO, MOUNTAINS = "taiga", "plateau", "volcano", "mountains"
-COLOURS = {FOREST: (90, 255, 0), MESA: (255, 240, 0), PLAINS: (255, 0, 140), SWAMP: (30, 140, 125),
+COLOURS = {FOREST: (90, 255, 0), MESA: (255, 240, 0), PRAIRIE: (255, 0, 140), SWAMP: (30, 140, 125),
            TUNDRA: (205, 230, 240), TAIGA: (20, 95, 60), PLATEAU: (205, 120, 45), VOLCANO: (130, 20, 25),
            MOUNTAINS: (150, 95, 60), ISLAND: (255, 170, 60), COAST: (240, 225, 175)}
 # Every island smaller than this one is an "island" biome as a whole.
 SMALL_BELOW = "San Cristobal"
 COAST_KM = 0.5   # the coast: a band this wide along every shore (not tundra), edge fractal
 # Mountains take their biome from what surrounds them (the most common biome
-# in a ring round each range): plains, forest or swamp make taiga; mesa, a
+# in a ring round each range): prairie, forest or swamp make taiga; mesa, a
 # plateau; tundra, a volcano. Ranges with nothing assigned round them stay
 # plain mountains.
-MOUNTAIN_BY_SURROUNDINGS = {PLAINS: TAIGA, FOREST: TAIGA, SWAMP: TAIGA, MESA: PLATEAU, TUNDRA: VOLCANO}
+MOUNTAIN_BY_SURROUNDINGS = {PRAIRIE: TAIGA, FOREST: TAIGA, SWAMP: TAIGA, MESA: PLATEAU, TUNDRA: VOLCANO}
 RING_KM = 2.0
 # Mountains are their own biome, wherever the ground (smoothed over a few
 # hundred metres) stands this high, whatever the island's biome around them.
@@ -64,7 +64,7 @@ def _isabela(lon, lat, mountain_km):
 
 def _ringed(lon, lat, mountain_km):
     # a ring of forest round the mountains, plains from there to the sea
-    return FOREST if mountain_km + fractal(lon, lat, 3.0) * 0.8 < 3.5 else PLAINS
+    return FOREST if mountain_km + fractal(lon, lat, 3.0) * 0.8 < 3.5 else PRAIRIE
 
 
 def _santiago(lon, lat, mountain_km):
