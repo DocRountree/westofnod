@@ -34,7 +34,7 @@ The baker reads only the window it needs and writes:
   rotated, scaled to 0.4× height on a 0.65× footprint (so they stay steep),
   faded out at a ragged rim, and chained into ranges with open lowland
   between. Bigger islands get more of them, a little taller (~2.5 km on
-  Isabela). Trees stop by ~900 m and the humid cover by ~1400 m.
+  Isabela). The humid cover stops by ~2000 m.
   The sea floor is synthetic, from distance to the coast. Downloaded tiles are
   cached in `tools/dem/.cache/`, so a rebake takes about two minutes.
 - `masks.png`: young lava (rough, bare), humid highlands (wetter on the south-east,
@@ -62,12 +62,9 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   Fresnel, a capped GGX sun highlight, and gloss falling away with distance. With MSAA
   the depth buffer can't be read, so the water's thickness falls back to the channel
   depth (rivers) or the sea floor (sea) and the view angle.
-- **Trees**: placed on the GPU, one per world cell around the camera (anchored, never
-  shuffling), by the forest mask. Detailed trees near (with shadows), simple crowns
-  farther out (no shadows), cross-faded. As each far tree dithers out, the terrain
-  draws that same tree as a flat, sun-shaded crown with its shadow, in exactly its
-  place: it reruns the placement hash (`scatter_hash.gdshaderinc`). So forests reach
-  the horizon without changing as they go flat.
+- **No trees** for now. Props would go in a `ScatterField` (`scripts/world/scatter_field.gd`):
+  placed on the GPU, one per world cell around the camera, by a mask; the baked tree
+  mask is still in `masks.png` (blue), unused.
 - **Grass** is a terrain texture (blade streaks and tufts).
 - **Player** (`scripts/avatar.gd`): a stylised figure animated procedurally with two-bone
   IK. Walking: feet step in turn, arms swing. Climbing: hands and feet hold points on
@@ -107,13 +104,13 @@ star, moon and planet positions for your latitude, and the clock keeps your
 local time as you travel east or west. One night in three has an
 aurora, seen only north of 45°N (`AURORA_LATITUDE` in `scripts/main.gd`);
 the farther north, the higher it stands. The haze is applied to land, sea and
-trees only, never to the sky.
+props only, never to the sky.
 
 ## Magnifying
 
 Z magnifies the view (2x to 8x, mouse wheel). Detail is chosen as if
-everything were that many times nearer: terrain patches, relief, trees (real
-trees, not the terrain's flat crowns), shadows. Only the wedge you see gets
+everything were that many times nearer: terrain patches, relief, props,
+shadows. Only the wedge you see gets
 the extra detail (`ScatterField.magnify`, `Cdlod.magnify`). Stars stay points
 but gather light like a telescope (magnification squared), so fainter ones
 appear: about 104,000 real stars from V 6.5 to 10.5 out of the HYG database

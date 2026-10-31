@@ -1,7 +1,7 @@
 extends Node3D
 ## Builds the world: the Galapagos archipelago (real elevation data baked by
-## tools/dem/bake_galapagos.py) on one CDLOD quadtree, the ocean, scattered
-## trees, sky and atmosphere, the player.
+## tools/dem/bake_galapagos.py) on one CDLOD quadtree, the ocean, sky and
+## atmosphere, the player. (No trees, for now; props would be ScatterFields.)
 
 var world: WorldData
 var cdlod: Cdlod
@@ -14,10 +14,6 @@ var ocean_material: ShaderMaterial
 var terrain_material: ShaderMaterial
 var fields: Array[ScatterField] = []
 
-const TREES_END := 1800.0 # where the far trees have dithered out
-const FAR_FADE := 0.6 # ... starting at this fraction of TREES_END
-const FAR_CELL := 14.0 # far tree cell (terrain.gdshader reproduces their placement)
-const FAR_SCALE := 1.35
 const AURORA_LATITUDE := 45.0 # auroras are seen only north of this
 var config: WorldConfig
 var clock: GameClock
@@ -63,22 +59,6 @@ func _ready() -> void:
 	floor_mi.position.y = WorldData.OCEAN_FLOOR - 0.5
 	add_child(floor_mi)
 
-	# Trees: detailed near (with shadows); simple crowns farther out, larger and
-	# sparser, no shadows; the two bands cross-fade. As the far trees dither
-	# out, the terrain draws each of them as a flat crown in exactly its place
-	# (same cells, same hash: see terrain.gdshader), out to the horizon.
-	var tree_shader: Shader = load("res://shaders/render/tree.gdshader")
-	var near_trees := ScatterField.new(world, PropMeshes.tree(1, 3), tree_shader, 7.0, 260.0, Vector2(-1, 0))
-	var far_trees := ScatterField.new(world, PropMeshes.tree(0, 5), tree_shader, FAR_CELL, TREES_END,
-			Vector2(190.0, 250.0), {"size_scale": FAR_SCALE})
-	far_trees.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	far_trees.material.set_shader_parameter("fade_out_start", TREES_END * FAR_FADE)
-	fields.append_array([near_trees, far_trees])
-	for f in fields:
-		add_child(f)
-	terrain_mat.set_shader_parameter("canopy_start", TREES_END * FAR_FADE)
-	terrain_mat.set_shader_parameter("canopy_cell", FAR_CELL)
-	terrain_mat.set_shader_parameter("canopy_scale", FAR_SCALE)
 	terrain_mat.set_shader_parameter("sun_direction", _sun.global_basis.z)
 
 	# Aerial perspective (aerial.gdshaderinc) needs the sun on every surface it hazes.
@@ -319,7 +299,7 @@ func _update_light() -> void:
 	terrain_material.set_shader_parameter("sun_direction", dir)
 
 
-## The magnified view (Player.zoom): terrain, trees and shadows pick their
+## The magnified view (Player.zoom): terrain, props and shadows pick their
 ## detail as if everything were zoom times nearer, but only in the wedge seen.
 func _magnify(cam: Vector3) -> void:
 	var z := player.zoom
@@ -334,16 +314,8 @@ func _magnify(cam: Vector3) -> void:
 	cdlod.magnify(dir, z, tan_h)
 	for m in _hazed:
 		m.set_shader_parameter("lod_zoom", z)
-	var far: ScatterField = fields[1]
 	for fld in fields:
-		var reach := fld.magnify(cam, dir, z, tan_h)
-		if fld == far:
-			# where the far trees end (the budget may end them early), the
-			# terrain's flat crowns take over, as without magnification
-			var end := minf(TREES_END, reach / z)
-			far.material.set_shader_parameter("fade_out_start", end * FAR_FADE)
-			far.material.set_shader_parameter("fade_out_end", end)
-			terrain_material.set_shader_parameter("canopy_start", end * FAR_FADE)
+		fld.magnify(cam, dir, z, tan_h)
 	_sun.directional_shadow_max_distance = 350.0 * z
 
 
