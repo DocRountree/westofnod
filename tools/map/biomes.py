@@ -7,9 +7,17 @@ Each island is matched by where its middle lies; within an island a few
 lines split it. Islands not listed (the three northern ones, Baltra and the
 Seymours, the islets) have no biome yet.
 """
-FOREST, MESA, PLAINS, SWAMP, MOUNTAINS = "forest", "mesa", "plains", "swamp", "mountains"
+FOREST, MESA, PLAINS, SWAMP, TUNDRA = "forest", "mesa", "plains", "swamp", "tundra"
+TAIGA, PLATEAU, VOLCANO, MOUNTAINS = "taiga", "plateau", "volcano", "mountains"
 COLOURS = {FOREST: (90, 255, 0), MESA: (255, 240, 0), PLAINS: (255, 0, 140), SWAMP: (30, 140, 125),
+           TUNDRA: (205, 230, 240), TAIGA: (20, 95, 60), PLATEAU: (205, 120, 45), VOLCANO: (130, 20, 25),
            MOUNTAINS: (150, 95, 60)}
+# Mountains take their biome from what surrounds them (the most common biome
+# in a ring round each range): plains, forest or swamp make taiga; mesa, a
+# plateau; tundra, a volcano. Ranges with nothing assigned round them stay
+# plain mountains.
+MOUNTAIN_BY_SURROUNDINGS = {PLAINS: TAIGA, FOREST: TAIGA, SWAMP: TAIGA, MESA: PLATEAU, TUNDRA: VOLCANO}
+RING_KM = 2.0
 # Mountains are their own biome, wherever the ground (smoothed over a few
 # hundred metres) stands this high, whatever the island's biome around them.
 MOUNTAIN_HEIGHT = 330.0
@@ -46,9 +54,10 @@ def fractal(lon, lat, salt=0.0):
 # (lon, lat, km from the nearest mountains) -> biome
 def _isabela(lon, lat, mountain_km):
     if lat + fractal(lon, lat, 1.0) > -14.0:
-        return MESA                                  # the long northern arm
-    coast = -40.0 + (lon + 150.0) * 0.178            # (along the southern lobe's north shore: plains above)
-    return PLAINS if lat + fractal(lon, lat, 2.0) > coast else FOREST
+        # the long northern arm: split along its spine, forest west, plains east
+        spine = -90.0 + (lat + 10.0) * (-35.0 / 43.0)
+        return PLAINS if lon + fractal(lon, lat, 2.0) > spine else FOREST
+    return MESA                                      # the southern lobe
 
 
 def _santiago(lon, lat, mountain_km):
@@ -84,6 +93,13 @@ MATCH_DEG = 12.0
 # spawn point down through it to the nearest coast.
 SWAMPS = [((17.33, -20.88), (21.16, -25.44), 2.6)]
 KM_PER_DEG = (281.0 / 360.0, 281.0 / 180.0)   # longitude, latitude
+
+
+TUNDRA_LAT = 45.0   # all land north of this (edge fractal) is tundra
+
+
+def tundra(lon, lat):
+    return lat + fractal(lon, lat, 7.0) > TUNDRA_LAT
 
 
 def swamp(lon, lat):

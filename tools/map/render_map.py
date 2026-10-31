@@ -48,12 +48,31 @@ def biome_layer(h):
             if d < best:
                 best, rule = d, r
         if rule is None:
-            continue
+            rule = lambda lo, la, km: None
         sub = out[sl]
         for yy, xx in zip(*np.nonzero(comp)):
             lo, la = lon[sl][yy, xx], lat[sl][yy, xx]
-            sub[yy, xx] = names.index(biomes.SWAMP if biomes.swamp(lo, la) else rule(lo, la, mountain_km[sl][yy, xx]))
-    out[high] = names.index(biomes.MOUNTAINS)
+            if biomes.tundra(lo, la):
+                b = biomes.TUNDRA
+            elif biomes.swamp(lo, la):
+                b = biomes.SWAMP
+            else:
+                b = rule(lo, la, mountain_km[sl][yy, xx])
+            if b is not None:
+                sub[yy, xx] = names.index(b)
+    # each range takes its biome from what surrounds it
+    ring_px = max(1, int(biomes.RING_KM / (281.0 / S)))
+    mlab, nm = ndimage.label(high)
+    for k, sl in enumerate(ndimage.find_objects(mlab)):
+        grow = tuple(slice(max(s_.start - ring_px, 0), s_.stop + ring_px) for s_ in sl)
+        comp = mlab[grow] == k + 1
+        ring = ndimage.binary_dilation(comp, iterations=ring_px) & ~comp & (h[grow] > 0.0)
+        around = out[grow][ring]
+        around = around[around >= 0]
+        kind = biomes.MOUNTAINS
+        if around.size:
+            kind = biomes.MOUNTAIN_BY_SURROUNDINGS.get(names[np.bincount(around).argmax()], biomes.MOUNTAINS)
+        out[grow][comp] = names.index(kind)
     return out
 
 
@@ -118,8 +137,8 @@ def main():
     dr.ellipse([px - 14, pz - 14, px + 14, pz + 14], outline=(255, 40, 40, 255), width=5)
     dr.text((px + 20, pz - 18), "spawn", font=f, fill=(255, 80, 80, 255))
     if mode_biomes:
-        y = S - 460
-        dr.rectangle([20, y - 16, 330, y + 250], fill=(0, 0, 0, 140))
+        y = S - 620
+        dr.rectangle([20, y - 16, 330, y + 410], fill=(0, 0, 0, 140))
         for i, (name, rgb) in enumerate(list(biomes.COLOURS.items()) + [("unassigned", (140, 140, 140))]):
             dr.rectangle([40, y + i * 40, 76, y + i * 40 + 30], fill=rgb + (255,))
             dr.text((92, y + i * 40 - 2), name, font=f, fill=(255, 255, 255, 240))
