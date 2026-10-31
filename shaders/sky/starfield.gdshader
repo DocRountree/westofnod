@@ -40,7 +40,7 @@ void vertex() {
 	// Glows brighten less than stars (a telescope can't raise surface
 	// brightness much, but it gathers enough to show faint ones); a star
 	// cluster's glow fades as it resolves into its stars (INSTANCE_CUSTOM.a).
-	float glow = pow(gain, 0.45) * mix(1.0, clamp(1.5 / sqrt(gain), 0.1, 1.0), INSTANCE_CUSTOM.a);
+	float glow = min(pow(gain, 0.45), 2.0) * mix(1.0, clamp(1.5 / sqrt(gain), 0.1, 1.0), INSTANCE_CUSTOM.a);
 	float b = kind == 2 ? INSTANCE_CUSTOM.r * glow : min(INSTANCE_CUSTOM.r * gain, 6.0);
 	colour = COLOR.rgb * b * visibility * step(0.0, dir.y);   // hidden only below the horizon
 	quad = VERTEX.xy;
