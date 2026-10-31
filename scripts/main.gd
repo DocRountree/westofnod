@@ -144,7 +144,7 @@ func _build_environment() -> void:
 	env.volumetric_fog_enabled = false
 	env.glow_enabled = true
 	env.glow_intensity = 0.3
-	env.glow_hdr_threshold = 1.6 # only the sun on the water blooms
+	env.glow_hdr_threshold = 3.0 # only the sun itself and its glints bloom, not the sky round it
 	var we := WorldEnvironment.new()
 	we.environment = env
 	add_child(we)

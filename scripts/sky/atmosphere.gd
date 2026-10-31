@@ -43,9 +43,9 @@ extends Node
 ## Ozone absorption, relative to Earth's (keeps twilight blue rather than olive).
 @export var ozone_strength := 2.2
 ## Haze (aerosol) scattering: the warm glow around a low sun. Not in Lague's model.
-@export var mie_scattering := 2.5
+@export var mie_scattering := 1.3   ## (lower than the repo's 2.5: the glow round the sun washed the sky out)
 @export var mie_falloff := 28.0                     ## Haze hugs the surface (air uses density_falloff).
-@export_range(0.0, 0.99) var mie_g := 0.74         ## Forward-scattering strength.
+@export_range(0.0, 0.99) var mie_g := 0.65         ## Forward-scattering strength.
 ## High-altitude (stratospheric) aerosol layer. It still catches reddened
 ## sunlight after the sun has set below, and that light reaches you through
 ## blue sky: the pink and purple of twilight. Not in Lague's model.

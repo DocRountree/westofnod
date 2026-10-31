@@ -41,8 +41,8 @@ uniform float intensity = 1.0;
 uniform int in_scattering_points = 16;
 uniform float dither_strength = 0.35;   // jitters the samples; debanding handles the rest
 uniform vec3 sun_direction = vec3(0.0, 0.5, -0.8);
-uniform float sun_disc_size = 0.9998;     // cos of the sun's angular radius
-uniform float sun_disc_brightness = 8.0;  // low enough that a setting sun can show its colour
+uniform float sun_disc_size = 0.99985;    // cos of the sun's angular radius (~1 degree: larger than life, to be seen)
+uniform float sun_disc_brightness = 14.0;  // low enough that a setting sun can show its colour
 uniform vec3 night_sky = vec3(0.001, 0.002, 0.005);
 // What glossy things (water above all) reflect is capped at this: the bright
 // halo round the sun would otherwise show in a reach of water as a glaring
@@ -152,8 +152,12 @@ void sky() {
 	// the sun itself, dimmed and reddened by the air in front of it
 	vec3 view_transmittance = exp(-(view_depth.x * air_extinction + view_depth.y * haze_extinction + view_depth.z * strat_extinction));
 	if (!AT_CUBEMAP_PASS && EYEDIR.y > horizon_y - 0.002) {   // (it sets at the true horizon)
-		float disc = smoothstep(sun_disc_size - 0.00004, sun_disc_size + 0.00004, mu);
-		light += view_transmittance * disc * sun_disc_brightness;
+		// a crisp edge, and limb darkening (the rim is ~60% of the centre), so it
+		// reads as a disc against its glow
+		float disc = smoothstep(sun_disc_size - 0.000015, sun_disc_size + 0.000015, mu);
+		float r = clamp(sqrt(max(1.0 - mu, 0.0) / (1.0 - sun_disc_size)), 0.0, 1.0);
+		float limb = 1.0 - 0.4 * (1.0 - sqrt(1.0 - r * r));
+		light += view_transmittance * disc * limb * sun_disc_brightness;
 	}
 
 	if (AT_CUBEMAP_PASS) {
