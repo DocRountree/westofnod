@@ -17,18 +17,25 @@ func _ready() -> void:
 
 
 ## Place the moon. moon_dir and sun_dir are world unit vectors; night is 0 by day, 1 at night.
-func update_sky(moon_dir: Vector3, sun_dir: Vector3, night: float) -> void:
+## pole: the celestial north pole (world unit vector), to turn the moon's face.
+func update_sky(moon_dir: Vector3, sun_dir: Vector3, night: float, pole := Vector3.UP) -> void:
 	var cam := get_viewport().get_camera_3d() if is_inside_tree() else null
 	if cam == null:
 		return
 	var z := -moon_dir                                   # disc faces the camera
 	var x := (Vector3.UP if absf(z.y) < 0.99 else Vector3.FORWARD).cross(z).normalized()
 	var y := z.cross(x)
-	var size := deg_to_rad(0.52) * size_scale * DISTANCE
+	# drawn larger than life for the naked eye, true to size once magnified
+	var zoom := tan(deg_to_rad(75.0) * 0.5) / tan(deg_to_rad(cam.fov) * 0.5)
+	var size := deg_to_rad(0.52) * maxf(size_scale / maxf(zoom, 1.0), 1.0) * DISTANCE
 	global_transform = Transform3D(Basis(x * size, y * size, z), cam.global_position + moon_dir * DISTANCE)
 	var mat := material_override as ShaderMaterial
 	mat.set_shader_parameter("sun_local", Vector3(sun_dir.dot(x), sun_dir.dot(y), sun_dir.dot(z)))
 	mat.set_shader_parameter("night", night)
+	var pl := pole - z * pole.dot(z)
+	mat.set_shader_parameter("north_local", Vector2(pl.dot(x), pl.dot(y)))
+	if mat.get_shader_parameter("albedo_map") == null:
+		mat.set_shader_parameter("albedo_map", load("res://data/sky/moon_albedo.jpg"))
 	visible = moon_dir.y > -0.05
 
 

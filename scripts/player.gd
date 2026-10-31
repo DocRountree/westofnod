@@ -40,7 +40,7 @@ var flying := false
 ## telescope item. 1 = off.
 var zoom := 1.0
 var zoom_power := 6.0
-var _stuck_time := 0.0
+var grounded := false ## Standing on the ground (see _move).
 var _last_space := -100000 # ms of the last Space press, for double-tap
 var frozen := true
 
@@ -52,6 +52,7 @@ func _ready() -> void:
 	_cs = CollisionShape3D.new()
 	_cs.shape = shape
 	_cs.position.y = 0.9
+	_cs.disabled = true # (terrain contact is _move's; the shape only keeps the camera's arm off the body)
 	add_child(_cs)
 	head = Node3D.new()
 	head.position.y = 1.62
@@ -156,7 +157,6 @@ func set_climbing(on: bool) -> void:
 		set_third_person(_was_third_person)
 		velocity = Vector3.ZERO
 	climbing = on
-	_cs.disabled = on
 
 
 func _physics_process(delta: float) -> void:
@@ -187,16 +187,13 @@ func _physics_process(delta: float) -> void:
 		swimming = false
 		var speed := SPRINT_SPEED if Input.is_action_pressed("sprint") else WALK_SPEED
 		velocity.y -= GRAVITY * delta
-		if Input.is_action_pressed("jump") and is_on_floor():
+		if Input.is_action_pressed("jump") and grounded:
 			velocity.y = JUMP_VELOCITY
-		var accel := 40.0 if is_on_floor() else 12.0
+			grounded = false
+		var accel := 40.0 if grounded else 12.0
 		velocity.x = move_toward(velocity.x, dir.x * speed, accel * delta)
 		velocity.z = move_toward(velocity.z, dir.z * speed, accel * delta)
-	var before := global_position
-	move_and_slide()
-	_stay_above_ground()
-	if not flying and not swimming:
-		_unstick(delta, dir, before)
+	_move(delta, in_water)
 	# The figure faces where it is going and steps along.
 	var hv := Vector3(velocity.x, 0.0, velocity.z)
 	if hv.length() > 0.3:
@@ -205,33 +202,50 @@ func _physics_process(delta: float) -> void:
 	else:
 		avatar.global_basis = Basis(Vector3.UP, avatar.global_rotation.y)
 	if avatar.visible:
-		avatar.walk(delta, hv.length(), is_on_floor() or flying)
+		avatar.walk(delta, hv.length(), grounded or flying)
 
 
-## Wedged (a V between two slopes too steep to stand on, or a snag in the
-## collision): pushing to move but barely moving for half a second lifts the
-## body half a metre and nudges it on, which clears the snag.
-func _unstick(delta: float, dir: Vector3, before: Vector3) -> void:
-	var moved := Vector2(global_position.x - before.x, global_position.z - before.z).length()
-	if dir.length() > 0.1 and moved < 0.15 * WALK_SPEED * delta:
-		_stuck_time += delta
+## Moving over the terrain. It is a height field, so the body moves against
+## the exact surface that is drawn (WorldData.height_at), not a physics
+## approximation of it: nothing to snag on, nothing to sink into. On foot, the
+## feet follow the ground (down slopes too, within a step); ground steeper
+## than floor_max_angle can't be walked up and slides you down it. Flying and
+## swimming only keep you above it. (The physics collider is for the camera.)
+func _move(delta: float, in_water: bool) -> void:
+	var p := global_position + velocity * delta
+	var g := world.height_at(p.x, p.z)
+	var n := world.normal_at(p.x, p.z)
+	var steep := n.y < cos(floor_max_angle)
+	if flying or in_water:
+		if p.y < g:
+			p.y = g
+			velocity.y = maxf(velocity.y, 0.0)
+		grounded = false
 	else:
-		_stuck_time = 0.0
-	if _stuck_time > 0.5:
-		_stuck_time = 0.0
-		global_position += Vector3.UP * 0.5 + dir * 0.3
-		velocity = Vector3.ZERO
-
-
-## Safety net: if the body ever ends up below the ground (collision lagging
-## behind a fast move, or a missed contact), put it back on the surface.
-func _stay_above_ground() -> void:
-	if world == null:
-		return
-	var g := world.height_at(global_position.x, global_position.z)
-	if global_position.y < g - 0.3:
-		global_position.y = g + 0.05
-		velocity.y = maxf(velocity.y, 0.0)
+		var uphill := -Vector2(n.x, n.z).normalized()
+		if steep and g > global_position.y + 0.05:
+			# too steep to walk up: keep only the motion along (or down) it
+			var hv := Vector2(velocity.x, velocity.z)
+			var up := hv.dot(uphill)
+			if up > 0.0:
+				hv -= uphill * up
+				velocity.x = hv.x
+				velocity.z = hv.y
+				p = global_position + velocity * delta
+				g = world.height_at(p.x, p.z)
+				n = world.normal_at(p.x, p.z)
+				steep = n.y < cos(floor_max_angle)
+		var snap := 0.6 if grounded and velocity.y <= 0.0 else 0.0
+		if p.y <= g + snap:
+			p.y = g
+			velocity.y = 0.0
+			grounded = not steep
+			if steep: # slide down
+				velocity.x += n.x * GRAVITY * delta
+				velocity.z += n.z * GRAVITY * delta
+		else:
+			grounded = false
+	global_position = p
 
 
 ## Climbing: hands and feet on the rock, moving over its surface. W/S climb up
@@ -296,5 +310,6 @@ func _swim(delta: float, dir: Vector3, depth: float, head_under: bool, flow: Vec
 	# the target (and a dive is braked).
 	target += Vector3(flow.x, 0.0, flow.y) * CURRENT_SPEED
 	velocity = velocity.move_toward(target, 9.0 * delta)
-	if Input.is_action_pressed("jump") and is_on_wall() and depth < 1.6:
+	var ahead := global_position + Vector3(dir.x, 0.0, dir.z) * 0.6
+	if Input.is_action_pressed("jump") and depth < 1.6 and world.height_at(ahead.x, ahead.z) > global_position.y:
 		velocity.y = 4.2 # climb out onto the bank

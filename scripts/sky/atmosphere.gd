@@ -220,7 +220,7 @@ func _update_sun() -> void:
 	var moon_up := smoothstep(-0.02, 0.05, moon_dir.y)
 	var illuminated := (1.0 - moon_dir.dot(dir)) * 0.5   # lit fraction from the sun-moon angle
 	if moon:
-		moon.update_sky(moon_dir, dir, night)
+		moon.update_sky(moon_dir, dir, night, equatorial_to_world() * Vector3(0, 0, 1))
 	if moonlight:
 		moonlight.global_basis = Basis.looking_at(-moon_dir, Vector3.UP if absf(moon_dir.y) < 0.99 else Vector3.FORWARD)
 		moonlight.light_energy = moon_energy * illuminated * moon_up * night

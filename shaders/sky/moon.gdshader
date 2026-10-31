@@ -10,6 +10,11 @@ uniform vec3 sun_local = vec3(1.0, 0.0, 0.0);   // sun direction in the disc's f
 uniform float night = 0.0;                      // 0 by day, 1 at night
 uniform float day_brightness = 0.35;
 uniform float night_brightness = 1.6;
+// The real surface (an albedo map, equirectangular, longitude 0 at the centre,
+// east to the right), on the near side that always faces us, turned so lunar
+// north points to the celestial pole (north_local: its direction in the disc).
+uniform sampler2D albedo_map : source_color, filter_linear_mipmap, repeat_enable;
+uniform vec2 north_local = vec2(0.0, 1.0);
 
 varying vec2 q;
 
@@ -35,9 +40,12 @@ void fragment() {
 		discard;
 	vec3 n = vec3(q, sqrt(1.0 - r2));
 	float lit = smoothstep(-0.04, 0.06, dot(n, normalize(sun_local)));
-	// dark "seas" (maria): a fixed noise pattern on the sphere
-	float maria = noise(n * 2.6 + 3.1) * 0.65 + noise(n * 6.0) * 0.35;
-	float albedo = mix(0.58, 1.0, smoothstep(0.42, 0.6, maria));
+	// the surface: sphere point in lunar axes (y north, x east as seen from here)
+	vec2 nn = normalize(north_local);
+	vec3 m = vec3(q.x * nn.y - q.y * nn.x, q.x * nn.x + q.y * nn.y, n.z);
+	float lat = asin(clamp(m.y, -1.0, 1.0));
+	float lon = atan(m.x, m.z);
+	float albedo = texture(albedo_map, vec2(0.5 + lon / TAU, 0.5 - lat / PI)).r / 0.55;
 	float limb = mix(0.78, 1.0, n.z);
 	float edge = 1.0 - smoothstep(0.94, 1.0, r2);
 	float brightness = mix(day_brightness, night_brightness, night);
