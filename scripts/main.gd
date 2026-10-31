@@ -18,6 +18,7 @@ const TREES_END := 1800.0 # where the far trees have dithered out
 const FAR_FADE := 0.6 # ... starting at this fraction of TREES_END
 const FAR_CELL := 14.0 # far tree cell (terrain.gdshader reproduces their placement)
 const FAR_SCALE := 1.35
+const AURORA_LATITUDE := 45.0 # auroras are seen only north of this
 var config: WorldConfig
 var clock: GameClock
 var atmosphere: Atmosphere
@@ -96,7 +97,7 @@ func _ready() -> void:
 	player.avatar.world = world
 	player.global_position = world.spawn
 	_last_x = world.spawn.x
-	aurora.min_latitude = latitude_at(world.big_island_north_z)
+	aurora.min_latitude = AURORA_LATITUDE
 	_update_position_on_planet()
 	collider.follow(player.global_position)
 	player.frozen = false

@@ -105,7 +105,7 @@ atmosphere with a sun that reddens through the same air, a fixed calendar day
 (the 2026 winter solstice) with a 15-minute day and a 10-minute night, real
 star, moon and planet positions for your latitude, and the clock keeps your
 local time as you travel east or west. About one night in fifty has an
-aurora, seen only north of the northern tip of Isabela (the biggest island);
+aurora, seen only north of 45°N (`AURORA_LATITUDE` in `scripts/main.gd`);
 the farther north, the higher it stands. The haze is applied to land, sea and
 trees only, never to the sky.
 
