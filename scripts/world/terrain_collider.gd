@@ -15,7 +15,8 @@ var _center := Vector2i.MAX # none yet
 var _pending := Vector2i.ZERO
 var _data := PackedFloat32Array()
 var _task := -1
-var _first := true
+var _first := true # build the next window at once (start, or outrun)
+var _active := Vector2i.ZERO # centre of the window in use
 
 
 func _ready() -> void:
@@ -41,17 +42,27 @@ func follow(p: Vector3) -> void:
 		_shape.map_data = _data
 		_cs.scale = Vector3.ONE * STEP
 		_cs.position = Vector3(_pending.x * STEP, 0.0, _pending.y * STEP)
+		_active = _pending
 	var c := Vector2i((Vector2(p.x, p.z) / STEP).round())
+	# Outran the window (very fast moves): no waiting for the worker, build
+	# the one under the player now.
+	if not _first and Vector2(c - _active).length() * STEP > (WINDOW / 2) * STEP - 20.0:
+		if _task != -1:
+			WorkerThreadPool.wait_for_task_completion(_task)
+			_task = -1
+		_first = true
+		_center = Vector2i.MAX
 	if _center != Vector2i.MAX and Vector2(c - _center).length() * STEP < RECENTER:
 		return
 	_center = c
 	_pending = c
 	if _first:
 		_first = false
-		_build(c) # the very first window is needed at once, before falling
+		_build(c) # needed at once: nothing under the player yet
 		_shape.map_data = _data
 		_cs.scale = Vector3.ONE * STEP
 		_cs.position = Vector3(c.x * STEP, 0.0, c.y * STEP)
+		_active = c
 		return
 	_task = WorkerThreadPool.add_task(_build.bind(c))
 

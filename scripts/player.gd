@@ -34,6 +34,7 @@ var _was_third_person := false
 var _grip_offset := Vector2.ZERO # rock point under the hands, relative to the origin
 var _cs: CollisionShape3D
 var flying := false
+var _stuck_time := 0.0
 var _last_space := -100000 # ms of the last Space press, for double-tap
 var frozen := true
 
@@ -86,7 +87,7 @@ func _unhandled_input(event: InputEvent) -> void:
 			KEY_SPACE: # double-tap toggles fly mode
 				var now := Time.get_ticks_msec()
 				if now - _last_space < DOUBLE_TAP_MS:
-					flying = not flying
+					set_flying(not flying)
 					_last_space = -100000
 				else:
 					_last_space = now
@@ -95,6 +96,17 @@ func _unhandled_input(event: InputEvent) -> void:
 					set_third_person(not third_person)
 			KEY_C:
 				set_climbing(not climbing)
+
+
+## Landing from flight: keep only a walking pace of the flying velocity, so
+## you don't carry 100+ m/s into the ground.
+func set_flying(on: bool) -> void:
+	if on == flying:
+		return
+	flying = on
+	if not on:
+		var hv := Vector2(velocity.x, velocity.z).limit_length(SPRINT_SPEED)
+		velocity = Vector3(hv.x, minf(velocity.y, 0.0) * 0.1, hv.y)
 
 
 func set_third_person(on: bool) -> void:
@@ -114,7 +126,7 @@ func set_climbing(on: bool) -> void:
 		var p := global_position + fwd * 0.6
 		if world.normal_at(p.x, p.z).y > CLIMBABLE and world.normal_at(global_position.x, global_position.z).y > CLIMBABLE:
 			return # nothing steep here to climb
-		flying = false
+		set_flying(false)
 		_was_third_person = third_person
 		set_third_person(true)
 		_grip_offset = Vector2(fwd.x, fwd.z) * 0.6
@@ -158,7 +170,11 @@ func _physics_process(delta: float) -> void:
 		var accel := 40.0 if is_on_floor() else 12.0
 		velocity.x = move_toward(velocity.x, dir.x * speed, accel * delta)
 		velocity.z = move_toward(velocity.z, dir.z * speed, accel * delta)
+	var before := global_position
 	move_and_slide()
+	_stay_above_ground()
+	if not flying and not swimming:
+		_unstick(delta, dir, before)
 	# The figure faces where it is going and steps along.
 	var hv := Vector3(velocity.x, 0.0, velocity.z)
 	if hv.length() > 0.3:
@@ -168,6 +184,32 @@ func _physics_process(delta: float) -> void:
 		avatar.global_basis = Basis(Vector3.UP, avatar.global_rotation.y)
 	if avatar.visible:
 		avatar.walk(delta, hv.length(), is_on_floor() or flying)
+
+
+## Wedged (a V between two slopes too steep to stand on, or a snag in the
+## collision): pushing to move but barely moving for half a second lifts the
+## body half a metre and nudges it on, which clears the snag.
+func _unstick(delta: float, dir: Vector3, before: Vector3) -> void:
+	var moved := Vector2(global_position.x - before.x, global_position.z - before.z).length()
+	if dir.length() > 0.1 and moved < 0.15 * WALK_SPEED * delta:
+		_stuck_time += delta
+	else:
+		_stuck_time = 0.0
+	if _stuck_time > 0.5:
+		_stuck_time = 0.0
+		global_position += Vector3.UP * 0.5 + dir * 0.3
+		velocity = Vector3.ZERO
+
+
+## Safety net: if the body ever ends up below the ground (collision lagging
+## behind a fast move, or a missed contact), put it back on the surface.
+func _stay_above_ground() -> void:
+	if world == null:
+		return
+	var g := world.height_at(global_position.x, global_position.z)
+	if global_position.y < g - 0.3:
+		global_position.y = g + 0.05
+		velocity.y = maxf(velocity.y, 0.0)
 
 
 ## Climbing: hands and feet on the rock, moving over its surface. W/S climb up
