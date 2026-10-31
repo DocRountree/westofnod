@@ -46,6 +46,11 @@ uniform vec3 absorption = vec3(0.42, 0.075, 0.035);
 uniform vec3 scatter_color = vec3(0.006, 0.04, 0.11);
 uniform vec3 crest_color = vec3(0.05, 0.32, 0.30);
 uniform float refraction = 0.04;
+// The world wraps (main.gd): crossing the map's east/west seam or a pole
+// moves the player, and these move the sea's coordinates with them, so the
+// waves carry on unbroken. Sea coordinates = sea_sign * world xz + sea_offset.
+uniform vec2 sea_sign = vec2(1.0);
+uniform vec2 sea_offset = vec2(0.0);
 
 const int NW = 18;
 const float LMAX = 140.0;   // longest wind wave (m)
@@ -53,7 +58,7 @@ const float RATIO = 0.85;   // each next wave this much shorter, down to ~8 m (f
 const int NCHOP = 6;        // octaves of chop, 8 m down to 0.25 m
 const float STEEP = 0.034;  // k*a per band at the peak
 
-varying vec2 x0;
+varying vec2 x0; // the sea's own coordinates (sea_sign, sea_offset)
 varying float spacing;
 varying float sea_depth;
 varying float height;
@@ -166,9 +171,9 @@ float phase(float fi, vec2 d, float k, float depth, vec2 wp) {
 
 void vertex() {
 	vec3 world = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
-	x0 = world.xz;
+	x0 = sea_sign * world.xz + sea_offset;
 	spacing = UV.x;
-	sea_depth = -height_m(x0, clamp(int(log2(max(spacing, 1.0) / map_cell())), 0, 8));
+	sea_depth = -height_m(world.xz, clamp(int(log2(max(spacing, 1.0) / map_cell())), 0, 8));
 	vec3 disp = vec3(0.0);
 	vec2 wp = warp(x0);
 	for (int i = 0; i < NW; i++) {
@@ -191,7 +196,7 @@ void vertex() {
 		disp.y += a * sin(th);
 	}
 	height = disp.y;
-	VERTEX += disp;
+	VERTEX += vec3(sea_sign.x * disp.x, disp.y, sea_sign.y * disp.z);
 }
 
 void fragment() {
@@ -224,6 +229,7 @@ void fragment() {
 	slope += chop(x0, px, sea_depth, lost);
 	float folding = (1.0 - jac.x) * (1.0 - jac.y) - jac.z * jac.z; // < 1 where the surface bunches up
 	slope /= max(1.0 - jac.x - jac.y, 0.25);
+	slope *= sea_sign; // back to world axes
 	vec3 n_world = normalize(vec3(-slope.x, 1.0, -slope.y));
 
 	vec3 to_eye = (INV_VIEW_MATRIX * vec4(VIEW, 0.0)).xyz;

@@ -1,7 +1,7 @@
 extends Node
 ## Test driver: loads the game, waits for the island, and saves screenshots
 ## from the ground, low and high around the spawn, at the sea and far out.
-## godot --path . tools/shot.tscn -- <out_dir> [--climb | --sea]  (only the climbing / water tests)
+## godot --path . tools/shot.tscn -- <out_dir> [--climb | --sea | --sky]  (only the climbing / water tests)
 
 var out_dir := "user://"
 var main: Node
@@ -49,6 +49,10 @@ func _run() -> void:
 	var isl: WorldData = main.world
 	var s := p.global_position
 	await _wait(3.0)
+	if OS.get_cmdline_user_args().has("--sky"):
+		await _sky_shots(s)
+		get_tree().quit()
+		return
 	if OS.get_cmdline_user_args().has("--sea"):
 		await _sea_shots(s)
 		get_tree().quit()
@@ -159,3 +163,41 @@ func _sea_shots(s: Vector3) -> void:
 		await _shot("sea_3_open_%d" % k)
 	await _view(Vector3(out.x, 400.0, out.z), toward, -0.25, 3.0)
 	await _shot("sea_4_high")
+
+
+## The sky through the day, an aurora night up north, and the wraps.
+func _sky_shots(s: Vector3) -> void:
+	var clk: GameClock = main.clock
+	clk.day_minutes = 0.0 # hold the time for each shot
+	for t in [[12.0, "noon"], [17.6, "sunset"], [18.3, "dusk"], [22.0, "night"]]:
+		clk.time_of_day = t[0]
+		await _view(s + Vector3(0, 300, 0), PI * 0.5, -0.05, 4.0) # west, toward Isabela
+		await _shot("sky_%s" % t[1])
+	# far north, an aurora night, looking north
+	var north := Vector3(s.x, 400.0, main.world.origin.y + 8000.0)
+	main.aurora.set_forced(true)
+	clk.time_of_day = 23.0
+	await _view(north, 0.0, 0.15, 4.0)
+	print("latitude %.1f, aurora from %.1f, visible %s" % [WorldConfig.current().latitude, main.aurora.min_latitude, main.aurora.visible])
+	await _shot("sky_aurora_north")
+	await _view(Vector3(s.x, 400.0, s.z), 0.0, 0.15, 4.0)
+	print("latitude %.1f, aurora visible %s" % [WorldConfig.current().latitude, main.aurora.visible])
+	await _shot("sky_no_aurora_south")
+	main.aurora.set_forced(false)
+	# wraps: east off the map, and over the north pole
+	clk.time_of_day = 12.0
+	var w: float = main.world.domain
+	var x1: float = main.world.origin.x + w
+	await _view(Vector3(x1 - 5.0, 50.0, s.z), -PI * 0.5, 0.0, 1.0) # facing east
+	var day0: int = clk.day
+	main.player.velocity = Vector3.ZERO
+	main.player.global_position.x = x1 + 3.0
+	await _wait(0.5)
+	print("east wrap: x %.0f (expect near %.0f), day %d -> %d" % [main.player.global_position.x, main.world.origin.x, day0, clk.day])
+	var zt: float = main.world.origin.y
+	await _view(Vector3(s.x, 50.0, zt + 5.0), 0.0, 0.0, 1.0) # facing north
+	var t0 := clk.time_of_day
+	main.player.global_position.z = zt - 3.0
+	await _wait(0.5)
+	var f: Vector3 = -main.player.global_basis.z
+	print("pole wrap: pos %s, facing %s (expect +z), time %.1f -> %.1f" % [main.player.global_position, f, t0, clk.time_of_day])

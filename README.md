@@ -13,6 +13,8 @@ Open the folder in **Godot 4.3+** (Forward+ renderer) and press Play.
 | WASD, Space, Ctrl | move, jump, sprint |
 | Space / Shift in water | swim up / sink faster (otherwise you slowly sink) |
 | Ctrl + W, head under water | sprint-swim wherever you look |
+| [ / ] | run time backward / forward |
+| F6 | debug: an aurora every night |
 | Space ×2 | toggle fly mode (Space / Shift to go up / down) |
 | F5 | toggle third-person camera |
 | C | climb rock too steep to walk (WASD over the rock, Space lets go) |
@@ -85,3 +87,23 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   `terrain_collider.gd`.
 - `scripts/player.gd`, `scripts/hud.gd`.
 - `tools/shot.tscn` is a scripted fly-through that saves screenshots.
+
+## The planet and the sky
+
+The map wraps like a sphere but is drawn flat: x is longitude (crossing the
+map east to west is once round the planet) and z is latitude, with the north
+and south edges as the poles. Off the east or west edge you come back on the
+other (that seam is the date line); over a pole you come back down the same
+edge half a world along, facing the other way. The edges are all deep ocean,
+so the seams don't show, and the waves carry on across them (`_wrap` in
+`scripts/main.gd`). The HUD shows your latitude and longitude.
+
+The sky, clock, sun, moon, planets, stars, meteors and aurora are ported from
+DocRountree/game (`scripts/sky/`, `shaders/sky/`): a single-scattering
+atmosphere with a sun that reddens through the same air, a fixed calendar day
+(the 2026 winter solstice) with a 15-minute day and a 10-minute night, real
+star, moon and planet positions for your latitude, and the clock keeps your
+local time as you travel east or west. About one night in fifty has an
+aurora, seen only north of the northern tip of Isabela (the biggest island);
+the farther north, the higher it stands. The haze is applied to land, sea and
+trees only, never to the sky.

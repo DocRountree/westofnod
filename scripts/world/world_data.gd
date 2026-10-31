@@ -21,6 +21,7 @@ var rivers: Array = [] # (none in the Galapagos: porous lava)
 var height_tex: ImageTexture
 var mask_tex: ImageTexture
 var spawn := Vector3.ZERO
+var big_island_north_z := 0.0 ## The northern tip of the biggest island (world z).
 var meta := {}
 
 
@@ -39,6 +40,7 @@ func load_world() -> WorldData:
 	var mi := Image.load_from_file(DIR + "masks.png")
 	mi.generate_mipmaps()
 	mask_tex = ImageTexture.create_from_image(mi)
+	big_island_north_z = float(meta.get("big_island_north_z", origin.y))
 	var s: Array = meta.spawn
 	spawn = Vector3(s[0], height_at(s[0], s[1]) + 3.0, s[1])
 	return self

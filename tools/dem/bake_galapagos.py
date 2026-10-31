@@ -267,11 +267,16 @@ def main():
     zi, xi = int(iz[zi, xi]), int(ix[zi, xi])
     sx = xi * cell - domain / 2; sz = zi * cell - domain / 2
     print("spawn %.0f m up, %.0f m from the nominal point" % (h[zi, xi], math.hypot(sx - (SPAWN[1] - lon_c) * m_lon, sz + (SPAWN[0] - lat_c) * m_lat)))
+    # the northern tip of the biggest island (auroras are seen north of it)
+    lab, _ = ndimage.label(h[::4, ::4] > 0.0)
+    big = np.argmax(np.bincount(lab.ravel())[1:]) + 1
+    tip_z = float(np.nonzero((lab == big).any(axis=1))[0].min() * 4 * cell - domain / 2)
     with open(os.path.join(out_dir, "world.json"), "w") as f:
         json.dump({
             "name": "Galapagos Islands",
             "size": SIZE, "cell": cell, "origin": [-domain / 2, -domain / 2], "format": "f16gz",
             "spawn": [sx, sz],
+            "big_island_north_z": tip_z,
             "centre_lat_lon": [lat_c, lon_c],
             "source": "Copernicus GLO-30 DEM: produced using Copernicus WorldDEM-30 (c) DLR e.V. 2010-2014 "
                       "and (c) Airbus Defence and Space GmbH 2014-2018 provided under COPERNICUS by the "

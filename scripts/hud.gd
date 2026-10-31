@@ -39,7 +39,13 @@ func _process(_delta: float) -> void:
 	if player == null:
 		return
 	var p := player.global_position
-	info.text = "%d fps   x %.0f  y %.1f  z %.0f%s\nWASD move · Space jump/swim · Ctrl sprint · Space×2 fly (Space/Shift up/down) · F5 third person · C climb\nEsc release mouse" % [
-		Engine.get_frames_per_second(), p.x, p.y, p.z, "   [fly]" if player.flying else ""]
+	var place := ""
+	var cfg := WorldConfig.current()
+	var clk := GameClock.current()
+	if clk:
+		place = "   %s   %.1f°%s %.1f°%s" % [clk.time_text(), absf(cfg.latitude), "N" if cfg.latitude >= 0.0 else "S",
+				absf(cfg.longitude), "E" if cfg.longitude >= 0.0 else "W"]
+	info.text = "%d fps   x %.0f  y %.1f  z %.0f%s%s\nWASD move · Space jump/swim · Ctrl sprint · Space×2 fly (Space/Shift up/down) · F5 third person · C climb\n[ ] time · F6 aurora every night · Esc release mouse" % [
+		Engine.get_frames_per_second(), p.x, p.y, p.z, "   [fly]" if player.flying else "", place]
 	var cam := player.camera.global_position
 	underwater.visible = player.world != null and cam.y < player.world.water_at(cam.x, cam.z).x
