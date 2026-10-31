@@ -28,8 +28,10 @@ The baker reads only the window it needs and writes:
 - `heights.f16.gz`: 8192² half floats at 34 m, projected to local metres. The real
   coastlines stay, but the volcanoes are replaced by full-resolution GLO-30
   mountains from elsewhere (Madeira, Corsica, Kefalonia, Lofoten, La Gomera),
-  rotated, never stretched, faded out at a round rim. Big islands get several
-  massifs, made taller the bigger the island (up to ×2.3, ~6 km on Isabela).
+  rotated, scaled to 0.4× height on a 0.65× footprint (so they stay steep),
+  faded out at a ragged rim, and chained into ranges with open lowland
+  between. Bigger islands get more of them, a little taller (~2.5 km on
+  Isabela). Trees stop by ~900 m and the humid cover by ~1400 m.
   The sea floor is synthetic, from distance to the coast. Downloaded tiles are
   cached in `tools/dem/.cache/`, so a rebake takes about two minutes.
 - `masks.png`: young lava (rough, bare), humid highlands (wetter on the south-east,

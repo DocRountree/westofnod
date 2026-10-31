@@ -83,6 +83,8 @@ DONORS = [
     ("Lofoten, Moskenesoya", "N67_00_E013_00", 67.95, 13.05, 9000.0),
     ("La Gomera", "N28_00_W018_00", 28.10, -17.23, 9000.0),
 ]
+SHRINK = 0.4   # donor heights scaled by this
+HSHRINK = 0.65  # and their footprints by this: lower peaks, still steep
 CACHE = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".cache")
 
 
@@ -132,7 +134,7 @@ def transplant(h, cell, land, rng):
         if area < 3e6:
             continue
         # unrealistically tall on the big islands: x1 small, up to x2.3 on Isabela
-        gain = 1.0 + 1.3 * float(np.clip((area - 30e6) / 3000e6, 0, 1)) ** 0.6
+        gain = (1.0 + 1.3 * float(np.clip((area - 30e6) / 3000e6, 0, 1)) ** 0.6) * SHRINK
         z0 = max(int(sl[0].start * step) - 64, 0); z1 = min(int(sl[0].stop * step) + 64, h.shape[0])
         x0 = max(int(sl[1].start * step) - 64, 0); x1 = min(int(sl[1].stop * step) + 64, h.shape[1])
         dc = d_coast[z0:z1, x0:x1]
@@ -142,29 +144,47 @@ def transplant(h, cell, land, rng):
         pz = (zs + sl[0].start) * step * cell
         px = (xs + sl[1].start) * step * cell
         inner = dc_coarse[sl][comp]
-        n_mass = max(1, int(round(area / 150e6)))
-        score = inner.copy()
+        n_mass = max(1, int(round(area / 150e6)))  # no need to fill the island
+        far = np.full(inner.shape, np.inf)
+        last, reach = None, 0.0
         names = []
         for m in range(n_mass):
-            i = int(np.argmax(score))
+            # chain massifs into ranges: the next one overlaps the last;
+            # sometimes (or when boxed in) start a new range far away
+            jitter = rng.uniform(0.7, 1.0, inner.shape)
+            pick = None
+            if last is not None and rng.random() < 0.75:
+                dl = np.hypot(pz - pz[last], px - px[last])
+                cand = (far > 0.7 * reach) & (dl < 1.3 * reach) & (inner > 0.25 * reach)
+                if cand.any():
+                    pick = int(np.argmax(np.where(cand, inner * jitter, -1)))
+            i = pick if pick is not None else int(np.argmax(np.minimum(inner, far * 0.5) * jitter))
             di = int(rng.integers(len(DONORS)))
             don = donors[di]
             dr = DONORS[di][4]
-            scale = float(np.clip(inner[i] / (0.8 * dr), 0.45, 1.0))  # shrink only
+            scale = float(np.clip(inner[i] / (0.8 * dr), 0.45, 1.0)) * HSHRINK
             ang = rng.uniform(0, 2 * math.pi)
-            Z, X = np.meshgrid(np.arange(z0, z1) * cell - pz[i], np.arange(x0, x1) * cell - px[i], indexing="ij")
+            # only the massif's own footprint
+            rc = int(dr * scale / cell) + 2
+            cz, cx = int(pz[i] / cell), int(px[i] / cell)
+            a0, a1 = max(cz - rc, z0), min(cz + rc, z1)
+            b0, b1 = max(cx - rc, x0), min(cx + rc, x1)
+            Z, X = np.meshgrid(np.arange(a0, a1) * cell - pz[i], np.arange(b0, b1) * cell - px[i], indexing="ij")
             u = (X * math.cos(ang) - Z * math.sin(ang)) / scale
             v = (X * math.sin(ang) + Z * math.cos(ang)) / scale
             n = don.shape[0]
             dh = ndimage.map_coordinates(don, [v / 30.0 + n / 2, u / 30.0 + n / 2], order=1, mode="constant", cval=0.0)
             # round footprint: fade the donor out towards its rim so the
             # square tile edges never show as cliffs
-            t = np.clip((1.0 - np.hypot(u, v) / dr) / 0.45, 0, 1)
+            th = np.arctan2(v, u)
+            p1, p2 = rng.uniform(0, 2 * math.pi, 2)
+            rim = 1.0 - 0.1 * (1 + np.sin(2 * th + p1)) - 0.06 * (1 + np.sin(5 * th + p2))  # ragged, not round
+            t = np.clip((rim - np.hypot(u, v) / dr) / 0.4, 0, 1)
             dh = np.maximum(dh, 0.0) * gain * (t * t * (3 - 2 * t))
-            mh = np.maximum(mh, dh)
-            dist = np.hypot(pz - pz[i], px - px[i])
-            score = np.minimum(score, dist * 0.5)
-            names.append(DONORS[di][0].split(",")[0])
+            mh[a0 - z0:a1 - z0, b0 - x0:b1 - x0] = np.maximum(mh[a0 - z0:a1 - z0, b0 - x0:b1 - x0], dh)
+            far = np.minimum(far, np.hypot(pz - pz[i], px - px[i]))
+            last, reach = i, dr * scale
+            names.append(DONORS[di][0].split(",")[0][:3])
         w = np.clip((dc - 120.0) / 900.0, 0, 1)
         w = w * w * (3 - 2 * w)
         orig = h[z0:z1, x0:x1]
@@ -224,9 +244,9 @@ def main():
     # The humid zone: high ground, wetter facing the south-east trade winds.
     aspect_se = np.clip((gx * -0.6 + gz * -0.8) / np.maximum(slope, 1e-3), -1, 1)  # downslope toward the SE
     humid = np.clip((h - 300.0 - 200.0 * aspect_se * (slope > 0.03)) / 550.0, 0, 1) * land
-    humid *= np.clip((2600.0 - h) / 450.0, 0, 1)
+    humid *= np.clip((1400.0 - h) / 400.0, 0, 1)
     trees = np.clip(0.08 + 0.12 * patch + 0.85 * humid - lava * 1.5, 0, 1) * (h > 3.0)
-    trees *= np.clip((2000.0 - h) / 300.0, 0, 1)  # the summits are bare
+    trees *= np.clip((900.0 - h) / 250.0, 0, 1)  # the summits are bare
     near_sea = ndimage.distance_transform_edt(h > 0.0) * cell < 70.0
     sand = ndimage.gaussian_filter(((h > -1.5) & (h < 3.0) & (slope < 0.2) & near_sea).astype(np.float32), 1.0)
     m = np.stack([lava, humid, trees, sand], -1)
