@@ -42,19 +42,21 @@ def fractal(lon, lat, salt=0.0):
     return w
 
 
-# island: (longitude, latitude of its middle), and a rule (lon, lat) -> biome
-def _isabela(lon, lat):
+# island: (longitude, latitude of its middle), and a rule
+# (lon, lat, km from the nearest mountains) -> biome
+def _isabela(lon, lat, mountain_km):
     if lat + fractal(lon, lat, 1.0) > -14.0:
         return MESA                                  # the long northern arm
     coast = -40.0 + (lon + 150.0) * 0.178            # (along the southern lobe's north shore: plains above)
     return PLAINS if lat + fractal(lon, lat, 2.0) > coast else FOREST
 
 
-def _santiago(lon, lat):
-    return PLAINS if lon + fractal(lon, lat, 3.0) > -33.0 else FOREST
+def _santiago(lon, lat, mountain_km):
+    # a ring of forest round the mountains, plains from there to the sea
+    return FOREST if mountain_km + fractal(lon, lat, 3.0) * 0.8 < 3.5 else PLAINS
 
 
-def _santa_cruz(lon, lat):
+def _santa_cruz(lon, lat, mountain_km):
     if lon + fractal(lon, lat, 4.0) > 13.0:
         return PLAINS                                # the east end
     if math.hypot(lon - 12.5, lat + 26.0) + fractal(lon, lat, 5.0) * 0.6 < 3.5:
@@ -64,15 +66,15 @@ def _santa_cruz(lon, lat):
 
 ISLANDS = {
     "Isabela": ((-110.0, -10.0), _isabela),
-    "Fernandina": ((-150.0, 2.0), lambda lon, lat: FOREST),
+    "Fernandina": ((-150.0, 2.0), lambda lon, lat, mountain_km: FOREST),
     "Santiago": ((-30.0, 8.0), _santiago),
-    "Rabida": ((-36.0, -2.0), lambda lon, lat: FOREST),
-    "Pinzon": ((-28.0, -16.0), lambda lon, lat: FOREST),
+    "Rabida": ((-36.0, -2.0), lambda lon, lat, mountain_km: FOREST),
+    "Pinzon": ((-28.0, -16.0), lambda lon, lat, mountain_km: FOREST),
     "Santa Cruz": ((10.0, -16.0), _santa_cruz),
-    "Santa Fe": ((52.0, -30.0), lambda lon, lat: FOREST),
-    "San Cristobal": ((145.0, -31.0), lambda lon, lat: FOREST),
-    "Floreana": ((2.0, -63.0), lambda lon, lat: FOREST),
-    "Espanola": ((110.0, -70.0), lambda lon, lat: FOREST),
+    "Santa Fe": ((52.0, -30.0), lambda lon, lat, mountain_km: FOREST),
+    "San Cristobal": ((145.0, -31.0), lambda lon, lat, mountain_km: FOREST),
+    "Floreana": ((2.0, -63.0), lambda lon, lat, mountain_km: FOREST),
+    "Espanola": ((110.0, -70.0), lambda lon, lat, mountain_km: FOREST),
 }
 MATCH_DEG = 12.0
 

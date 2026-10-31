@@ -33,6 +33,8 @@ def biome_layer(h):
     """Per pixel: a biome name index into biomes.COLOURS order, or -1."""
     names = list(biomes.COLOURS)
     out = np.full(h.shape, -1, np.int8)
+    high = (ndimage.gaussian_filter(h, 3.0) > biomes.MOUNTAIN_HEIGHT) & (h > 0.0)
+    mountain_km = ndimage.distance_transform_edt(~high) * (281.0 / S)
     lab, n = ndimage.label(h > 0.0)
     Y, X = np.mgrid[0:S, 0:S]
     lon, lat = lonlat(X, Y)
@@ -50,8 +52,7 @@ def biome_layer(h):
         sub = out[sl]
         for yy, xx in zip(*np.nonzero(comp)):
             lo, la = lon[sl][yy, xx], lat[sl][yy, xx]
-            sub[yy, xx] = names.index(biomes.SWAMP if biomes.swamp(lo, la) else rule(lo, la))
-    high = (ndimage.gaussian_filter(h, 3.0) > biomes.MOUNTAIN_HEIGHT) & (h > 0.0)
+            sub[yy, xx] = names.index(biomes.SWAMP if biomes.swamp(lo, la) else rule(lo, la, mountain_km[sl][yy, xx]))
     out[high] = names.index(biomes.MOUNTAINS)
     return out
 
