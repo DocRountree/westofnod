@@ -7,7 +7,7 @@ extends CharacterBody3D
 
 const WALK_SPEED := 4.6
 const SPRINT_SPEED := 7.5
-const FLY_SPEED := 30.0
+const FLY_SPEED := 120.0
 const DOUBLE_TAP_MS := 300
 const JUMP_VELOCITY := 7.6
 const GRAVITY := 24.0
