@@ -34,7 +34,10 @@ The baker reads only the window it needs and writes:
   rotated, scaled to 0.4× height on a 0.65× footprint (so they stay steep),
   faded out at a ragged rim, and chained into ranges with open lowland
   between. Bigger islands get more of them, a little taller (~2.5 km on
-  Isabela). The humid cover stops by ~2000 m.
+  Isabela). The humid cover stops by ~2000 m. The ranges on Isabela's southern
+  lobe (the "plateau" biome) are remade as mesas: cut flat at ~45% of their
+  height, a cliff wall up to 250 m round the rim, the flanks below lowered less
+  and less down to the lowland (`mesas` in the baker).
   The sea floor is synthetic, from distance to the coast. Downloaded tiles are
   cached in `tools/dem/.cache/`, so a rebake takes about two minutes.
 - `masks.png`: young lava (rough, bare), humid highlands (wetter on the south-east,
