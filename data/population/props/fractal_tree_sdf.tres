@@ -1,7 +1,9 @@
-[gd_resource type="Resource" script_class="PropKind" load_steps=5 format=3]
+[gd_resource type="Resource" script_class="PropKind" load_steps=8 format=3]
 
 [ext_resource type="Script" path="res://scripts/population/prop_kind.gd" id="1"]
 [ext_resource type="Shader" path="res://shaders/render/fractal_tree.gdshader" id="2"]
+[ext_resource type="Script" path="res://scripts/population/fractal_tree.gd" id="3"]
+[ext_resource type="Shader" path="res://shaders/render/prop.gdshader" id="4"]
 
 [sub_resource type="BoxMesh" id="BoxMesh_box"]
 size = Vector3(23, 18.5, 23)
@@ -13,15 +15,23 @@ shader = ExtResource("2")
 shader_parameter/box_min = Vector3(-11.5, 0, -11.5)
 shader_parameter/box_max = Vector3(11.5, 18.5, 11.5)
 
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_lod"]
+render_priority = 0
+shader = ExtResource("4")
+
 [resource]
 script = ExtResource("1")
 id = &"fractal_tree_sdf"
 mesh = SubResource("BoxMesh_box")
 material = SubResource("ShaderMaterial_tree")
+mesh_script = ExtResource("3")
+lod_material = SubResource("ShaderMaterial_lod")
 scale_range = Vector2(0.75, 1.15)
 sink = 0.3
 radius = 0.4
 view_distance = 600.0
+lod_distances = PackedFloat32Array(80, 250)
+shadow_distance = 250.0
 density = {
 "forest": 14.0,
 "prairie": 0.6,

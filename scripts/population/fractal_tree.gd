@@ -52,37 +52,44 @@ static func _child(side: float, tilt: float, twist: float) -> Transform3D:
 	return Transform3D(Basis(cols[0], cols[1], cols[2]), Vector3(0.0, TRUNK_LEN, 0.0))
 
 
-## The mesh prop's mesh (PropKind.mesh_script).
+## The mesh prop's mesh (PropKind.mesh_script): the whole tree, ~12k triangles.
 static func build() -> Mesh:
 	return build_mesh()
 
 
+## Simpler versions for further off (PropKind.lods): branches cut after 3
+## levels (~700 triangles) and after 2 (~110), each cut branch's subtree one
+## leaf cluster, as the raymarched tree does with distance.
+static func build_lods() -> Array[Mesh]:
+	return [build_mesh(3, 5, 1), build_mesh(2, 4, 0)]
+
+
 ## The tree as triangles: bark (vertex alpha 0) and leaves (alpha 1).
-## sides: segments round a branch; leaf_subdiv: of each cluster's sphere.
-static func build_mesh(sides := 7, leaf_subdiv := 1) -> ArrayMesh:
+## cut: levels of branches drawn (the rest become clusters); sides: segments
+## round a branch; leaf_subdiv: of each cluster's sphere.
+static func build_mesh(cut := LEVELS, sides := 7, leaf_subdiv := 1) -> ArrayMesh:
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var ico := _icosphere(leaf_subdiv)
-	_grow(st, Transform3D.IDENTITY, 0, TRUNK_R, sides, ico)
+	_grow(st, Transform3D.IDENTITY, 0, TRUNK_R, cut, sides, ico)
 	st.index()
 	st.generate_normals()
-	var arrays := st.commit_to_arrays()
-	var im := ImporterMesh.new()
-	im.add_surface(Mesh.PRIMITIVE_TRIANGLES, arrays)
-	im.generate_lods(25.0, 60.0, [])
-	return im.get_mesh()
+	return st.commit()
 
 
-static func _grow(st: SurfaceTool, xf: Transform3D, level: int, r_local: float, sides: int, ico: Array) -> void:
+static func _grow(st: SurfaceTool, xf: Transform3D, level: int, r_local: float, cut: int, sides: int, ico: Array) -> void:
 	var sc := pow(LEN_RATIO, level) # metres per local unit
-	if level == LEVELS:
-		var r := LEAF_R / sc
-		_leaf(st, xf, Vector3(0.0, r * 0.6, 0.0), r, sc, ico)
+	if level >= mini(cut, LEVELS):
+		# one cluster for the rest of the subtree (the shader's tree(), the same)
+		var m := LEVELS - level
+		var hm := TRUNK_LEN * (1.0 - pow(LEN_RATIO, m)) / (1.0 - LEN_RATIO)
+		var rl := LEAF_R / sc
+		_leaf(st, xf, Vector3(0.0, 0.45 * hm + rl * 0.6, 0.0), 0.5 * hm + rl, sc, ico)
 		return
 	var r_top := r_local * RAD_RATIO / LEN_RATIO
 	_branch(st, xf, r_local, r_top, sides)
 	for side in [1.0, -1.0]:
-		_grow(st, xf * _child(side, TILT, TWIST), level + 1, r_top, sides, ico)
+		_grow(st, xf * _child(side, TILT, TWIST), level + 1, r_top, cut, sides, ico)
 
 
 static func _branch(st: SurfaceTool, xf: Transform3D, r0: float, r1: float, sides: int) -> void:

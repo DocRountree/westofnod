@@ -58,6 +58,8 @@ func _ready() -> void:
 		if k is PropKind:
 			if k.mesh == null and k.mesh_script:
 				k.mesh = k.mesh_script.build()
+			if k.lods.is_empty() and k.mesh_script and k.mesh_script.has_method("build_lods"):
+				k.lods = k.mesh_script.build_lods()
 			props.append(k)
 	for k in _load_dir(ACTOR_DIR):
 		if k is ActorKind:
@@ -376,23 +378,35 @@ func _build_props(ch: _Chunk) -> void:
 		if xf.is_empty():
 			continue
 		var kind := props[k]
-		var mm := MultiMesh.new()
-		mm.transform_format = MultiMesh.TRANSFORM_3D
-		mm.mesh = kind.mesh
-		mm.instance_count = xf.size() / 12
-		mm.buffer = xf
-		var mi := MultiMeshInstance3D.new()
-		mi.multimesh = mm
-		mi.position = at
-		if kind.material:
-			mi.material_override = kind.material
-		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if kind.shadows else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		mi.visibility_range_end = kind.view_distance
-		mi.visibility_range_end_margin = CHUNK * 0.5
-		mi.set_meta("kind", kind.id)
-		mi.visible = not _hidden.has(kind.id)
-		add_child(mi)
-		ch.nodes.append(mi)
+		# one MultiMesh per level of detail, each drawn over its own span of
+		# distance (from the chunk's centre; the margins keep it from flickering)
+		var n := mini(kind.lods.size(), kind.lod_distances.size())
+		for l in n + 1:
+			var begin := 0.0 if l == 0 else kind.lod_distances[l - 1]
+			var end := kind.view_distance if l == n else minf(kind.lod_distances[l], kind.view_distance)
+			if begin >= end:
+				continue
+			var mm := MultiMesh.new()
+			mm.transform_format = MultiMesh.TRANSFORM_3D
+			mm.mesh = kind.mesh if l == 0 else kind.lods[l - 1]
+			mm.instance_count = xf.size() / 12
+			mm.buffer = xf
+			var mi := MultiMeshInstance3D.new()
+			mi.multimesh = mm
+			mi.position = at
+			var mat := kind.material if l == 0 or kind.lod_material == null else kind.lod_material
+			if mat:
+				mi.material_override = mat
+			var shadows := kind.shadows and begin < kind.shadow_distance
+			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if shadows else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			mi.visibility_range_begin = begin
+			mi.visibility_range_begin_margin = CHUNK * 0.25 if l > 0 else 0.0
+			mi.visibility_range_end = end
+			mi.visibility_range_end_margin = CHUNK * (0.5 if l == n else 0.25)
+			mi.set_meta("kind", kind.id)
+			mi.visible = not _hidden.has(kind.id)
+			add_child(mi)
+			ch.nodes.append(mi)
 
 
 ## Leave out what remove_prop() took (instances and their obstacles).

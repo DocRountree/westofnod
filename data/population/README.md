@@ -9,7 +9,8 @@ always in the same places and nothing needs saving.
   per biome (per hectare; `"*"` = any other biome), scale range, ground
   alignment, slope and height limits, view distance, and `radius` (solid:
   the player and actors walk round it; 0 = walk through, e.g. grass).
-  Each kind in a chunk is one MultiMesh.
+  Each kind in a chunk is one MultiMesh (one per level of detail: `lods`
+  are simpler meshes drawn from `lod_distances` on).
 - `actors/*.tres`: `ActorKind` (NPCs, animals). A scene whose root extends
   `Actor`, density per biome (groups per km²), group size and spread, and
   `persistent` (named NPCs: not freed when the player leaves). Actors spawn
@@ -38,6 +39,12 @@ each of the 128 tips) so the techniques can be compared side by side:
 - `fractal_tree_mesh`: the same recipe as ~12k triangles with LODs, built
   when it loads (`mesh_script`: `FractalTree.build()`). Every instance is
   the same tree, turned and scaled.
+
+Both draw the full tree only within 80 m; from 80 to 250 m a ~700-triangle
+version, beyond that a ~110-triangle one without shadows (`lods`,
+`lod_distances`, `shadow_distance` on PropKind; FractalTree.build_lods()
+folds cut branches into clusters as the raymarched tree does). The
+comparison is between the near trees.
 
 In game: `/trees` goes to the nearest forest; `/trees sdf`, `/trees mesh`,
 `/trees both` choose which are drawn (watch the fps); `/trees vary 0` makes

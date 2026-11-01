@@ -17,6 +17,8 @@ scale_range = Vector2(0.75, 1.15)
 sink = 0.3
 radius = 0.4
 view_distance = 600.0
+lod_distances = PackedFloat32Array(80, 250)
+shadow_distance = 250.0
 density = {
 "forest": 14.0,
 "prairie": 0.6,

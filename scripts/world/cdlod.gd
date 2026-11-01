@@ -73,8 +73,12 @@ func update(cam: Vector3) -> void:
 		buf[o + 10] = 1.0
 		buf[o + 11] = corner.y
 		buf[o + 12] = lod
+		# Morphing ends a little short of the level's range: the shader
+		# measures from the camera now, the selection from where it was last
+		# made (up to leaf / 4 away), and a finer patch must be fully morphed
+		# where it meets a coarser one, or the seam cracks.
 		buf[o + 13] = ranges[lod] * MORPH_START
-		buf[o + 14] = ranges[lod]
+		buf[o + 14] = ranges[lod] - leaf * 0.3
 		buf[o + 15] = p[1]
 	_mm.instance_count = picked.size()
 	_mm.buffer = buf

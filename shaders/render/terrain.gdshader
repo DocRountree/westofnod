@@ -1,5 +1,10 @@
 shader_type spatial;
-render_mode diffuse_burley, specular_schlick_ggx;
+render_mode diffuse_burley, specular_schlick_ggx, skip_vertex_transform;
+// (skip_vertex_transform: the vertex goes straight from its world position
+// to view space through the view matrix alone, the same for every patch.
+// Otherwise each patch's model matrix is multiplied into the view in 32-bit
+// floats, which rounds differently per patch tens of km out: shared edges
+// land millimetres apart, hairline cracks that show the sky as dotted lines.)
 
 // The terrain: CDLOD patches over one height map (no tiles, no near/far
 // switch). Normals and materials are per pixel, from the finest mip the pixel
@@ -28,9 +33,8 @@ void vertex() {
 		float hc = terrain_height(wp, max(lod + 1 - SUB, 0));
 		h = morph >= 1.0 ? hc : mix(h, hc, morph); // (exactly the coarser level's where they meet)
 	}
-	vec3 origin = MODEL_MATRIX[3].xyz;
-	VERTEX = vec3(wp.x - origin.x, h - origin.y, wp.y - origin.z); // instances are only translated
-	NORMAL = terrain_normal(wp, max(lod - SUB, 0), map_cell() * exp2(float(max(lod - SUB, 0))) * 0.5);
+	VERTEX = (VIEW_MATRIX * vec4(wp.x, h, wp.y, 1.0)).xyz;
+	NORMAL = mat3(VIEW_MATRIX) * terrain_normal(wp, max(lod - SUB, 0), map_cell() * exp2(float(max(lod - SUB, 0))) * 0.5);
 	world_pos = vec3(wp.x, h, wp.y);
 }
 
