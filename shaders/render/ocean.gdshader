@@ -29,7 +29,8 @@ render_mode blend_mix, depth_draw_always, cull_disabled;
 #include "res://shaders/render/height_map.gdshaderinc"
 #include "res://shaders/render/aerial.gdshaderinc"
 
-uniform sampler2D screen_tex : hint_screen_texture, filter_linear_mipmap;
+uniform sampler2D screen_tex : hint_screen_texture, filter_linear;
+uniform sampler2D depth_tex : hint_depth_texture, filter_nearest;
 
 uniform vec3 sun_direction = vec3(0.4, 0.6, 0.6);
 uniform vec3 sun_color = vec3(1.0, 0.95, 0.86);
@@ -51,6 +52,16 @@ uniform float refraction = 0.04;
 // waves carry on unbroken. Sea coordinates = sea_sign * world xz + sea_offset.
 uniform vec2 sea_sign = vec2(1.0);
 uniform vec2 sea_offset = vec2(0.0);
+// Precision: tens of km from the origin a float only resolves a few mm, too
+// coarse for ripples a few cm across and for the pixel size taken from it
+// (the surface broke into blocks). So the fine detail is computed relative
+// to noise_origin, sea coordinates near the camera snapped to 1024 m
+// (main.gd), from xl = x0 - noise_origin, which is precise: local_offset is
+// the mesh's own position in those terms, worked out on the CPU in doubles.
+// The noise lattices take the big part as whole cells (integer hashes, no
+// sin() of huge numbers), so nothing jumps when the origin moves.
+uniform vec2 noise_origin = vec2(0.0);
+uniform vec2 local_offset = vec2(0.0);
 
 const int NW = 18;
 const float LMAX = 140.0;   // longest wind wave (m)
@@ -59,6 +70,7 @@ const int NCHOP = 6;        // octaves of chop, 8 m down to 0.25 m
 const float STEEP = 0.034;  // k*a per band at the peak
 
 varying vec2 x0; // the sea's own coordinates (sea_sign, sea_offset)
+varying vec2 xl; // the same, relative to noise_origin (precise)
 varying float spacing;
 varying float sea_depth;
 varying float height;
@@ -67,43 +79,65 @@ float hash1(float n) {
 	return fract(sin(n * 12.9898 + 4.1414) * 43758.5453);
 }
 
-// Value noise, for the foam's texture and for bending the crests.
-float vnoise2(vec2 p) {
+uint ihash(ivec3 c) {
+	uvec3 v = uvec3(c) * 1664525u + 1013904223u;
+	v.x += v.y * v.z; v.y += v.z * v.x; v.z += v.x * v.y;
+	v ^= v >> 16u;
+	v.x += v.y * v.z; v.y += v.z * v.x; v.z += v.x * v.y;
+	return v.x ^ v.y ^ v.z;
+}
+
+float hashf(ivec3 c) {
+	return float(ihash(c) & 0xFFFFFFu) / 16777216.0;
+}
+
+// A noise lattice of cells 1/s metres at sea point noise_origin + l: the
+// whole cells of the origin (base) and the precise rest (returned).
+vec2 lattice(vec2 l, float s, out ivec2 base) {
+	vec2 big = noise_origin * s;
+	vec2 bi = floor(big);
+	base = ivec2(bi);
+	return l * s + (big - bi);
+}
+
+// Value noise, for the foam's texture and for bending the crests: at lattice
+// point base + p.
+float vnoise2(vec2 p, ivec2 base) {
 	vec2 i = floor(p);
-	vec2 f = fract(p);
+	vec2 f = p - i;
 	f = f * f * (3.0 - 2.0 * f);
-	float a = hash1(dot(i, vec2(1.0, 157.0)));
-	float b = hash1(dot(i + vec2(1.0, 0.0), vec2(1.0, 157.0)));
-	float c = hash1(dot(i + vec2(0.0, 1.0), vec2(1.0, 157.0)));
-	float e = hash1(dot(i + vec2(1.0, 1.0), vec2(1.0, 157.0)));
-	return mix(mix(a, b, f.x), mix(c, e, f.x), f.y);
+	ivec3 c = ivec3(ivec2(i) + base, 0);
+	float a = hashf(c);
+	float b = hashf(c + ivec3(1, 0, 0));
+	float d = hashf(c + ivec3(0, 1, 0));
+	float e = hashf(c + ivec3(1, 1, 0));
+	return mix(mix(a, b, f.x), mix(d, e, f.x), f.y);
 }
 
 // A slowly drifting warp of the sea's coordinates. Bent by it, the crests
 // of short waves curve and break up instead of running ruler-straight in a
 // few directions (a grid); long waves, bent by a fraction of a wavelength,
 // barely notice.
-vec2 warp(vec2 p) {
-	vec2 q = p * 0.045 + vec2(TIME * 0.03, -TIME * 0.02);
-	vec2 w = vec2(vnoise2(q), vnoise2(q + vec2(31.7, 17.3))) - 0.5;
-	q = p * 0.17 - vec2(TIME * 0.05, TIME * 0.04);
-	w += 0.5 * (vec2(vnoise2(q + vec2(5.2, 71.9)), vnoise2(q + vec2(43.1, 3.7))) - 0.5);
+vec2 warp(vec2 l) {
+	ivec2 b;
+	vec2 q = lattice(l, 0.045, b) + vec2(TIME * 0.03, -TIME * 0.02);
+	vec2 w = vec2(vnoise2(q, b), vnoise2(q + vec2(31.7, 17.3), b)) - 0.5;
+	q = lattice(l, 0.17, b) - vec2(TIME * 0.05, TIME * 0.04);
+	w += 0.5 * (vec2(vnoise2(q + vec2(5.2, 71.9), b), vnoise2(q + vec2(43.1, 3.7), b)) - 0.5);
 	return w;
 }
 
 
-float hash3(vec3 p) {
-	return fract(sin(dot(p, vec3(127.1, 311.7, 74.7))) * 43758.5453);
-}
-
-// 3D value noise with its x/y derivatives: (value, d/dx, d/dy).
-vec3 noised3(vec3 p) {
-	vec3 i = floor(p);
-	vec3 f = fract(p);
+// 3D value noise with its x/y derivatives: (value, d/dx, d/dy), at lattice
+// point (base, 0) + p.
+vec3 noised3(vec3 p, ivec2 base) {
+	vec3 fl = floor(p);
+	vec3 f = p - fl;
+	ivec3 i = ivec3(fl) + ivec3(base, 0);
 	vec3 u = f * f * f * (f * (f * 6.0 - 15.0) + 10.0);
 	vec3 du = 30.0 * f * f * (f * (f - 2.0) + 1.0);
-	float a = hash3(i), b = hash3(i + vec3(1, 0, 0)), c = hash3(i + vec3(0, 1, 0)), d = hash3(i + vec3(1, 1, 0));
-	float e = hash3(i + vec3(0, 0, 1)), g = hash3(i + vec3(1, 0, 1)), h = hash3(i + vec3(0, 1, 1)), j = hash3(i + vec3(1, 1, 1));
+	float a = hashf(i), b = hashf(i + ivec3(1, 0, 0)), c = hashf(i + ivec3(0, 1, 0)), d = hashf(i + ivec3(1, 1, 0));
+	float e = hashf(i + ivec3(0, 0, 1)), g = hashf(i + ivec3(1, 0, 1)), h = hashf(i + ivec3(0, 1, 1)), j = hashf(i + ivec3(1, 1, 1));
 	float k1 = b - a, k2 = c - a, k4 = a - b - c + d, k3 = e - a;
 	float k5 = a - c - e + h, k6 = a - b - e + g, k7 = -a + b + c - d + e - g - h + j;
 	float v = a + k1 * u.x + k2 * u.y + k3 * u.z + k4 * u.x * u.y + k5 * u.y * u.z + k6 * u.z * u.x + k7 * u.x * u.y * u.z;
@@ -115,8 +149,8 @@ vec3 noised3(vec3 p) {
 // repeats unchanged across the whole sea and reads as a grid of lines).
 // Each octave drifts downwind at its waves' speed and boils in place at
 // their frequency (noise in x, z and time). Octaves too fine for the pixel
-// hand their slope variance to `lost`, to become roughness.
-vec2 chop(vec2 x, float px, float depth, inout float lost) {
+// hand their slope variance to `lost`, to become roughness. l: xl.
+vec2 chop(vec2 l, float px, float depth, inout float lost) {
 	vec2 slope = vec2(0.0);
 	vec2 wd = vec2(cos(wind_angle), sin(wind_angle));
 	float calm = smoothstep(0.0, 0.6, depth);
@@ -130,8 +164,11 @@ vec2 chop(vec2 x, float px, float depth, inout float lost) {
 			float ang = float(o) * 1.7;
 			mat2 r = mat2(vec2(cos(ang), sin(ang)), vec2(-sin(ang), cos(ang)));
 			float cell = lambda * 0.5;
-			vec2 q = r * (x - wd * sqrt(9.81 / k) * 0.6 * TIME) / cell;
-			vec3 n = noised3(vec3(q, TIME * sqrt(9.81 * k) / TAU * 0.8 + float(o) * 7.3));
+			// (the origin's whole cells apart, as in lattice(); the drift kept small)
+			vec2 big = r * noise_origin / cell;
+			vec2 bi = floor(big);
+			vec2 q = r * (l - wd * sqrt(9.81 / k) * 0.6 * TIME) / cell + (big - bi);
+			vec3 n = noised3(vec3(q, TIME * sqrt(9.81 * k) / TAU * 0.8 + float(o) * 7.3), ivec2(bi));
 			slope += (transpose(r) * n.yz) / cell * (s * cell * 0.9) * f;
 		}
 		lambda *= 0.5;
@@ -172,10 +209,11 @@ float phase(float fi, vec2 d, float k, float depth, vec2 wp) {
 void vertex() {
 	vec3 world = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 	x0 = sea_sign * world.xz + sea_offset;
+	xl = sea_sign * VERTEX.xz + local_offset; // (the mesh is only translated)
 	spacing = UV.x;
 	sea_depth = -height_m(world.xz, clamp(int(log2(max(spacing, 1.0) / map_cell())), 0, 8));
 	vec3 disp = vec3(0.0);
-	vec2 wp = warp(x0);
+	vec2 wp = warp(xl);
 	for (int i = 0; i < NW; i++) {
 		vec4 w = wave(i);
 		float f = resolve(w.z, 2.0 * spacing); // (the ring grid aliases sooner than a square one)
@@ -200,9 +238,9 @@ void vertex() {
 }
 
 void fragment() {
-	float px = max(length(dFdx(x0)), length(dFdy(x0))); // metres per pixel
+	float px = max(length(dFdx(xl)), length(dFdy(xl))); // metres per pixel
 	vec2 slope = vec2(0.0);
-	vec2 wp = warp(x0);
+	vec2 wp = warp(xl);
 	float lost = 0.0;            // slope variance too fine to draw
 	vec3 jac = vec3(0.0);        // Gerstner Jacobian terms (xx, zz, xz)
 	for (int i = 0; i < NW; i++) {
@@ -226,7 +264,7 @@ void fragment() {
 		float th = k * dot(d, x0) - omega(k, sea_depth) * TIME;
 		slope += d * k * a * cos(th);
 	}
-	slope += chop(x0, px, sea_depth, lost);
+	slope += chop(xl, px, sea_depth, lost);
 	float folding = (1.0 - jac.x) * (1.0 - jac.y) - jac.z * jac.z; // < 1 where the surface bunches up
 	slope /= max(1.0 - jac.x - jac.y, 0.25);
 	slope *= sea_sign; // back to world axes
@@ -241,7 +279,11 @@ void fragment() {
 	vec3 sun = normalize(sun_direction);
 
 	// ---- foam: whitecaps where the waves fold, surf along the shore
-	float grain = vnoise2(x0 * 0.9 + TIME * 0.15) * 0.6 + vnoise2(x0 * 3.1 - TIME * 0.2) * 0.4;
+	ivec2 gb1;
+	ivec2 gb2;
+	vec2 g1 = lattice(xl, 0.9, gb1);
+	vec2 g2 = lattice(xl, 3.1, gb2);
+	float grain = vnoise2(g1 + TIME * 0.15, gb1) * 0.6 + vnoise2(g2 - TIME * 0.2, gb2) * 0.4;
 	float whitecap = smoothstep(0.55, 0.15, folding) * smoothstep(0.25, 0.6, grain);
 	float surf_band = 0.5 + 0.5 * sin(sea_depth * 2.2 + TIME * 1.3 + grain * 2.0);
 	float surf = smoothstep(2.0, 0.2, sea_depth) * smoothstep(0.35, 0.9, surf_band * grain + 0.25 * smoothstep(0.6, 0.0, sea_depth));
@@ -252,7 +294,9 @@ void fragment() {
 	float depth = max(sea_depth, 0.0);
 	float path = depth / cos_v; // eye ray through the water
 	vec2 offset = slope * refraction * clamp(path * 0.3, 0.0, 1.0);
-	vec3 floor_seen = texture(screen_tex, SCREEN_UV + offset).rgb;
+	// (level 0: with mipmaps the level was picked per 2x2 pixel block from the
+	// jumpy offset, and the floor showed through in blocks)
+	vec3 floor_seen = textureLod(screen_tex, SCREEN_UV + offset, 0.0).rgb;
 	// sunlight went down `depth` to light the floor, then `path` back up to us
 	vec3 transmit = exp(-absorption * (path + depth));
 	// light scattered back by the water column, saturating with depth
@@ -274,6 +318,12 @@ void fragment() {
 	ALBEDO = vec3(0.85, 0.88, 0.88) * foam;
 	EMISSION = under * (1.0 - fresnel) * (1.0 - foam);
 	FOG = aerial_fog((INV_VIEW_MATRIX * vec4(VERTEX, 1.0)).xyz, CAMERA_POSITION_WORLD);
-	// the very edge of the water fades in over its first 20 cm
-	ALPHA = max(smoothstep(0.0, 0.2, depth), foam);
+	// The very edge of the water fades in over its first 20 cm, measured to the
+	// ground actually drawn behind it (the depth buffer), so the waterline
+	// follows the terrain exactly, not the coarse height map's triangles.
+	float zb = textureLod(depth_tex, SCREEN_UV, 0.0).r;
+	vec4 behind = INV_PROJECTION_MATRIX * vec4(SCREEN_UV * 2.0 - 1.0, zb, 1.0);
+	behind.xyz /= behind.w;
+	float thick = ((INV_VIEW_MATRIX * vec4(VERTEX, 1.0)).y - (INV_VIEW_MATRIX * vec4(behind.xyz, 1.0)).y);
+	ALPHA = below ? 1.0 : max(smoothstep(0.0, 0.2, thick), foam);
 }

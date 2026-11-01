@@ -26,6 +26,7 @@ var _sea_sign := Vector2.ONE   # the ocean's coordinates relative to the world's
 var _sea_offset := Vector2.ZERO
 var _last_x := 0.0
 var _hazed: Array[ShaderMaterial] = []
+var _sea_floor: MeshInstance3D
 var _under := false
 
 
@@ -62,7 +63,9 @@ func _ready() -> void:
 	floor_mat.albedo_color = Color(0.3, 0.32, 0.28)
 	floor_mi.material_override = floor_mat
 	floor_mi.position.y = WorldData.OCEAN_FLOOR - 0.5
+	floor_mi.visible = false # only under water (from above it showed as a line on the horizon past the sea's edge)
 	add_child(floor_mi)
+	_sea_floor = floor_mi
 
 	terrain_mat.set_shader_parameter("sun_direction", _sun.global_basis.z)
 
@@ -193,7 +196,9 @@ func _ocean_mesh() -> ArrayMesh:
 	const SEGMENTS := 192
 	var radii := PackedFloat32Array([0.0])
 	var r := 0.0
-	while r < 110000.0: # to just inside the camera's far plane, so no ground shows past it
+	# out past what the camera can see even in the corners of the view (the far
+	# plane is flat: off to the side it reaches well beyond camera.far)
+	while r < 260000.0:
 		r += maxf(0.5, r * 0.035)
 		radii.append(r)
 	var verts := PackedVector3Array([Vector3.ZERO])
@@ -343,11 +348,19 @@ func _process(_delta: float) -> void:
 	population.update(player.global_position)
 	ocean_material.set_shader_parameter("view_pos", cam)
 	ocean.global_position = Vector3(snappedf(cam.x, 4.0), 0.0, snappedf(cam.z, 4.0))
+	# the sea's fine detail is computed near noise_origin (see ocean.gdshader), in doubles here
+	var sx: float = _sea_sign.x * ocean.global_position.x + _sea_offset.x
+	var sz: float = _sea_sign.y * ocean.global_position.z + _sea_offset.y
+	var nx := snappedf(sx, 1024.0)
+	var nz := snappedf(sz, 1024.0)
+	ocean_material.set_shader_parameter("noise_origin", Vector2(nx, nz))
+	ocean_material.set_shader_parameter("local_offset", Vector2(sx - nx, sz - nz))
 	collider.follow(player.global_position)
 	var under := cam.y < world.water_at(cam.x, cam.z).x
 	if under != _under:
 		_under = under
 		env.fog_enabled = under
+		_sea_floor.visible = under
 		env.fog_density = 0.06
 		env.fog_light_color = Color(0.05, 0.22, 0.28)
 		for m in _hazed:
