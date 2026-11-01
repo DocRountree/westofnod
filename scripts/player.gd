@@ -20,7 +20,9 @@ const SWIM_SPRINT_SPEED := 5.6
 const SWIM_UP_SPEED := 2.4
 const SINK_SPEED := 0.6
 const CURRENT_SPEED := 1.4 # m/s at full river flow (as river.gdshader's river_speed)
-const CLIMB_SPEED := 1.4
+const CLIMB_SPEED := 3.5
+const SWAMP_SLOW := 0.8 # walking speed in a swamp
+const SWAMP_SINK := Vector2(0.5, 0.9) # m into the mud: knees to hips
 const CLIMB_OFFSET := 0.45 # body centre off the rock
 const CLIMBABLE := 0.85 # surface normal y below which ground counts as a wall
 
@@ -41,6 +43,7 @@ var flying := false
 var zoom := 1.0
 var zoom_power := 6.0
 var grounded := false ## Standing on the ground (see _move).
+var sink := 0.0 ## How deep the feet are in the mud (swamps).
 var _last_space := -100000 # ms of the last Space press, for double-tap
 var frozen := true
 var typing := false ## The chat is open: the keys are the chat's.
@@ -199,6 +202,8 @@ func _physics_process(delta: float) -> void:
 	else:
 		swimming = false
 		var speed := SPRINT_SPEED if _held("sprint") else WALK_SPEED
+		if world.biome_at(global_position.x, global_position.z) == "swamp":
+			speed *= SWAMP_SLOW
 		velocity.y -= GRAVITY * delta
 		if _held("jump") and grounded:
 			velocity.y = JUMP_VELOCITY
@@ -215,6 +220,7 @@ func _physics_process(delta: float) -> void:
 	else:
 		avatar.global_basis = Basis(Vector3.UP, avatar.global_rotation.y)
 	if avatar.visible:
+		avatar.sink = sink
 		avatar.walk(delta, hv.length(), grounded or flying)
 
 
@@ -230,11 +236,19 @@ func _move(delta: float, in_water: bool) -> void:
 	var n := world.normal_at(p.x, p.z)
 	var steep := n.y < cos(floor_max_angle)
 	if flying or in_water:
+		sink = 0.0
 		if p.y < g:
 			p.y = g
 			velocity.y = maxf(velocity.y, 0.0)
 		grounded = false
 	else:
+		# a swamp swallows you to the knees or hips (deeper here, shallower
+		# there), easing in and out at its edge
+		var want := 0.0
+		if world.biome_at(p.x, p.z) == "swamp":
+			want = lerpf(SWAMP_SINK.x, SWAMP_SINK.y, WorldData.vnoise(p.x / 7.0, p.z / 7.0))
+		sink = move_toward(sink, want, delta)
+		g -= sink
 		var uphill := -Vector2(n.x, n.z).normalized()
 		if steep and g > global_position.y + 0.05:
 			# too steep to walk up: keep only the motion along (or down) it
@@ -245,7 +259,7 @@ func _move(delta: float, in_water: bool) -> void:
 				velocity.x = hv.x
 				velocity.z = hv.y
 				p = global_position + velocity * delta
-				g = world.height_at(p.x, p.z)
+				g = world.height_at(p.x, p.z) - sink
 				n = world.normal_at(p.x, p.z)
 				steep = n.y < cos(floor_max_angle)
 		var snap := 0.6 if grounded and velocity.y <= 0.0 else 0.0

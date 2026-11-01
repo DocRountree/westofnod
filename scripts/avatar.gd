@@ -31,6 +31,7 @@ var _phase := 0.0
 var _climb_dist := 0.0
 var _mats := {}
 var _boots := {}
+var sink := 0.0 ## How deep the feet are in mud (the player's).
 var _head: MeshInstance3D
 
 
@@ -193,7 +194,7 @@ func walk(delta: float, speed: float, on_floor: bool) -> void:
 		if not on_floor:
 			foot = hip + Vector3.DOWN * 0.8 + fwd * 0.1
 		elif world:
-			foot.y = maxf(foot.y, world.height_at(foot.x, foot.z) + 0.04)
+			foot.y = maxf(foot.y, world.height_at(foot.x, foot.z) - sink + 0.04)
 		_solve(leg, foot, fwd)
 		var arm: Dictionary = _limbs[sname + "_arm"]
 		var sh: Vector3 = arm.root.global_position
@@ -241,7 +242,17 @@ func climb(surface: Vector3, n: Vector3, up_t: Vector3, moved: Vector3) -> void:
 			target = l.hold.lerp(next, t) + n * sin(t * PI) * 0.15
 			if t > 0.9:
 				l.hold = next
-		_solve(l, target, n if is_arm else n + up_t * 0.3)
+		# the hand or foot rests on the hold, not in it: aim the limb's end
+		# that far off the rock
+		target += n * (0.1 if is_arm else 0.12)
+		# elbows down and out, knees out to the side and toward the wall (a
+		# climber faces the rock: knees bend toward it, never back away)
+		var pole := (-up_t * 0.6 + right * side * 0.7 + n * 0.2) if is_arm else (right * side * 0.9 - n * 0.3 - up_t * 0.2)
+		_solve(l, target, pole)
+		# never through the rock: if the elbow or knee is in it, bend away more
+		var joint: Vector3 = (l.b as Node3D).global_position
+		if _depth(joint) > -0.08:
+			_solve(l, target, pole.lerp(n, 0.8))
 	_feet(up_t, n)
 
 
@@ -255,6 +266,13 @@ func on_rock(p: Vector3) -> Vector3:
 		var off := (p.y - world.height_at(p.x, p.z)) * n.y # distance above the surface, along n
 		p -= n * off
 	return p + world.normal_at(p.x, p.z) * 0.04
+
+
+## How far p is inside the rock (m, along the surface normal; negative: outside).
+func _depth(p: Vector3) -> float:
+	if world == null:
+		return -1.0
+	return (world.height_at(p.x, p.z) - p.y) * world.normal_at(p.x, p.z).y
 
 
 ## How far each hand and foot is from the terrain surface (m): for checks.
