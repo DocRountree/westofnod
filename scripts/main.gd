@@ -36,6 +36,8 @@ func _ready() -> void:
 	terrain_material = terrain_mat
 	terrain_mat.shader = load("res://shaders/render/terrain.gdshader")
 	terrain_mat.set_shader_parameter("mask_tex", world.mask_tex)
+	if world.biome_tex:
+		terrain_mat.set_shader_parameter("biome_tex", world.biome_tex)
 	cdlod = Cdlod.new()
 	add_child(cdlod)
 	cdlod.setup(world, [terrain_mat])

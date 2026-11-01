@@ -312,7 +312,8 @@ func _aurora(_args: PackedStringArray) -> void:
 
 func _pos(_args: PackedStringArray) -> void:
 	var p: Vector3 = main.player.global_position
-	say("x %.0f  y %.1f  z %.0f  (%s)" % [p.x, p.y, p.z, _where()])
+	var b: String = main.world.biome_at(p.x, p.z)
+	say("x %.0f  y %.1f  z %.0f  (%s)%s" % [p.x, p.y, p.z, _where(), ("  " + b) if b != "" else ""])
 
 
 func _where() -> String:

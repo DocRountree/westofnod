@@ -16,5 +16,22 @@
   -0.38499999999999995,
   -90.46000000000001
  ],
- "source": "Copernicus GLO-30 DEM: produced using Copernicus WorldDEM-30 (c) DLR e.V. 2010-2014 and (c) Airbus Defence and Space GmbH 2014-2018 provided under COPERNICUS by the European Union and ESA; all rights reserved"
+ "source": "Copernicus GLO-30 DEM: produced using Copernicus WorldDEM-30 (c) DLR e.V. 2010-2014 and (c) Airbus Defence and Space GmbH 2014-2018 provided under COPERNICUS by the European Union and ESA; all rights reserved",
+ "biomes": {
+  "file": "biomes.png",
+  "size": 4096,
+  "names": [
+   "forest",
+   "mesa",
+   "prairie",
+   "swamp",
+   "tundra",
+   "taiga",
+   "plateau",
+   "volcano",
+   "mountains",
+   "island",
+   "coast"
+  ]
+ }
 }

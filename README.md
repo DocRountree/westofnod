@@ -137,3 +137,15 @@ dark-adapted eye. Magnifying resolves that grain into stars. On the game's
 fixed date (the December solstice) the galactic centre is up by day, behind
 the sun, as it is in reality; at night the band runs through Carina, Crux,
 Monoceros and Auriga.
+
+## Biomes
+
+`tools/map/biomes.py` assigns them (forest, mesa, prairie, swamp, tundra,
+island, coast; mountains become taiga, plateau or volcano by what surrounds
+them); `tools/map/render_map.py --biomes` draws the biome map, and
+`tools/map/bake_biomes.py` (run by the baker) writes `data/world/biomes.png` for
+the game. The terrain shader colours each biome its own way (`biome_ground` in
+`terrain.gdshader`: leaf litter, red sand and scrub, golden grass, mud and
+pools, moss and lichen with snow, conifer floor, banded red sandstone walls on
+scrubby caprock, black basalt and ash, beach and dunes), blending across the
+borders. `/pos` names the biome you're in.

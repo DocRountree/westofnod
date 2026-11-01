@@ -339,6 +339,9 @@ def main():
                       "European Union and ESA; all rights reserved",
         }, f, indent=1)
     print("max height %.0f m" % h.max())
+    # the biomes, from the new heights (tools/map/bake_biomes.py; it adds itself to world.json)
+    import subprocess
+    subprocess.run([sys.executable, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "map", "bake_biomes.py")], check=True)
 
 
 if __name__ == "__main__":

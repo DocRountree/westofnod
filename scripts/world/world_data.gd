@@ -23,6 +23,12 @@ var mask_tex: ImageTexture
 var spawn := Vector3.ZERO
 var big_island_north_z := 0.0 ## The northern tip of the biggest island (world z).
 var meta := {}
+## Biomes (tools/map/bake_biomes.py): one byte a pixel over the whole map, the
+## biome's index into biome_names (255: none).
+var biome_tex: Texture2D
+var biome_names: Array = []
+var _biome_bytes := PackedByteArray()
+var _biome_size := 0
 
 
 func load_world() -> WorldData:
@@ -41,9 +47,26 @@ func load_world() -> WorldData:
 	mi.generate_mipmaps()
 	mask_tex = ImageTexture.create_from_image(mi)
 	big_island_north_z = float(meta.get("big_island_north_z", origin.y))
+	if meta.has("biomes"):
+		var bimg := Image.load_from_file(DIR + str(meta.biomes.file))
+		bimg.convert(Image.FORMAT_R8)
+		biome_tex = ImageTexture.create_from_image(bimg)
+		biome_names = meta.biomes.names
+		_biome_size = bimg.get_width()
+		_biome_bytes = bimg.get_data()
 	var s: Array = meta.spawn
 	spawn = Vector3(s[0], height_at(s[0], s[1]) + 3.0, s[1])
 	return self
+
+
+## The biome's name at (x, z) ("" where none).
+func biome_at(x: float, z: float) -> String:
+	if _biome_size == 0:
+		return ""
+	var i := clampi(int((x - origin.x) / domain * _biome_size), 0, _biome_size - 1)
+	var j := clampi(int((z - origin.y) / domain * _biome_size), 0, _biome_size - 1)
+	var b := _biome_bytes[j * _biome_size + i]
+	return biome_names[b] if b < biome_names.size() else ""
 
 
 func cell() -> float:
