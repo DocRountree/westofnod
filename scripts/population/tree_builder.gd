@@ -63,6 +63,9 @@ func add_sprig(node: int, dir: Vector3) -> void:
 
 
 ## Radii by the pipe model: trunk_r at the root, never thinner than tip_r.
+const PIPE_EXPONENT := 2.4 ## (2: da Vinci's rule; measured trees run 2-3)
+
+
 func compute_radii(trunk_r: float, tip_r: float) -> void:
 	var w := PackedFloat32Array()
 	w.resize(pos.size())
@@ -74,7 +77,22 @@ func compute_radii(trunk_r: float, tip_r: float) -> void:
 	radius.resize(pos.size())
 	var total := maxf(w[0], 1.0)
 	for i in pos.size():
-		radius[i] = maxf(trunk_r * sqrt(w[i] / total), tip_r)
+		radius[i] = maxf(trunk_r * pow(w[i] / total, 1.0 / PIPE_EXPONENT), tip_r)
+	# the radius drops in a step where each child leaves; real wood tapers
+	# all along: never thicker further out, and smoothed along each branch
+	for b in branches:
+		var r := PackedFloat32Array()
+		for j in range(1, b.size()):
+			r.append(radius[b[j]] if j == 1 else minf(radius[b[j]], r[r.size() - 1]))
+		for _k in 3:
+			var q := r.duplicate()
+			for j in range(1, r.size() - 1):
+				q[j] = (r[j - 1] + 2.0 * r[j] + r[j + 1]) * 0.25
+			if r.size() > 1:
+				q[r.size() - 1] = (r[r.size() - 2] + r[r.size() - 1]) * 0.5
+			r = q
+		for j in range(1, b.size()):
+			radius[b[j]] = maxf(r[j - 1], tip_r)
 
 
 ## The whole tree: [bark, leaves] surfaces in one mesh. thin_from: the
@@ -171,7 +189,9 @@ func _tube(st: SurfaceTool, b: PackedInt32Array, sides_div: int, cap: Array) -> 
 		# the first ring sits inside the parent at the child's own radius;
 		# the last closes almost to a point
 		var r := radius[b[maxi(i, 1)]] if not cap[0] else radius[b[i]]
-		if i == n - 1 and level[b[i]] > 0 and not cap[1]:
+		if i == 0 and not cap[0]:
+			r *= 1.15 # (a collar where it leaves the parent)
+		if i == n - 1 and not cap[1]:
 			r *= 0.35
 		rings.append([p, t, nrm, bin, r, along])
 	for i in n:

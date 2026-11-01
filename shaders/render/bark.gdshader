@@ -5,6 +5,7 @@ shader_type spatial;
 // gradient), and darker down in the furrows. Vertex colour tints it.
 
 #include "res://shaders/render/aerial.gdshaderinc"
+#include "res://shaders/render/lod_fade.gdshaderinc"
 
 uniform sampler2D bark_tex : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
 uniform float bump = 0.012; // m of relief at full height
@@ -32,6 +33,7 @@ vec3 end_grain(vec2 p) {
 }
 
 void fragment() {
+	if (lod_hidden(FRAGCOORD.xy, CAMERA_POSITION_WORLD, PROJECTION_MATRIX)) discard;
 	if (UV2.x > 0.5) {
 		ALBEDO = end_grain(UV) * COLOR.rgb;
 		ROUGHNESS = 0.9;

@@ -33,18 +33,23 @@ four standing oaks (open-grown, young, leaning, forest-grown), a broken
 stump, a fallen log and a dead standing oak; the dead wood is half as common
 as each standing tree (`OakTree.PROPS`).
 
-- Growth: a short stout trunk with flared roots, crooked near-level limbs,
-  side branches turning up, twigs carrying sprigs; branches stop at the
-  crown's envelope (a dome) and leaf out there. Radii by the pipe model.
+- Growth: a stout trunk with flared roots that runs on into the crown as a
+  leader, giving off limbs one by one in a spiral (the lowest longest and
+  flattest); every branch leaves its parent nearly along it and bends out
+  over its first metres; side branches turn up, twigs carry sprigs;
+  branches stop at the crown's envelope (a dome) and leaf out there. Radii
+  by the pipe model (exponent 2.4), smoothed into a continuous taper.
 - Leaves: alpha-cut cards from `textures/oak_leaves.png`, sprigs of English
   oak leaves (lobed, ~11 cm) near, clumps further off; lit as one crown,
   light through them from behind; flutter in the wind.
 - Bark: `textures/oak_bark.png` (furrowed, alpha = height for the bumps);
   cut and broken ends show growth rings. Textures: `python3
   tools/trees/bake_oak_textures.py`.
-- Level of detail: full (8-17k triangles a tree) within 50 m, ~2k to 180 m,
-  under 1k to 600 m; on top of that the leaf cards thin out with distance in
-  the shader (the rest grow to keep the cover).
+- Level of detail: full (16-30k triangles a tree) within 50 m, ~2-4k to
+  180 m, under 1k to 600 m, cross-fading stippled over 12 m at each switch
+  (`shaders/render/lod_fade.gdshaderinc`, set per chunk by Population); on
+  top of that the leaf cards thin out with distance in the shader (the rest
+  grow to keep the cover), each dissolving rather than popping.
 - Shadows: every standing oak casts the same stand-in, a lumpy dome on a
   stalk (`shadow_mesh`); the trees and their leaves cast none and take
   shadows only part way. The dead wood casts its own.

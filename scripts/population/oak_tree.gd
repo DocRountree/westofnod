@@ -6,7 +6,7 @@ class_name OakTree
 ## oak.tres) has variants = 7 and this as its mesh_script.
 ##
 ## What makes it read as an oak: a short, stout trunk with flared roots that
-## splits low into a few heavy limbs; limbs that spread wide, nearly level,
+## runs on into the crown, giving off a few heavy limbs one after another; limbs that spread wide, nearly level,
 ## and go crooked, changing direction at every node; side branches that
 ## leave at wide angles and turn up at their ends; leaves crowded in
 ## clusters at the shoot tips; a broad, rounded crown, often wider than tall.
@@ -17,14 +17,14 @@ class_name OakTree
 ## a dome as an oak's do.
 
 const VARIANTS := [
-	# open-grown: short trunk, five limbs spreading wide, a broad dome
-	{"trunk_h": 2.6, "trunk_r": 0.5, "limbs": 5, "limb_angle": 58.0, "limb_len": 9.8, "branch_len": 4.2, "twig_len": 1.26, "leader": false, "lean": 0.0, "droop": 0.0, "seed": 11, "crown": [9.5, 15.5, 3.0]},
-	# young: slimmer, upright, still with a leader
-	{"trunk_h": 3.4, "trunk_r": 0.28, "limbs": 4, "limb_angle": 38.0, "limb_len": 7.0, "branch_len": 3.08, "twig_len": 1.12, "leader": true, "lean": 0.0, "droop": 0.0, "seed": 23, "crown": [5.5, 14.0, 3.2]},
+	# open-grown: short trunk, limbs spreading wide, a broad dome
+	{"trunk_h": 2.8, "leader_h": 4.0, "trunk_r": 0.5, "limbs": 6, "limb_angle": 55.0, "limb_len": 8.0, "branch_len": 3.6, "twig_len": 1.2, "lean": 0.0, "droop": 0.0, "seed": 11, "crown": [7.5, 15.5, 3.5]},
+	# young: slimmer, upright, a strong leader
+	{"trunk_h": 3.2, "leader_h": 6.5, "trunk_r": 0.28, "limbs": 6, "limb_angle": 42.0, "limb_len": 5.0, "branch_len": 2.6, "twig_len": 1.1, "lean": 0.0, "droop": 0.0, "seed": 23, "crown": [5.0, 14.5, 3.5]},
 	# leaning: grown toward the light, the crown heavier on one side
-	{"trunk_h": 3.0, "trunk_r": 0.42, "limbs": 5, "limb_angle": 52.0, "limb_len": 9.1, "branch_len": 3.92, "twig_len": 1.19, "leader": false, "lean": 11.0, "droop": 0.03, "seed": 41, "crown": [8.5, 14.5, 3.0]},
+	{"trunk_h": 3.0, "leader_h": 4.5, "trunk_r": 0.42, "limbs": 5, "limb_angle": 50.0, "limb_len": 7.0, "branch_len": 3.3, "twig_len": 1.15, "lean": 9.0, "droop": 0.02, "seed": 41, "crown": [6.8, 14.5, 3.5]},
 	# forest-grown: a tall clean bole, a small high crown
-	{"trunk_h": 6.5, "trunk_r": 0.45, "limbs": 4, "limb_angle": 36.0, "limb_len": 6.44, "branch_len": 3.36, "twig_len": 1.12, "leader": true, "lean": 0.0, "droop": 0.0, "seed": 53, "crown": [5.5, 19.5, 7.5]},
+	{"trunk_h": 6.5, "leader_h": 5.5, "trunk_r": 0.45, "limbs": 5, "limb_angle": 40.0, "limb_len": 5.2, "branch_len": 2.8, "twig_len": 1.1, "lean": 0.0, "droop": 0.0, "seed": 53, "crown": [5.0, 19.0, 7.5]},
 	# a stump, sawn off, the roots flaring
 	{"kind": "stump", "seed": 61},
 	# a fallen trunk, broken at both ends, the stubs of its limbs
@@ -240,61 +240,77 @@ static func _grow_tree(P: Dictionary) -> TreeBuilder:
 	tb.rng.seed = P.seed
 	var rng := tb.rng
 	tb.flare = 0.45 + P.trunk_r * 0.3
-	# the trunk, leaning if it does, a little crooked
 	var lean_az := rng.randf() * TAU
 	var lean_dir := Vector3(cos(lean_az), 0.0, sin(lean_az))
-	var d := (Vector3.UP + lean_dir * tan(deg_to_rad(P.lean))).normalized()
 	var c: Array = P.crown
 	P = P.duplicate()
-	P.env_centre = Vector3(0.0, (c[1] + c[2]) * 0.5, 0.0) + lean_dir * (P.lean / 11.0) * 2.5
+	P.env_centre = Vector3(0.0, (c[1] + c[2]) * 0.5, 0.0) + lean_dir * (P.lean / 11.0) * 2.0
 	P.env_radii = Vector3(c[0], (c[1] - c[2]) * 0.5, c[0])
+	# The stem: a clear bole, then on up into the crown as a leader that
+	# the limbs leave one by one; it thins as each takes its share (the pipe
+	# model), and its top carries on as the highest limb. Leaning if it does,
+	# a little crooked.
+	var d := (Vector3.UP + lean_dir * tan(deg_to_rad(P.lean))).normalized()
 	var root := tb.add_node(Vector3.ZERO, -1, 0)
-	var trunk := PackedInt32Array([root])
-	var steps := maxi(ceili(P.trunk_h / SEG[0]), 2)
+	var stem := PackedInt32Array([root])
+	var total_h: float = P.trunk_h + P.leader_h
+	var steps := maxi(ceili(total_h / SEG[0]), 3)
 	var p := Vector3.ZERO
+	var dirs: Array[Vector3] = [d]
 	for i in steps:
-		d = _turn(rng, d, CROOK[0])
-		d = (d + Vector3.UP * 0.03).normalized()
-		p += d * P.trunk_h / steps
-		trunk.append(tb.add_node(p, trunk[trunk.size() - 1], 0))
-	# the limbs: from the top of the trunk and a little below, spread round
+		d = _turn(rng, d, CROOK[0] * (1.0 if p.y < P.trunk_h else 2.5))
+		d = (d + Vector3.UP * 0.04).normalized()
+		p += d * total_h / steps
+		stem.append(tb.add_node(p, stem[stem.size() - 1], 0))
+		dirs.append(d)
+	# the limbs, up the leader in a spiral (137 degrees apart): the lowest
+	# longest and flattest, the highest short and steep
+	var first := 1
+	while first < stem.size() - 1 and tb.pos[stem[first]].y < P.trunk_h:
+		first += 1
 	var n_limbs: int = P.limbs
-	var az0 := rng.randf() * TAU
+	var az := rng.randf() * TAU
 	for k in n_limbs:
-		var az := az0 + TAU * k / n_limbs + rng.randf_range(-0.35, 0.35)
-		var tilt := deg_to_rad(P.limb_angle + rng.randf_range(-10.0, 10.0))
+		var f := float(k) / maxf(n_limbs - 1, 1)
+		var at := clampi(first + roundi(f * (stem.size() - 1 - first)), 1, stem.size() - 1)
+		az += deg_to_rad(137.5) + rng.randf_range(-0.3, 0.3)
+		var tilt := deg_to_rad(lerpf(P.limb_angle, P.limb_angle * 0.55, f) + rng.randf_range(-6.0, 6.0))
 		var dir := Vector3(sin(tilt) * cos(az), cos(tilt), sin(tilt) * sin(az))
-		var len: float = P.limb_len * rng.randf_range(0.8, 1.15)
+		var len: float = P.limb_len * lerpf(1.0, 0.65, f) * rng.randf_range(0.85, 1.1)
 		if P.lean > 0.0:
 			var toward := Vector2(dir.x, dir.z).normalized().dot(Vector2(lean_dir.x, lean_dir.z))
-			len *= 1.0 + 0.3 * toward # the crown heavier toward the lean
-			dir = (dir + lean_dir * 0.25 * maxf(toward, 0.0)).normalized()
-		var at := trunk[maxi(trunk.size() - 1 - (k % 3), 1)]
-		_branch(tb, P, at, dir, len, 1)
-	if P.leader:
-		_branch(tb, P, trunk[trunk.size() - 1], _turn(rng, Vector3.UP, 0.15), P.limb_len * 0.9, 1)
-	tb.add_branch(trunk)
+			len *= 1.0 + 0.25 * toward # the crown heavier toward the lean
+		_branch(tb, P, stem[at], dir, len, 1, dirs[at])
+	# the leader's top, on as a limb
+	_branch(tb, P, stem[stem.size() - 1], _turn(rng, dirs[dirs.size() - 1], 0.2), P.limb_len * 0.5, 1, dirs[dirs.size() - 1])
+	tb.add_branch(stem)
 	tb.compute_radii(P.trunk_r, TIP_R)
 	return tb
 
 
-## A branch at level lv from node `from`, heading dir, length m long: crooked,
-## turning up, with side branches (or sprigs on the twigs) at its nodes.
-static func _branch(tb: TreeBuilder, P: Dictionary, from: int, dir: Vector3, length: float, lv: int) -> void:
+## A branch at level lv from node `from`, heading dir, length m long: it
+## leaves its parent nearly along the parent's way (parent_dir) and bends
+## out to its own over its first few nodes, as wood grows; crooked, turning
+## up, with side branches (or sprigs on the twigs) at its nodes.
+static func _branch(tb: TreeBuilder, P: Dictionary, from: int, dir: Vector3, length: float, lv: int, parent_dir := Vector3.ZERO) -> void:
 	var rng := tb.rng
 	var steps := maxi(ceili(length / SEG[lv]), 2)
 	var nodes := PackedInt32Array([from])
 	var p := tb.pos[from]
-	var d := dir
+	var target := dir
+	var d := dir if parent_dir == Vector3.ZERO else parent_dir.slerp(dir, 0.3).normalized()
 	var spiral := rng.randf() * TAU
 	for i in steps:
 		var t := float(i + 1) / steps
+		if i < 4:
+			d = d.slerp(target, 0.4).normalized() # (easing out of the parent)
 		d = _turn(rng, d, CROOK[lv])
 		# up toward the light; heavy limbs droop first, then sweep up
 		var up: float = UP[lv] - (P.droop * (1.0 - t) if lv == 1 else 0.0)
 		if p.y < P.trunk_h * 0.5:
 			up = maxf(up, 0.25) # (never down into the ground)
 		d = (d + Vector3.UP * up).normalized()
+		target = (target + Vector3.UP * up * 0.5).normalized()
 		var q := p + d * length / steps
 		var e: Vector3 = (q - P.env_centre) / P.env_radii
 		if e.y < 0.0:
@@ -316,7 +332,7 @@ static func _branch(tb: TreeBuilder, P: Dictionary, from: int, dir: Vector3, len
 						cd = Vector3(cd.x, -0.25, cd.z).normalized()
 					var cl: float = (P.branch_len if lv == 1 else P.twig_len) * (1.0 - 0.45 * t) * rng.randf_range(0.75, 1.2)
 					if rng.randf() < (0.8 if lv == 1 else 0.7):
-						_branch(tb, P, node, cd, cl, lv + 1)
+						_branch(tb, P, node, cd, cl, lv + 1, d)
 			# a few sprigs on the outer half of the branches too
 			if lv == 2 and t > 0.4 and rng.randf() < 0.5:
 				tb.add_sprig(node, _outward(_side(d, rng.randf() * TAU, 0.8), p, 0.4))

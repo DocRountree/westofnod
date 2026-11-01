@@ -24,6 +24,7 @@ const ACTOR_DIR := "res://data/population/actors/"
 const APPLY_PER_FRAME := 2 ## Generated chunks added to the scene per frame, at most.
 const MAX_TASKS := 4 ## Chunks generating at once.
 const UID_OFFSET := 1 << 18
+const LOD_FADE := 6.0 ## m either side of a switch between levels of detail over which they cross-fade (stippled)
 
 @export var actor_radius := 160.0 ## Actors live in the chunks this near the player.
 @export var world_seed := 1
@@ -401,9 +402,8 @@ func _build_props(ch: _Chunk) -> void:
 			continue
 		var kind := props[k]
 		# one MultiMesh per level of detail, each drawn over its own span of
-		# distance. Godot measures the distance to each node's box: they all
-		# get the same box (round every mesh they draw), so the levels hand
-		# over at exactly the same point, without a gap or an overlap.
+		# distance. They all get the same box (round every mesh they draw),
+		# so the levels hand over at the same distance, cross-fading.
 		var n := mini(kind.lods.size(), kind.lod_distances.size())
 		var box := _chunk_box(kind, xf)
 		for l in n + 1:
@@ -425,9 +425,13 @@ func _build_props(ch: _Chunk) -> void:
 			var shadows := kind.shadows and begin < kind.shadow_distance and kind.shadow_mesh == null
 			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if shadows else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 			mi.custom_aabb = box
-			mi.visibility_range_begin = begin
-			mi.visibility_range_end = end
-			mi.visibility_range_end_margin = CHUNK * 0.5 if l == n else 0.0
+			# drawn a little past each switch, both levels at once, so their
+			# shaders can cross-fade (lod_fade.gdshaderinc: by the same
+			# distance, to the box's middle)
+			mi.visibility_range_begin = maxf(begin - LOD_FADE * 2.0, 0.0) if l > 0 else 0.0
+			mi.visibility_range_end = end + LOD_FADE * 2.0
+			mi.set_instance_shader_parameter("lod_range", Vector3(begin, end, LOD_FADE))
+			mi.set_instance_shader_parameter("lod_centre", at + box.get_center())
 			add_child(mi)
 			ch.nodes.append(mi)
 		if kind.shadow_mesh and kind.shadows:
