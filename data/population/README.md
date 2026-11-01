@@ -56,8 +56,10 @@ shallows, and don't sway.
   tools/trees/bake_oak_textures.py`.
 - Level of detail: full (16-30k triangles a tree) within 40 m, 3-6k to
   120 m, ~1k to 300 m, 200-400 (the stem and a few big clumps) to 600 m,
-  cross-fading stippled over 12 m at each switch
-  (`shaders/render/lod_fade.gdshaderinc`, set per chunk by Population); on
+  cross-fading stippled tree by tree over 12 m at each switch (and out at
+  600 m) in `shaders/render/lod_fade.gdshaderinc` (each level's materials
+  hold its span; Population only keeps the levels' nodes drawn a chunk
+  wider than that); on
   top of that the leaf cards thin out with distance in the shader (the rest
   grow to keep the cover), each dissolving rather than popping.
 - Shadows: every standing oak casts the same stand-in, a lumpy dome on a

@@ -448,12 +448,14 @@ func _build_props(ch: _Chunk) -> void:
 			var shadows := kind.shadows and begin < kind.shadow_distance and kind.shadow_mesh == null
 			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if shadows else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 			mi.custom_aabb = box
-			# drawn a little past each switch, both levels at once, so their
-			# shaders can cross-fade (lod_fade.gdshaderinc: each level's
-			# materials know its span; the distance is to the chunk's middle,
-			# which the shader finds from where the tree stands)
-			mi.visibility_range_begin = maxf(begin - LOD_FADE * 2.0, 0.0) if l > 0 else 0.0
-			mi.visibility_range_end = end + LOD_FADE * 2.0
+			# Each tree's level is decided per tree in its shader
+			# (lod_fade.gdshaderinc: cross-faded, stippled, and collapsed to
+			# nothing outside the level's span); the node's range only has to
+			# hold every tree of the chunk that the level might show, wherever
+			# in the chunk it stands: its span widened by a chunk and the fade.
+			var pad := CHUNK + LOD_FADE * 2.0
+			mi.visibility_range_begin = maxf(begin - pad, 0.0) if l > 0 else 0.0
+			mi.visibility_range_end = end + pad
 			add_child(mi)
 			ch.nodes.append(mi)
 		if kind.shadow_mesh and kind.shadows:

@@ -97,7 +97,6 @@ static func _lod_span(m: ShaderMaterial, level: int) -> void:
 	var begin: float = 0.0 if level == 0 else LOD[level - 1]
 	var end: float = VIEW if level == LOD.size() else LOD[level]
 	m.set_shader_parameter("lod_range", Vector3(begin, end, Population.LOD_FADE))
-	m.set_shader_parameter("lod_chunk", Population.CHUNK)
 
 
 ## Off: every level drawn wherever it is (e.g. to look at one level alone).

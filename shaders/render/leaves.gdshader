@@ -45,6 +45,9 @@ void vertex() {
 	float keep = clamp(pow(CUSTOM0.w / max(d, 0.01), thin_power), min_keep, 1.0);
 	card_fade = clamp((keep - UV2.x) / 0.08 + 1.0, 0.0, 1.0); // over the 8% of rank above the cut
 	VERTEX = card_fade <= 0.0 ? mid : mid + CUSTOM0.xyz * inversesqrt(keep);
+	if (lod_gone(CAMERA_POSITION_WORLD, MODEL_MATRIX, PROJECTION_MATRIX)) {
+		VERTEX = vec3(0.0); // (not this level here: no pixels)
+	}
 	world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 	float ph = dot(world_pos, vec3(0.37, 0.21, 0.29));
 	VERTEX += NORMAL * sin(TIME * 2.3 + ph) * flutter * UV2.y; // the leaves flutter...

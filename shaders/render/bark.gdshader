@@ -19,6 +19,9 @@ uniform vec2 detail_far = vec2(60.0, 90.0); // m: the texture fades out between 
 varying vec3 world_pos;
 
 void vertex() {
+	if (lod_gone(CAMERA_POSITION_WORLD, MODEL_MATRIX, PROJECTION_MATRIX)) {
+		VERTEX = vec3(0.0); // (not this level here: no pixels)
+	}
 	VERTEX += wind_local(MODEL_MATRIX, VERTEX, UV2.y, TIME);
 	world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 }
