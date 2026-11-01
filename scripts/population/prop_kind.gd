@@ -40,9 +40,5 @@ extends SpawnRule
 ## feet; one higher is a wall (jump onto it). With none but a mesh_script
 ## with build_walk(variant), that makes them.
 @export var walk := PackedFloat32Array()
-## m (at scale 1): how far it reaches from its foot (a log's half length).
-## Placed only where the ground that far out, every way, is ground it grows
-## in too: a log by a swamp doesn't lie out into it.
-@export var footprint := 0.0
 @export var view_distance := 250.0 ## Drawn up to this far (m).
 @export var shadows := true

@@ -34,8 +34,7 @@ saplings, a broken stump, a dead standing oak and three fallen logs (one
 like the old, a long slender one, a short heavy one). Shares
 (`OakTree.PROPS`): stump, dead oak and each sapling half as common as each
 standing tree, the three logs together three quarters; the logs snapped at
-both ends, cast no shadow, never lie out into a swamp (`footprint`) and
-can be stood on, the stumps jumped onto (`walk`: the player steps up 0.7
+both ends, cast no shadow, can be stood on (lifting you out of a swamp's mud), the stumps jumped onto (`walk`: the player steps up 0.7
 m, higher is a wall until jumped onto); dead oaks also stand in
 the swamp, as many as all the standing oaks (live, saplings, dead; not
 logs or stumps) on the prairie (`density_like`, `like_group`), into its

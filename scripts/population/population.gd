@@ -422,8 +422,6 @@ func _generate(key: Vector2i) -> void:
 				var s := rng.randf_range(kind.scale_range.x, kind.scale_range.y)
 				if keep >= kind.density_in(world.biome_index_at(x, z)):
 					continue
-				if kind.footprint > 0.0 and not _fits_around(kind, x, z, kind.footprint * s):
-					continue
 				var h := world.height_at(x, z)
 				var nrm := world.normal_at(x, z)
 				if not kind.fits(h, nrm):
@@ -472,15 +470,6 @@ func _generate(key: Vector2i) -> void:
 	_lock.lock()
 	_done.append(ch)
 	_lock.unlock()
-
-
-## The ground r m round (x, z), every way, is ground the kind grows in.
-func _fits_around(kind: PropKind, x: float, z: float, r: float) -> bool:
-	for i in 8:
-		var a := TAU * i / 8.0
-		if kind.density_in(world.biome_index_at(x + cos(a) * r, z + sin(a) * r)) <= 0.0:
-			return false
-	return true
 
 
 ## How many of something with mean count `mean` (the fraction by chance).

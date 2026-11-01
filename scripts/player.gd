@@ -243,7 +243,10 @@ func _physics_process(delta: float) -> void:
 func _move(delta: float, in_water: bool) -> void:
 	var p := global_position + velocity * delta
 	if population and not flying:
-		p = population.push_out(p, BODY_RADIUS) # round the trunks and boulders
+		# round the trunks and boulders; logs too high to step onto (measured
+		# from the mud's surface when wading: you step up out of it)
+		var up := Vector3(0.0, sink, 0.0)
+		p = population.push_out(p + up, BODY_RADIUS) - up
 	var g := world.height_at(p.x, p.z)
 	var n := world.normal_at(p.x, p.z)
 	var steep := n.y < cos(floor_max_angle)
@@ -254,8 +257,9 @@ func _move(delta: float, in_water: bool) -> void:
 			velocity.y = maxf(velocity.y, 0.0)
 		grounded = false
 	else:
-		# a fallen log under foot (stepped up onto, if no higher than a step)
-		var deck := population.deck_at(p, global_position.y + Population.STEP_UP) if population else -INF
+		# a fallen log or stump under foot (stepped up onto, if no higher than
+		# a step above the ground, or the mud's surface)
+		var deck := population.deck_at(p, global_position.y + sink + Population.STEP_UP) if population else -INF
 		# a swamp swallows you to the knees or hips (deeper here, shallower
 		# there), easing in and out at its edge
 		var want := 0.0
