@@ -69,9 +69,7 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   Fresnel, a capped GGX sun highlight, and gloss falling away with distance. With MSAA
   the depth buffer can't be read, so the water's thickness falls back to the channel
   depth (rivers) or the sea floor (sea) and the view angle.
-- **No trees** for now. Props would go in a `ScatterField` (`scripts/world/scatter_field.gd`):
-  placed on the GPU, one per world cell around the camera, by a mask; the baked tree
-  mask is still in `masks.png` (blue), unused.
+- **Trees**: English oaks (`data/population/README.md`), streamed by `Population`.
 - **Grass** is a terrain texture (blade streaks and tufts).
 - **Player** (`scripts/avatar.gd`): a stylised figure animated procedurally with two-bone
   IK. Walking: feet step in turn, arms swing. Climbing: hands and feet hold points on

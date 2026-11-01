@@ -55,11 +55,8 @@ class _Chunk:
 func _ready() -> void:
 	for k in _load_dir(PROP_DIR):
 		if k is PropKind:
-			if k.mesh == null and k.mesh_script:
-				k.mesh = k.mesh_script.build()
-			if k.lods.is_empty() and k.mesh_script and k.mesh_script.has_method("build_lods"):
-				k.lods = k.mesh_script.build_lods()
-			props.append(k)
+			for kv in _variants(k):
+				props.append(kv)
 	for k in _load_dir(ACTOR_DIR):
 		if k is ActorKind:
 			actor_kinds.append(k)
@@ -74,8 +71,45 @@ func _exit_tree() -> void:
 
 func register_prop(kind: PropKind) -> void:
 	refresh() # (first: the workers read the kinds)
-	props.append(kind)
+	props.append_array(_variants(kind))
 	_resolve()
+
+
+## A kind with variants (different models of the same thing) becomes one
+## kind per variant, each with its share of the density; meshes from the
+## mesh_script are built here (build(variant), build_lods(variant)).
+func _variants(k: PropKind) -> Array[PropKind]:
+	var out: Array[PropKind] = []
+	var n := maxi(k.variants, 1)
+	# a variant may differ (mesh_script.variant_props(v): its weight, the
+	# share of the density it gets, and any PropKind settings)
+	var vp: Array[Dictionary] = []
+	var total := 0.0
+	for v in n:
+		var d: Dictionary = k.mesh_script.variant_props(v) if k.mesh_script and k.mesh_script.has_method("variant_props") else {}
+		vp.append(d)
+		total += float(d.get("weight", 1.0))
+	for v in n:
+		var kv: PropKind = k
+		if n > 1:
+			kv = k.duplicate()
+			kv.id = StringName("%s_%d" % [k.id, v])
+			var share := float(vp[v].get("weight", 1.0)) / total
+			var d := {}
+			for b in k.density:
+				d[b] = float(k.density[b]) * share
+			kv.density = d
+			for key in vp[v]:
+				if key != "weight":
+					kv.set(key, vp[v][key])
+		if kv.mesh == null and kv.mesh_script:
+			kv.mesh = kv.mesh_script.build(v)
+		if kv.lods.is_empty() and kv.mesh_script and kv.mesh_script.has_method("build_lods"):
+			kv.lods = kv.mesh_script.build_lods(v)
+		if kv.shadow_mesh == null and kv.mesh_script and kv.mesh_script.has_method("build_shadow"):
+			kv.shadow_mesh = kv.mesh_script.build_shadow(v)
+		out.append(kv)
+	return out
 
 
 func register_actor(kind: ActorKind) -> void:
@@ -367,8 +401,11 @@ func _build_props(ch: _Chunk) -> void:
 			continue
 		var kind := props[k]
 		# one MultiMesh per level of detail, each drawn over its own span of
-		# distance (from the chunk's centre; the margins keep it from flickering)
+		# distance. Godot measures the distance to each node's box: they all
+		# get the same box (round every mesh they draw), so the levels hand
+		# over at exactly the same point, without a gap or an overlap.
 		var n := mini(kind.lods.size(), kind.lod_distances.size())
+		var box := _chunk_box(kind, xf)
 		for l in n + 1:
 			var begin := 0.0 if l == 0 else kind.lod_distances[l - 1]
 			var end := kind.view_distance if l == n else minf(kind.lod_distances[l], kind.view_distance)
@@ -385,14 +422,47 @@ func _build_props(ch: _Chunk) -> void:
 			var mat := kind.material if l == 0 or kind.lod_material == null else kind.lod_material
 			if mat:
 				mi.material_override = mat
-			var shadows := kind.shadows and begin < kind.shadow_distance
+			var shadows := kind.shadows and begin < kind.shadow_distance and kind.shadow_mesh == null
 			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if shadows else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			mi.custom_aabb = box
 			mi.visibility_range_begin = begin
-			mi.visibility_range_begin_margin = CHUNK * 0.25 if l > 0 else 0.0
 			mi.visibility_range_end = end
-			mi.visibility_range_end_margin = CHUNK * (0.5 if l == n else 0.25)
+			mi.visibility_range_end_margin = CHUNK * 0.5 if l == n else 0.0
 			add_child(mi)
 			ch.nodes.append(mi)
+		if kind.shadow_mesh and kind.shadows:
+			# the stand-in, only in the shadow maps
+			var smm := MultiMesh.new()
+			smm.transform_format = MultiMesh.TRANSFORM_3D
+			smm.mesh = kind.shadow_mesh
+			smm.instance_count = xf.size() / 12
+			smm.buffer = xf
+			var smi := MultiMeshInstance3D.new()
+			smi.multimesh = smm
+			smi.position = at
+			smi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY
+			smi.custom_aabb = box
+			smi.visibility_range_end = kind.shadow_distance
+			smi.visibility_range_end_margin = CHUNK * 0.5
+			add_child(smi)
+			ch.nodes.append(smi)
+
+
+## A box (chunk-local) round everything a kind draws in a chunk: the
+## instances' spread, plus the largest of its meshes at the largest scale.
+func _chunk_box(kind: PropKind, xf: PackedFloat32Array) -> AABB:
+	var m := AABB()
+	for mesh in [kind.mesh, kind.shadow_mesh] + kind.lods:
+		if mesh:
+			m = m.merge(mesh.get_aabb())
+	m = AABB(m.position * kind.scale_range.y * 1.05, m.size * kind.scale_range.y * 1.05)
+	var lo := Vector3.INF
+	var hi := -Vector3.INF
+	for i in range(0, xf.size(), 12):
+		var o := Vector3(xf[i + 3], xf[i + 7], xf[i + 11])
+		lo = lo.min(o)
+		hi = hi.max(o)
+	return AABB(lo + m.position, hi - lo + m.size)
 
 
 ## Leave out what remove_prop() took (instances and their obstacles).

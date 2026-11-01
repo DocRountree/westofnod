@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="PropKind" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/population/prop_kind.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/population/oak_tree.gd" id="2"]
+
+[resource]
+script = ExtResource("1")
+id = &"oak"
+mesh_script = ExtResource("2")
+variants = 7
+lod_distances = PackedFloat32Array(50, 180)
+shadow_distance = 180.0
+scale_range = Vector2(0.85, 1.15)
+sink = 0.25
+radius = 0.6
+view_distance = 600.0
+density = {
+"forest": 18.0,
+"prairie": 0.8,
+"taiga": 4.0
+}
+height_range = Vector2(2, 1900)
+min_normal_y = 0.8

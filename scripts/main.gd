@@ -81,7 +81,12 @@ func _ready() -> void:
 	population.world = world
 	add_child(population)
 	for k in population.props: # props with shader materials take the haze too
-		for m in [k.material, k.lod_material]:
+		var mats: Array = [k.material, k.lod_material]
+		for mesh in [k.mesh] + k.lods:
+			if mesh:
+				for i in mesh.get_surface_count():
+					mats.append(mesh.surface_get_material(i))
+		for m in mats:
 			if m is ShaderMaterial and not _hazed.has(m):
 				_hazed.append(m)
 				m.set_shader_parameter("haze_sun_dir", _sun.global_basis.z)

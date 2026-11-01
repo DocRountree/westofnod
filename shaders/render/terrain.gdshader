@@ -93,10 +93,19 @@ vec3 biome_ground(int b, Shared s, out float rough, out float rocky) {
 	vec3 ground;
 	vec3 rock = mix(vec3(0.24, 0.23, 0.22), vec3(0.38, 0.36, 0.33), s.n9);
 	rough = 0.95;
-	if (b == 0) {            // forest: dark leaf litter and undergrowth
-		ground = mix(vec3(0.09, 0.18, 0.06), vec3(0.16, 0.26, 0.09), s.patches);
-		ground = mix(ground, vec3(0.20, 0.17, 0.09), clump(s, 0.15)); // clearings of litter
-		rock = mix(rock, vec3(0.16, 0.21, 0.13), 0.6);                // mossy
+	if (b == 0) {            // forest: olive undergrowth mottled with leaf litter and humus
+		// greens toward olive (red close to green), darker in the broad patches
+		vec3 olive = mix(vec3(0.13, 0.15, 0.07), vec3(0.22, 0.23, 0.11), s.patches);
+		olive = mix(olive, vec3(0.17, 0.21, 0.09), smoothstep(0.55, 0.8, s.n35) * 0.6); // greener drifts
+		// litter in mottles of a few to tens of metres: tan, red-brown, dark humus
+		float mottle = s.n9 * 0.55 + s.fine3 * 0.45;
+		vec3 litter = mix(vec3(0.2, 0.17, 0.1), vec3(0.22, 0.15, 0.09), s.n35);   // dry oak leaves, dun to russet
+		litter = mix(litter, vec3(0.12, 0.1, 0.06), smoothstep(0.55, 0.85, s.fine3) * 0.7); // humus
+		ground = mix(olive, litter, smoothstep(0.48, 0.72, mottle) * 0.7);
+		ground = mix(ground, vec3(0.2, 0.24, 0.1), clump(s, 0.1) * 0.7);          // moss and seedlings
+		ground = mix(ground, vec3(0.11, 0.09, 0.06), clump(s, 0.06) * 0.35);       // damp hollows
+		ground *= 0.9 + 0.2 * s.fine3;
+		rock = mix(rock, vec3(0.18, 0.2, 0.12), 0.6);                             // mossy
 	} else if (b == 1) {     // mesa: red sand, scattered dark scrub
 		ground = mix(vec3(0.55, 0.27, 0.12), vec3(0.66, 0.37, 0.18), s.patches);
 		ground = mix(ground, vec3(0.20, 0.25, 0.12), clump(s, 0.18));
