@@ -8,6 +8,7 @@ var cdlod: Cdlod
 var collider: TerrainCollider
 var player: Player
 var hud: Hud
+var chat: Chat
 var env: Environment
 var ocean: MeshInstance3D
 var ocean_material: ShaderMaterial
@@ -84,6 +85,10 @@ func _ready() -> void:
 	hud = Hud.new()
 	hud.player = player
 	add_child(hud)
+	chat = Chat.new()
+	chat.main = self
+	add_child(chat)
+	chat.say("Welcome to West of Nod. T to chat, / for commands (/help).", Color(0.75, 0.85, 1.0))
 	hud.status.text = ""
 
 

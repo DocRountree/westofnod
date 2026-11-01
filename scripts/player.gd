@@ -43,6 +43,7 @@ var zoom_power := 6.0
 var grounded := false ## Standing on the ground (see _move).
 var _last_space := -100000 # ms of the last Space press, for double-tap
 var frozen := true
+var typing := false ## The chat is open: the keys are the chat's.
 
 
 func _ready() -> void:
@@ -78,6 +79,18 @@ func _ready() -> void:
 	floor_snap_length = 0.6
 
 
+func _move_input() -> Vector2:
+	return Vector2.ZERO if typing else Input.get_vector("move_left", "move_right", "move_forward", "move_back")
+
+
+func _held(action: StringName) -> bool:
+	return not typing and Input.is_action_pressed(action)
+
+
+func _just(action: StringName) -> bool:
+	return not typing and Input.is_action_just_pressed(action)
+
+
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.pressed:
 		if Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
@@ -92,7 +105,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		var sens := MOUSE_SENS / zoom # the view moves as fast on screen, magnified or not
 		rotate_y(-event.relative.x * sens)
 		head.rotation.x = clampf(head.rotation.x - event.relative.y * sens, -1.55, 1.55)
-	if event is InputEventKey and event.pressed and not event.echo:
+	if event is InputEventKey and event.pressed and not event.echo and not typing:
 		match event.keycode:
 			KEY_ESCAPE:
 				Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
@@ -162,7 +175,7 @@ func set_climbing(on: bool) -> void:
 func _physics_process(delta: float) -> void:
 	if frozen:
 		return
-	var input := Input.get_vector("move_left", "move_right", "move_forward", "move_back")
+	var input := _move_input()
 	var dir := (transform.basis * Vector3(input.x, 0.0, input.y)).normalized()
 	var water := world.water_at(global_position.x, global_position.z) if world else Vector3.ZERO
 	var depth := water.x - global_position.y # how deep the feet are
@@ -174,20 +187,20 @@ func _physics_process(delta: float) -> void:
 		return
 	if flying:
 		var vy := 0.0
-		if Input.is_action_pressed("jump"):
+		if _held("jump"):
 			vy += 1.0
-		if Input.is_action_pressed("descend"):
+		if _held("descend"):
 			vy -= 1.0
-		var spd := FLY_SPEED * (2.5 if Input.is_action_pressed("sprint") else 1.0)
+		var spd := FLY_SPEED * (2.5 if _held("sprint") else 1.0)
 		velocity = dir * spd + Vector3.UP * vy * spd * 0.6
 		swimming = false
 	elif in_water:
 		_swim(delta, dir, depth, head_under, Vector2(water.y, water.z))
 	else:
 		swimming = false
-		var speed := SPRINT_SPEED if Input.is_action_pressed("sprint") else WALK_SPEED
+		var speed := SPRINT_SPEED if _held("sprint") else WALK_SPEED
 		velocity.y -= GRAVITY * delta
-		if Input.is_action_pressed("jump") and grounded:
+		if _held("jump") and grounded:
 			velocity.y = JUMP_VELOCITY
 			grounded = false
 		var accel := 40.0 if grounded else 12.0
@@ -252,7 +265,7 @@ func _move(delta: float, in_water: bool) -> void:
 ## and down the fall line, A/D traverse; Space lets go. Over the top (or down
 ## onto ground gentle enough to stand on) the climb ends by itself.
 func _climb(delta: float) -> void:
-	var input := Input.get_vector("move_left", "move_right", "move_forward", "move_back")
+	var input := _move_input()
 	var g := Vector2(global_position.x, global_position.z) + _grip_offset
 	var n := world.normal_at(g.x, g.y)
 	var up_t := (Vector3.UP - n * n.y).normalized()
@@ -264,7 +277,7 @@ func _climb(delta: float) -> void:
 	n = world.normal_at(g.x, g.y)
 	up_t = (Vector3.UP - n * n.y).normalized()
 	right = up_t.cross(n)
-	if Input.is_action_just_pressed("jump") or (n.y > CLIMBABLE + 0.05 and input.length() > 0.1):
+	if _just("jump") or (n.y > CLIMBABLE + 0.05 and input.length() > 0.1):
 		# Let go, or step out onto ground you can stand on.
 		global_position = surface + Vector3.UP * 0.05
 		set_climbing(false)
@@ -293,16 +306,16 @@ func _process(_delta: float) -> void:
 ## you downstream.
 func _swim(delta: float, dir: Vector3, depth: float, head_under: bool, flow: Vector2) -> void:
 	var look := -head.global_basis.z
-	var forward := Input.get_vector("move_left", "move_right", "move_forward", "move_back").y < -0.3
-	swimming = head_under and forward and Input.is_action_pressed("sprint")
+	var forward := _move_input().y < -0.3
+	swimming = head_under and forward and _held("sprint")
 	var target := Vector3.ZERO
 	if swimming:
 		target = look * SWIM_SPRINT_SPEED
 	else:
 		target = dir * SWIM_SPEED
-		if Input.is_action_pressed("jump"):
+		if _held("jump"):
 			target.y = SWIM_UP_SPEED
-		elif Input.is_action_pressed("descend"):
+		elif _held("descend"):
 			target.y = -SWIM_UP_SPEED
 		else:
 			target.y = -SINK_SPEED
@@ -311,5 +324,5 @@ func _swim(delta: float, dir: Vector3, depth: float, head_under: bool, flow: Vec
 	target += Vector3(flow.x, 0.0, flow.y) * CURRENT_SPEED
 	velocity = velocity.move_toward(target, 9.0 * delta)
 	var ahead := global_position + Vector3(dir.x, 0.0, dir.z) * 0.6
-	if Input.is_action_pressed("jump") and depth < 1.6 and world.height_at(ahead.x, ahead.z) > global_position.y:
+	if _held("jump") and depth < 1.6 and world.height_at(ahead.x, ahead.z) > global_position.y:
 		velocity.y = 4.2 # climb out onto the bank

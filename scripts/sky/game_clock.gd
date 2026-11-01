@@ -20,6 +20,7 @@ signal day_changed(day: int)
 var day := 0               ## Days since the start; the moon's orbit follows it.
 var total_hours := 0.0     ## Game hours elapsed since the start (scrubbing included).
 var real_seconds := 0.0    ## Real seconds the clock has run.
+var typing := false        ## The chat is open: [ and ] are typed, not scrubbing.
 
 var _sunrise := 7.0
 var _sunset := 17.0
@@ -50,7 +51,7 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	if Engine.is_editor_hint():
 		return
-	var scrub := Input.get_axis(&"time_backward", &"time_forward") * scrub_speed
+	var scrub := 0.0 if typing else Input.get_axis(&"time_backward", &"time_forward") * scrub_speed
 	advance(((rate(time_of_day) if day_minutes > 0.0 else 0.0) + scrub) * delta)
 	real_seconds += delta
 

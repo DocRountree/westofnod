@@ -15,6 +15,7 @@ Open the folder in **Godot 4.3+** (Forward+ renderer) and press Play.
 | Ctrl + W, head under water | sprint-swim wherever you look |
 | Z | magnify (a telescope, for now a key); mouse wheel sets the power, 2x-8x |
 | [ / ] | run time backward / forward |
+| T / `/` | chat / commands (`/help`: `/tp`, `/time`, `/spawn`, `/fly`, `/zoom`, `/aurora`, `/pos`, `/clear`) |
 | F6 | debug: an aurora every night |
 | Space ×2 | toggle fly mode (Space / Shift to go up / down) |
 | F5 | toggle third-person camera |
