@@ -70,7 +70,14 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   the depth buffer can't be read, so the water's thickness falls back to the channel
   depth (rivers) or the sea floor (sea) and the view angle.
 - **Trees**: English oaks (`data/population/README.md`), streamed by `Population`.
-- **Grass** is a terrain texture (blade streaks and tufts).
+- **Grass and ferns** (`scripts/population/ground_cover.gd`, `ground_cover.gdshader`):
+  a grid of cells follows the camera in tiles; the shader decides per cell, from where
+  it is, what grows there, its place, size and colour: short grass the ground's own
+  colour in the forest, with drifts of ferns (a recursive frond texture), longer grass
+  green to blonde on the prairie (to 130 m). Each clump's root is the colour of the
+  ground beneath (`ground.gdshaderinc`, shared with the terrain), and with distance the
+  clumps thin out and shrink into it. The forest's brown patches carry a texture of
+  fallen oak and maple leaves near the eye. Textures: `tools/ground/bake_ground_textures.py`.
 - **Player** (`scripts/avatar.gd`): a stylised figure animated procedurally with two-bone
   IK. Walking: feet step in turn, arms swing. Climbing: hands and feet hold points on
   the rock surface (projected onto the terrain along its normal) and move one at a
@@ -149,4 +156,5 @@ the game. The terrain shader colours each biome its own way (`biome_ground` in
 `terrain.gdshader`: leaf litter, red sand and scrub, golden grass, mud and
 pools, moss and lichen with snow, conifer floor, banded red sandstone walls on
 scrubby caprock, black basalt and ash, beach and dunes), blending across the
-borders. `/pos` names the biome you're in.
+borders (`biome_ground` lives in `ground.gdshaderinc`, which the grass shares). `/pos`
+names the biome you're in.

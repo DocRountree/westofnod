@@ -2,7 +2,8 @@ extends Node3D
 ## Builds the world: the Galapagos archipelago (real elevation data baked by
 ## tools/dem/bake_galapagos.py) on one CDLOD quadtree, the ocean, sky and
 ## atmosphere, the player, and what lives on the land (Population: trees,
-## rocks, grass, NPCs, animals; content goes in data/population/).
+## rocks, NPCs, animals; content goes in data/population/; GroundCover:
+## grass and ferns).
 
 var world: WorldData
 var cdlod: Cdlod
@@ -15,6 +16,7 @@ var ocean: MeshInstance3D
 var ocean_material: ShaderMaterial
 var terrain_material: ShaderMaterial
 var population: Population
+var ground_cover: GroundCover
 
 const AURORA_LATITUDE := 45.0 # auroras are seen only north of this
 var config: WorldConfig
@@ -41,6 +43,7 @@ func _ready() -> void:
 	if world.biome_tex:
 		terrain_mat.set_shader_parameter("biome_tex", world.biome_tex)
 		terrain_mat.set_shader_parameter("swamp_biome", world.biome_names.find("swamp"))
+	GroundCover.setup_terrain(terrain_mat) # (the forest's leaf litter)
 	cdlod = Cdlod.new()
 	add_child(cdlod)
 	cdlod.setup(world, [terrain_mat])
@@ -90,6 +93,12 @@ func _ready() -> void:
 			if m is ShaderMaterial and not _hazed.has(m):
 				_hazed.append(m)
 				m.set_shader_parameter("haze_sun_dir", _sun.global_basis.z)
+	ground_cover = GroundCover.new()
+	add_child(ground_cover)
+	ground_cover.setup(world)
+	for m in ground_cover.materials:
+		_hazed.append(m)
+		m.set_shader_parameter("haze_sun_dir", _sun.global_basis.z)
 	player = Player.new()
 	player.world = world
 	player.population = population
@@ -356,6 +365,7 @@ func _process(_delta: float) -> void:
 	_magnify()
 	cdlod.update(cam)
 	population.update(player.global_position)
+	ground_cover.update(cam)
 	ocean_material.set_shader_parameter("view_pos", cam)
 	ocean.global_position = Vector3(snappedf(cam.x, 4.0), 0.0, snappedf(cam.z, 4.0))
 	# the sea's fine detail is computed near noise_origin (see ocean.gdshader), in doubles here
