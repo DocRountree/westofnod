@@ -5,3 +5,4 @@ export_presets.cfg
 tools/dem/.cache/
 tools/.cache_hyg.csv
 __pycache__/
+tools/_t.*
