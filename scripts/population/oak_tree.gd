@@ -43,14 +43,14 @@ const VARIANTS := [
 ## How a variant differs as a prop (Population applies these to its kind):
 ## weight is its share of the oaks; the stump and the dead oak are half as
 ## common as each standing tree, the three logs together three quarters,
-## each sapling half; the logs lie along the ground, can be walked over and
-## cast no shadow; dead oaks stand in the swamp too, as many as all the
+## each sapling half; the logs lie along the ground (never out into a
+## swamp), can be stood on and cast no shadow, the stumps jumped onto; dead oaks stand in the swamp too, as many as all the
 ## standing oaks (live, saplings and dead; not the logs or stumps) on the
 ## prairie, down into its shallows.
 const PROPS := {
 	"tree": {"standing": true},
-	"stump": {"weight": 0.5, "radius": 0.55, "align_to_ground": 0.3, "sink": 0.12, "scale_range": Vector2(0.8, 1.2)},
-	"log": {"weight": 0.25, "radius": 0.0, "align_to_ground": 0.9, "sink": 0.12, "scale_range": Vector2(0.8, 1.15), "shadows": false},
+	"stump": {"weight": 0.5, "radius": 0.0, "align_to_ground": 0.3, "sink": 0.12, "scale_range": Vector2(0.8, 1.1)},
+	"log": {"weight": 0.25, "radius": 0.0, "align_to_ground": 0.9, "sink": 0.12, "scale_range": Vector2(0.8, 1.15), "shadows": false, "footprint": 4.8},
 	"dead": {"weight": 0.5, "standing": true, "density_like": {"swamp": "prairie"}, "like_group": "standing", "height_range": Vector2(-0.5, 1900.0)},
 	"sapling": {"weight": 0.5, "standing": true, "radius": 0.1, "scale_range": Vector2(0.75, 1.25)},
 }
@@ -197,10 +197,16 @@ static func _models(variant: int) -> Array:
 
 
 ## Population: what can be stood on (PropKind.walk): a log's trunk, a
-## segment between each pair of its nodes. (Not the stubs of its limbs.)
+## segment between each pair of its nodes (not the stubs of its limbs); a
+## stump, a post to the bottom of its splinters (solid all round, too).
 static func build_walk(variant := 0) -> PackedFloat32Array:
 	var out := PackedFloat32Array()
 	variant = posmod(variant, VARIANTS.size())
+	if _kind(variant) == "stump":
+		var st := grow_stump(VARIANTS[variant])
+		var h := st.pos[st.branches[0][-1]].y
+		out.append_array([0.0, 0.0, 0.0, 0.0, h, 0.0, 0.55, 0.55])
+		return out
 	if _kind(variant) != "log":
 		return out
 	var tb := grow_log(VARIANTS[variant])
@@ -212,7 +218,7 @@ static func build_walk(variant := 0) -> PackedFloat32Array:
 	return out
 
 
-## A stump: snapped off 0.9-1.3 m up, splinters standing up round a
+## A stump: snapped off 0.75-1.1 m up (low enough to jump onto), splinters standing up round a
 ## broken, sunken middle; the roots flaring into buttresses.
 static func grow_stump(P: Dictionary) -> TreeBuilder:
 	var tb := TreeBuilder.new()
@@ -220,7 +226,7 @@ static func grow_stump(P: Dictionary) -> TreeBuilder:
 	tb.flare = 0.5
 	tb.bark_tint = Color(0.92, 0.9, 0.86)
 	tb.splinter = true
-	var h := tb.rng.randf_range(0.9, 1.3)
+	var h := tb.rng.randf_range(0.75, 1.1)
 	var nodes := PackedInt32Array([tb.add_node(Vector3.ZERO, -1, 0)])
 	for i in 3:
 		var y := h * (i + 1) / 3.0

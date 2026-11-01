@@ -16,7 +16,7 @@ extends Node3D
 ##
 ## Props with a radius are solid: push_out() moves a body out of them (the
 ## player and Actor call it). Fallen logs can be stood on (deck_at(); see
-## PropKind.walk), and are walls to a body below their top. Positions are world xz; the planet wraps
+## PropKind.walk), as can stumps; they are walls to a body below their top. Positions are world xz; the planet wraps
 ## (main.gd), but the map's edges are deep ocean, so no chunk straddles a seam.
 
 const CHUNK := 64.0
@@ -25,7 +25,7 @@ const ACTOR_DIR := "res://data/population/actors/"
 const APPLY_PER_FRAME := 2 ## Generated chunks added to the scene per frame, at most.
 const MAX_TASKS := 4 ## Chunks generating at once.
 const UID_OFFSET := 1 << 18
-const STEP_UP := 0.7 ## m: a body steps up onto a log this high above its feet; higher, it must jump
+const STEP_UP := 0.7 ## m: a body steps up onto a log or stump this high above its feet; higher, it must jump
 const BODY_HEIGHT := 1.7 ## m: a log this far above the feet passes overhead
 const LOD_FADE := 6.0 ## m either side of a switch between levels of detail over which they cross-fade (stippled)
 
@@ -197,8 +197,8 @@ func push_out(p: Vector3, r: float) -> Vector3:
 				if l2 < min_d * min_d:
 					var l := sqrt(l2)
 					q += (d / l if l > 1e-4 else Vector2.RIGHT) * (min_d - l)
-	# fallen logs: a wall to a body they stand too high above the feet of
-	# (more than a step) and that isn't ducking under them
+	# logs and stumps: a wall to a body they stand too high above the feet
+	# of (more than a step) and that isn't ducking under them
 	for dz in range(-1, 2):
 		for dx in range(-1, 2):
 			var ch: _Chunk = _chunks.get(c + Vector2i(dx, dz))
@@ -207,7 +207,10 @@ func push_out(p: Vector3, r: float) -> Vector3:
 			var w := ch.walk
 			for k in range(0, w.size(), 8):
 				var a := _on_segment(w, k, q)
-				if a.y + a.w <= p.y + STEP_UP or a.y - a.w >= p.y + BODY_HEIGHT:
+				var post := _is_post(w, k)
+				var top := maxf(w[k + 1], w[k + 4]) if post else a.y + a.w
+				var bottom := minf(w[k + 1], w[k + 4]) if post else a.y - a.w
+				if top <= p.y + STEP_UP or bottom >= p.y + BODY_HEIGHT:
 					continue
 				var d := q - Vector2(a.x, a.z)
 				var min_d := a.w + r
@@ -218,7 +221,7 @@ func push_out(p: Vector3, r: float) -> Vector3:
 	return Vector3(q.x, p.y, q.y)
 
 
-## The top of whatever can be stood on (fallen logs) at p (world; a sole of
+## The top of whatever can be stood on (fallen logs, stumps) at p (world; a sole of
 ## radius foot), the highest no higher than `below`; -INF if nothing.
 func deck_at(p: Vector3, below: float, foot := 0.15) -> float:
 	var best := -INF
@@ -236,10 +239,16 @@ func deck_at(p: Vector3, below: float, foot := 0.15) -> float:
 				var a := _on_segment(w, k, q)
 				var d := maxf(q.distance_to(Vector2(a.x, a.z)) - foot, 0.0)
 				if d < a.w:
-					var top := a.y + sqrt(a.w * a.w - d * d)
+					var top := maxf(w[k + 1], w[k + 4]) if _is_post(w, k) else a.y + sqrt(a.w * a.w - d * d)
 					if top <= below and top > best:
 						best = top
 	return best
+
+
+## Segment k of w stands steeper than 45°: a post (a stump), flat on top,
+## not a log lying round.
+static func _is_post(w: PackedFloat32Array, k: int) -> bool:
+	return absf(w[k + 4] - w[k + 1]) > Vector2(w[k + 3] - w[k], w[k + 5] - w[k + 2]).length()
 
 
 ## The point of segment k of w (a log's axis) nearest q over the ground
@@ -413,6 +422,8 @@ func _generate(key: Vector2i) -> void:
 				var s := rng.randf_range(kind.scale_range.x, kind.scale_range.y)
 				if keep >= kind.density_in(world.biome_index_at(x, z)):
 					continue
+				if kind.footprint > 0.0 and not _fits_around(kind, x, z, kind.footprint * s):
+					continue
 				var h := world.height_at(x, z)
 				var nrm := world.normal_at(x, z)
 				if not kind.fits(h, nrm):
@@ -461,6 +472,15 @@ func _generate(key: Vector2i) -> void:
 	_lock.lock()
 	_done.append(ch)
 	_lock.unlock()
+
+
+## The ground r m round (x, z), every way, is ground the kind grows in.
+func _fits_around(kind: PropKind, x: float, z: float, r: float) -> bool:
+	for i in 8:
+		var a := TAU * i / 8.0
+		if kind.density_in(world.biome_index_at(x + cos(a) * r, z + sin(a) * r)) <= 0.0:
+			return false
+	return true
 
 
 ## How many of something with mean count `mean` (the fraction by chance).
