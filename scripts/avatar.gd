@@ -206,6 +206,32 @@ func walk(delta: float, speed: float, on_floor: bool) -> void:
 	_feet(fwd, up.lerp(Vector3.UP, 0.4))
 
 
+## Swimming, lying along the way (the player turns the figure): arms reach
+## ahead and pull back in turn, legs flutter behind. speed in m/s.
+func swim(delta: float, speed: float) -> void:
+	_phase += delta * (2.0 + speed * 0.25)
+	_hips.position.y = 0.95
+	_hips.rotation = Vector3(0.0, sin(_phase) * 0.15, 0.0)  # a roll with the strokes
+	_chest.rotation = Vector3.ZERO
+	_head.rotation = Vector3(-1.2, 0.0, 0.0)                 # looking ahead, not down
+	var t := global_transform
+	for side: int in [-1, 1]:
+		var sname := "l" if side < 0 else "r"
+		var fs := float(side)
+		var a := _phase + (0.0 if side < 0 else PI)
+		# crawl: the hand reaches past the head, then pulls down to the hip
+		var reach := Vector3(0.2 * fs, 1.95 + 0.35 * cos(a), -0.12 + 0.25 * maxf(sin(a), 0.0))
+		var arm: Dictionary = _limbs[sname + "_arm"]
+		_solve(arm, t * reach, t.basis * Vector3(fs * 0.5, 0.0, 0.6))
+		# flutter kick
+		var kick := Vector3(0.11 * fs, 0.12, 0.12 * sin(_phase * 3.0 + (0.0 if side < 0 else PI)))
+		var leg: Dictionary = _limbs[sname + "_leg"]
+		_solve(leg, t * kick, t.basis * Vector3(0.0, 0.0, -1.0))
+		arm.hold = Vector3.INF
+		leg.hold = Vector3.INF
+	_feet(-t.basis.y, t.basis.z) # pointed toes, trailing
+
+
 ## Climbing. surface: the rock point under the body's centre; n: its normal;
 ## up_t: up the fall line; moved: how far the body moved over the rock this
 ## frame. Each limb holds a point on the rock surface; in turn (right hand,

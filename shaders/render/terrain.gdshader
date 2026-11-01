@@ -101,9 +101,9 @@ vec3 biome_ground(int b, Shared s, out float rough, out float rocky) {
 		ground = mix(ground, vec3(0.62, 0.55, 0.30), clump(s, 0.12) * 0.6);
 	} else if (b == 3) {     // swamp: dark mud and moss, standing water
 		ground = mix(vec3(0.15, 0.16, 0.09), vec3(0.22, 0.25, 0.12), s.patches);
-		float pools = clump(s, 0.3);
-		ground = mix(ground, vec3(0.05, 0.08, 0.07), pools);
-		rough = mix(0.9, 0.15, pools);
+		float pools = clump(s, 0.6);                                    // mostly water
+		ground = mix(ground, vec3(0.04, 0.07, 0.07), pools);
+		rough = mix(0.9, 0.08, pools);
 	} else if (b == 4) {     // tundra: grey-green moss and lichen, snow higher up
 		ground = mix(vec3(0.40, 0.42, 0.33), vec3(0.52, 0.50, 0.40), s.patches);
 		ground = mix(ground, vec3(0.55, 0.42, 0.30), clump(s, 0.1) * 0.5);  // rust lichen

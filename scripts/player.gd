@@ -15,9 +15,9 @@ const MOUSE_SENS := 0.0025
 const FOV := 75.0
 const MAX_ZOOM := 8.0 # (ScatterField.MAX_ZOOM: the tree budget covers this much)
 const THIRD_PERSON_DISTANCE := 4.5
-const SWIM_SPEED := 2.2
-const SWIM_SPRINT_SPEED := 5.6
-const SWIM_UP_SPEED := 2.4
+const SWIM_SPEED := 8.8
+const SWIM_SPRINT_SPEED := 22.4
+const SWIM_UP_SPEED := 9.6
 const SINK_SPEED := 0.6
 const CURRENT_SPEED := 1.4 # m/s at full river flow (as river.gdshader's river_speed)
 const CLIMB_SPEED := 3.5
@@ -212,8 +212,17 @@ func _physics_process(delta: float) -> void:
 		velocity.x = move_toward(velocity.x, dir.x * speed, accel * delta)
 		velocity.z = move_toward(velocity.z, dir.z * speed, accel * delta)
 	_move(delta, in_water)
-	# The figure faces where it is going and steps along.
+	# The figure faces where it is going and steps along; sprint-swimming,
+	# it lies out along its way and swims (as in Minecraft).
 	var hv := Vector3(velocity.x, 0.0, velocity.z)
+	if in_water and swimming and not flying and velocity.length() > 1.0:
+		var way := velocity.normalized()
+		var back := (Vector3.UP - way * way.y).normalized() if absf(way.y) < 0.98 else -global_basis.z
+		var prone := Basis(way.cross(back).normalized(), way, back) # up along the way, back to the sky
+		avatar.global_basis = avatar.global_basis.orthonormalized().slerp(prone, minf(1.0, delta * 6.0))
+		if avatar.visible:
+			avatar.swim(delta, velocity.length())
+		return
 	if hv.length() > 0.3:
 		var want := Basis.looking_at(hv.normalized(), Vector3.UP)
 		avatar.global_basis = avatar.global_basis.orthonormalized().slerp(want, minf(1.0, delta * 10.0))
@@ -321,7 +330,7 @@ func _process(_delta: float) -> void:
 func _swim(delta: float, dir: Vector3, depth: float, head_under: bool, flow: Vector2) -> void:
 	var look := -head.global_basis.z
 	var forward := _move_input().y < -0.3
-	swimming = head_under and forward and _held("sprint")
+	swimming = forward and _held("sprint") # (Ctrl + forward: swim flat out, as in Minecraft)
 	var target := Vector3.ZERO
 	if swimming:
 		target = look * SWIM_SPRINT_SPEED
@@ -336,7 +345,7 @@ func _swim(delta: float, dir: Vector3, depth: float, head_under: bool, flow: Vec
 	# The current carries you along; water is thick, so velocities ease toward
 	# the target (and a dive is braked).
 	target += Vector3(flow.x, 0.0, flow.y) * CURRENT_SPEED
-	velocity = velocity.move_toward(target, 9.0 * delta)
+	velocity = velocity.move_toward(target, 36.0 * delta)
 	var ahead := global_position + Vector3(dir.x, 0.0, dir.z) * 0.6
 	if _held("jump") and depth < 1.6 and world.height_at(ahead.x, ahead.z) > global_position.y:
 		velocity.y = 4.2 # climb out onto the bank

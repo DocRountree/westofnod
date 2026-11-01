@@ -249,10 +249,39 @@ def mesas(h, cell, domain):
     return out
 
 
+def flatten_swamps(h, cell, domain, land):
+    """The swamps (tools/map/biomes.py: SWAMPS, their fractal edges) laid
+    flat: a marsh about a metre above the sea, nearly level, blended into the
+    land around over ~300 m."""
+    sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "map"))
+    import biomes
+    out = h.copy()
+    to_idx = lambda lon, lat: ((lon + 180.0) / 360.0 * (SIZE - 1), (90.0 - lat) / 180.0 * (SIZE - 1))
+    for (a, b, half) in biomes.SWAMPS:
+        pad = (half + 2.0) / biomes.KM_PER_DEG[1] * 2.0
+        x0, y0 = to_idx(min(a[0], b[0]) - pad, max(a[1], b[1]) + pad)
+        x1, y1 = to_idx(max(a[0], b[0]) + pad, min(a[1], b[1]) - pad)
+        sl = (slice(max(int(y0), 0), min(int(y1) + 1, SIZE)), slice(max(int(x0), 0), min(int(x1) + 1, SIZE)))
+        ys, xs = np.mgrid[sl]
+        lon = xs / (SIZE - 1) * 360.0 - 180.0
+        lat = 90.0 - ys / (SIZE - 1) * 180.0
+        inside = np.zeros(ys.shape, bool)
+        for idx in np.ndindex(ys.shape):
+            inside[idx] = biomes.swamp(lon[idx], lat[idx])
+        inside &= land[sl]
+        reach = ndimage.distance_transform_edt(~inside) * cell
+        w = np.clip(1.0 - reach / 300.0, 0.0, 1.0)
+        w = w * w * (3 - 2 * w)
+        marsh = 1.0 + 0.15 * np.clip(ndimage.gaussian_filter(h[sl], 30.0) - 1.0, 0.0, 20.0)
+        out[sl] = np.where(land[sl], h[sl] * (1 - w) + marsh * w, h[sl])
+        print("  swamp: %.1f km2 laid flat" % (inside.sum() * cell * cell / 1e6))
+    return out
+
+
 BATHY = "/vsicurl/https://s3.amazonaws.com/elevation-tiles-prod/geotiff/{z}/{x}/{y}.tif"
 BATHY_Z = 9
 SEA_MAX = 80.0      # m: the deepest the game's sea gets
-SEA_SCALE = 800.0   # m of real depth: shallower than this is kept nearly as is
+SEA_SCALE = 400.0   # m of real depth: shallower than this is kept nearly as is
 
 
 def _bathy_corner():
@@ -326,10 +355,12 @@ def main():
     h = transplant(h, cell, land, rng).astype(np.float32)
     print("mesas...")
     h = mesas(h, cell, domain).astype(np.float32)
+    print("swamps...")
+    h = flatten_swamps(h, cell, domain, land).astype(np.float32)
     print("sea floor...")
     d_sea = ndimage.distance_transform_edt(~land) * cell
     # real bathymetry, made shallower for diving: depths compressed smoothly
-    # (SEA_MAX * tanh(depth / SEA_SCALE): a 100 m shelf comes out ~10 m, the
+    # (SEA_MAX * tanh(depth / SEA_SCALE): a 100 m shelf comes out ~20 m, the
     # deep ocean ~80 m), its shapes kept; near the shore no deeper than a
     # gentle ramp from the coast (the data is too coarse to know the
     # coastline), and never above the water where the land is ours
@@ -338,7 +369,9 @@ def main():
         Z, X = np.meshgrid(g[r0:r0 + 512], g, indexing="ij")
         real = real_sea_floor(lon_c + X / m_lon, lat_c - Z / m_lat)
         floor[r0:r0 + 512] = -SEA_MAX * np.tanh(np.maximum(-real, 0.0) / SEA_SCALE)
-    floor = -np.maximum(np.minimum(-floor, 2.0 + 0.02 * d_sea), 1.0)
+    # (the coarse data often has land just off our coasts: the floor still
+    # drops away, at least 6 m per 100 m out to 25 m)
+    floor = -np.clip(-floor, np.minimum(1.0 + 0.06 * d_sea, 25.0), 2.0 + 0.08 * d_sea)
     h = np.where(land, h, np.minimum(h, floor))
     # The sea floor is synthetic and smooth: whole metres are plenty, and they
     # compress far better.

@@ -40,8 +40,8 @@ The baker reads only the window it needs and writes:
   height, a cliff wall up to 250 m round the rim, the flanks below lowered less
   and less down to the lowland (`mesas` in the baker).
   The sea floor is real bathymetry (AWS Terrain Tiles: ETOPO1 and NOAA, ~150 m),
-  made shallower for diving: depth compressed smoothly to 80 m x tanh(depth / 800 m),
-  so a 100 m shelf is ~10 m and the open ocean ~80 m, shapes kept; near the shore
+  made shallower for diving: depth compressed smoothly to 80 m x tanh(depth / 400 m),
+  so a 100 m shelf is ~20 m and the open ocean ~80 m, shapes kept; near the shore
   no deeper than a gentle ramp from the coast. Downloaded tiles are
   cached in `tools/dem/.cache/`, so a rebake takes about two minutes.
 - `masks.png`: young lava (rough, bare), humid highlands (wetter on the south-east,
