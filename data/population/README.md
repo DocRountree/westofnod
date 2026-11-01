@@ -35,8 +35,9 @@ like the old, a long slender one, a short heavy one). Shares
 (`OakTree.PROPS`): stump, dead oak and each sapling half as common as each
 standing tree, the three logs together three quarters; the logs snapped at
 both ends, cast no shadow and can be walked over; dead oaks also stand in
-the swamp (as many as on the prairie, `density_like`), into its shallows,
-and don't sway.
+the swamp, as many as all the standing oaks (live, saplings, dead; not
+logs or stumps) on the prairie (`density_like`, `like_group`), into its
+shallows, and don't sway.
 
 - Growth: a stout trunk with flared roots that runs on into the crown as a
   leader, giving off limbs one by one in a spiral (the lowest longest and

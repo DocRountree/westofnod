@@ -44,14 +44,15 @@ const VARIANTS := [
 ## weight is its share of the oaks; the stump and the dead oak are half as
 ## common as each standing tree, the three logs together three quarters,
 ## each sapling half; the logs lie along the ground, can be walked over and
-## cast no shadow; dead oaks stand in the swamp too (as many as on the
-## prairie), down into its shallows.
+## cast no shadow; dead oaks stand in the swamp too, as many as all the
+## standing oaks (live, saplings and dead; not the logs or stumps) on the
+## prairie, down into its shallows.
 const PROPS := {
-	"tree": {},
+	"tree": {"standing": true},
 	"stump": {"weight": 0.5, "radius": 0.55, "align_to_ground": 0.3, "sink": 0.12, "scale_range": Vector2(0.8, 1.2)},
 	"log": {"weight": 0.25, "radius": 0.0, "align_to_ground": 0.9, "sink": 0.12, "scale_range": Vector2(0.8, 1.15), "shadows": false},
-	"dead": {"weight": 0.5, "density_like": {"swamp": "prairie"}, "height_range": Vector2(-0.5, 1900.0)},
-	"sapling": {"weight": 0.5, "radius": 0.1, "scale_range": Vector2(0.75, 1.25)},
+	"dead": {"weight": 0.5, "standing": true, "density_like": {"swamp": "prairie"}, "like_group": "standing", "height_range": Vector2(-0.5, 1900.0)},
+	"sapling": {"weight": 0.5, "standing": true, "radius": 0.1, "scale_range": Vector2(0.75, 1.25)},
 }
 
 # per level (0 trunk .. 3 twigs)
