@@ -29,6 +29,7 @@ var biome_tex: Texture2D
 var biome_names: Array = []
 var _biome_bytes := PackedByteArray()
 var _biome_size := 0
+var _swamp := -1 # the swamp's biome index
 
 
 func load_world() -> WorldData:
@@ -54,6 +55,7 @@ func load_world() -> WorldData:
 		biome_names = meta.biomes.names
 		_biome_size = bimg.get_width()
 		_biome_bytes = bimg.get_data()
+		_swamp = biome_names.find("swamp")
 	var s: Array = meta.spawn
 	spawn = Vector3(s[0], height_at(s[0], s[1]) + 3.0, s[1])
 	return self
@@ -107,7 +109,23 @@ static func _bspline(t: float) -> PackedFloat32Array:
 ## Ground height (as drawn, at full detail).
 func height_at(x: float, z: float) -> float:
 	var b := base_height(x, z)
-	return b + detail(x, z) * clampf((b - 0.5) / 3.0, 0.0, 1.0)
+	return b + detail(x, z) * clampf((b - 0.5) / 3.0, 0.0, 1.0) * (1.0 - swampiness(x, z))
+
+
+## How much of a swamp (x, z) is in, 0..1: the four nearest biome texels
+## blended, as in height_map.gdshaderinc (no fine relief there).
+func swampiness(x: float, z: float) -> float:
+	if _biome_size == 0 or _swamp < 0:
+		return 0.0
+	var g := (Vector2(x, z) - origin) / (domain + cell()) * _biome_size - Vector2(0.5, 0.5)
+	var i := floori(g.x)
+	var j := floori(g.y)
+	var f := g - Vector2(i, j)
+	var v := func(a: int, b: int) -> float:
+		var ca := clampi(a, 0, _biome_size - 1)
+		var cb := clampi(b, 0, _biome_size - 1)
+		return 1.0 if _biome_bytes[cb * _biome_size + ca] == _swamp else 0.0
+	return lerpf(lerpf(v.call(i, j), v.call(i + 1, j), f.x), lerpf(v.call(i, j + 1), v.call(i + 1, j + 1), f.x), f.y)
 
 
 ## Procedural relief below the data's resolution (as terrain_height in the shader).

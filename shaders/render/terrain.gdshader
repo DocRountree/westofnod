@@ -50,7 +50,7 @@ float vnoise(vec2 p) {
 // Biomes (tools/map/bake_biomes.py): index into
 // forest, mesa, prairie, swamp, tundra, taiga, plateau, volcano, mountains,
 // island, coast; 255 none.
-uniform sampler2D biome_tex : filter_nearest, repeat_disable;
+// (biome_tex: declared in height_map.gdshaderinc)
 
 struct Shared {
 	vec2 p;

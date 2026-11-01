@@ -250,9 +250,11 @@ def mesas(h, cell, domain):
 
 
 def flatten_swamps(h, cell, domain, land):
-    """The swamps (tools/map/biomes.py: SWAMPS, their fractal edges) laid
-    flat: a marsh about a metre above the sea, nearly level, blended into the
-    land around over ~300 m."""
+    """The swamps (tools/map/biomes.py: SWAMPS, their fractal edges) smoothed:
+    the ground averaged over ~700 m, so it keeps the land's fall from the
+    mountains to the sea (and meets the land around at its level) but loses
+    every local bump, blended in over ~300 m. (The game's fine relief is
+    switched off there too: terrain_height / WorldData.height_at.)"""
     sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "map"))
     import biomes
     out = h.copy()
@@ -272,9 +274,9 @@ def flatten_swamps(h, cell, domain, land):
         reach = ndimage.distance_transform_edt(~inside) * cell
         w = np.clip(1.0 - reach / 300.0, 0.0, 1.0)
         w = w * w * (3 - 2 * w)
-        marsh = 1.0 + 0.15 * np.clip(ndimage.gaussian_filter(h[sl], 30.0) - 1.0, 0.0, 20.0)
+        marsh = np.maximum(ndimage.gaussian_filter(h[sl], 20.0), 0.5)
         out[sl] = np.where(land[sl], h[sl] * (1 - w) + marsh * w, h[sl])
-        print("  swamp: %.1f km2 laid flat" % (inside.sum() * cell * cell / 1e6))
+        print("  swamp: %.1f km2 smoothed" % (inside.sum() * cell * cell / 1e6))
     return out
 
 

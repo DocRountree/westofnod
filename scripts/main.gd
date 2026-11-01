@@ -38,6 +38,7 @@ func _ready() -> void:
 	terrain_mat.set_shader_parameter("mask_tex", world.mask_tex)
 	if world.biome_tex:
 		terrain_mat.set_shader_parameter("biome_tex", world.biome_tex)
+		terrain_mat.set_shader_parameter("swamp_biome", world.biome_names.find("swamp"))
 	cdlod = Cdlod.new()
 	add_child(cdlod)
 	cdlod.setup(world, [terrain_mat])

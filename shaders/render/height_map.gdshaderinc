@@ -121,9 +121,30 @@ float terrain_detail(vec2 p) {
 }
 
 // The ground as drawn: the data's surface from mip m, plus the relief (on land).
+// Biomes (tools/map/bake_biomes.py; terrain.gdshader colours by them). In a
+// swamp the ground is smooth: no fine relief.
+uniform sampler2D biome_tex : filter_nearest, repeat_disable;
+uniform int swamp_biome = 3;
+
+// How much of a swamp p is in (the four nearest biome texels, blended).
+float swampiness(vec2 p) {
+	vec2 bsz = vec2(textureSize(biome_tex, 0));
+	if (bsz.x < 2.0)
+		return 0.0;
+	vec2 g = (p - map_origin) / (map_domain + map_cell()) * bsz - 0.5;
+	ivec2 i = ivec2(floor(g));
+	vec2 f = g - floor(g);
+	float v[4];
+	for (int k = 0; k < 4; k++) {
+		ivec2 c = clamp(i + ivec2(k & 1, k >> 1), ivec2(0), ivec2(bsz) - 1);
+		v[k] = int(texelFetch(biome_tex, c, 0).r * 255.0 + 0.5) == swamp_biome ? 1.0 : 0.0;
+	}
+	return mix(mix(v[0], v[1], f.x), mix(v[2], v[3], f.x), f.y);
+}
+
 float terrain_height(vec2 p, int m) {
 	float b = base_height(p, m);
-	return b + terrain_detail(p) * clamp((b - 0.5) / 3.0, 0.0, 1.0);
+	return b + terrain_detail(p) * clamp((b - 0.5) / 3.0, 0.0, 1.0) * (1.0 - swampiness(p));
 }
 
 vec3 terrain_normal(vec2 p, int m, float e) {
