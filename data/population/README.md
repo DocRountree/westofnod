@@ -42,11 +42,15 @@ as each standing tree (`OakTree.PROPS`).
 - Leaves: alpha-cut cards from `textures/oak_leaves.png`, sprigs of English
   oak leaves (lobed, ~11 cm) near, clumps further off; lit as one crown,
   light through them from behind; flutter in the wind.
-- Bark: `textures/oak_bark.png` (furrowed, alpha = height for the bumps);
+- Wind: the twigs and their leaves sway together in slow gusts
+  (`shaders/render/wind.gdshaderinc`), the leaves flutter on top.
+- Bark: `textures/oak_bark.png` (furrowed, alpha = height for the bumps;
+  past 60-90 m only its average colour, dissolving between the two);
   cut and broken ends show growth rings. Textures: `python3
   tools/trees/bake_oak_textures.py`.
-- Level of detail: full (16-30k triangles a tree) within 50 m, ~2-4k to
-  180 m, under 1k to 600 m, cross-fading stippled over 12 m at each switch
+- Level of detail: full (16-30k triangles a tree) within 40 m, 3-6k to
+  120 m, ~1k to 300 m, 200-400 (the stem and a few big clumps) to 600 m,
+  cross-fading stippled over 12 m at each switch
   (`shaders/render/lod_fade.gdshaderinc`, set per chunk by Population); on
   top of that the leaf cards thin out with distance in the shader (the rest
   grow to keep the cover), each dissolving rather than popping.

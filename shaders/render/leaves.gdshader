@@ -25,9 +25,10 @@ render_mode cull_disabled;
 
 #include "res://shaders/render/aerial.gdshaderinc"
 #include "res://shaders/render/lod_fade.gdshaderinc"
+#include "res://shaders/render/wind.gdshaderinc"
 
 uniform sampler2D leaf_tex : source_color, filter_linear_mipmap_anisotropic, repeat_disable;
-uniform float flutter = 0.03; // m
+uniform float flutter = 0.045; // m
 uniform float brightness = 1.4; // (the atlas is painted dark)
 uniform float shadow_strength = 0.55;
 uniform float translucency = 0.5; // light through the leaves from behind
@@ -46,7 +47,8 @@ void vertex() {
 	VERTEX = card_fade <= 0.0 ? mid : mid + CUSTOM0.xyz * inversesqrt(keep);
 	world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 	float ph = dot(world_pos, vec3(0.37, 0.21, 0.29));
-	VERTEX += NORMAL * sin(TIME * 2.3 + ph) * flutter * UV2.y;
+	VERTEX += NORMAL * sin(TIME * 2.3 + ph) * flutter * UV2.y; // the leaves flutter...
+	VERTEX += wind_local(MODEL_MATRIX, mid, 1.0, TIME);        // ...and sway with their twig
 	world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 }
 

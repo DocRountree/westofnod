@@ -99,8 +99,9 @@ static func build_shadow(variant := 0) -> Mesh:
 	return _shadow
 
 
-## Simpler versions for further off: branches and clump cards to 50-180 m,
-## limbs and a few big clump cards beyond.
+## Simpler versions for further off: branches and clump cards to 40-120 m,
+## limbs and fewer, bigger clumps to 300 m, the stem and a few big clumps
+## beyond.
 static func build_lods(variant := 0) -> Array[Mesh]:
 	return _models(variant)[1]
 
@@ -115,16 +116,17 @@ static func _models(variant: int) -> Array:
 		match _kind(variant):
 			"stump":
 				tb = grow_stump(VARIANTS[variant])
-				lods = [tb.lod(b, l, 0, 2, 0, 1.0), tb.lod(b, l, 0, 3, 0, 1.0)]
+				lods = [tb.lod(b, l, 0, 2, 0, 1.0), tb.lod(b, l, 0, 3, 0, 1.0), tb.lod(b, l, 0, 4, 0, 1.0)]
 			"log":
 				tb = grow_log(VARIANTS[variant])
-				lods = [tb.lod(b, l, 1, 2, 0, 1.0), tb.lod(b, l, 0, 3, 0, 1.0)]
+				lods = [tb.lod(b, l, 1, 2, 0, 1.0), tb.lod(b, l, 0, 3, 0, 1.0), tb.lod(b, l, 0, 4, 0, 1.0)]
 			"dead":
 				tb = grow_dead(VARIANTS[variant])
-				lods = [tb.lod(b, l, 2, 2, 0, 1.0), tb.lod(b, l, 1, 3, 0, 1.0)]
+				lods = [tb.lod(b, l, 2, 2, 0, 1.0), tb.lod(b, l, 1, 3, 0, 1.0), tb.lod(b, l, 0, 4, 0, 1.0)]
 			_:
 				tb = grow(variant)
-				lods = [tb.lod(b, l, 2, 2, 4, 1.0, 50.0), tb.lod(b, l, 1, 3, 14, 2.0, 180.0)]
+				# (40-120 m, 120-300 m, 300 m on: oak.tres lod_distances)
+				lods = [tb.lod(b, l, 2, 2, 4, 1.0, 40.0), tb.lod(b, l, 1, 3, 12, 2.0, 120.0), tb.lod(b, l, 0, 4, 36, 3.2, 300.0)]
 		_cache[variant] = [tb.build(b, l, 12.0), lods]
 	return _cache[variant]
 

@@ -3,17 +3,23 @@ shader_type spatial;
 // Bark: the texture's colour, its alpha the height, turned into bumps with
 // screen-space derivatives (no tangents needed: Mikkelsen's surface
 // gradient), and darker down in the furrows. Vertex colour tints it.
+// Far off (detail_far) the texture and the bumps are dropped for the
+// bark's average colour, dissolving (stippled) between the two. The thin
+// outer wood sways in the wind with its leaves (wind.gdshaderinc).
 
 #include "res://shaders/render/aerial.gdshaderinc"
 #include "res://shaders/render/lod_fade.gdshaderinc"
+#include "res://shaders/render/wind.gdshaderinc"
 
 uniform sampler2D bark_tex : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
 uniform float bump = 0.012; // m of relief at full height
 uniform float shadow_strength = 0.6;
+uniform vec2 detail_far = vec2(60.0, 90.0); // m: the texture fades out between these
 
 varying vec3 world_pos;
 
 void vertex() {
+	VERTEX += wind_local(MODEL_MATRIX, VERTEX, UV2.y, TIME);
 	world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 }
 
@@ -38,6 +44,13 @@ void fragment() {
 		ALBEDO = end_grain(UV) * COLOR.rgb;
 		ROUGHNESS = 0.9;
 		SPECULAR = 0.2;
+	} else if (smoothstep(detail_far.x, detail_far.y, distance(world_pos, CAMERA_POSITION_WORLD)) > bayer4(FRAGCOORD.xy + 1.0)) {
+		// far: the bark's average colour (the texture's smallest mip), flat
+		ALBEDO = textureLod(bark_tex, vec2(0.5), 12.0).rgb * COLOR.rgb;
+		AO = 0.75;
+		AO_LIGHT_AFFECT = 0.25;
+		ROUGHNESS = 0.92;
+		SPECULAR = 0.25;
 	} else {
 		vec4 t = texture(bark_tex, UV);
 		float h = t.a * bump;

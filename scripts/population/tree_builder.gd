@@ -209,7 +209,8 @@ func _tube(st: SurfaceTool, b: PackedInt32Array, sides_div: int, cap: Array) -> 
 			if i == n - 1 and cap[1]:
 				at += g[1] * _jag(a, cap[2], splinter)
 			st.set_uv(Vector2(float(k) / sides * wraps, g[5] / bark_tile))
-			st.set_uv2(Vector2.ZERO)
+			# y: how much it sways in the wind (the twigs, not the stout wood)
+			st.set_uv2(Vector2(0.0, clampf((0.05 - g[4]) / 0.04, 0.0, 1.0)))
 			st.set_normal(dir)
 			st.set_color(bark_tint)
 			st.add_vertex(at)
