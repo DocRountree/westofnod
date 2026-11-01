@@ -15,7 +15,8 @@ extends Node3D
 ## files), or register_prop() / register_actor().
 ##
 ## Props with a radius are solid: push_out() moves a body out of them (the
-## player and Actor call it). Positions are world xz; the planet wraps
+## player and Actor call it). Fallen logs can be stood on (deck_at(); see
+## PropKind.walk), and are walls to a body below their top. Positions are world xz; the planet wraps
 ## (main.gd), but the map's edges are deep ocean, so no chunk straddles a seam.
 
 const CHUNK := 64.0
@@ -24,6 +25,8 @@ const ACTOR_DIR := "res://data/population/actors/"
 const APPLY_PER_FRAME := 2 ## Generated chunks added to the scene per frame, at most.
 const MAX_TASKS := 4 ## Chunks generating at once.
 const UID_OFFSET := 1 << 18
+const STEP_UP := 0.7 ## m: a body steps up onto a log this high above its feet; higher, it must jump
+const BODY_HEIGHT := 1.7 ## m: a log this far above the feet passes overhead
 const LOD_FADE := 6.0 ## m either side of a switch between levels of detail over which they cross-fade (stippled)
 
 @export var actor_radius := 160.0 ## Actors live in the chunks this near the player.
@@ -47,6 +50,7 @@ class _Chunk:
 	var key: Vector2i
 	var nodes: Array[Node3D] = [] # one MultiMeshInstance3D per kind present
 	var obstacles := PackedFloat32Array() # x, z, radius
+	var walk := PackedFloat32Array() # world segments to stand on (PropKind.walk)
 	var spawns: Array = [] # [actor kind index, position, seed]
 	var actors: Array[Actor] = []
 	var uids: Array = [] # per prop kind: PackedInt64Array of the instances' uids
@@ -119,6 +123,8 @@ func _variants(k: PropKind) -> Array[PropKind]:
 			kv.mesh = kv.mesh_script.build(v)
 		if kv.lods.is_empty() and kv.mesh_script and kv.mesh_script.has_method("build_lods"):
 			kv.lods = kv.mesh_script.build_lods(v)
+		if kv.walk.is_empty() and kv.mesh_script and kv.mesh_script.has_method("build_walk"):
+			kv.walk = kv.mesh_script.build_walk(v)
 		if kv.shadow_mesh == null and kv.mesh_script and kv.mesh_script.has_method("build_shadow"):
 			kv.shadow_mesh = kv.mesh_script.build_shadow(v)
 		out.append(kv)
@@ -191,7 +197,75 @@ func push_out(p: Vector3, r: float) -> Vector3:
 				if l2 < min_d * min_d:
 					var l := sqrt(l2)
 					q += (d / l if l > 1e-4 else Vector2.RIGHT) * (min_d - l)
+	# fallen logs: a wall to a body they stand too high above the feet of
+	# (more than a step) and that isn't ducking under them
+	for dz in range(-1, 2):
+		for dx in range(-1, 2):
+			var ch: _Chunk = _chunks.get(c + Vector2i(dx, dz))
+			if ch == null:
+				continue
+			var w := ch.walk
+			for k in range(0, w.size(), 8):
+				var a := _on_segment(w, k, q)
+				if a.y + a.w <= p.y + STEP_UP or a.y - a.w >= p.y + BODY_HEIGHT:
+					continue
+				var d := q - Vector2(a.x, a.z)
+				var min_d := a.w + r
+				var l2 := d.length_squared()
+				if l2 < min_d * min_d:
+					var l := sqrt(l2)
+					q += (d / l if l > 1e-4 else Vector2.RIGHT) * (min_d - l)
 	return Vector3(q.x, p.y, q.y)
+
+
+## The top of whatever can be stood on (fallen logs) at p (world; a sole of
+## radius foot), the highest no higher than `below`; -INF if nothing.
+func deck_at(p: Vector3, below: float, foot := 0.15) -> float:
+	var best := -INF
+	if _chunks.is_empty():
+		return best
+	var c := _key(p)
+	var q := Vector2(p.x, p.z)
+	for dz in range(-1, 2):
+		for dx in range(-1, 2):
+			var ch: _Chunk = _chunks.get(c + Vector2i(dx, dz))
+			if ch == null:
+				continue
+			var w := ch.walk
+			for k in range(0, w.size(), 8):
+				var a := _on_segment(w, k, q)
+				var d := maxf(q.distance_to(Vector2(a.x, a.z)) - foot, 0.0)
+				if d < a.w:
+					var top := a.y + sqrt(a.w * a.w - d * d)
+					if top <= below and top > best:
+						best = top
+	return best
+
+
+## The point of segment k of w (a log's axis) nearest q over the ground
+## (x, y, z) and the log's radius there (w).
+static func _on_segment(w: PackedFloat32Array, k: int, q: Vector2) -> Vector4:
+	var a := Vector2(w[k], w[k + 2])
+	var ab := Vector2(w[k + 3], w[k + 5]) - a
+	var l2 := ab.length_squared()
+	var t := clampf((q - a).dot(ab) / l2, 0.0, 1.0) if l2 > 1e-6 else 0.0
+	var at := a + ab * t
+	return Vector4(at.x, lerpf(w[k + 1], w[k + 4], t), at.y, lerpf(w[k + 6], w[k + 7], t))
+
+
+## Appends instance i's walkable segments (kind.walk), in the world.
+static func _add_walk(out: PackedFloat32Array, kind: PropKind, xf: PackedFloat32Array, i: int, base: Vector3) -> void:
+	var w := kind.walk
+	if w.is_empty():
+		return
+	var j := i * 12
+	var b := Basis(Vector3(xf[j], xf[j + 4], xf[j + 8]), Vector3(xf[j + 1], xf[j + 5], xf[j + 9]), Vector3(xf[j + 2], xf[j + 6], xf[j + 10]))
+	var t := Transform3D(b, Vector3(xf[j + 3], xf[j + 7], xf[j + 11]) + base)
+	var s := b.x.length()
+	for k in range(0, w.size(), 8):
+		var a := t * Vector3(w[k], w[k + 1], w[k + 2])
+		var e := t * Vector3(w[k + 3], w[k + 4], w[k + 5])
+		out.append_array([a.x, a.y, a.z, e.x, e.y, e.z, w[k + 6] * s, w[k + 7] * s])
 
 
 ## Takes a prop out of the world for good (uid: from prop_at()).
@@ -320,6 +394,7 @@ func _generate(key: Vector2i) -> void:
 	var base := Vector2(key) * CHUNK
 	var area_ha := CHUNK * CHUNK / 10000.0
 	var obstacles := PackedFloat32Array()
+	var walk := PackedFloat32Array()
 	for k in props.size():
 		var kind := props[k]
 		var xf := PackedFloat32Array()
@@ -353,9 +428,11 @@ func _generate(key: Vector2i) -> void:
 				uids.append(uid)
 				if kind.radius > 0.0:
 					obstacles.append_array([x, z, kind.radius * s])
+				_add_walk(walk, kind, xf, xf.size() / 12 - 1, Vector3(base.x, 0.0, base.y))
 		ch.xforms.append(xf)
 		ch.uids.append(uids)
 	ch.obstacles = obstacles
+	ch.walk = walk
 	var area_km2 := CHUNK * CHUNK / 1e6
 	for k in actor_kinds.size():
 		var kind := actor_kinds[k]
@@ -496,6 +573,7 @@ func _chunk_box(kind: PropKind, xf: PackedFloat32Array) -> AABB:
 ## Leave out what remove_prop() took (instances and their obstacles).
 func _drop_removed(ch: _Chunk) -> void:
 	var obstacles := PackedFloat32Array()
+	var walk := PackedFloat32Array()
 	for k in ch.xforms.size():
 		var xf: PackedFloat32Array = ch.xforms[k]
 		var uids: PackedInt64Array = ch.uids[k]
@@ -510,9 +588,11 @@ func _drop_removed(ch: _Chunk) -> void:
 			if kind.radius > 0.0:
 				var s := Vector3(xf[i * 12], xf[i * 12 + 4], xf[i * 12 + 8]).length()
 				obstacles.append_array([xf[i * 12 + 3] + ch.key.x * CHUNK, xf[i * 12 + 11] + ch.key.y * CHUNK, kind.radius * s])
+			_add_walk(walk, kind, xf, i, Vector3(ch.key.x * CHUNK, 0.0, ch.key.y * CHUNK))
 		ch.xforms[k] = keep_xf
 		ch.uids[k] = keep_uids
 	ch.obstacles = obstacles
+	ch.walk = walk
 
 
 func _unload(key: Vector2i) -> void:

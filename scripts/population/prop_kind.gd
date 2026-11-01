@@ -33,5 +33,11 @@ extends SpawnRule
 @export var sink := 0.0 ## Metres into the ground (at scale 1), so it sits in it on slopes.
 ## Radius (m, at scale 1) the player and actors can't walk into; 0 walks through.
 @export var radius := 0.0
+## What can be stood on (a fallen log's trunk): round segments, 8 floats
+## each, local (at scale 1): ax, ay, az, bx, by, bz, radius at a, at b.
+## Bodies step up onto one no higher than Population.STEP_UP above their
+## feet; one higher is a wall (jump onto it). With none but a mesh_script
+## with build_walk(variant), that makes them.
+@export var walk := PackedFloat32Array()
 @export var view_distance := 250.0 ## Drawn up to this far (m).
 @export var shadows := true

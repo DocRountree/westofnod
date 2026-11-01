@@ -196,6 +196,22 @@ static func _models(variant: int) -> Array:
 	return _cache[variant]
 
 
+## Population: what can be stood on (PropKind.walk): a log's trunk, a
+## segment between each pair of its nodes. (Not the stubs of its limbs.)
+static func build_walk(variant := 0) -> PackedFloat32Array:
+	var out := PackedFloat32Array()
+	variant = posmod(variant, VARIANTS.size())
+	if _kind(variant) != "log":
+		return out
+	var tb := grow_log(VARIANTS[variant])
+	var b := tb.branches[0]
+	for i in b.size() - 1:
+		var a := tb.pos[b[i]]
+		var e := tb.pos[b[i + 1]]
+		out.append_array([a.x, a.y, a.z, e.x, e.y, e.z, tb.radius[b[i]], tb.radius[b[i + 1]]])
+	return out
+
+
 ## A stump: snapped off 0.9-1.3 m up, splinters standing up round a
 ## broken, sunken middle; the roots flaring into buttresses.
 static func grow_stump(P: Dictionary) -> TreeBuilder:

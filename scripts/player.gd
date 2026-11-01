@@ -254,13 +254,18 @@ func _move(delta: float, in_water: bool) -> void:
 			velocity.y = maxf(velocity.y, 0.0)
 		grounded = false
 	else:
+		# a fallen log under foot (stepped up onto, if no higher than a step)
+		var deck := population.deck_at(p, global_position.y + Population.STEP_UP) if population else -INF
 		# a swamp swallows you to the knees or hips (deeper here, shallower
 		# there), easing in and out at its edge
 		var want := 0.0
-		if world.biome_index_at(p.x, p.z) == world.swamp:
+		if deck <= g and world.biome_index_at(p.x, p.z) == world.swamp:
 			want = lerpf(SWAMP_SINK.x, SWAMP_SINK.y, WorldData.vnoise(p.x / 7.0, p.z / 7.0))
 		sink = move_toward(sink, want, delta)
 		g -= sink
+		if deck > g:
+			g = deck
+			steep = false
 		var uphill := -Vector2(n.x, n.z).normalized()
 		if steep and g > global_position.y + 0.05:
 			# too steep to walk up: keep only the motion along (or down) it
