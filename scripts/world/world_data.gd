@@ -10,7 +10,7 @@ extends RefCounted
 ## noise, 40 / 15 / 6 m), so collision matches what is drawn.
 
 const DIR := "res://data/world/"
-const OCEAN_FLOOR := -300.0
+const OCEAN_FLOOR := -80.0
 const DETAIL := [Vector2(40.0, 3.0), Vector2(15.0, 1.1), Vector2(6.0, 0.4)] # wavelength m, amplitude m
 
 var size: int

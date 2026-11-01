@@ -249,6 +249,51 @@ def mesas(h, cell, domain):
     return out
 
 
+BATHY = "/vsicurl/https://s3.amazonaws.com/elevation-tiles-prod/geotiff/{z}/{x}/{y}.tif"
+BATHY_Z = 9
+SEA_MAX = 80.0      # m: the deepest the game's sea gets
+SEA_SCALE = 800.0   # m of real depth: shallower than this is kept nearly as is
+
+
+def _bathy_corner():
+    n = 2 ** BATHY_Z
+    y = (1 - math.log(math.tan(math.radians(LAT1 + 0.3)) + 1 / math.cos(math.radians(LAT1 + 0.3))) / math.pi) / 2 * n
+    return int((LON0 - 0.3 + 180.0) / 360.0 * n) * 512, int(y) * 512
+
+
+def read_bathy():
+    """Real sea depths: the AWS Terrain Tiles (Mapzen; ETOPO1 and other NOAA
+    bathymetry under the sea), zoom 9 Web Mercator GeoTIFFs, mosaicked. Returns
+    (heights, x0, y0): the mosaic and the global pixel of its corner."""
+    import rasterio
+    n = 2 ** BATHY_Z
+
+    def tile_xy(lon, lat):
+        y = (1 - math.log(math.tan(math.radians(lat)) + 1 / math.cos(math.radians(lat))) / math.pi) / 2 * n
+        return (lon + 180.0) / 360.0 * n, y
+
+    tx0, ty0 = tile_xy(LON0 - 0.3, LAT1 + 0.3)
+    tx1, ty1 = tile_xy(LON1 + 0.3, LAT0 - 0.3)
+    xs = range(int(tx0), int(tx1) + 1)
+    ys = range(int(ty0), int(ty1) + 1)
+    out = np.zeros((len(ys) * 512, len(xs) * 512), np.float32)
+    for j, ty in enumerate(ys):
+        for i, tx in enumerate(xs):
+            with rasterio.open(BATHY.format(z=BATHY_Z, x=tx, y=ty)) as src:
+                out[j * 512:(j + 1) * 512, i * 512:(i + 1) * 512] = src.read(1).astype(np.float32)
+    return out, int(tx0) * 512, int(ty0) * 512
+
+
+def real_sea_floor(lon, lat):
+    """The real depth (m, negative under the sea) at lon/lat arrays."""
+    mos = cached("bathy_z%d" % BATHY_Z, lambda: read_bathy()[0])
+    gx0, gy0 = _bathy_corner()
+    n = 2 ** BATHY_Z * 512
+    gx = (lon + 180.0) / 360.0 * n - gx0 - 0.5
+    gy = (1 - np.log(np.tan(np.radians(lat)) + 1 / np.cos(np.radians(lat))) / np.pi) / 2 * n - gy0 - 0.5
+    return ndimage.map_coordinates(mos, [gy, gx], order=1, mode="nearest")
+
+
 def main():
     repo = sys.argv[1] if len(sys.argv) > 1 else "."
     out_dir = os.path.join(repo, "data", "world")
@@ -283,7 +328,17 @@ def main():
     h = mesas(h, cell, domain).astype(np.float32)
     print("sea floor...")
     d_sea = ndimage.distance_transform_edt(~land) * cell
-    floor = -(2.0 + 0.012 * d_sea + 180.0 * (1 - np.exp(-d_sea / 2500.0)))
+    # real bathymetry, made shallower for diving: depths compressed smoothly
+    # (SEA_MAX * tanh(depth / SEA_SCALE): a 100 m shelf comes out ~10 m, the
+    # deep ocean ~80 m), its shapes kept; near the shore no deeper than a
+    # gentle ramp from the coast (the data is too coarse to know the
+    # coastline), and never above the water where the land is ours
+    floor = np.empty_like(h)
+    for r0 in range(0, SIZE, 512):
+        Z, X = np.meshgrid(g[r0:r0 + 512], g, indexing="ij")
+        real = real_sea_floor(lon_c + X / m_lon, lat_c - Z / m_lat)
+        floor[r0:r0 + 512] = -SEA_MAX * np.tanh(np.maximum(-real, 0.0) / SEA_SCALE)
+    floor = -np.maximum(np.minimum(-floor, 2.0 + 0.02 * d_sea), 1.0)
     h = np.where(land, h, np.minimum(h, floor))
     # The sea floor is synthetic and smooth: whole metres are plenty, and they
     # compress far better.
