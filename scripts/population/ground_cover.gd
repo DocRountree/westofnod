@@ -17,8 +17,8 @@ extends Node3D
 ##
 ## Layers:
 ## - grass, near (to 21 m): dense; short in the forest (the ground's colour,
-##   a little lighter at the tips), waist-high on the prairie (green to
-##   blonde);
+##   a little lighter at the tips), head-high and more on the prairie (green
+##   to blonde);
 ## - grass, middle (15-52 m): bigger, fewer clumps of the same;
 ## - grass, far (42-125 m): the prairie's only;
 ## - ferns: the forest's, in drifts, knee-high; to 45 m.
@@ -28,13 +28,13 @@ extends Node3D
 const LAYERS := [
 	# cell (m), cells a tile side, tiles a side (odd), the mesh, uniforms
 	{"cell": 0.25, "cells": 24, "tiles": 9, "blades": 10, "segs": 3, "radius": 0.16, "width": 0.016,
-		"u": {"kind": 0, "seed": 1, "forest_height": Vector2(0.07, 0.16), "prairie_height": Vector2(0.85, 1.3),
+		"u": {"kind": 0, "seed": 1, "forest_height": Vector2(0.07, 0.16), "prairie_height": Vector2(1.7, 2.6),
 			"fade_out": Vector2(15.0, 21.0), "thin_from": 1000.0}},
 	{"cell": 0.55, "cells": 24, "tiles": 9, "blades": 14, "segs": 2, "radius": 0.32, "width": 0.024,
-		"u": {"kind": 0, "seed": 2, "forest_height": Vector2(0.07, 0.16), "prairie_height": Vector2(0.85, 1.3),
+		"u": {"kind": 0, "seed": 2, "forest_height": Vector2(0.07, 0.16), "prairie_height": Vector2(1.7, 2.6),
 			"fade_in": Vector2(15.0, 21.0), "fade_out": Vector2(40.0, 52.0), "thin_from": 28.0}},
 	{"cell": 1.3, "cells": 20, "tiles": 11, "blades": 14, "segs": 2, "radius": 0.6, "width": 0.05,
-		"u": {"kind": 0, "seed": 3, "in_forest": false, "prairie_height": Vector2(0.85, 1.3),
+		"u": {"kind": 0, "seed": 3, "in_forest": false, "prairie_height": Vector2(1.7, 2.6),
 			"fade_in": Vector2(42.0, 52.0), "fade_out": Vector2(100.0, 125.0), "thin_from": 80.0}},
 	{"cell": 0.5, "cells": 24, "tiles": 9, "fronds": 8,
 		"u": {"kind": 1, "seed": 4, "in_prairie": false, "forest_height": Vector2(0.25, 0.45),
@@ -183,7 +183,7 @@ func _bake(layer: Dictionary) -> void:
 	layer.baking = false
 
 
-## A box round a tile: its ground's lowest to highest, and a metre of grass.
+## A box round a tile: its ground's lowest to highest, and the tallest grass.
 func _box(at: Vector3, size: float) -> AABB:
 	var lo := INF
 	var hi := -INF
@@ -193,7 +193,7 @@ func _box(at: Vector3, size: float) -> AABB:
 			lo = minf(lo, h)
 			hi = maxf(hi, h)
 	var r := 4.0 + (hi - lo) * 0.3 # (the relief between the samples)
-	return AABB(Vector3(-1.0, lo - r, -1.0), Vector3(size + 2.0, hi - lo + 2.0 * r + 1.5, size + 2.0))
+	return AABB(Vector3(-2.0, lo - r, -2.0), Vector3(size + 4.0, hi - lo + 2.0 * r + 3.0, size + 4.0))
 
 
 ## A clump of grass blades: each a tapering, curving strip, its middle line

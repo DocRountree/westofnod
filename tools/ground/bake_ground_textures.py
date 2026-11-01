@@ -8,7 +8,9 @@
   along its vein and lighter toward its tip: three levels of the same shape,
   each pinna its own shade.
   Transparent pixels carry the nearest frond colour (no dark fringes).
-- leaf_litter.png: RGB, 1024 x 1024, tileable, about 1.6 m square: fallen
+- leaf_litter.png: RGB, 1024 x 1024, about 1.6 m square, tileable every
+  way (each tile may be turned any quarter turn: the terrain turns them at
+  random, so the repeat doesn't show): fallen
   oak leaves (lobed) and maple leaves (five-pointed), dun, russet, tan and
   dark, overlapping in layers, the lower ones shaded by those on top. The
   terrain multiplies its own litter colour by this over its mean, so the
@@ -147,84 +149,119 @@ def maple_outline(n=160):
     return pts
 
 
-def _over(canvas, local, x0, y0, colour):
-    """Blends colour into canvas through local (a float mask, 0..1) placed
-    at (x0, y0), wrapping round the edges (the tile repeats)."""
+def _leaf(S, layer, ss):
+    """One fallen leaf, oak or maple, drawn into its own square patch:
+    (colour, coverage, shadow), each (P, P[, 3]). The shadow is soft and
+    straight under it (no direction: the tile is turned every way)."""
+    maple = rng.random() < 0.4
+    length = S * (rng.uniform(0.05, 0.08) if maple else rng.uniform(0.055, 0.095))
+    outline = maple_outline() if maple else oak_outline()
+    ang = rng.uniform(0, 2 * math.pi)
+    c = np.array(LITTER_PALETTE[rng.integers(len(LITTER_PALETTE))], dtype=np.float32) * rng.uniform(0.85, 1.12)
+    c *= 0.78 + 0.28 * layer  # the top layers a little brighter
+    ca, sa = math.cos(ang), math.sin(ang)
+    r = int(length * 0.75) + 8
+    P = 2 * r
+    cx, cy = r, r
+    pts = [(cx + (x * ca - y * sa) * length, cy + (x * sa + y * ca) * length) for x, y in outline]
+    sh = Image.new("L", (P, P), 0)
+    ImageDraw.Draw(sh).polygon(pts, fill=255)
+    sh = np.asarray(sh.filter(ImageFilter.GaussianBlur(length * 0.05)), np.float32) / 255 * 0.45
+    lf = Image.new("L", (P, P), 0)
+    ImageDraw.Draw(lf).polygon(pts, fill=255)
+    lf = np.asarray(lf, np.float32) / 255
+    vn = Image.new("L", (P, P), 0)
+    dv = ImageDraw.Draw(vn)
+    if maple:
+        for k in range(5):
+            a = ang + math.pi + (k - 2) * 0.75
+            dv.line([(cx, cy), (cx + math.cos(a) * length * 0.42, cy + math.sin(a) * length * 0.42)], fill=255, width=ss)
+    else:
+        dv.line([(cx - ca * length * 0.5, cy - sa * length * 0.5), (cx + ca * length * 0.5, cy + sa * length * 0.5)], fill=255, width=ss)
+        for k in range(4):
+            t = -0.3 + 0.18 * k
+            bx, by = cx + ca * length * t, cy + sa * length * t
+            for sgn in (-1, 1):
+                a = ang + sgn * 0.9
+                dv.line([(bx, by), (bx + math.cos(a) * length * 0.13, by + math.sin(a) * length * 0.13)], fill=255, width=max(ss // 2, 1))
+    vn = np.asarray(vn, np.float32) / 255 * lf * 0.5
+    spot = np.asarray(Image.fromarray((rng.uniform(0.85, 1.12, (8, 8)) * 120).astype(np.uint8)).resize((P, P), Image.BICUBIC), np.float32) / 120
+    col = c[None, None, :] * spot[..., None] * (1 - vn[..., None] * 0.45)
+    return col, lf, sh
+
+
+def _paste(canvas, leaf, x0, y0, k):
+    """Paints a leaf patch, turned k quarter turns (np.rot90), its top left
+    corner at (x0, y0), clipped to the canvas (no wrapping)."""
+    col, lf, sh = (np.rot90(a, k) for a in leaf)
     S = canvas.shape[0]
-    h, w = local.shape
-    for oy in (-S, 0, S):
-        for ox in (-S, 0, S):
-            xa, ya = x0 + ox, y0 + oy
-            xb, yb = xa + w, ya + h
-            cxa, cya, cxb, cyb = max(xa, 0), max(ya, 0), min(xb, S), min(yb, S)
-            if cxa >= cxb or cya >= cyb:
-                continue
-            m = local[cya - ya:cyb - ya, cxa - xa:cxb - xa][..., None]
-            region = canvas[cya:cyb, cxa:cxb]
-            canvas[cya:cyb, cxa:cxb] = region * (1 - m) + colour * m
+    P = lf.shape[0]
+    xa, ya = max(x0, 0), max(y0, 0)
+    xb, yb = min(x0 + P, S), min(y0 + P, S)
+    if xa >= xb or ya >= yb:
+        return
+    reg = canvas[ya:yb, xa:xb]
+    m = sh[ya - y0:yb - y0, xa - x0:xb - x0][..., None]
+    reg = reg * (1 - m) + np.array([24, 18, 12], np.float32) * m
+    m = lf[ya - y0:yb - y0, xa - x0:xb - x0][..., None]
+    canvas[ya:yb, xa:xb] = reg * (1 - m) + col[ya - y0:yb - y0, xa - x0:xb - x0] * m
+
+
+def _turn(x0, y0, P, S, k):
+    """Where a patch at (x0, y0) goes when the tile turns k quarter turns
+    (as np.rot90 turns an array: x' = y, y' = S - x)."""
+    for _ in range(k % 4):
+        x0, y0 = y0, S - x0 - P
+    return x0, y0
+
+
+LITTER_PALETTE = [(112, 82, 48), (128, 76, 40), (96, 70, 44), (140, 104, 62), (82, 58, 36), (118, 92, 52), (104, 64, 36)]
 
 
 def litter(size=1024, ss=2):
+    """Tileable every way: any tile can be turned any quarter turn next to any
+    other. The leaves inside stay inside; the leaves across an edge are the
+    same along all four edges, in pairs turned half round the edge's middle
+    (so the half in this tile and the half in the next, however that one is
+    turned, make whole leaves); the leaves across a corner are the same at
+    all four, in fours turned round it."""
     S = size * ss
-    # soil and crumbs under it all
-    noise = rng.uniform(0.7, 1.15, (size // 8, size // 8))
-    noise = np.asarray(Image.fromarray((noise * 120).astype(np.uint8)).resize((S, S), Image.BICUBIC), dtype=np.float32) / 120
-    canvas = np.array([62, 48, 32], np.float32)[None, None, :] * noise[..., None]
-    palette = [(112, 82, 48), (128, 76, 40), (96, 70, 44), (140, 104, 62), (82, 58, 36), (118, 92, 52), (104, 64, 36)]
-    count = 1300
-    for k in range(count):
-        layer = k / count
-        maple = rng.random() < 0.4
-        length = S * (rng.uniform(0.05, 0.08) if maple else rng.uniform(0.055, 0.095))
-        outline = maple_outline() if maple else oak_outline()
-        ang = rng.uniform(0, 2 * math.pi)
-        c = np.array(palette[rng.integers(len(palette))], dtype=np.float32) * rng.uniform(0.85, 1.12)
-        c *= 0.78 + 0.28 * layer  # the top layers a little brighter
-        ca, sa = math.cos(ang), math.sin(ang)
-        r = int(length * 0.75) + 8
-        cx, cy = r, r
-        pts = [(cx + (x * ca - y * sa) * length, cy + (x * sa + y * ca) * length) for x, y in outline]
-        # its shadow on what's below (soft, offset), the leaf, its veins
-        sh = Image.new("L", (2 * r, 2 * r), 0)
-        ImageDraw.Draw(sh).polygon([(x + length * 0.04, y + length * 0.05) for x, y in pts], fill=255)
-        sh = np.asarray(sh.filter(ImageFilter.GaussianBlur(length * 0.035)), np.float32) / 255 * 0.45
-        lf = Image.new("L", (2 * r, 2 * r), 0)
-        ImageDraw.Draw(lf).polygon(pts, fill=255)
-        lf = np.asarray(lf, np.float32) / 255
-        vn = Image.new("L", (2 * r, 2 * r), 0)
-        dv = ImageDraw.Draw(vn)
-        if maple:
-            for j in range(5):
-                a = ang + math.pi + (j - 2) * 0.75
-                dv.line([(cx, cy), (cx + math.cos(a) * length * 0.42, cy + math.sin(a) * length * 0.42)], fill=255, width=ss)
-        else:
-            dv.line([(cx - ca * length * 0.5, cy - sa * length * 0.5), (cx + ca * length * 0.5, cy + sa * length * 0.5)], fill=255, width=ss)
-            for j in range(4):
-                t = -0.3 + 0.18 * j
-                bx, by = cx + ca * length * t, cy + sa * length * t
-                for sgn in (-1, 1):
-                    a = ang + sgn * 0.9
-                    dv.line([(bx, by), (bx + math.cos(a) * length * 0.13, by + math.sin(a) * length * 0.13)], fill=255, width=max(ss // 2, 1))
-        vn = np.asarray(vn, np.float32) / 255 * lf * 0.5
-        x0, y0 = int(rng.uniform(0, S)) - r, int(rng.uniform(0, S)) - r
-        _over(canvas, sh, x0, y0, np.array([24, 18, 12], np.float32))
-        # a little mottling on each leaf
-        spot = np.asarray(Image.fromarray((rng.uniform(0.85, 1.12, (8, 8)) * 120).astype(np.uint8)).resize((2 * r, 2 * r), Image.BICUBIC), np.float32) / 120
-        leaf_c = c[None, None, :] * spot[..., None]
-        S_ = canvas.shape[0]
-        # (leaf colour varies per pixel: blend region by region)
-        for oy in (-S_, 0, S_):
-            for ox in (-S_, 0, S_):
-                xa, ya = x0 + ox, y0 + oy
-                cxa, cya, cxb, cyb = max(xa, 0), max(ya, 0), min(xa + 2 * r, S_), min(ya + 2 * r, S_)
-                if cxa >= cxb or cya >= cyb:
-                    continue
-                m = lf[cya - ya:cyb - ya, cxa - xa:cxb - xa][..., None]
-                v = vn[cya - ya:cyb - ya, cxa - xa:cxb - xa][..., None]
-                col = leaf_c[cya - ya:cyb - ya, cxa - xa:cxb - xa] * (1 - v * 0.45)
-                canvas[cya:cyb, cxa:cxb] = canvas[cya:cyb, cxa:cxb] * (1 - m) + col * m
-    out = Image.fromarray(canvas.clip(0, 255).astype(np.uint8)).resize((size, size), Image.LANCZOS)
-    return out
+    canvas = np.array([62, 48, 32], np.float32)[None, None, :] * rng.uniform(0.8, 1.15, (S, S))[..., None]
+    # first the leaves across the corners and the edges, the lowest layer,
+    # then the leaves inside over them, right up to (not across) the edges:
+    # all that's alike from edge to edge is what crosses them
+    for n in range(30):  # across the corners
+        leaf = _leaf(S, rng.uniform(0.2, 1.0), ss)
+        P = leaf[1].shape[0]
+        x0, y0 = int(rng.uniform(-P * 0.45, P * 0.45)) - P // 2, int(rng.uniform(-P * 0.45, P * 0.45)) - P // 2
+        four = []
+        for q in range(4):  # (turned round the corner: x' = y, y' = -x)
+            four.append((x0, y0, q))
+            x0, y0 = y0, -x0 - P
+        for k in range(4):
+            for fx, fy, q in four:
+                tx, ty = _turn(fx, fy, P, S, k)
+                _paste(canvas, leaf, tx, ty, q + k)
+    for n in range(150):  # across the edges
+        leaf = _leaf(S, rng.uniform(0.2, 1.0), ss)
+        P = leaf[1].shape[0]
+        cx, cy = rng.uniform(P * 0.5 + 2, S / 2), rng.uniform(-P * 0.3, P * 0.3)
+        pair = [(int(cx) - P // 2, int(cy) - P // 2, 0)]
+        pair.append((S - pair[0][0] - P, -pair[0][1] - P, 2))  # (turned half round the edge's middle)
+        for k in range(4):
+            for x0, y0, kk in pair:
+                tx, ty = _turn(x0, y0, P, S, k)
+                _paste(canvas, leaf, tx, ty, kk + k)
+    count = 1100
+    for n in range(count):  # inside
+        leaf = _leaf(S, 0.2 + 0.8 * n / count, ss)
+        P = leaf[1].shape[0]
+        # anywhere the leaf itself (not its patch) stays inside the tile
+        ys, xs = np.nonzero(leaf[1] > 0.01)
+        x0 = int(rng.uniform(1 - xs.min(), S - 1 - xs.max()))
+        y0 = int(rng.uniform(1 - ys.min(), S - 1 - ys.max()))
+        _paste(canvas, leaf, x0, y0, 0)
+    return Image.fromarray(canvas.clip(0, 255).astype(np.uint8)).reduce(ss)
 
 
 def main():

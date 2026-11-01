@@ -33,7 +33,7 @@ uniform float width_scale = 1.0;      // the clump's spread and the blades' widt
 uniform vec2 fade_in = vec2(0.0, 0.0);   // m: grows in over this (0: from the eye)
 uniform vec2 fade_out = vec2(30.0, 40.0); // m: shrinks away over this
 uniform float thin_from = 12.0;       // m: beyond this a share (thin_from / d)^1.5 is kept
-uniform float grass_sway = 0.6;       // the tip's sway, in clump heights per m of the wind
+uniform float grass_sway = 0.3;       // the tip's sway, in clump heights per m of the wind
 uniform sampler2D frond_tex : source_color, filter_linear_mipmap_anisotropic, repeat_disable;
 uniform vec3 prairie_green = vec3(0.27, 0.43, 0.12);
 uniform vec3 prairie_blonde = vec3(0.74, 0.64, 0.38);

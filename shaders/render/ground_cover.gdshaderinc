@@ -10,7 +10,7 @@
 uniform float cell = 0.4;  // m: the grid the clumps stand on
 uniform int seed = 0;
 
-const float SIZE_MAX = 1.6; // m
+const float SIZE_MAX = 3.2; // m
 
 float gc_hash(ivec2 c) {
 	uint v = uint(c.x) * 1597334677u ^ uint(c.y) * 3812015801u;

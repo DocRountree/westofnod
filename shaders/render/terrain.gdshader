@@ -43,7 +43,7 @@ void vertex() {
 // over the forest's litter near the eye: the litter's colour times the
 // texture over its mean, so it fades out with distance without a change of
 // colour.
-uniform sampler2D litter_tex : filter_linear_mipmap_anisotropic, repeat_enable; // (sRGB values, as col)
+uniform sampler2D litter_tex : filter_linear_mipmap_anisotropic, repeat_enable; // (sRGB values, as col; tileable every way round)
 uniform float litter_tile = 1.6; // m
 uniform vec3 litter_mean = vec3(0.372, 0.262, 0.153); // the texture's mean (GroundCover sets it)
 uniform vec2 litter_fade = vec2(25.0, 45.0); // m
@@ -81,7 +81,20 @@ void fragment() {
 	// the fallen leaves, near
 	float near = 1.0 - smoothstep(litter_fade.x, litter_fade.y, distance(world_pos, CAMERA_POSITION_WORLD));
 	if (litter * near > 0.0) {
-		vec3 leaves = texture(litter_tex, p / litter_tile).rgb / litter_mean;
+		// each tile of it turned a random quarter turn (the texture fits
+		// itself every way round), so its repeat doesn't show; the
+		// derivatives turned with it, so the seams don't pick a coarse mip
+		vec2 uv = p / litter_tile;
+		vec2 tile = floor(uv);
+		vec2 f = uv - tile;
+		int turn = int(hash(ivec2(tile) + ivec2(911, -373)) * 4.0) & 3;
+		vec2 dx = dFdx(uv), dy = dFdy(uv);
+		for (int k = 0; k < turn; k++) {
+			f = vec2(f.y, 1.0 - f.x);
+			dx = vec2(dx.y, -dx.x);
+			dy = vec2(dy.y, -dy.x);
+		}
+		vec3 leaves = textureGrad(litter_tex, f, dx, dy).rgb / litter_mean;
 		col *= mix(vec3(1.0), leaves, litter * near * (1.0 - rocky));
 	}
 
