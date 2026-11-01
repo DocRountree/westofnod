@@ -31,6 +31,10 @@ extends SpawnRule
 ## 0: stands upright (trees); 1: tilts with the ground (rocks, grass).
 @export_range(0.0, 1.0) var align_to_ground := 0.0
 @export var sink := 0.0 ## Metres into the ground (at scale 1), so it sits in it on slopes.
+## Metres (at scale 1) from its middle to the edge of its foot (a trunk's
+## flared base): on a slope it sinks as much more as the ground falls away
+## over that, so its downhill side doesn't stand on air.
+@export var foot := 0.0
 ## Radius (m, at scale 1) the player and actors can't walk into; 0 walks through.
 @export var radius := 0.0
 ## What can be stood on (a fallen log's trunk, a stump): round segments, 8

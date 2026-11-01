@@ -24,6 +24,47 @@ uniform bool in_prairie = true;
 uniform vec2 forest_height = vec2(0.08, 0.16); // m (grass; ferns: their length)
 uniform vec2 prairie_height = vec2(0.45, 0.85);
 uniform float cover = 1.0; // the share of cells with a clump
+// the terrain's levels of detail (Cdlod): a level-0 patch's size, a
+// level's range in patch sizes, where in it morphing starts
+uniform float cd_leaf = 16.0;
+uniform float cd_range_factor = 2.4;
+uniform float cd_morph_start = 0.6;
+
+// The ground's height at p as the terrain draws it from the eye, not as it
+// is: further off it's drawn from coarser levels (Cdlod, cdlod_xz()), a
+// grid of vertices further apart, from coarser mips of the map, morphing
+// into the next level, and a clump stood on the true height would float
+// over a hollow or sink into a rise. (The level is the one the point's own
+// distance asks for; the quadtree may draw a finer one a little nearer,
+// where the levels agree as they morph.)
+float cd_dist(vec2 p) {
+	return length(vec2(distance(p, eye.xz), max(eye.y, 0.0) * 0.5));
+}
+
+float drawn_height(vec2 p) {
+	int lod = 0;
+	while (lod < 16 && cd_dist(p) >= cd_leaf * exp2(float(lod)) * cd_range_factor)
+		lod++;
+	float range = cd_leaf * exp2(float(lod)) * cd_range_factor;
+	float step = cd_leaf * exp2(float(lod)) / GRID;
+	vec2 g = (p - map_origin) / step;
+	vec2 g0 = floor(g);
+	vec2 f = g - g0;
+	float hv[4];
+	for (int i = 0; i < 4; i++) {
+		vec2 k = g0 + vec2(float(i & 1), float(i >> 1));
+		float morph = clamp((cd_dist(map_origin + k * step) - range * cd_morph_start) / max(range - cd_leaf * 0.3 - range * cd_morph_start, 1e-3), 0.0, 1.0);
+		k -= fract(k * 0.5) * 2.0 * morph; // (odd vertices slide onto the coarser grid)
+		vec2 wp = map_origin + k * step;
+		float hh = terrain_height(wp, max(lod - SUB, 0));
+		if (morph > 0.0) {
+			float hc = terrain_height(wp, max(lod + 1 - SUB, 0));
+			hh = morph >= 1.0 ? hc : mix(hh, hc, morph);
+		}
+		hv[i] = hh;
+	}
+	return mix(mix(hv[0], hv[1], f.x), mix(hv[2], hv[3], f.x), f.y);
+}
 
 void fragment() {
 	ivec2 px = ivec2(floor(UV * vec2(grid_size * ivec2(2, 1))));
@@ -83,7 +124,7 @@ void fragment() {
 	}
 	float blonde = clamp(vnoise(pos / 9.0) * 0.9 - 0.05, 0.0, 1.0);
 	if ((px.x & 1) == 0) {
-		float u = clamp((h - base_h + 512.0) * 64.0, 0.0, 65535.0);
+		float u = clamp((drawn_height(pos) - base_h + 512.0) * 64.0, 0.0, 65535.0);
 		float hi = floor(u / 256.0);
 		float lo = floor(u - hi * 256.0);
 		float s = size > 0.0 ? max(round(size / SIZE_MAX * 255.0), 1.0) : 0.0;

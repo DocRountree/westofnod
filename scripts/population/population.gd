@@ -431,7 +431,9 @@ func _generate(key: Vector2i) -> void:
 					var up := Vector3.UP.slerp(nrm, kind.align_to_ground)
 					b = Basis(Quaternion(Vector3.UP, up)) * b
 				b = b.scaled(Vector3.ONE * s)
-				var o := Vector3(x - base.x, h - kind.sink * s, z - base.y)
+				# (on a slope, sunk as far as the ground falls away under its foot)
+				var fall := kind.foot * s * sqrt(maxf(1.0 - nrm.y * nrm.y, 0.0)) / maxf(nrm.y, 0.3)
+				var o := Vector3(x - base.x, h - kind.sink * s - fall, z - base.y)
 				xf.append_array([b.x.x, b.y.x, b.z.x, o.x, b.x.y, b.y.y, b.z.y, o.y, b.x.z, b.y.z, b.z.z, o.z])
 				var uid := _uid(key, k, i)
 				uids.append(uid)

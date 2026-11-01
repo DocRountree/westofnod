@@ -1,7 +1,8 @@
 // Shared by ground_cover_bake.gdshader (works out each cell) and
 // ground_cover.gdshader (draws it): where a cell's clump stands, and how a
 // cell's data is packed into two RGBA8 texels side by side:
-//   texel 2x:     height (16 bits, from base_h - 512 m, 1/64 m steps),
+//   texel 2x:     height of the ground as drawn (16 bits, from base_h - 512 m,
+//                 1/64 m steps),
 //                 size (8 bits, of SIZE_MAX m; 0: nothing grows here),
 //                 how blonde (the prairie's grass)
 //   texel 2x + 1: the ground's colour (sRGB), how much prairie (0: all

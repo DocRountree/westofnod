@@ -49,11 +49,11 @@ const VARIANTS := [
 ## standing oaks (live, saplings and dead; not the logs or stumps) on the
 ## prairie, down into its shallows.
 const PROPS := {
-	"tree": {"standing": true},
-	"stump": {"weight": 0.5, "radius": 0.0, "align_to_ground": 0.3, "sink": 0.12, "scale_range": Vector2(0.8, 1.1)},
+	"tree": {"standing": true, "foot": 0.75},
+	"stump": {"weight": 0.5, "radius": 0.0, "foot": 0.6, "align_to_ground": 0.3, "sink": 0.12, "scale_range": Vector2(0.8, 1.1)},
 	"log": {"weight": 0.25, "radius": 0.0, "align_to_ground": 0.9, "sink": 0.12, "scale_range": Vector2(0.8, 1.15), "shadows": false},
-	"dead": {"weight": 0.5, "standing": true, "density_like": {"swamp": "prairie"}, "like_group": "standing", "height_range": Vector2(-0.5, 1900.0)},
-	"sapling": {"weight": 0.5, "standing": true, "radius": 0.1, "scale_range": Vector2(0.75, 1.25)},
+	"dead": {"weight": 0.5, "standing": true, "density_like": {"swamp": "prairie"}, "like_group": "standing", "height_range": Vector2(-0.5, 1900.0), "foot": 0.65},
+	"sapling": {"weight": 0.5, "standing": true, "radius": 0.1, "foot": 0.08, "scale_range": Vector2(0.75, 1.25)},
 }
 
 # per level (0 trunk .. 3 twigs)

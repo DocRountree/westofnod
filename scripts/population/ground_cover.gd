@@ -10,7 +10,9 @@ extends Node3D
 ## jump ahead). When a layer's tiles move, a SubViewport works out every
 ## cell of its new grid once (ground_cover_bake.gdshader: what grows, how
 ## tall, its height on the ground, the ground's colour) into a small
-## texture, which the drawing shader (ground_cover.gdshader) reads: each
+## texture (and again every few metres the camera moves: the heights are
+## the ground's as the terrain draws it from there, coarser further off),
+## which the drawing shader (ground_cover.gdshader) reads: each
 ## vertex reads two texels instead of working the terrain out again. Two
 ## viewports take turns, so the shader switches to a new grid only once
 ## it's ready.
@@ -40,6 +42,7 @@ const LAYERS := [
 		"u": {"kind": 1, "seed": 4, "in_prairie": false, "forest_height": Vector2(0.25, 0.45),
 			"fade_out": Vector2(32.0, 45.0), "thin_from": 16.0}},
 ]
+const REBAKE := 5.0 ## m the camera moves before a layer's grid is worked out again
 const BAKE_KEYS := ["kind", "seed", "in_forest", "in_prairie", "forest_height", "prairie_height", "cover"]
 const DRAW_KEYS := ["kind", "seed", "fade_in", "fade_out", "thin_from"]
 
@@ -85,6 +88,9 @@ func setup(w: WorldData) -> void:
 				bm.set_shader_parameter("swamp_biome", world.biome_names.find("swamp"))
 			bm.set_shader_parameter("cell", L.cell)
 			bm.set_shader_parameter("grid_size", Vector2i(grid, grid))
+			bm.set_shader_parameter("cd_leaf", Cdlod.GRID * world.cell() / 8.0)
+			bm.set_shader_parameter("cd_range_factor", Cdlod.RANGE_FACTOR)
+			bm.set_shader_parameter("cd_morph_start", Cdlod.MORPH_START)
 			for k in L.u:
 				if k in BAKE_KEYS:
 					bm.set_shader_parameter(k, L.u[k])
@@ -105,7 +111,7 @@ func setup(w: WorldData) -> void:
 			for j in L.cells:
 				mm.set_instance_transform(i * L.cells + j, Transform3D(Basis(), Vector3(i * L.cell, 0.0, j * L.cell)))
 		_layers.append({"L": L, "mm": mm, "size": L.cell * L.cells, "tiles": {}, "centre": Vector2i.MAX,
-				"material": m, "vps": vps, "bakes": bakes, "shown": -1, "baking": false, "want": Vector2i.MAX, "cam": Vector3.ZERO})
+				"material": m, "vps": vps, "bakes": bakes, "shown": -1, "baking": false, "want": Vector2i.MAX, "cam": Vector3.ZERO, "baked": Vector3.INF})
 
 
 ## The terrain's leaf litter texture (it's the terrain's material).
@@ -123,6 +129,11 @@ func update(cam: Vector3) -> void:
 		var tiles: Dictionary = layer.tiles
 		var centre := Vector2i(floori(cam.x / size), floori(cam.z / size))
 		if centre == layer.centre:
+			# (the ground's heights are as the terrain draws them from the
+			# eye, which changes as it moves: worked out again every few metres)
+			if not layer.baking and cam.distance_to(layer.baked) > REBAKE:
+				layer.cam = cam
+				_bake(layer)
 			continue
 		layer.centre = centre
 		var half: int = L.tiles / 2
@@ -163,6 +174,7 @@ func _bake(layer: Dictionary) -> void:
 	while true:
 		var origin: Vector2i = layer.want
 		var cam: Vector3 = layer.cam
+		layer.baked = cam
 		var k: int = 1 - maxi(layer.shown, 0)
 		var bm: ShaderMaterial = layer.bakes[k]
 		var base_h := roundf(cam.y)
@@ -178,7 +190,7 @@ func _bake(layer: Dictionary) -> void:
 		m.set_shader_parameter("grid_size", layer.bakes[k].get_shader_parameter("grid_size"))
 		m.set_shader_parameter("base_h", base_h)
 		layer.shown = k
-		if layer.want == origin:
+		if layer.want == origin and layer.cam == cam:
 			break
 	layer.baking = false
 
