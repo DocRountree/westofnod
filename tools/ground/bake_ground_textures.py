@@ -1,10 +1,12 @@
 """Bakes the ground cover's textures (data/population/textures/):
 
 - fern_frond.png: RGBA, 256 x 1024, one frond of a bracken-like fern, base
-  at the bottom: a rachis giving off pinnae in near-opposite pairs, longest
-  a third of the way up and shrinking to the tip; each pinna the same plan
-  again (a midrib, pinnules in pairs, shrinking to its tip), and each
-  pinnule shallowly lobed in its turn: three levels of the same shape.
+  at the bottom: a pale rachis giving off pinnae in near-opposite pairs,
+  longest a third of the way up and shrinking to the tip, gaps between
+  them; each pinna the same plan again (a pale midrib, pinnules in pairs,
+  shrinking to its tip), each pinnule shallowly lobed in its turn, darker
+  along its vein and lighter toward its tip: three levels of the same shape,
+  each pinna its own shade.
   Transparent pixels carry the nearest frond colour (no dark fringes).
 - leaf_litter.png: RGB, 1024 x 1024, tileable, about 1.6 m square: fallen
   oak leaves (lobed) and maple leaves (five-pointed), dun, russet, tan and
@@ -28,61 +30,74 @@ rng = np.random.default_rng(13)
 
 def frond(w=256, h=1024, ss=3):
     W, H = w * ss, h * ss
-    img = Image.new("L", (W, H), 0)
-    d = ImageDraw.Draw(img)
+    mask = Image.new("L", (W, H), 0)
+    dm = ImageDraw.Draw(mask)
+    col = Image.new("RGB", (W, H), (0, 0, 0))
+    dc = ImageDraw.Draw(col)
     base = np.array([W * 0.5, H * 0.995])
     tip = np.array([W * 0.5, H * 0.01])
-    n_pinnae = 22
+    n_pinnae = 16
+    leaf = np.array([44.0, 78.0, 22.0])     # a pinnule's green
+    light = np.array([92.0, 128.0, 44.0])   # its tip, catching the light
+    rib = np.array([120.0, 140.0, 64.0])    # the ribs, paler
+    vein = np.array([30.0, 56.0, 16.0])
 
-    def lobed_blade(p0, direction, length, width, lobes, depth, recurse):
-        """A blade along direction from p0: pinnules (recurse > 0) or lobes."""
+    def c(v):
+        return tuple(int(x) for x in np.clip(v, 0, 255))
+
+    def outline(p0, direction, side, length, width, lobes, t0=0.0):
+        pts = []
+        k = 20
+        for sgn, ph in ((1, 0.0), (-1, 1.0)):
+            rng_t = range(k + 1) if sgn == 1 else range(k, -1, -1)
+            for i in rng_t:
+                t = t0 + (1 - t0) * i / k
+                half = width * 0.5 * math.sin(math.pi * t) ** 0.7 * (1.0 - 0.28 * (0.5 + 0.5 * math.cos(2 * math.pi * t * lobes + ph)))
+                pts.append(tuple(p0 + direction * length * t + side * half * sgn))
+        return pts
+
+    def pinnule(p0, direction, length, width, shade):
         direction = direction / np.linalg.norm(direction)
         side = np.array([-direction[1], direction[0]])
-        # midrib
-        d.line([tuple(p0), tuple(p0 + direction * length)], fill=255, width=max(int(width * 0.12), 1))
-        if recurse > 0:
-            n = lobes
-            for i in range(n):
-                t = (i + 0.5) / n
-                at = p0 + direction * length * t * 0.95
-                sz = length * 0.27 * (1.0 - t * 0.7)
-                for sgn in (-1, 1):
-                    dd = direction * 0.45 + side * sgn  # swept toward the tip
-                    lobed_blade(at, dd, sz, sz * 0.6, 4, depth, recurse - 1)
-        else:
-            # a pinnule: a narrow oval with shallow lobes round its edge
-            pts = []
-            k = 24
-            for i in range(k + 1):
-                t = i / k
-                half = width * 0.5 * math.sin(math.pi * t) ** 0.8 * (1.0 - depth * 0.5 * (0.5 + 0.5 * math.cos(2 * math.pi * t * lobes)))
-                pts.append(p0 + direction * length * t + side * half)
-            for i in range(k, -1, -1):
-                t = i / k
-                half = width * 0.5 * math.sin(math.pi * t) ** 0.8 * (1.0 - depth * 0.5 * (0.5 + 0.5 * math.cos(2 * math.pi * t * lobes + 1.0)))
-                pts.append(p0 + direction * length * t - side * half)
-            d.polygon([tuple(p) for p in pts], fill=255)
+        pts = outline(p0, direction, side, length, width, 3.5)
+        dm.polygon(pts, fill=255)
+        dc.polygon(pts, fill=c(leaf * shade))
+        # the outer part lighter, the vein down its middle darker
+        dc.polygon(outline(p0, direction, side, length, width * 0.9, 3.5, 0.5), fill=c((leaf * 0.4 + light * 0.6) * shade))
+        dc.line([tuple(p0), tuple(p0 + direction * length * 0.85)], fill=c(vein * shade), width=max(int(width * 0.12), 1))
 
-    # rachis: bare for the lowest fifth (the stipe), then pinnae
-    d.line([tuple(base), tuple(tip)], fill=255, width=int(W * 0.013))
+    def pinna(p0, direction, length, n):
+        direction = direction / np.linalg.norm(direction)
+        side = np.array([-direction[1], direction[0]])
+        tone = rng.uniform(0.85, 1.15)  # each pinna a little its own shade
+        for i in range(n):
+            t = (i + 0.6) / n
+            at = p0 + direction * length * t * 0.95
+            sz = length * 0.2 * (1.0 - t * 0.65)
+            for sgn in (-1, 1):
+                dd = direction * 0.6 + side * sgn  # swept toward the pinna's tip
+                pinnule(at, dd, sz, sz * 0.48, tone * rng.uniform(0.9, 1.1))
+        dm.line([tuple(p0), tuple(p0 + direction * length)], fill=255, width=max(int(W * 0.006), 1))
+        dc.line([tuple(p0), tuple(p0 + direction * length)], fill=c(rib * tone), width=max(int(W * 0.006), 1))
+
     for i in range(n_pinnae):
         t = 0.2 + 0.78 * (i + 0.5) / n_pinnae
         at = base + (tip - base) * t
         env = math.sin(math.pi * min((t - 0.12) / 0.95, 1.0)) ** 0.9  # longest a third of the way up
         length = W * 0.5 * env * (1.0 - 0.15 * t)
         for sgn in (-1, 1):
-            jitter = rng.uniform(-0.02, 0.02) * H
-            p0 = at + np.array([0.0, jitter * 0.3 + sgn * H * 0.004])
-            dd = np.array([sgn * 1.0, -0.22 - 0.3 * t])  # angled up toward the tip
-            lobed_blade(p0, dd, length, length * 0.28, 12 if length > W * 0.2 else 7, 0.5, 1)
-    mask = np.asarray(img.resize((w, h), Image.LANCZOS), dtype=np.float32) / 255.0
-    yy = np.linspace(0, 1, h)[:, None] * np.ones((1, w))
-    # colour: deep green, lighter toward the tips of the pinnae (the edges),
-    # yellower up the frond
-    rnd = rng.uniform(0.92, 1.08, (h, w))
-    g = np.stack([0.17 + 0.05 * (1 - yy), 0.28 + 0.04 * (1 - yy), 0.08 + 0.0 * yy], -1) * rnd[..., None]
-    rgb = np.clip(g * 255, 0, 255)
-    return _bleed(rgb, mask)
+            p0 = at + np.array([0.0, sgn * H * 0.012])  # (alternate, not quite opposite)
+            dd = np.array([sgn * 1.0, -0.3 - 0.35 * t])  # angled up toward the tip
+            pinna(p0, dd, length, 11 if length > W * 0.2 else 6)
+    # rachis on top: bare for the lowest fifth (the stipe)
+    dm.line([tuple(base), tuple(tip)], fill=255, width=int(W * 0.014))
+    dc.line([tuple(base), tuple(tip)], fill=c(rib * 0.9), width=int(W * 0.014))
+    m = np.asarray(mask.resize((w, h), Image.LANCZOS), dtype=np.float32) / 255.0
+    # (the colour averaged over covered pixels only)
+    cw = np.asarray(col, np.float32) * (np.asarray(mask, np.float32)[..., None] / 255)
+    cw = np.asarray(Image.fromarray(cw.clip(0, 255).astype(np.uint8)).resize((w, h), Image.LANCZOS), np.float32)
+    rgb = cw / np.maximum(m, 1e-3)[..., None]
+    return _bleed(np.clip(rgb, 0, 255), m)
 
 
 def _bleed(rgb, mask):

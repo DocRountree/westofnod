@@ -71,13 +71,17 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   depth (rivers) or the sea floor (sea) and the view angle.
 - **Trees**: English oaks (`data/population/README.md`), streamed by `Population`.
 - **Grass and ferns** (`scripts/population/ground_cover.gd`, `ground_cover.gdshader`):
-  a grid of cells follows the camera in tiles; the shader decides per cell, from where
-  it is, what grows there, its place, size and colour: short grass the ground's own
-  colour in the forest, with drifts of ferns (a recursive frond texture), longer grass
-  green to blonde on the prairie (to 130 m). Each clump's root is the colour of the
-  ground beneath (`ground.gdshaderinc`, shared with the terrain), and with distance the
-  clumps thin out and shrink into it. The forest's brown patches carry a texture of
-  fallen oak and maple leaves near the eye. Textures: `tools/ground/bake_ground_textures.py`.
+  grids of cells follow the camera in tiles. When a grid moves, a SubViewport works out
+  every cell once (`ground_cover_bake.gdshader`: what grows, how tall, its height on the
+  ground, the ground's colour) into a small texture, and each vertex just reads it. In
+  the forest: dense short grass the ground's own colour, and drifts of knee-high ferns
+  (a recursive frond texture), none on the leaf litter or the mud; on the prairie,
+  waist-high grass, green to blonde, out to 125 m; across a border the one turns into
+  the other. Clumps dissolve in and out (stippled) with distance, by which point their
+  colour is exactly the ground's (`ground.gdshaderinc`, shared with the terrain). The
+  forest floor also has patches of damp, matte mud, and its brown patches carry a
+  texture of fallen oak and maple leaves near the eye. Textures:
+  `tools/ground/bake_ground_textures.py`.
 - **Player** (`scripts/avatar.gd`): a stylised figure animated procedurally with two-bone
   IK. Walking: feet step in turn, arms swing. Climbing: hands and feet hold points on
   the rock surface (projected onto the terrain along its normal) and move one at a

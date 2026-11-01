@@ -1,62 +1,101 @@
 class_name GroundCover
 extends Node3D
 ## Grass and ferns: too many to place one by one (Population), so a grid of
-## cells follows the camera and the shader (ground_cover.gdshader) works out
-## what grows in each from where the cell is: the same clump in the same
-## place every time, nothing stored.
+## cells follows the camera and works out what grows in each from where
+## the cell is: the same clump in the same place every time, nothing stored.
 ##
-## Layers, each a MultiMesh of one cell per instance, shared by a square of
-## tiles round the camera (a tile is a MultiMeshInstance3D, so Godot culls
-## the ones out of view; as the camera moves, the tiles left behind jump
-## ahead):
-## - grass, near: short blades in the forest (the ground's colour, a little
-##   lighter at the tips), longer in the prairie (green to blonde); thinning
-##   from 12 m, gone by 45 m in the forest;
-## - grass, far: the prairie's only, bigger clumps, from 35 m to 130 m;
-## - ferns: the forest's, in drifts, short; gone by 50 m.
+## Each layer is a MultiMesh of one cell per instance, shared by a square
+## of tiles round the camera (a tile is a MultiMeshInstance3D, so Godot
+## culls the ones out of view; as the camera moves, the tiles left behind
+## jump ahead). When a layer's tiles move, a SubViewport works out every
+## cell of its new grid once (ground_cover_bake.gdshader: what grows, how
+## tall, its height on the ground, the ground's colour) into a small
+## texture, which the drawing shader (ground_cover.gdshader) reads: each
+## vertex reads two texels instead of working the terrain out again. Two
+## viewports take turns, so the shader switches to a new grid only once
+## it's ready.
+##
+## Layers:
+## - grass, near (to 21 m): dense; short in the forest (the ground's colour,
+##   a little lighter at the tips), waist-high on the prairie (green to
+##   blonde);
+## - grass, middle (15-52 m): bigger, fewer clumps of the same;
+## - grass, far (42-125 m): the prairie's only;
+## - ferns: the forest's, in drifts, knee-high; to 45 m.
 ## The forest's brown patches are leaf litter: a texture on the terrain
 ## (terrain.gdshader), not geometry.
 
 const LAYERS := [
-	# name, mesh, cell (m), cells a tile side, tiles a side, uniforms
-	{"name": "grass", "cell": 0.4, "cells": 32, "tiles": 7, "blades": 14, "radius": 0.2, "width": 0.02,
-		"u": {"kind": 0, "seed": 1, "forest_height": Vector2(0.07, 0.15), "prairie_height": Vector2(0.4, 0.8),
-			"fade_out": Vector2(30.0, 42.0), "thin_from": 12.0}},
-	{"name": "prairie_far", "cell": 1.2, "cells": 24, "tiles": 9, "blades": 12, "radius": 0.45, "width": 0.04,
-		"u": {"kind": 0, "seed": 2, "in_forest": false, "prairie_height": Vector2(0.45, 0.8),
-			"fade_in": Vector2(32.0, 42.0), "fade_out": Vector2(100.0, 130.0), "thin_from": 60.0}},
-	{"name": "fern", "cell": 1.1, "cells": 20, "tiles": 5, "fronds": 9,
-		"u": {"kind": 1, "seed": 3, "in_prairie": false, "forest_height": Vector2(0.55, 0.95),
-			"fade_out": Vector2(36.0, 50.0), "thin_from": 18.0, "cover": 0.9}},
+	# cell (m), cells a tile side, tiles a side (odd), the mesh, uniforms
+	{"cell": 0.25, "cells": 24, "tiles": 9, "blades": 10, "segs": 3, "radius": 0.16, "width": 0.016,
+		"u": {"kind": 0, "seed": 1, "forest_height": Vector2(0.07, 0.16), "prairie_height": Vector2(0.85, 1.3),
+			"fade_out": Vector2(15.0, 21.0), "thin_from": 1000.0}},
+	{"cell": 0.55, "cells": 24, "tiles": 9, "blades": 14, "segs": 2, "radius": 0.32, "width": 0.024,
+		"u": {"kind": 0, "seed": 2, "forest_height": Vector2(0.07, 0.16), "prairie_height": Vector2(0.85, 1.3),
+			"fade_in": Vector2(15.0, 21.0), "fade_out": Vector2(40.0, 52.0), "thin_from": 28.0}},
+	{"cell": 1.3, "cells": 20, "tiles": 11, "blades": 14, "segs": 2, "radius": 0.6, "width": 0.05,
+		"u": {"kind": 0, "seed": 3, "in_forest": false, "prairie_height": Vector2(0.85, 1.3),
+			"fade_in": Vector2(42.0, 52.0), "fade_out": Vector2(100.0, 125.0), "thin_from": 80.0}},
+	{"cell": 0.5, "cells": 24, "tiles": 9, "fronds": 8,
+		"u": {"kind": 1, "seed": 4, "in_prairie": false, "forest_height": Vector2(0.25, 0.45),
+			"fade_out": Vector2(32.0, 45.0), "thin_from": 16.0}},
 ]
+const BAKE_KEYS := ["kind", "seed", "in_forest", "in_prairie", "forest_height", "prairie_height", "cover"]
+const DRAW_KEYS := ["kind", "seed", "fade_in", "fade_out", "thin_from"]
 
 var world: WorldData
 var materials: Array[ShaderMaterial] = []
-var _layers: Array = [] # [layer, multimesh, tile size, {Vector2i: MultiMeshInstance3D}, centre]
+var _layers: Array[Dictionary] = []
 
 
 func setup(w: WorldData) -> void:
 	world = w
 	var frond := load("res://data/population/textures/fern_frond.png") as Texture2D
 	for L in LAYERS:
+		var grid: int = L.cells * L.tiles
 		var m := ShaderMaterial.new()
 		m.shader = load("res://shaders/render/ground_cover.gdshader")
-		m.set_shader_parameter("height_tex", world.height_tex)
-		m.set_shader_parameter("map_size", float(world.size))
-		m.set_shader_parameter("map_domain", world.domain)
-		m.set_shader_parameter("map_origin", world.origin)
-		m.set_shader_parameter("mask_tex", world.mask_tex)
-		if world.biome_tex:
-			m.set_shader_parameter("biome_tex", world.biome_tex)
-			m.set_shader_parameter("swamp_biome", world.biome_names.find("swamp"))
 		m.set_shader_parameter("cell", L.cell)
 		if L.u.kind == 1:
 			m.set_shader_parameter("frond_tex", OakTree._texture("res://data/population/textures/fern_frond.png"))
 			m.set_shader_parameter("frond_mean", _mean_linear(frond))
 		for k in L.u:
-			m.set_shader_parameter(k, L.u[k])
+			if k in DRAW_KEYS:
+				m.set_shader_parameter(k, L.u[k])
 		materials.append(m)
-		var mesh: Mesh = fern_mesh(L.fronds) if L.u.kind == 1 else grass_mesh(L.blades, L.radius, L.width, L.u.seed)
+		# the two viewports that work out the grid, in turn
+		var vps: Array[SubViewport] = []
+		var bakes: Array[ShaderMaterial] = []
+		for n in 2:
+			var vp := SubViewport.new()
+			vp.size = Vector2i(grid * 2, grid)
+			vp.disable_3d = true
+			vp.transparent_bg = true
+			vp.render_target_update_mode = SubViewport.UPDATE_DISABLED
+			vp.render_target_clear_mode = SubViewport.CLEAR_MODE_ALWAYS
+			var bm := ShaderMaterial.new()
+			bm.shader = load("res://shaders/render/ground_cover_bake.gdshader")
+			bm.set_shader_parameter("height_tex", world.height_tex)
+			bm.set_shader_parameter("map_size", float(world.size))
+			bm.set_shader_parameter("map_domain", world.domain)
+			bm.set_shader_parameter("map_origin", world.origin)
+			bm.set_shader_parameter("mask_tex", world.mask_tex)
+			if world.biome_tex:
+				bm.set_shader_parameter("biome_tex", world.biome_tex)
+				bm.set_shader_parameter("swamp_biome", world.biome_names.find("swamp"))
+			bm.set_shader_parameter("cell", L.cell)
+			bm.set_shader_parameter("grid_size", Vector2i(grid, grid))
+			for k in L.u:
+				if k in BAKE_KEYS:
+					bm.set_shader_parameter(k, L.u[k])
+			var rect := ColorRect.new()
+			rect.size = Vector2(vp.size)
+			rect.material = bm
+			vp.add_child(rect)
+			add_child(vp)
+			vps.append(vp)
+			bakes.append(bm)
+		var mesh: Mesh = fern_mesh(L.fronds) if L.u.kind == 1 else grass_mesh(L.blades, L.segs, L.radius, L.width, L.u.seed)
 		mesh.surface_set_material(0, m)
 		var mm := MultiMesh.new()
 		mm.transform_format = MultiMesh.TRANSFORM_3D
@@ -65,7 +104,8 @@ func setup(w: WorldData) -> void:
 		for i in L.cells:
 			for j in L.cells:
 				mm.set_instance_transform(i * L.cells + j, Transform3D(Basis(), Vector3(i * L.cell, 0.0, j * L.cell)))
-		_layers.append([L, mm, L.cell * L.cells, {}, Vector2i.MAX])
+		_layers.append({"L": L, "mm": mm, "size": L.cell * L.cells, "tiles": {}, "centre": Vector2i.MAX,
+				"material": m, "vps": vps, "bakes": bakes, "shown": -1, "baking": false, "want": Vector2i.MAX, "cam": Vector3.ZERO})
 
 
 ## The terrain's leaf litter texture (it's the terrain's material).
@@ -77,17 +117,19 @@ static func setup_terrain(terrain: ShaderMaterial) -> void:
 
 ## Moves the tiles to keep round the camera. Call every frame.
 func update(cam: Vector3) -> void:
-	for m in materials:
-		m.set_shader_parameter("view_pos", cam)
 	for layer in _layers:
-		var L: Dictionary = layer[0]
-		var size: float = layer[2]
-		var tiles: Dictionary = layer[3]
+		var L: Dictionary = layer.L
+		var size: float = layer.size
+		var tiles: Dictionary = layer.tiles
 		var centre := Vector2i(floori(cam.x / size), floori(cam.z / size))
-		if centre == layer[4]:
+		if centre == layer.centre:
 			continue
-		layer[4] = centre
+		layer.centre = centre
 		var half: int = L.tiles / 2
+		layer.want = (centre - Vector2i(half, half)) * int(L.cells)
+		layer.cam = cam
+		if not layer.baking:
+			_bake(layer)
 		var wanted := {}
 		for i in range(-half, half + 1):
 			for j in range(-half, half + 1):
@@ -103,7 +145,7 @@ func update(cam: Vector3) -> void:
 			var mi: MultiMeshInstance3D = spare.pop_back() if not spare.is_empty() else null
 			if mi == null:
 				mi = MultiMeshInstance3D.new()
-				mi.multimesh = layer[1]
+				mi.multimesh = layer.mm
 				mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 				add_child(mi)
 			mi.position = Vector3(key.x * size, 0.0, key.y * size)
@@ -111,6 +153,34 @@ func update(cam: Vector3) -> void:
 			tiles[key] = mi
 		for mi in spare:
 			mi.queue_free()
+
+
+## Works out the layer's grid where it's wanted, in the viewport not shown;
+## once drawn, shows it. (Until then the new tiles at the far edge, beyond
+## the old grid, are empty.)
+func _bake(layer: Dictionary) -> void:
+	layer.baking = true
+	while true:
+		var origin: Vector2i = layer.want
+		var cam: Vector3 = layer.cam
+		var k: int = 1 - maxi(layer.shown, 0)
+		var bm: ShaderMaterial = layer.bakes[k]
+		var base_h := roundf(cam.y)
+		bm.set_shader_parameter("grid_origin", origin)
+		bm.set_shader_parameter("base_h", base_h)
+		bm.set_shader_parameter("eye", cam)
+		bm.set_shader_parameter("view_pos", cam)
+		layer.vps[k].render_target_update_mode = SubViewport.UPDATE_ONCE
+		await RenderingServer.frame_post_draw
+		var m: ShaderMaterial = layer.material
+		m.set_shader_parameter("data_tex", layer.vps[k].get_texture())
+		m.set_shader_parameter("grid_origin", origin)
+		m.set_shader_parameter("grid_size", layer.bakes[k].get_shader_parameter("grid_size"))
+		m.set_shader_parameter("base_h", base_h)
+		layer.shown = k
+		if layer.want == origin:
+			break
+	layer.baking = false
 
 
 ## A box round a tile: its ground's lowest to highest, and a metre of grass.
@@ -129,14 +199,14 @@ func _box(at: Vector3, size: float) -> AABB:
 ## A clump of grass blades: each a tapering, curving strip, its middle line
 ## in units of the clump's height, its width (m) either side in CUSTOM0, its
 ## root's place in UV2.
-static func grass_mesh(blades: int, radius: float, width: float, seed: int) -> ArrayMesh:
+static func grass_mesh(blades: int, segs: int, radius: float, width: float, seed: int) -> ArrayMesh:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed * 7 + 5
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	st.set_custom_format(0, SurfaceTool.CUSTOM_RGB_FLOAT)
 	var base := 0
-	const SEGS := 3
+	var SEGS := segs
 	for b in blades:
 		var a := rng.randf() * TAU
 		var r := sqrt(rng.randf()) * radius
@@ -156,7 +226,7 @@ static func grass_mesh(blades: int, radius: float, width: float, seed: int) -> A
 			var half := w * 0.5 * (1.0 - t * 0.85)
 			var n := Vector3(lean_dir.x, 0.6, lean_dir.y).normalized()
 			for k in 2:
-				st.set_color(Color(shade, blond, 0.0))
+				st.set_color(Color(shade, blond, t))
 				st.set_uv(Vector2(float(k), t))
 				st.set_uv2(root)
 				st.set_normal(n)
@@ -180,7 +250,7 @@ static func fern_mesh(fronds: int) -> ArrayMesh:
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	st.set_custom_format(0, SurfaceTool.CUSTOM_RGB_FLOAT)
 	var base := 0
-	const SEGS := 6
+	const SEGS := 4
 	for f in fronds:
 		var a := TAU * (f + rng.randf_range(-0.3, 0.3)) / fronds
 		var dir := Vector3(cos(a), 0.0, sin(a))
@@ -204,7 +274,7 @@ static func fern_mesh(fronds: int) -> ArrayMesh:
 				n = -n
 			var tilt := side.rotated(along, 0.25) # (the frond's blade tipped a little)
 			for k in 2:
-				st.set_color(Color(shade, 0.0, 0.0))
+				st.set_color(Color(shade, 0.0, t))
 				st.set_uv(Vector2(float(k), 1.0 - t))
 				st.set_uv2(Vector2.ZERO)
 				st.set_custom(0, Color(0, 0, 0))
