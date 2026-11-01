@@ -3,10 +3,10 @@ extends Node3D
 ## CDLOD quadtree over the world's square domain. Each frame (when the camera
 ## has moved) it picks the patches to draw: a node is split while the camera is
 ## within the range of the next finer level, so detail falls off with distance
-## in powers of two; every patch is one instance of the same GRID x GRID mesh.
-## The terrain and the inland water draw the same patches with their own
-## materials, so they always line up. Morphing in the shaders (see
-## island_maps.gdshaderinc) blends each level into the next: no cracks, no pops.
+## in powers of two; every patch is one instance of the same GRID x GRID mesh
+## (each material given to setup() draws the same patches, so they line up).
+## Morphing in the shader (cdlod_xz in height_map.gdshaderinc) blends each
+## level into the next: no cracks, no pops.
 
 const GRID := 32
 const RANGE_FACTOR := 2.4 # range of a level, in patch sizes
@@ -59,12 +59,25 @@ func update(cam: Vector3) -> void:
 	var picked: Array = []
 	var top := leaf * pow(2.0, levels)
 	_select(data.origin, top, levels, cam, picked)
-	_mm.instance_count = picked.size()
+	# one upload: per instance a translation (3x4, row-major) then the custom data
+	var buf := PackedFloat32Array()
+	buf.resize(picked.size() * 16)
 	for i in picked.size():
 		var p: Array = picked[i]
 		var lod: int = p[2]
-		_mm.set_instance_transform(i, Transform3D(Basis(), Vector3(p[0].x, 0.0, p[0].y)))
-		_mm.set_instance_custom_data(i, Color(lod, ranges[lod] * MORPH_START, ranges[lod], p[1]))
+		var corner: Vector2 = p[0]
+		var o := i * 16
+		buf[o] = 1.0
+		buf[o + 3] = corner.x
+		buf[o + 5] = 1.0
+		buf[o + 10] = 1.0
+		buf[o + 11] = corner.y
+		buf[o + 12] = lod
+		buf[o + 13] = ranges[lod] * MORPH_START
+		buf[o + 14] = ranges[lod]
+		buf[o + 15] = p[1]
+	_mm.instance_count = picked.size()
+	_mm.buffer = buf
 
 
 ## Magnified view: detail by distance / zoom, and only the patches in the

@@ -6,7 +6,7 @@ extends CanvasLayer
 ## fade after a while; with the chat open, all of them show.
 ##
 ## Commands (/help lists them): tp / teleport, time, spawn, fly, zoom, aurora,
-## pos, clear.
+## pos, pop, clear.
 
 const SHOW_SECONDS := 10.0
 const FADE_SECONDS := 1.5
@@ -43,6 +43,7 @@ func _ready() -> void:
 		"zoom": [_zoom, "/zoom <1-8>: magnify"],
 		"aurora": [_aurora, "/aurora: toggle an aurora every night"],
 		"pos": [_pos, "/pos: where you are"],
+		"pop": [_pop, "/pop: what is living near by (trees, rocks, animals: Population)"],
 		"clear": [_clear, "/clear: clear the chat"],
 	}
 	var box := VBoxContainer.new()
@@ -314,6 +315,12 @@ func _pos(_args: PackedStringArray) -> void:
 	var p: Vector3 = main.player.global_position
 	var b: String = main.world.biome_at(p.x, p.z)
 	say("x %.0f  y %.1f  z %.0f  (%s)%s" % [p.x, p.y, p.z, _where(), ("  " + b) if b != "" else ""])
+
+
+func _pop(_args: PackedStringArray) -> void:
+	var s: Dictionary = main.population.stats()
+	say("%d props, %d actors in %d chunks (%d generating); %d prop kinds, %d actor kinds" % [
+			s.props, s.actors, s.chunks, s.generating, s.prop_kinds, s.actor_kinds])
 
 
 func _where() -> String:

@@ -13,20 +13,21 @@ const JUMP_VELOCITY := 7.6
 const GRAVITY := 24.0
 const MOUSE_SENS := 0.0025
 const FOV := 75.0
-const MAX_ZOOM := 8.0 # (ScatterField.MAX_ZOOM: the tree budget covers this much)
+const MAX_ZOOM := 8.0
 const THIRD_PERSON_DISTANCE := 4.5
 const SWIM_SPEED := 8.8
 const SWIM_SPRINT_SPEED := 22.4
 const SWIM_UP_SPEED := 9.6
 const SINK_SPEED := 0.6
-const CURRENT_SPEED := 1.4 # m/s at full river flow (as river.gdshader's river_speed)
 const CLIMB_SPEED := 3.5
 const SWAMP_SLOW := 0.8 # walking speed in a swamp
 const SWAMP_SINK := Vector2(0.5, 0.9) # m into the mud: knees to hips
 const CLIMB_OFFSET := 0.45 # body centre off the rock
 const CLIMBABLE := 0.85 # surface normal y below which ground counts as a wall
+const BODY_RADIUS := 0.3 # for pushing off trees, rocks and the like (Population.push_out)
 
 var world: WorldData
+var population: Population ## Trees, rocks, animals: what the body bumps into (optional).
 var head: Node3D # eye point; pitches with the mouse
 var camera: Camera3D
 var third_person := false
@@ -198,11 +199,11 @@ func _physics_process(delta: float) -> void:
 		velocity = dir * spd + Vector3.UP * vy * spd * 0.6
 		swimming = false
 	elif in_water:
-		_swim(delta, dir, depth, head_under, Vector2(water.y, water.z))
+		_swim(delta, dir, depth, head_under)
 	else:
 		swimming = false
 		var speed := SPRINT_SPEED if _held("sprint") else WALK_SPEED
-		if world.biome_at(global_position.x, global_position.z) == "swamp":
+		if world.biome_index_at(global_position.x, global_position.z) == world.swamp:
 			speed *= SWAMP_SLOW
 		velocity.y -= GRAVITY * delta
 		if _held("jump") and grounded:
@@ -241,6 +242,8 @@ func _physics_process(delta: float) -> void:
 ## swimming only keep you above it. (The physics collider is for the camera.)
 func _move(delta: float, in_water: bool) -> void:
 	var p := global_position + velocity * delta
+	if population and not flying:
+		p = population.push_out(p, BODY_RADIUS) # round the trunks and boulders
 	var g := world.height_at(p.x, p.z)
 	var n := world.normal_at(p.x, p.z)
 	var steep := n.y < cos(floor_max_angle)
@@ -254,7 +257,7 @@ func _move(delta: float, in_water: bool) -> void:
 		# a swamp swallows you to the knees or hips (deeper here, shallower
 		# there), easing in and out at its edge
 		var want := 0.0
-		if world.biome_at(p.x, p.z) == "swamp":
+		if world.biome_index_at(p.x, p.z) == world.swamp:
 			want = lerpf(SWAMP_SINK.x, SWAMP_SINK.y, WorldData.vnoise(p.x / 7.0, p.z / 7.0))
 		sink = move_toward(sink, want, delta)
 		g -= sink
@@ -325,9 +328,8 @@ func _process(_delta: float) -> void:
 ## Swimming, as in Minecraft: you slowly sink unless you hold jump, which swims
 ## you up (and bobs you at the surface); descend sinks faster; movement is slow.
 ## Sprinting with your head under water swims fast wherever you look, up and
-## down included. Swimming into a bank with jump held climbs out. Rivers carry
-## you downstream.
-func _swim(delta: float, dir: Vector3, depth: float, head_under: bool, flow: Vector2) -> void:
+## down included. Swimming into a bank with jump held climbs out.
+func _swim(delta: float, dir: Vector3, depth: float, head_under: bool) -> void:
 	var look := -head.global_basis.z
 	var forward := _move_input().y < -0.3
 	swimming = forward and _held("sprint") # (Ctrl + forward: swim flat out, as in Minecraft)
@@ -342,9 +344,7 @@ func _swim(delta: float, dir: Vector3, depth: float, head_under: bool, flow: Vec
 			target.y = -SWIM_UP_SPEED
 		else:
 			target.y = -SINK_SPEED
-	# The current carries you along; water is thick, so velocities ease toward
-	# the target (and a dive is braked).
-	target += Vector3(flow.x, 0.0, flow.y) * CURRENT_SPEED
+	# Water is thick: velocities ease toward the target (and a dive is braked).
 	velocity = velocity.move_toward(target, 36.0 * delta)
 	var ahead := global_position + Vector3(dir.x, 0.0, dir.z) * 0.6
 	if _held("jump") and depth < 1.6 and world.height_at(ahead.x, ahead.z) > global_position.y:

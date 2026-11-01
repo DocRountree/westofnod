@@ -1,4 +1,4 @@
-// The world height map (WorldData), shared by terrain, water and scattered props.
+// The world height map (WorldData), shared by the terrain and the sea.
 // terrain_height() is the ground as drawn, the same function as
 // WorldData.height_at(): a cubic B-spline through the samples plus procedural
 // relief below their resolution. height_m() is the plain bilinear map (the sea
@@ -16,7 +16,7 @@ uniform vec3 view_pos;               // main camera (also during the shadow pass
 // many times nearer, so it holds up when magnified.
 uniform float lod_zoom = 1.0;
 
-const float OCEAN_FLOOR = -300.0;
+const float OCEAN_FLOOR = -80.0; // = WorldData.OCEAN_FLOOR
 // Below the data: three octaves of value noise (wavelength m, amplitude m), as
 // WorldData.DETAIL; each fades out with distance once too fine to matter.
 const vec2 DETAIL[3] = vec2[](vec2(40.0, 3.0), vec2(15.0, 1.1), vec2(6.0, 0.4));
@@ -55,13 +55,6 @@ float sample_m(sampler2D tex, vec2 p, int m, float outside) {
 
 float height_m(vec2 p, int m) {
 	return sample_m(height_tex, p, m, OCEAN_FLOOR);
-}
-
-vec3 normal_m(vec2 p, int m) {
-	float s = map_cell() * exp2(float(m));
-	float hx = height_m(p + vec2(s, 0.0), m) - height_m(p - vec2(s, 0.0), m);
-	float hz = height_m(p + vec2(0.0, s), m) - height_m(p - vec2(0.0, s), m);
-	return normalize(vec3(-hx, 2.0 * s, -hz));
 }
 
 float hm_hash(ivec2 c) {
@@ -144,7 +137,10 @@ float swampiness(vec2 p) {
 
 float terrain_height(vec2 p, int m) {
 	float b = base_height(p, m);
-	return b + terrain_detail(p) * clamp((b - 0.5) / 3.0, 0.0, 1.0) * (1.0 - swampiness(p));
+	float land = clamp((b - 0.5) / 3.0, 0.0, 1.0);
+	if (land <= 0.0)
+		return b; // the sea floor: no relief
+	return b + terrain_detail(p) * land * (1.0 - swampiness(p));
 }
 
 vec3 terrain_normal(vec2 p, int m, float e) {

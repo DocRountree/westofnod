@@ -1,7 +1,8 @@
 extends Node3D
 ## Builds the world: the Galapagos archipelago (real elevation data baked by
 ## tools/dem/bake_galapagos.py) on one CDLOD quadtree, the ocean, sky and
-## atmosphere, the player. (No trees, for now; props would be ScatterFields.)
+## atmosphere, the player, and what lives on the land (Population: trees,
+## rocks, grass, NPCs, animals; content goes in data/population/).
 
 var world: WorldData
 var cdlod: Cdlod
@@ -13,7 +14,7 @@ var env: Environment
 var ocean: MeshInstance3D
 var ocean_material: ShaderMaterial
 var terrain_material: ShaderMaterial
-var fields: Array[ScatterField] = []
+var population: Population
 
 const AURORA_LATITUDE := 45.0 # auroras are seen only north of this
 var config: WorldConfig
@@ -67,16 +68,18 @@ func _ready() -> void:
 
 	# Aerial perspective (aerial.gdshaderinc) needs the sun on every surface it hazes.
 	_hazed = [terrain_mat, ocean_material]
-	for f in fields:
-		_hazed.append(f.material)
 	for m in _hazed:
 		m.set_shader_parameter("haze_sun_dir", _sun.global_basis.z)
 
 	collider = TerrainCollider.new()
 	collider.world = world
 	add_child(collider)
+	population = Population.new()
+	population.world = world
+	add_child(population)
 	player = Player.new()
 	player.world = world
+	player.population = population
 	add_child(player)
 	player.avatar.world = world
 	player.global_position = world.spawn
@@ -307,9 +310,9 @@ func _update_light() -> void:
 	terrain_material.set_shader_parameter("sun_direction", dir)
 
 
-## The magnified view (Player.zoom): terrain, props and shadows pick their
-## detail as if everything were zoom times nearer, but only in the wedge seen.
-func _magnify(cam: Vector3) -> void:
+## The magnified view (Player.zoom): terrain and shadows pick their detail as
+## if everything were zoom times nearer, but only in the wedge seen.
+func _magnify() -> void:
 	var z := player.zoom
 	var f := -player.camera.global_basis.z
 	var dir := Vector2(f.x, f.z)
@@ -322,8 +325,6 @@ func _magnify(cam: Vector3) -> void:
 	cdlod.magnify(dir, z, tan_h)
 	for m in _hazed:
 		m.set_shader_parameter("lod_zoom", z)
-	for fld in fields:
-		fld.magnify(cam, dir, z, tan_h)
 	_sun.directional_shadow_max_distance = 350.0 * z
 
 
@@ -337,10 +338,9 @@ func _process(_delta: float) -> void:
 	_update_position_on_planet()
 	_update_light()
 	var cam := player.camera.global_position
-	_magnify(cam)
+	_magnify()
 	cdlod.update(cam)
-	for f in fields:
-		f.update(cam)
+	population.update(player.global_position)
 	ocean_material.set_shader_parameter("view_pos", cam)
 	ocean.global_position = Vector3(snappedf(cam.x, 4.0), 0.0, snappedf(cam.z, 4.0))
 	collider.follow(player.global_position)

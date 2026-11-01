@@ -103,7 +103,7 @@ func _run() -> void:
 	await _wait(1.0)
 	await _shot("02_spawn_side")
 	await _view(s + Vector3(0, 30, 0), 0.0, -0.5)
-	await _shot("03_river_low")
+	await _shot("03_low")
 	await _view(s + Vector3(0, 150, 0), 0.0, -0.45)
 	await _shot("04_aerial")
 	await _view(s + Vector3(0, 150, 0), PI, -0.3)
