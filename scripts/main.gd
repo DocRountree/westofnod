@@ -94,6 +94,7 @@ func _ready() -> void:
 				_hazed.append(m)
 				m.set_shader_parameter("haze_sun_dir", _sun.global_basis.z)
 	ground_cover = GroundCover.new()
+	ground_cover.population = population
 	add_child(ground_cover)
 	ground_cover.setup(world)
 	for m in ground_cover.materials:

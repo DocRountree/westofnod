@@ -24,6 +24,24 @@ uniform bool in_prairie = true;
 uniform vec2 forest_height = vec2(0.08, 0.16); // m (grass; ferns: their length)
 uniform vec2 prairie_height = vec2(0.45, 0.85);
 uniform float cover = 1.0; // the share of cells with a clump
+uniform float clear = 0.2; // m kept clear round a log or stump, past its radius
+// fallen logs and stumps (Population.walk_near()): segments over the ground
+// (ax, az, bx, bz) and their radii; nothing grows through them
+uniform vec4 logs[128];
+uniform float log_r[128];
+uniform int log_count = 0;
+
+// Under (or through) a log or stump.
+bool under_log(vec2 p) {
+	for (int i = 0; i < log_count; i++) {
+		vec2 a = logs[i].xy;
+		vec2 ab = logs[i].zw - a;
+		float t = clamp(dot(p - a, ab) / max(dot(ab, ab), 1e-6), 0.0, 1.0);
+		if (distance(p, a + ab * t) < log_r[i] + clear)
+			return true;
+	}
+	return false;
+}
 // the terrain's levels of detail (Cdlod): a level-0 patch's size, a
 // level's range in patch sizes, where in it morphing starts
 uniform float cd_leaf = 16.0;
@@ -110,7 +128,7 @@ void fragment() {
 	if (!in_forest)
 		prairie = 1.0;
 	float size = 0.0;
-	if (h2(c, 5) < grows && h2(c, 4) < cover) {
+	if (h2(c, 5) < grows && h2(c, 4) < cover && !under_log(pos)) {
 		// not on rock, sand, mud or the shore; nothing on the forest's litter
 		float bare = max(max(rocky, m.a), mud * 3.0) + (1.0 - smoothstep(0.3, 1.2, h));
 		float here = mix(smoothstep(0.3, 0.05, litter / max(fw, 1e-4)), 1.0, prairie);

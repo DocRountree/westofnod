@@ -42,11 +42,13 @@ const LAYERS := [
 		"u": {"kind": 1, "seed": 4, "in_prairie": false, "forest_height": Vector2(0.25, 0.45),
 			"fade_out": Vector2(32.0, 45.0), "thin_from": 16.0}},
 ]
+const MAX_LOGS := 128 ## log and stump segments the grass is kept out of, nearest first
 const REBAKE := 5.0 ## m the camera moves before a layer's grid is worked out again
 const BAKE_KEYS := ["kind", "seed", "in_forest", "in_prairie", "forest_height", "prairie_height", "cover"]
 const DRAW_KEYS := ["kind", "seed", "fade_in", "fade_out", "thin_from"]
 
 var world: WorldData
+var population: Population ## (optional) its logs and stumps keep the grass off
 var materials: Array[ShaderMaterial] = []
 var _layers: Array[Dictionary] = []
 
@@ -88,6 +90,7 @@ func setup(w: WorldData) -> void:
 				bm.set_shader_parameter("swamp_biome", world.biome_names.find("swamp"))
 			bm.set_shader_parameter("cell", L.cell)
 			bm.set_shader_parameter("grid_size", Vector2i(grid, grid))
+			bm.set_shader_parameter("clear", L.get("radius", 0.25) + 0.05)
 			bm.set_shader_parameter("cd_leaf", Cdlod.GRID * world.cell() / 8.0)
 			bm.set_shader_parameter("cd_range_factor", Cdlod.RANGE_FACTOR)
 			bm.set_shader_parameter("cd_morph_start", Cdlod.MORPH_START)
@@ -111,7 +114,7 @@ func setup(w: WorldData) -> void:
 			for j in L.cells:
 				mm.set_instance_transform(i * L.cells + j, Transform3D(Basis(), Vector3(i * L.cell, 0.0, j * L.cell)))
 		_layers.append({"L": L, "mm": mm, "size": L.cell * L.cells, "tiles": {}, "centre": Vector2i.MAX,
-				"material": m, "vps": vps, "bakes": bakes, "shown": -1, "baking": false, "want": Vector2i.MAX, "cam": Vector3.ZERO, "baked": Vector3.INF})
+				"material": m, "vps": vps, "bakes": bakes, "shown": -1, "baking": false, "want": Vector2i.MAX, "cam": Vector3.ZERO, "baked": Vector3.INF, "walks": -1})
 
 
 ## The terrain's leaf litter texture (it's the terrain's material).
@@ -131,7 +134,9 @@ func update(cam: Vector3) -> void:
 		if centre == layer.centre:
 			# (the ground's heights are as the terrain draws them from the
 			# eye, which changes as it moves: worked out again every few metres)
-			if not layer.baking and cam.distance_to(layer.baked) > REBAKE:
+			# (and when logs or stumps come or go)
+			var logs_moved: bool = population != null and population.walk_changes != layer.walks
+			if not layer.baking and (cam.distance_to(layer.baked) > REBAKE or logs_moved):
 				layer.cam = cam
 				_bake(layer)
 			continue
@@ -175,6 +180,7 @@ func _bake(layer: Dictionary) -> void:
 		var origin: Vector2i = layer.want
 		var cam: Vector3 = layer.cam
 		layer.baked = cam
+		layer.walks = population.walk_changes if population else 0
 		var k: int = 1 - maxi(layer.shown, 0)
 		var bm: ShaderMaterial = layer.bakes[k]
 		var base_h := roundf(cam.y)
@@ -182,6 +188,16 @@ func _bake(layer: Dictionary) -> void:
 		bm.set_shader_parameter("base_h", base_h)
 		bm.set_shader_parameter("eye", cam)
 		bm.set_shader_parameter("view_pos", cam)
+		# the logs and stumps about, which nothing grows through
+		var xs := PackedVector4Array()
+		var rs := PackedFloat32Array()
+		if population:
+			population.walk_near(cam, layer.size * (layer.L.tiles / 2 + 1) * 1.42, MAX_LOGS, xs, rs)
+		bm.set_shader_parameter("log_count", xs.size())
+		xs.resize(MAX_LOGS)
+		rs.resize(MAX_LOGS)
+		bm.set_shader_parameter("logs", xs)
+		bm.set_shader_parameter("log_r", rs)
 		layer.vps[k].render_target_update_mode = SubViewport.UPDATE_ONCE
 		await RenderingServer.frame_post_draw
 		var m: ShaderMaterial = layer.material

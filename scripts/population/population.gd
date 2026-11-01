@@ -44,6 +44,7 @@ var _removed := {} # prop uid -> true
 var _centre := Vector2i.MAX
 var _radius := 0.0 # chunks are kept this far out (m)
 var _focus := Vector3.ZERO
+var walk_changes := 0 ## Counts the times logs or stumps came or went (GroundCover rechecks the grass).
 
 
 class _Chunk:
@@ -243,6 +244,34 @@ func deck_at(p: Vector3, below: float, foot := 0.15) -> float:
 					if top <= below and top > best:
 						best = top
 	return best
+
+
+## The segments that can be stood on (logs, stumps: PropKind.walk) within
+## r of p over the ground, nearest first, at most n: in xs Vector4(ax, az,
+## bx, bz), in rs each one's radius (the larger end's). (GroundCover keeps
+## the grass out of them.)
+func walk_near(p: Vector3, r: float, n: int, xs: PackedVector4Array, rs: PackedFloat32Array) -> void:
+	var found: Array = []
+	var q := Vector2(p.x, p.z)
+	var c := _key(p)
+	var reach := ceili(r / CHUNK)
+	for dz in range(-reach, reach + 1):
+		for dx in range(-reach, reach + 1):
+			var ch: _Chunk = _chunks.get(c + Vector2i(dx, dz))
+			if ch == null:
+				continue
+			var w := ch.walk
+			for k in range(0, w.size(), 8):
+				var a := _on_segment(w, k, q)
+				var d := q.distance_to(Vector2(a.x, a.z))
+				if d < r:
+					found.append([d, k, w])
+	found.sort_custom(func(u, v): return u[0] < v[0])
+	for i in mini(found.size(), n):
+		var w: PackedFloat32Array = found[i][2]
+		var k: int = found[i][1]
+		xs.append(Vector4(w[k], w[k + 2], w[k + 3], w[k + 5]))
+		rs.append(maxf(w[k + 6], w[k + 7]))
 
 
 ## Segment k of w stands steeper than 45°: a post (a stump), flat on top,
@@ -486,6 +515,8 @@ func _apply(ch: _Chunk) -> void:
 		return
 	_chunks[ch.key] = ch
 	_build_props(ch)
+	if not ch.walk.is_empty():
+		walk_changes += 1
 
 
 ## (Re)build a chunk's MultiMeshes.
@@ -604,6 +635,7 @@ func _drop_removed(ch: _Chunk) -> void:
 		ch.uids[k] = keep_uids
 	ch.obstacles = obstacles
 	ch.walk = walk
+	walk_changes += 1
 
 
 func _unload(key: Vector2i) -> void:
