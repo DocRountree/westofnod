@@ -39,7 +39,7 @@ vec3 end_grain(vec2 p) {
 }
 
 void fragment() {
-	if (lod_hidden(FRAGCOORD.xy, CAMERA_POSITION_WORLD, PROJECTION_MATRIX)) discard;
+	if (lod_hidden(FRAGCOORD.xy, CAMERA_POSITION_WORLD, PROJECTION_MATRIX, MODEL_MATRIX)) discard;
 	if (UV2.x > 0.5) {
 		ALBEDO = end_grain(UV) * COLOR.rgb;
 		ROUGHNESS = 0.9;

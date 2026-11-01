@@ -36,6 +36,8 @@ func _init() -> void:
 	ground.material_override = gm
 	root3.add_child(ground)
 	var at := [Vector3(-55, 0, 0), Vector3(-27.5, 0, 0), Vector3(0, 0, 0), Vector3(27.5, 0, 0), Vector3(48, 0, 12), Vector3(48, 0, -2), Vector3(62, 0, 0), Vector3(40, 0, 2), Vector3(54, 0, 6), Vector3(14, 0, 14), Vector3(20, 0, 16)]
+	OakTree.build(0)
+	OakTree.set_lod_fade(false) # (no chunks here: show each level wherever it is)
 	for v in OakTree.VARIANTS.size():
 		var mi := MeshInstance3D.new()
 		mi.mesh = OakTree.build_lods(v)[0] if lod else OakTree.build(v)

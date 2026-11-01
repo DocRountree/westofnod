@@ -418,6 +418,17 @@ func _build_props(ch: _Chunk) -> void:
 		# so the levels hand over at the same distance, cross-fading.
 		var n := mini(kind.lods.size(), kind.lod_distances.size())
 		var box := _chunk_box(kind, xf)
+		# the nodes stand at the middle of their box (and the instances are
+		# placed from there): Godot measures visibility distance from a
+		# node's origin, which must not be off at the chunk's corner at sea
+		# level, hundreds of metres from the trees
+		var mid := box.get_center()
+		xf = xf.duplicate()
+		for i in range(0, xf.size(), 12):
+			xf[i + 3] -= mid.x
+			xf[i + 7] -= mid.y
+			xf[i + 11] -= mid.z
+		box.position -= mid
 		for l in n + 1:
 			var begin := 0.0 if l == 0 else kind.lod_distances[l - 1]
 			var end := kind.view_distance if l == n else minf(kind.lod_distances[l], kind.view_distance)
@@ -430,7 +441,7 @@ func _build_props(ch: _Chunk) -> void:
 			mm.buffer = xf
 			var mi := MultiMeshInstance3D.new()
 			mi.multimesh = mm
-			mi.position = at
+			mi.position = at + mid
 			var mat := kind.material if l == 0 or kind.lod_material == null else kind.lod_material
 			if mat:
 				mi.material_override = mat
@@ -438,12 +449,11 @@ func _build_props(ch: _Chunk) -> void:
 			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if shadows else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 			mi.custom_aabb = box
 			# drawn a little past each switch, both levels at once, so their
-			# shaders can cross-fade (lod_fade.gdshaderinc: by the same
-			# distance, to the box's middle)
+			# shaders can cross-fade (lod_fade.gdshaderinc: each level's
+			# materials know its span; the distance is to the chunk's middle,
+			# which the shader finds from where the tree stands)
 			mi.visibility_range_begin = maxf(begin - LOD_FADE * 2.0, 0.0) if l > 0 else 0.0
 			mi.visibility_range_end = end + LOD_FADE * 2.0
-			mi.set_instance_shader_parameter("lod_range", Vector3(begin, end, LOD_FADE))
-			mi.set_instance_shader_parameter("lod_centre", at + box.get_center())
 			add_child(mi)
 			ch.nodes.append(mi)
 		if kind.shadow_mesh and kind.shadows:
@@ -455,7 +465,7 @@ func _build_props(ch: _Chunk) -> void:
 			smm.buffer = xf
 			var smi := MultiMeshInstance3D.new()
 			smi.multimesh = smm
-			smi.position = at
+			smi.position = at + mid
 			smi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY
 			smi.custom_aabb = box
 			smi.visibility_range_end = kind.shadow_distance

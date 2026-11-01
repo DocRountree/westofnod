@@ -62,25 +62,51 @@ const UP := [0.0, 0.012, 0.06, 0.1] ## turn toward the sky at each node
 const CHILD_ANGLE := [0.0, 0.9, 0.85, 0.8] ## rad off the parent
 const TIP_R := 0.006 ## m, the thinnest twig
 
-static var _bark_mat: ShaderMaterial
-static var _leaf_mat: ShaderMaterial
+## Levels of detail: where each simpler one takes over (m), and the last's
+## end. Each level has its own materials, which know its span (lod_range)
+## for the stippled hand-over (lod_fade.gdshaderinc).
+const LOD := [40.0, 120.0, 300.0]
+const VIEW := 600.0
+
+static var _bark_mats := {} # level -> ShaderMaterial
+static var _leaf_mats := {}
 static var _cache := {} # variant -> [mesh, lods]
 
 
-static func bark_material() -> ShaderMaterial:
-	if _bark_mat == null:
-		_bark_mat = ShaderMaterial.new()
-		_bark_mat.shader = load("res://shaders/render/bark.gdshader")
-		_bark_mat.set_shader_parameter("bark_tex", load("res://data/population/textures/oak_bark.png"))
-	return _bark_mat
+static func bark_material(level := 0) -> ShaderMaterial:
+	if not _bark_mats.has(level):
+		var m := ShaderMaterial.new()
+		m.shader = load("res://shaders/render/bark.gdshader")
+		m.set_shader_parameter("bark_tex", load("res://data/population/textures/oak_bark.png"))
+		_lod_span(m, level)
+		_bark_mats[level] = m
+	return _bark_mats[level]
 
 
-static func leaf_material() -> ShaderMaterial:
-	if _leaf_mat == null:
-		_leaf_mat = ShaderMaterial.new()
-		_leaf_mat.shader = load("res://shaders/render/leaves.gdshader")
-		_leaf_mat.set_shader_parameter("leaf_tex", load("res://data/population/textures/oak_leaves.png"))
-	return _leaf_mat
+static func leaf_material(level := 0) -> ShaderMaterial:
+	if not _leaf_mats.has(level):
+		var m := ShaderMaterial.new()
+		m.shader = load("res://shaders/render/leaves.gdshader")
+		m.set_shader_parameter("leaf_tex", load("res://data/population/textures/oak_leaves.png"))
+		_lod_span(m, level)
+		_leaf_mats[level] = m
+	return _leaf_mats[level]
+
+
+static func _lod_span(m: ShaderMaterial, level: int) -> void:
+	var begin: float = 0.0 if level == 0 else LOD[level - 1]
+	var end: float = VIEW if level == LOD.size() else LOD[level]
+	m.set_shader_parameter("lod_range", Vector3(begin, end, Population.LOD_FADE))
+	m.set_shader_parameter("lod_chunk", Population.CHUNK)
+
+
+## Off: every level drawn wherever it is (e.g. to look at one level alone).
+static func set_lod_fade(on: bool) -> void:
+	for mats in [_bark_mats, _leaf_mats]:
+		for level in mats:
+			var r: Vector3 = mats[level].get_shader_parameter("lod_range")
+			r.z = Population.LOD_FADE if on else 0.0
+			mats[level].set_shader_parameter("lod_range", r)
 
 
 static var _shadow: Mesh
@@ -93,7 +119,10 @@ static func _kind(v: int) -> String:
 
 ## Population: how variant v differs as a prop.
 static func variant_props(v: int) -> Dictionary:
-	return PROPS[_kind(v)]
+	var p: Dictionary = PROPS[_kind(v)].duplicate()
+	p.lod_distances = PackedFloat32Array(LOD)
+	p.view_distance = VIEW
+	return p
 
 
 ## The whole tree (PropKind.mesh_script).
@@ -127,25 +156,24 @@ static func build_lods(variant := 0) -> Array[Mesh]:
 static func _models(variant: int) -> Array:
 	variant = posmod(variant, VARIANTS.size())
 	if not _cache.has(variant):
-		var b := bark_material()
-		var l := leaf_material()
+		var b := [bark_material(0), bark_material(1), bark_material(2), bark_material(3)]
+		var l := [leaf_material(0), leaf_material(1), leaf_material(2), leaf_material(3)]
 		var tb: TreeBuilder
 		var lods: Array[Mesh]
 		match _kind(variant):
 			"stump":
 				tb = grow_stump(VARIANTS[variant])
-				lods = [tb.lod(b, l, 0, 2, 0, 1.0), tb.lod(b, l, 0, 3, 0, 1.0), tb.lod(b, l, 0, 4, 0, 1.0)]
+				lods = [tb.lod(b[1], l[1], 0, 2, 0, 1.0), tb.lod(b[2], l[2], 0, 3, 0, 1.0), tb.lod(b[3], l[3], 0, 4, 0, 1.0)]
 			"log":
 				tb = grow_log(VARIANTS[variant])
-				lods = [tb.lod(b, l, 1, 2, 0, 1.0), tb.lod(b, l, 0, 3, 0, 1.0), tb.lod(b, l, 0, 4, 0, 1.0)]
+				lods = [tb.lod(b[1], l[1], 1, 2, 0, 1.0), tb.lod(b[2], l[2], 0, 3, 0, 1.0), tb.lod(b[3], l[3], 0, 4, 0, 1.0)]
 			"dead":
 				tb = grow_dead(VARIANTS[variant])
-				lods = [tb.lod(b, l, 2, 2, 0, 1.0), tb.lod(b, l, 1, 3, 0, 1.0), tb.lod(b, l, 0, 4, 0, 1.0)]
+				lods = [tb.lod(b[1], l[1], 2, 2, 0, 1.0), tb.lod(b[2], l[2], 1, 3, 0, 1.0), tb.lod(b[3], l[3], 0, 4, 0, 1.0)]
 			_:
 				tb = grow(variant)
-				# (40-120 m, 120-300 m, 300 m on: oak.tres lod_distances)
-				lods = [tb.lod(b, l, 2, 2, 4, 1.0, 40.0), tb.lod(b, l, 1, 3, 12, 2.0, 120.0), tb.lod(b, l, 0, 4, 36, 3.2, 300.0)]
-		_cache[variant] = [tb.build(b, l, 12.0), lods]
+				lods = [tb.lod(b[1], l[1], 2, 2, 4, 1.0, LOD[0]), tb.lod(b[2], l[2], 1, 3, 12, 2.0, LOD[1]), tb.lod(b[3], l[3], 0, 4, 36, 3.2, LOD[2])]
+		_cache[variant] = [tb.build(b[0], l[0], 12.0), lods]
 	return _cache[variant]
 
 

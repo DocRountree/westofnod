@@ -53,7 +53,7 @@ void vertex() {
 }
 
 void fragment() {
-	if (lod_hidden(FRAGCOORD.xy, CAMERA_POSITION_WORLD, PROJECTION_MATRIX) || card_fade < bayer4(FRAGCOORD.xy + 2.0)) discard;
+	if (lod_hidden(FRAGCOORD.xy, CAMERA_POSITION_WORLD, PROJECTION_MATRIX, MODEL_MATRIX) || card_fade < bayer4(FRAGCOORD.xy + 2.0)) discard;
 	vec4 t = texture(leaf_tex, UV);
 	vec2 dx = dFdx(UV * atlas_size), dy = dFdy(UV * atlas_size);
 	float mip = max(0.0, 0.5 * log2(max(dot(dx, dx), dot(dy, dy))));

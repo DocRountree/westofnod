@@ -8,7 +8,6 @@ script = ExtResource("1")
 id = &"oak"
 mesh_script = ExtResource("2")
 variants = 11
-lod_distances = PackedFloat32Array(40, 120, 300)
 shadow_distance = 180.0
 scale_range = Vector2(0.85, 1.15)
 sink = 0.25
