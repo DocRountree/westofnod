@@ -76,7 +76,7 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   ground, the ground's colour) into a small texture, and each vertex just reads it. In
   the forest: dense short grass the ground's own colour, and drifts of knee-high ferns
   (a recursive frond texture), none on the leaf litter or the mud; on the prairie,
-  grass head-high and more (1.7-2.6 m), green to blonde, out to 125 m; across a border the one turns into
+  grass about head-high (1.36-2.08 m), green to blonde, out to 125 m; across a border the one turns into
   the other. Clumps dissolve in and out (stippled) with distance, by which point their
   colour is exactly the ground's (`ground.gdshaderinc`, shared with the terrain). The
   forest floor also has patches of damp, matte mud, and its brown patches carry a
