@@ -1,9 +1,9 @@
 class_name OakTree
 ## The English oak (Quercus robur): four hand-set standing trees, a stump,
-## a fallen log and a dead standing tree (variants 0-6), grown into a
+## a dead standing tree, three fallen logs and two saplings (variants 0-10), grown into a
 ## TreeBuilder skeleton and dressed with data/population/textures/oak_*.png
 ## (tools/trees/bake_oak_textures.py). The prop (data/population/props/
-## oak.tres) has variants = 7 and this as its mesh_script.
+## oak.tres) has variants = 11 and this as its mesh_script.
 ##
 ## What makes it read as an oak: a short, stout trunk with flared roots that
 ## runs on into the crown, giving off a few heavy limbs one after another; limbs that spread wide, nearly level,
@@ -27,20 +27,31 @@ const VARIANTS := [
 	{"trunk_h": 6.5, "leader_h": 5.5, "trunk_r": 0.45, "limbs": 5, "limb_angle": 40.0, "limb_len": 5.2, "branch_len": 2.8, "twig_len": 1.1, "lean": 0.0, "droop": 0.0, "seed": 53, "crown": [5.0, 19.0, 7.5]},
 	# a stump, sawn off, the roots flaring
 	{"kind": "stump", "seed": 61},
-	# a fallen trunk, broken at both ends, the stubs of its limbs
+	# a fallen trunk, snapped at both ends, the stubs of its limbs
 	{"kind": "log", "seed": 67},
 	# a dead oak still standing: an open-grown oak's skeleton, bare, broken
 	{"kind": "dead", "like": 0, "seed": 71, "limb_angle": 40.0, "limb_len": 7.0, "branch_len": 3.0, "crown": [6.0, 13.5, 3.0]},
+	# a long, slender fallen stem, bristling with snapped limbs
+	{"kind": "log", "seed": 73, "length": Vector2(8.0, 9.5), "r0": 0.32, "r1": 0.17, "bow": 0.45, "stubs": Vector2i(4, 6)},
+	# a short, heavy section of a big trunk
+	{"kind": "log", "seed": 79, "length": Vector2(2.8, 3.6), "r0": 0.58, "r1": 0.52, "bow": 0.06, "stubs": Vector2i(0, 1)},
+	# saplings, 3-4 m: a whip with a small crown, and a bushier one forking low
+	{"kind": "sapling", "trunk_h": 0.9, "leader_h": 2.0, "trunk_r": 0.045, "limbs": 4, "limb_angle": 40.0, "limb_len": 1.5, "branch_len": 0.8, "twig_len": 0.5, "lean": 0.0, "droop": 0.0, "seed": 83, "crown": [1.3, 3.8, 0.9]},
+	{"kind": "sapling", "trunk_h": 0.4, "leader_h": 1.6, "trunk_r": 0.05, "limbs": 5, "limb_angle": 52.0, "limb_len": 1.6, "branch_len": 0.8, "twig_len": 0.5, "lean": 4.0, "droop": 0.0, "seed": 89, "crown": [1.6, 3.2, 0.5]},
 ]
 
 ## How a variant differs as a prop (Population applies these to its kind):
-## weight is its share of the oaks; the dead wood is half as common as each
-## standing tree, the log lies along the ground and can be walked over.
+## weight is its share of the oaks; the stump and the dead oak are half as
+## common as each standing tree, the three logs together three quarters,
+## each sapling half; the logs lie along the ground, can be walked over and
+## cast no shadow; dead oaks stand in the swamp too (as many as on the
+## prairie), down into its shallows.
 const PROPS := {
 	"tree": {},
 	"stump": {"weight": 0.5, "radius": 0.55, "align_to_ground": 0.3, "sink": 0.12, "scale_range": Vector2(0.8, 1.2)},
-	"log": {"weight": 0.5, "radius": 0.0, "align_to_ground": 0.9, "sink": 0.12, "scale_range": Vector2(0.8, 1.15)},
-	"dead": {"weight": 0.5},
+	"log": {"weight": 0.25, "radius": 0.0, "align_to_ground": 0.9, "sink": 0.12, "scale_range": Vector2(0.8, 1.15), "shadows": false},
+	"dead": {"weight": 0.5, "density_like": {"swamp": "prairie"}, "height_range": Vector2(-0.5, 1900.0)},
+	"sapling": {"weight": 0.5, "radius": 0.1, "scale_range": Vector2(0.75, 1.25)},
 }
 
 # per level (0 trunk .. 3 twigs)
@@ -72,6 +83,7 @@ static func leaf_material() -> ShaderMaterial:
 
 
 static var _shadow: Mesh
+static var _sapling_shadow: Mesh
 
 
 static func _kind(v: int) -> String:
@@ -92,11 +104,16 @@ static func build(variant := 0) -> Mesh:
 ## on a stalk (PropKind.shadow_mesh; the trees themselves cast none). The
 ## stump and the log cast their own (null).
 static func build_shadow(variant := 0) -> Mesh:
-	if _kind(variant) != "tree":
-		return null
-	if _shadow == null:
-		_shadow = TreeBuilder.shadow_proxy(7.5, 4.0, 14.0, 0.45, 23)
-	return _shadow
+	match _kind(variant):
+		"tree":
+			if _shadow == null:
+				_shadow = TreeBuilder.shadow_proxy(7.5, 4.0, 14.0, 0.45, 23)
+			return _shadow
+		"sapling": # (the same, small)
+			if _sapling_shadow == null:
+				_sapling_shadow = TreeBuilder.shadow_proxy(1.3, 1.0, 3.6, 0.05, 29)
+			return _sapling_shadow
+	return null
 
 
 ## Simpler versions for further off: branches and clump cards to 40-120 m,
@@ -157,33 +174,37 @@ static func grow_log(P: Dictionary) -> TreeBuilder:
 	var rng := tb.rng
 	rng.seed = P.seed
 	tb.flare = 0.0
+	tb.splinter = true # (snapped, not sawn)
 	tb.bark_tint = Color(0.78, 0.82, 0.7)
-	var length := rng.randf_range(5.0, 7.0)
-	var r0 := 0.42
-	var r1 := 0.3
-	var n := 10
+	var len_range: Vector2 = P.get("length", Vector2(5.0, 7.0))
+	var length := rng.randf_range(len_range.x, len_range.y)
+	var r0: float = P.get("r0", 0.42)
+	var r1: float = P.get("r1", 0.3)
+	var bow: float = P.get("bow", 0.25)
+	var n := maxi(int(length / 0.65), 6)
 	var nodes := PackedInt32Array()
 	for i in n:
 		var t := float(i) / (n - 1)
 		var r := lerpf(r0, r1, t)
-		var p := Vector3((t - 0.5) * length, r * 0.85 - 0.05 * sin(PI * t), 0.25 * sin(PI * t * 1.3))
+		var p := Vector3((t - 0.5) * length, r * 0.85 - 0.05 * sin(PI * t), bow * sin(PI * t * 1.3))
 		nodes.append(tb.add_node(p, nodes[i - 1] if i > 0 else -1, 0))
 		tb.set_radius(nodes[i], r)
-	tb.add_branch(nodes, true, true, 0.12)
+	tb.add_branch(nodes, true, true, r0 * 0.7)
 	# stubs of the limbs that broke off as it fell
-	for k in rng.randi_range(2, 4):
-		var at := nodes[rng.randi_range(3, n - 2)]
+	var stubs: Vector2i = P.get("stubs", Vector2i(2, 4))
+	for k in rng.randi_range(stubs.x, stubs.y):
+		var at := nodes[rng.randi_range(2, n - 2)]
 		var around := rng.randf_range(-1.2, 1.2) + (PI if rng.randf() < 0.3 else 0.0)
 		var d := Vector3(rng.randf_range(-0.4, 0.6), cos(around), sin(around)).normalized()
 		if d.y < -0.2:
 			d.y = -d.y # (not into the ground)
 		var len := rng.randf_range(0.35, 1.1)
-		var r := rng.randf_range(0.07, 0.12)
+		var r := rng.randf_range(0.07, 0.12) * r0 / 0.42
 		var stub := PackedInt32Array([at])
 		for i in 2:
 			stub.append(tb.add_node(tb.pos[at] + d * len * (i + 1) / 2.0, stub[i], 1))
 			tb.set_radius(stub[i + 1], r * (1.0 - 0.25 * i))
-		tb.add_branch(stub, false, true, 0.05)
+		tb.add_branch(stub, false, true, r * 0.9)
 	return tb
 
 
@@ -200,6 +221,7 @@ static func grow_dead(D: Dictionary) -> TreeBuilder:
 	var rng := tb.rng
 	tb.sprigs.clear()
 	tb.bark_tint = Color(0.74, 0.72, 0.68)
+	tb.sways = false
 	# parents before children, so a branch knows whether its parent still
 	# reaches the node it grows from
 	var order := range(tb.branches.size())

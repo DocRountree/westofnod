@@ -99,9 +99,13 @@ func _variants(k: PropKind) -> Array[PropKind]:
 			var d := {}
 			for b in k.density:
 				d[b] = float(k.density[b]) * share
+			# density_like {biome: other biome}: as common there as in the other
+			var like: Dictionary = vp[v].get("density_like", {})
+			for b in like:
+				d[b] = d.get(like[b], 0.0)
 			kv.density = d
 			for key in vp[v]:
-				if key != "weight":
+				if key != "weight" and key != "density_like":
 					kv.set(key, vp[v][key])
 		if kv.mesh == null and kv.mesh_script:
 			kv.mesh = kv.mesh_script.build(v)

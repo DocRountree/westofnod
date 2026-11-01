@@ -1,6 +1,6 @@
 extends SceneTree
 ## Renders the oak variants in a row on a plain, for looking at the models.
-## xvfb-run godot --path . --resolution 1600x900 --script res://tools/trees/preview.gd -- <out_dir> [lod] [close]
+## xvfb-run godot --path . --resolution 1600x900 --script res://tools/trees/preview.gd -- <out_dir> [lod] [side | close | leaves | dead | snag | saplings]
 
 var out := "user://"
 
@@ -35,13 +35,14 @@ func _init() -> void:
 	gm.albedo_color = Color(0.32, 0.4, 0.2)
 	ground.material_override = gm
 	root3.add_child(ground)
-	var at := [Vector3(-55, 0, 0), Vector3(-27.5, 0, 0), Vector3(0, 0, 0), Vector3(27.5, 0, 0), Vector3(48, 0, 12), Vector3(48, 0, -2), Vector3(62, 0, 0)]
+	var at := [Vector3(-55, 0, 0), Vector3(-27.5, 0, 0), Vector3(0, 0, 0), Vector3(27.5, 0, 0), Vector3(48, 0, 12), Vector3(48, 0, -2), Vector3(62, 0, 0), Vector3(40, 0, 2), Vector3(54, 0, 6), Vector3(14, 0, 14), Vector3(20, 0, 16)]
 	for v in OakTree.VARIANTS.size():
 		var mi := MeshInstance3D.new()
 		mi.mesh = OakTree.build_lods(v)[0] if lod else OakTree.build(v)
 		mi.position = at[v]
 		var shadow := OakTree.build_shadow(v)
-		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF if shadow else GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		var casts: bool = shadow == null and OakTree.variant_props(v).get("shadows", true)
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if casts else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		root3.add_child(mi)
 		if shadow:
 			var sh := MeshInstance3D.new()
@@ -51,7 +52,10 @@ func _init() -> void:
 			root3.add_child(sh)
 	var cam := Camera3D.new()
 	root3.add_child(cam)
-	if args.has("snag"):
+	if args.has("saplings"):
+		cam.look_at_from_position(Vector3(17, 2.2, 25), Vector3(17, 1.8, 15))
+		cam.fov = 60
+	elif args.has("snag"):
 		cam.look_at_from_position(Vector3(62, 6, 26), Vector3(62, 5, 0))
 		cam.fov = 60
 	elif args.has("leaves"):
@@ -68,7 +72,7 @@ func _init() -> void:
 		cam.look_at_from_position(best + best_out * 1.6 + Vector3(0, 0.3, 0), best + Vector3(0, 0.15, 0))
 		cam.fov = 60
 	elif args.has("dead"):
-		cam.look_at_from_position(Vector3(45.5, 2.0, 16.5), Vector3(48, 0.6, 11))
+		cam.look_at_from_position(Vector3(44, 3.5, 19), Vector3(47, 0.4, 5))
 		cam.fov = 60
 	elif args.has("side"):
 		cam.look_at_from_position(Vector3(-27.5, 8, 30), Vector3(-27.5, 7, 0))

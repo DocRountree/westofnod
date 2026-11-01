@@ -33,6 +33,7 @@ var clump_tiles := 4
 var atlas := Vector2i(4, 2)
 var flare := 0.5 ## root flare at the base of the trunk (fraction of its radius)
 var bark_tint := Color(1, 1, 1) ## (dead wood: greyer, greener)
+var sways := true ## the twigs move in the wind (dead wood stands still)
 var splinter := false ## broken ends are snapped wood: tall splinters round a sunken middle
 
 
@@ -44,7 +45,8 @@ func add_node(p: Vector3, par: int, lv: int) -> int:
 
 
 ## A branch along nodes. Capped ends are cut or broken off (end grain shows;
-## jag: how ragged a broken end is, m); otherwise the end tapers shut.
+## jag: how ragged a broken end is, m, at both capped ends); otherwise the
+## end tapers shut.
 func add_branch(nodes: PackedInt32Array, cap_start := false, cap_end := false, jag := 0.0) -> void:
 	if nodes.size() >= 2:
 		branches.append(nodes)
@@ -208,9 +210,11 @@ func _tube(st: SurfaceTool, b: PackedInt32Array, sides_div: int, cap: Array) -> 
 			var at: Vector3 = g[0] + dir * rr
 			if i == n - 1 and cap[1]:
 				at += g[1] * _jag(a, cap[2], splinter)
+			elif i == 0 and cap[0]:
+				at -= g[1] * _jag(a, cap[2], splinter)
 			st.set_uv(Vector2(float(k) / sides * wraps, g[5] / bark_tile))
 			# y: how much it sways in the wind (the twigs, not the stout wood)
-			st.set_uv2(Vector2(0.0, clampf((0.05 - g[4]) / 0.04, 0.0, 1.0)))
+			st.set_uv2(Vector2(0.0, clampf((0.05 - g[4]) / 0.04, 0.0, 1.0) if sways else 0.0))
 			st.set_normal(dir)
 			st.set_color(bark_tint)
 			st.add_vertex(at)
@@ -224,7 +228,7 @@ func _tube(st: SurfaceTool, b: PackedInt32Array, sides_div: int, cap: Array) -> 
 				st.add_index(j)
 	_bark_count += n * (sides + 1)
 	if cap[0]:
-		_cap(st, rings[0], sides, -1.0, 0.0, trunk)
+		_cap(st, rings[0], sides, -1.0, cap[2], trunk)
 	if cap[1]:
 		_cap(st, rings[n - 1], sides, 1.0, cap[2], trunk)
 
@@ -244,12 +248,12 @@ func _cap(st: SurfaceTool, g: Array, sides: int, facing: float, jag: float, trun
 		st.set_uv2(Vector2(1.0, 0.0))
 		st.set_normal(t)
 		st.set_color(bark_tint)
-		st.add_vertex(g[0] + dir * rr + g[1] * _jag(a, jag, splinter))
+		st.add_vertex(g[0] + dir * rr + t * _jag(a, jag, splinter))
 	st.set_uv(Vector2.ZERO)
 	st.set_uv2(Vector2(1.0, 0.0))
 	st.set_normal(t)
 	st.set_color(bark_tint)
-	st.add_vertex(g[0] + g[1] * (-jag * 0.35 if splinter else jag * 0.2))
+	st.add_vertex(g[0] + t * (-jag * 0.35 if splinter else jag * 0.2))
 	var centre := first + sides + 1
 	for k in sides:
 		# (seen from outside, clockwise)

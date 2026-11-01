@@ -7,7 +7,7 @@
 script = ExtResource("1")
 id = &"oak"
 mesh_script = ExtResource("2")
-variants = 7
+variants = 11
 lod_distances = PackedFloat32Array(40, 120, 300)
 shadow_distance = 180.0
 scale_range = Vector2(0.85, 1.15)
@@ -15,9 +15,9 @@ sink = 0.25
 radius = 0.6
 view_distance = 600.0
 density = {
-"forest": 18.0,
-"prairie": 0.8,
-"taiga": 4.0
+"forest": 22.09,
+"prairie": 0.986,
+"taiga": 4.91
 }
 height_range = Vector2(2, 1900)
 min_normal_y = 0.8

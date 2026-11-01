@@ -27,11 +27,16 @@ picking up; removals are kept for the session), `push_out(pos, r)`,
 
 ## Oak
 
-`props/oak.tres`: the English oak, seven models (`variants = 7`, grown by
+`props/oak.tres`: the English oak, eleven models (`variants = 11`, grown by
 `scripts/population/oak_tree.gd` on `TreeBuilder` when the game loads):
-four standing oaks (open-grown, young, leaning, forest-grown), a broken
-stump, a fallen log and a dead standing oak; the dead wood is half as common
-as each standing tree (`OakTree.PROPS`).
+four standing oaks (open-grown, young, leaning, forest-grown), two
+saplings, a broken stump, a dead standing oak and three fallen logs (one
+like the old, a long slender one, a short heavy one). Shares
+(`OakTree.PROPS`): stump, dead oak and each sapling half as common as each
+standing tree, the three logs together three quarters; the logs snapped at
+both ends, cast no shadow and can be walked over; dead oaks also stand in
+the swamp (as many as on the prairie, `density_like`), into its shallows,
+and don't sway.
 
 - Growth: a stout trunk with flared roots that runs on into the crown as a
   leader, giving off limbs one by one in a spiral (the lowest longest and
@@ -63,4 +68,5 @@ as each standing tree (`OakTree.PROPS`).
 
 PropKind for models from a script: `mesh_script` (`build(variant)`,
 `build_lods(variant)`, `build_shadow(variant)`, `variant_props(variant)`),
-`variants`, `lods` / `lod_distances` / `shadow_distance`, `shadow_mesh`.
+`variants` (per-variant weight, settings and `density_like` from
+`variant_props`), `lods` / `lod_distances` / `shadow_distance`, `shadow_mesh`.
