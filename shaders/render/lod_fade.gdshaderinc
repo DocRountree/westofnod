@@ -28,18 +28,30 @@ vec2 lod_fades(vec3 cam, mat4 model) {
 	return vec2(fade_in, fade_out);
 }
 
-// Vertex: true when this level doesn't show this tree at all. Not in the
-// (orthographic) directional shadow pass, where the camera is the light.
-bool lod_gone(vec3 cam, mat4 model, mat4 proj) {
-	if (lod_range.z <= 0.0 || proj[3][3] > 0.5) return false;
-	vec2 f = lod_fades(cam, model);
+// The fades, per tree, for the fragment shader to dither by. Worked out
+// in the vertex shader only: there MODEL_MATRIX is the tree's own
+// (MultiMesh node * instance), while in the fragment shader it is the
+// MultiMesh node's alone, the middle of a whole chunk, which would switch
+// a chunk's trees all at once. Vertex:
+//   lod_f = lod_vertex(CAMERA_POSITION_WORLD, MODEL_MATRIX, PROJECTION_MATRIX);
+//   if (lod_gone(lod_f)) VERTEX = vec3(0.0);
+// fragment: if (lod_hidden(FRAGCOORD.xy, lod_f)) discard;
+varying vec2 lod_f;
+
+// Not in the (orthographic) directional shadow pass, where the camera is
+// the light: there every level is whole.
+vec2 lod_vertex(vec3 cam, mat4 model, mat4 proj) {
+	if (lod_range.z <= 0.0 || proj[3][3] > 0.5) return vec2(1.0);
+	return lod_fades(cam, model);
+}
+
+// True when this level doesn't show this tree at all (no pixels).
+bool lod_gone(vec2 f) {
 	return f.x <= 0.0 || f.y <= 0.0;
 }
 
-// Fragment: true where this level isn't drawn (discard).
-bool lod_hidden(vec2 frag, vec3 cam, mat4 proj, mat4 model) {
-	if (lod_range.z <= 0.0 || proj[3][3] > 0.5) return false;
-	vec2 f = lod_fades(cam, model);
+// True where this level isn't drawn.
+bool lod_hidden(vec2 frag, vec2 f) {
 	float b = bayer4(frag);
 	return f.x <= 1.0 - b || f.y <= b;
 }

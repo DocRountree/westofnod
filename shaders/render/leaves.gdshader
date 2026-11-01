@@ -45,7 +45,8 @@ void vertex() {
 	float keep = clamp(pow(CUSTOM0.w / max(d, 0.01), thin_power), min_keep, 1.0);
 	card_fade = clamp((keep - UV2.x) / 0.08 + 1.0, 0.0, 1.0); // over the 8% of rank above the cut
 	VERTEX = card_fade <= 0.0 ? mid : mid + CUSTOM0.xyz * inversesqrt(keep);
-	if (lod_gone(CAMERA_POSITION_WORLD, MODEL_MATRIX, PROJECTION_MATRIX)) {
+	lod_f = lod_vertex(CAMERA_POSITION_WORLD, MODEL_MATRIX, PROJECTION_MATRIX);
+	if (lod_gone(lod_f)) {
 		VERTEX = vec3(0.0); // (not this level here: no pixels)
 	}
 	world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
@@ -56,7 +57,7 @@ void vertex() {
 }
 
 void fragment() {
-	if (lod_hidden(FRAGCOORD.xy, CAMERA_POSITION_WORLD, PROJECTION_MATRIX, MODEL_MATRIX) || card_fade < bayer4(FRAGCOORD.xy + 2.0)) discard;
+	if (lod_hidden(FRAGCOORD.xy, lod_f) || card_fade < bayer4(FRAGCOORD.xy + 2.0)) discard;
 	vec4 t = texture(leaf_tex, UV);
 	vec2 dx = dFdx(UV * atlas_size), dy = dFdy(UV * atlas_size);
 	float mip = max(0.0, 0.5 * log2(max(dot(dx, dx), dot(dy, dy))));

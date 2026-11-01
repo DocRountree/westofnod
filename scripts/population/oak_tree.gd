@@ -77,7 +77,7 @@ static func bark_material(level := 0) -> ShaderMaterial:
 	if not _bark_mats.has(level):
 		var m := ShaderMaterial.new()
 		m.shader = load("res://shaders/render/bark.gdshader")
-		m.set_shader_parameter("bark_tex", load("res://data/population/textures/oak_bark.png"))
+		m.set_shader_parameter("bark_tex", _texture("res://data/population/textures/oak_bark.png"))
 		_lod_span(m, level)
 		_bark_mats[level] = m
 	return _bark_mats[level]
@@ -87,10 +87,30 @@ static func leaf_material(level := 0) -> ShaderMaterial:
 	if not _leaf_mats.has(level):
 		var m := ShaderMaterial.new()
 		m.shader = load("res://shaders/render/leaves.gdshader")
-		m.set_shader_parameter("leaf_tex", load("res://data/population/textures/oak_leaves.png"))
+		m.set_shader_parameter("leaf_tex", _texture("res://data/population/textures/oak_leaves.png"))
 		_lod_span(m, level)
 		_leaf_mats[level] = m
 	return _leaf_mats[level]
+
+
+static var _textures := {}
+
+
+## A texture with its mipmaps, whatever it was imported with (.import files
+## aren't kept in the repository, and Godot's default leaves them out for a
+## texture only scripts use): without them the leaves' cut-outs and the bark
+## alias, sparkling and crawling as the camera moves.
+static func _texture(path: String) -> Texture2D:
+	if not _textures.has(path):
+		var t: Texture2D = load(path)
+		var img := t.get_image()
+		if not img.has_mipmaps():
+			if img.is_compressed():
+				img.decompress()
+			img.generate_mipmaps()
+			t = ImageTexture.create_from_image(img)
+		_textures[path] = t
+	return _textures[path]
 
 
 static func _lod_span(m: ShaderMaterial, level: int) -> void:

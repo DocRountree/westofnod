@@ -19,7 +19,8 @@ uniform vec2 detail_far = vec2(60.0, 90.0); // m: the texture fades out between 
 varying vec3 world_pos;
 
 void vertex() {
-	if (lod_gone(CAMERA_POSITION_WORLD, MODEL_MATRIX, PROJECTION_MATRIX)) {
+	lod_f = lod_vertex(CAMERA_POSITION_WORLD, MODEL_MATRIX, PROJECTION_MATRIX);
+	if (lod_gone(lod_f)) {
 		VERTEX = vec3(0.0); // (not this level here: no pixels)
 	}
 	VERTEX += wind_local(MODEL_MATRIX, VERTEX, UV2.y, TIME);
@@ -42,7 +43,7 @@ vec3 end_grain(vec2 p) {
 }
 
 void fragment() {
-	if (lod_hidden(FRAGCOORD.xy, CAMERA_POSITION_WORLD, PROJECTION_MATRIX, MODEL_MATRIX)) discard;
+	if (lod_hidden(FRAGCOORD.xy, lod_f)) discard;
 	if (UV2.x > 0.5) {
 		ALBEDO = end_grain(UV) * COLOR.rgb;
 		ROUGHNESS = 0.9;
