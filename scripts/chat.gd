@@ -6,7 +6,8 @@ extends CanvasLayer
 ## fade after a while; with the chat open, all of them show.
 ##
 ## Commands (/help lists them): tp / teleport, time, spawn, fly, zoom, aurora,
-## pos, pop, clear.
+## pos, pop, clear; in a game (not debug mode: Session) only help, pos and
+## clear.
 
 const SHOW_SECONDS := 10.0
 const FADE_SECONDS := 1.5
@@ -21,7 +22,10 @@ const PLACES := {
 	"genovesa": Vector2(60.0, 52.0), "spawn": Vector2.INF,
 }
 
+const PLAY_COMMANDS := ["help", "pos", "clear"] ## (in a game; debug mode has them all)
+
 var main: Node
+var debug := true ## Every command (Session.debug); in a game only PLAY_COMMANDS.
 var open := false
 var _input: LineEdit
 var _log: VBoxContainer
@@ -173,7 +177,7 @@ func _complete() -> void:
 		return
 	var hits := []
 	for c in _commands:
-		if c.begins_with(t.substr(1)):
+		if c.begins_with(t.substr(1)) and _allowed(c):
 			hits.append(c)
 	if hits.size() == 1:
 		_input.text = "/" + hits[0] + " "
@@ -193,7 +197,7 @@ func _submit(text: String) -> void:
 		if parts.is_empty():
 			return
 		var name := parts[0].to_lower()
-		if not _commands.has(name):
+		if not _commands.has(name) or not _allowed(name):
 			say("Unknown command /%s. Try /help." % name, Color(1.0, 0.45, 0.4))
 			return
 		(_commands[name][0] as Callable).call(parts.slice(1))
@@ -203,9 +207,14 @@ func _submit(text: String) -> void:
 
 # --- commands --------------------------------------------------------------
 
+func _allowed(name: String) -> bool:
+	return debug or name in PLAY_COMMANDS
+
+
 func _help(_args: PackedStringArray) -> void:
 	for c in _commands:
-		say(_commands[c][1], Color(0.75, 0.85, 1.0))
+		if _allowed(c):
+			say(_commands[c][1], Color(0.75, 0.85, 1.0))
 
 
 func _tp(args: PackedStringArray) -> void:

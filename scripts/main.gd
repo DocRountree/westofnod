@@ -17,6 +17,10 @@ var ocean_material: ShaderMaterial
 var terrain_material: ShaderMaterial
 var population: Population
 var ground_cover: GroundCover
+var pause_menu: PauseMenu
+const AUTOSAVE_SECONDS := 60.0
+var _since_save := 0.0
+var _played := 0.0 # seconds played in this game, all sessions
 
 const AURORA_LATITUDE := 45.0 # auroras are seen only north of this
 var config: WorldConfig
@@ -106,7 +110,10 @@ func _ready() -> void:
 	add_child(player)
 	player.avatar.world = world
 	player.global_position = world.spawn
-	_last_x = world.spawn.x
+	player.can_fly = Session.debug
+	clock.scrub_enabled = Session.debug
+	_load_game()
+	_last_x = player.global_position.x
 	aurora.min_latitude = AURORA_LATITUDE
 	_update_position_on_planet()
 	collider.follow(player.global_position)
@@ -116,9 +123,60 @@ func _ready() -> void:
 	add_child(hud)
 	chat = Chat.new()
 	chat.main = self
+	chat.debug = Session.debug
 	add_child(chat)
-	chat.say("Welcome to West of Nod. Enter to chat, / for commands (/help).", Color(0.75, 0.85, 1.0))
+	pause_menu = PauseMenu.new()
+	pause_menu.main = self
+	add_child(pause_menu)
+	if Session.debug:
+		chat.say("Debug mode. Enter to chat, / for commands (/help), Esc for the menu.", Color(0.75, 0.85, 1.0))
+	elif Session.data.is_empty():
+		chat.say("Welcome to West of Nod. Enter to chat, Esc for the menu.", Color(0.75, 0.85, 1.0))
+	else:
+		chat.say("Welcome back. Esc for the menu.", Color(0.75, 0.85, 1.0))
+	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	hud.status.text = ""
+
+
+## Picks a saved game up where it was left (Session.data): where you stood
+## and looked, the time and day, what had been taken from the world. A new
+## game, or debug mode, starts at the spawn point.
+func _load_game() -> void:
+	var d := Session.data
+	if Session.debug or d.is_empty():
+		return
+	var pl: Dictionary = d.get("player", {})
+	var pos: Array = pl.get("position", [])
+	if pos.size() == 3:
+		player.global_position = Vector3(pos[0], pos[1], pos[2])
+	player.rotation.y = float(pl.get("yaw", 0.0))
+	player.head.rotation.x = float(pl.get("pitch", 0.0))
+	if pl.get("third_person", false):
+		player.set_third_person(true)
+	clock.from_dict(d.get("clock", {}))
+	for uid in d.get("removed", []):
+		population._removed[int(uid)] = true
+	_played = float(d.get("play_seconds", 0.0))
+
+
+## Saves the game (nothing in debug mode: Session).
+func save_game() -> void:
+	if Session.debug or player == null:
+		return
+	var p := player.global_position
+	Session.save({
+		"player": {"position": [p.x, p.y, p.z], "yaw": player.rotation.y, "pitch": player.head.rotation.x,
+				"third_person": player.third_person},
+		"clock": clock.to_dict(),
+		"removed": population._removed.keys(),
+		"play_seconds": _played,
+	})
+	_since_save = 0.0
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_WM_CLOSE_REQUEST:
+		save_game()
 
 
 func _set_map(m: ShaderMaterial) -> void:
@@ -354,11 +412,15 @@ func _magnify() -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_F6:
+	if Session.debug and event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_F6:
 		aurora.set_forced(not aurora.forced) # debug: an aurora every night
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
+	_played += delta
+	_since_save += delta
+	if _since_save >= AUTOSAVE_SECONDS:
+		save_game()
 	_wrap()
 	_update_position_on_planet()
 	_update_light()

@@ -6,7 +6,15 @@ popping. Walk, sprint, swim (as in Minecraft), climb and fly.
 
 ## Running
 
-Open the folder in **Godot 4.3+** (Forward+ renderer) and press Play.
+Open the folder in **Godot 4.3+** (Forward+ renderer) and press Play. The start
+menu (`menu.tscn`) lists your games, the one played last first: resume one, start a
+new one, rename or delete one, or enter **debug mode**. A game saves itself (where
+you are and look, the time and day, what has been taken from the world) every
+minute, when you leave it and when you quit, to `user://saves/` (`scripts/session.gd`).
+Debug mode is the sandbox: flying, the time keys, every command, the frame rate and
+coordinates on screen; nothing is saved. Running `main.tscn` on its own (the editor's
+Run Current Scene, `tools/shot.tscn`) starts debug mode directly. Rows marked
+*(debug)* below work only in debug mode.
 
 | Input | Action |
 |---|---|
@@ -14,13 +22,13 @@ Open the folder in **Godot 4.3+** (Forward+ renderer) and press Play.
 | Space / Shift in water | swim up / sink faster (otherwise you slowly sink) |
 | Ctrl + W, head under water | sprint-swim wherever you look |
 | Z | magnify (a telescope, for now a key); mouse wheel sets the power, 2x-8x |
-| [ / ] | run time backward / forward |
-| Enter / `/` | chat / commands (`/help`: `/tp`, `/time`, `/spawn`, `/fly`, `/zoom`, `/aurora`, `/pos`, `/pop`, `/clear`) |
-| F6 | debug: an aurora every night |
-| Space ×2 | toggle fly mode (Space / Shift to go up / down) |
+| [ / ] | *(debug)* run time backward / forward |
+| Enter / `/` | chat / commands (`/help`; in a game `/pos`, `/clear`; *(debug)* also `/tp`, `/time`, `/spawn`, `/fly`, `/zoom`, `/aurora`, `/pop`) |
+| F6 | *(debug)* an aurora every night |
+| Space ×2 | *(debug)* toggle fly mode (Space / Shift to go up / down) |
 | F5 | toggle third-person camera |
 | C | climb rock too steep to walk (WASD over the rock, Space lets go) |
-| Esc | release the mouse |
+| Esc | pause: resume, save, main menu, quit (the mouse is freed) |
 
 ## Data (`tools/dem/bake_galapagos.py` → `data/world/`)
 
@@ -95,6 +103,8 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
 
 ## Layout
 
+- `scripts/menu.gd` (`menu.tscn`, the main scene) is the start menu; `scripts/session.gd`
+  the saved games and the mode; `scripts/pause_menu.gd` the pause menu.
 - `scripts/main.gd` builds the scene.
 - `scripts/world/`: `world_data.gd` (loads the data, textures, height and water
   queries), `cdlod.gd`, `scatter_field.gd`, `prop_meshes.gd`,

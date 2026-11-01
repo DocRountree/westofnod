@@ -39,6 +39,7 @@ var _was_third_person := false
 var _grip_offset := Vector2.ZERO # rock point under the hands, relative to the origin
 var _cs: CollisionShape3D
 var flying := false
+var can_fly := true ## Double-tapping Space flies (debug mode only: Session).
 ## Magnified view (Z; the wheel sets the power): for now a key, later a
 ## telescope item. 1 = off.
 var zoom := 1.0
@@ -111,9 +112,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		head.rotation.x = clampf(head.rotation.x - event.relative.y * sens, -1.55, 1.55)
 	if event is InputEventKey and event.pressed and not event.echo and not typing:
 		match event.keycode:
-			KEY_ESCAPE:
-				Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 			KEY_SPACE: # double-tap toggles fly mode
+				if not can_fly:
+					return
 				var now := Time.get_ticks_msec()
 				if now - _last_space < DOUBLE_TAP_MS:
 					set_flying(not flying)

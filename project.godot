@@ -12,7 +12,7 @@ config_version=5
 
 config/name="West of Nod"
 config/description="The Galapagos archipelago, from real elevation data, to explore on foot."
-run/main_scene="res://main.tscn"
+run/main_scene="res://menu.tscn"
 config/features=PackedStringArray("4.3", "Forward Plus")
 
 [display]
