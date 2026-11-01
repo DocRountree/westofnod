@@ -1,7 +1,7 @@
 extends Node
 ## Test driver: loads the game, waits for the island, and saves screenshots
 ## from the ground, low and high around the spawn, at the sea and far out.
-## godot --path . tools/shot.tscn -- <out_dir> [--climb | --sea | --sky | --trees]  (only the climbing / water / sky / fractal tree tests)
+## godot --path . tools/shot.tscn -- <out_dir> [--climb | --sea | --sky]  (only the climbing / water tests)
 
 var out_dir := "user://"
 var main: Node
@@ -51,10 +51,6 @@ func _run() -> void:
 	await _wait(3.0)
 	if OS.get_cmdline_user_args().has("--sky"):
 		await _sky_shots(s)
-		get_tree().quit()
-		return
-	if OS.get_cmdline_user_args().has("--trees"):
-		await _tree_shots()
 		get_tree().quit()
 		return
 	if OS.get_cmdline_user_args().has("--sea"):
@@ -206,35 +202,3 @@ func _sky_shots(s: Vector3) -> void:
 	var f: Vector3 = -main.player.global_basis.z
 	print("pole wrap: pos %s, facing %s (expect +z), time %.1f -> %.1f" % [main.player.global_position, f, t0, clk.time_of_day])
 
-
-## The fractal trees, raymarched and as meshes, from the same places.
-func _tree_shots() -> void:
-	main.clock.day_minutes = 0.0
-	main.clock.time_of_day = 10.0
-	main.chat._trees(PackedStringArray())
-	var p: Player = main.player
-	var g := p.global_position
-	var views := [["ground", Vector3(0, 1.7, 0), 0.0, 0.05], ["low", Vector3(0, 25, 0), 0.0, -0.25],
-			["above", Vector3(0, 120, 0), 0.0, -0.6], ["far", Vector3(0, 300, 0), 0.0, -0.3]]
-	for mode in ["ray", "trad"]:
-		main.chat._trees(PackedStringArray([mode]))
-		for v in views:
-			await _view(g + v[1], v[2], v[3], 4.0)
-			var f := 0.0
-			for i in 30:
-				await get_tree().process_frame
-			var t0 := Time.get_ticks_usec()
-			for i in 20:
-				await get_tree().process_frame
-			f = (Time.get_ticks_usec() - t0) / 20000.0
-			print("%s %s: %.1f ms a frame  %s" % [mode, v[0], f, main.population.stats()])
-			await _shot("trees_%s_%s" % [v[0], mode])
-	# under one: the nearest tree, raymarched
-	main.chat._trees(PackedStringArray(["ray"]))
-	var near: Dictionary = main.population.prop_at(g, 60.0)
-	if not near.is_empty():
-		var at: Vector3 = near.position
-		await _view(at + Vector3(6, 1.7, 6), atan2(6, 6), 0.35, 4.0)
-		await _shot("trees_under_%s" % near.kind.id)
-		await _view(at + Vector3(14, 6, 14), atan2(14, 14), -0.15, 4.0)
-		await _shot("trees_close_%s" % near.kind.id)
