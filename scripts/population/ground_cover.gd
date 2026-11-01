@@ -28,13 +28,13 @@ extends Node3D
 const LAYERS := [
 	# cell (m), cells a tile side, tiles a side (odd), the mesh, uniforms
 	{"cell": 0.25, "cells": 24, "tiles": 9, "blades": 10, "segs": 3, "radius": 0.16, "width": 0.016,
-		"u": {"kind": 0, "seed": 1, "forest_height": Vector2(0.07, 0.16), "prairie_height": Vector2(1.7, 2.2),
+		"u": {"kind": 0, "seed": 1, "forest_height": Vector2(0.07, 0.16), "prairie_height": Vector2(1.7, 2.0),
 			"fade_out": Vector2(15.0, 21.0), "thin_from": 1000.0}},
 	{"cell": 0.55, "cells": 24, "tiles": 9, "blades": 14, "segs": 2, "radius": 0.32, "width": 0.024,
-		"u": {"kind": 0, "seed": 2, "forest_height": Vector2(0.07, 0.16), "prairie_height": Vector2(1.7, 2.2),
+		"u": {"kind": 0, "seed": 2, "forest_height": Vector2(0.07, 0.16), "prairie_height": Vector2(1.7, 2.0),
 			"fade_in": Vector2(15.0, 21.0), "fade_out": Vector2(40.0, 52.0), "thin_from": 28.0}},
 	{"cell": 1.3, "cells": 20, "tiles": 11, "blades": 14, "segs": 2, "radius": 0.6, "width": 0.05,
-		"u": {"kind": 0, "seed": 3, "in_forest": false, "prairie_height": Vector2(1.7, 2.2),
+		"u": {"kind": 0, "seed": 3, "in_forest": false, "prairie_height": Vector2(1.7, 2.0),
 			"fade_in": Vector2(42.0, 52.0), "fade_out": Vector2(100.0, 125.0), "thin_from": 80.0}},
 	{"cell": 0.5, "cells": 24, "tiles": 9, "fronds": 8,
 		"u": {"kind": 1, "seed": 4, "in_prairie": false, "forest_height": Vector2(0.25, 0.45),
