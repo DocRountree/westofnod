@@ -81,7 +81,7 @@ func _ready() -> void:
 	population.world = world
 	add_child(population)
 	for k in population.props: # props with shader materials take the haze too
-		for m in [k.material, k.lod_material]:
+		for m in [k.material, k.lod_material, FractalTree.ray_material()]:
 			if m is ShaderMaterial and not _hazed.has(m):
 				_hazed.append(m)
 				m.set_shader_parameter("haze_sun_dir", _sun.global_basis.z)
@@ -102,7 +102,7 @@ func _ready() -> void:
 	chat = Chat.new()
 	chat.main = self
 	add_child(chat)
-	chat.say("Welcome to West of Nod. T to chat, / for commands (/help).", Color(0.75, 0.85, 1.0))
+	chat.say("Welcome to West of Nod. Enter to chat, / for commands (/help), T: trees raymarched / meshes.", Color(0.75, 0.85, 1.0))
 	hud.status.text = ""
 
 
@@ -341,6 +341,22 @@ func _magnify() -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_F6:
 		aurora.set_forced(not aurora.forced) # debug: an aurora every night
+	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_T:
+		set_trees_raymarched(not trees_raymarched) # A/B: the same trees, the other technique
+
+
+var trees_raymarched := false
+
+## Every fractal tree raymarched (at every distance) or a mesh (simpler
+## further off): the same trees in the same places, to compare.
+func set_trees_raymarched(on: bool) -> void:
+	var k := population.prop_kind(&"fractal_tree")
+	if k == null:
+		return
+	trees_raymarched = on
+	FractalTree.set_raymarched(k, on)
+	population.rebuild()
+	chat.say("Trees: " + ("raymarched." if on else "meshes."), Color(0.6, 1.0, 0.6))
 
 
 func _process(_delta: float) -> void:

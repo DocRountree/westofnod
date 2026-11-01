@@ -216,7 +216,7 @@ func _tree_shots() -> void:
 	var g := p.global_position
 	var views := [["ground", Vector3(0, 1.7, 0), 0.0, 0.05], ["low", Vector3(0, 25, 0), 0.0, -0.25],
 			["above", Vector3(0, 120, 0), 0.0, -0.6], ["far", Vector3(0, 300, 0), 0.0, -0.3]]
-	for mode in ["sdf", "mesh"]:
+	for mode in ["ray", "trad"]:
 		main.chat._trees(PackedStringArray([mode]))
 		for v in views:
 			await _view(g + v[1], v[2], v[3], 4.0)
@@ -229,8 +229,8 @@ func _tree_shots() -> void:
 			f = (Time.get_ticks_usec() - t0) / 20000.0
 			print("%s %s: %.1f ms a frame  %s" % [mode, v[0], f, main.population.stats()])
 			await _shot("trees_%s_%s" % [v[0], mode])
-	# under one: the nearest raymarched tree
-	main.chat._trees(PackedStringArray(["sdf"]))
+	# under one: the nearest tree, raymarched
+	main.chat._trees(PackedStringArray(["ray"]))
 	var near: Dictionary = main.population.prop_at(g, 60.0)
 	if not near.is_empty():
 		var at: Vector3 = near.position

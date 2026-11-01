@@ -10,17 +10,18 @@ shader = ExtResource("3")
 
 [resource]
 script = ExtResource("1")
-id = &"fractal_tree_mesh"
+id = &"fractal_tree"
 mesh_script = ExtResource("2")
 material = SubResource("ShaderMaterial_prop")
+lod_material = SubResource("ShaderMaterial_prop")
+lod_distances = PackedFloat32Array(80, 250)
+shadow_distance = 250.0
 scale_range = Vector2(0.75, 1.15)
 sink = 0.3
 radius = 0.4
 view_distance = 600.0
-lod_distances = PackedFloat32Array(80, 250)
-shadow_distance = 250.0
 density = {
-"forest": 14.0,
+"forest": 16.0,
 "prairie": 0.6,
 "taiga": 6.0
 }

@@ -182,6 +182,21 @@ func prop_at(p: Vector3, r: float) -> Dictionary:
 	return best
 
 
+## The prop kind with this id (null if none).
+func prop_kind(id: StringName) -> PropKind:
+	for k in props:
+		if k.id == id:
+			return k
+	return null
+
+
+## Redraw every loaded chunk's props (after changing a kind's mesh,
+## material or levels of detail; placement stays as it is).
+func rebuild() -> void:
+	for ch: _Chunk in _chunks.values():
+		_build_props(ch)
+
+
 ## Show or hide every instance of a prop kind (by id), e.g. to compare two.
 func set_kind_visible(id: StringName, on: bool) -> void:
 	if on:

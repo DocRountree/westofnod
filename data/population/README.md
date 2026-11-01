@@ -27,26 +27,20 @@ picking up; removals are kept for the session), `push_out(pos, r)`,
 
 ## Fractal trees: raymarched vs mesh
 
-Two prop kinds draw the same tree (`scripts/population/fractal_tree.gd`, an
+`fractal_tree` is one tree recipe (`scripts/population/fractal_tree.gd`, an
 IFS: a trunk, mirrored, tilted, twisted and shrunk 7 times, a leaf cluster at
-each of the 128 tips) so the techniques can be compared side by side:
+each of the 128 tips) that can be drawn two ways, the same trees in the same
+places either way, to A/B them (T in game, or `/trees ray` / `/trees trad`):
 
-- `fractal_tree_sdf`: the mesh is a box; `shaders/render/fractal_tree.gdshader`
-  raymarches the tree's distance function in it and writes depth, normal and
-  light position, so it sorts, lights and casts shadows like a mesh. Every
-  instance differs (seeded by its position); far away, subtrees fold into
-  single clusters (`lod_distance`); costs pixels, not memory.
-- `fractal_tree_mesh`: the same recipe as ~12k triangles with LODs, built
-  when it loads (`mesh_script`: `FractalTree.build()`). Every instance is
-  the same tree, turned and scaled.
+- meshes (the default): ~12k triangles within 80 m, a ~700-triangle version
+  to 250 m, a ~110-triangle one without shadows to 600 m
+  (`FractalTree.build_lods()` folds cut branches into clusters). Every tree
+  is the same shape, turned and scaled.
+- raymarched, at every distance: each tree is a box in which
+  `shaders/render/fractal_tree.gdshader` marches the tree's distance
+  function and writes depth, normal and light position, so it sorts, lights
+  and casts shadows like a mesh. Every tree differs (seeded by its
+  position); far away, subtrees fold into single clusters (`/trees lod <m>`);
+  costs pixels, not memory. `/trees vary 0` makes them all alike.
 
-Both draw the full tree only within 80 m; from 80 to 250 m a ~700-triangle
-version, beyond that a ~110-triangle one without shadows (`lods`,
-`lod_distances`, `shadow_distance` on PropKind; FractalTree.build_lods()
-folds cut branches into clusters as the raymarched tree does). The
-comparison is between the near trees.
-
-In game: `/trees` goes to the nearest forest; `/trees sdf`, `/trees mesh`,
-`/trees both` choose which are drawn (watch the fps); `/trees vary 0` makes
-the raymarched ones identical (as the meshes); `/trees lod <m>` sets the
-distance at which they start to simplify.
+`/trees` goes to the nearest forest.

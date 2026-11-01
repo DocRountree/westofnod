@@ -2,17 +2,19 @@ class_name FractalTree
 ## One recipe for a tree, drawn two ways, to compare them:
 ##
 ## - raymarched: shaders/render/fractal_tree.gdshader evaluates the tree's
-##   distance function per pixel inside a box (the prop's mesh), so every
-##   instance can differ (its seed is its position) and branches and leaf
-##   clusters cost no memory;
-## - as a mesh: build_mesh() walks the same recipe on the CPU into triangles
-##   (made when the mesh prop loads: its mesh_script is this, see build()).
+##   distance function per pixel inside a box, so every instance can differ
+##   (its seed is its position) and branches and leaf clusters cost no memory;
+## - as a mesh: build_mesh() walks the same recipe on the CPU into triangles,
+##   with simpler versions for further off (build_lods()).
+##
+## The prop kind (data/population/props/fractal_tree.tres) is the same trees
+## in the same places either way; set_raymarched() switches it (T in game).
 ##
 ## The recipe is an IFS: a trunk; at its top the space is mirrored in x (two
 ## children), tilted outward by TILT, twisted round the axis by TWIST and
 ## shrunk by LEN_RATIO; repeat LEVELS times; a lumpy leaf cluster at each tip
 ## (2^LEVELS of them). Keep these numbers in step with the shader's uniforms,
-## and the raymarched prop's box (box_min/box_max) round bounds().
+## and BOX_MIN / BOX_MAX round bounds().
 
 const TRUNK_LEN := 4.2 ## m
 const TRUNK_R := 0.34 ## m at the base
@@ -52,16 +54,63 @@ static func _child(side: float, tilt: float, twist: float) -> Transform3D:
 	return Transform3D(Basis(cols[0], cols[1], cols[2]), Vector3(0.0, TRUNK_LEN, 0.0))
 
 
+## The raymarched tree's box (tree space, m): round bounds(), with room for
+## the shader's per-instance variation.
+const BOX_MIN := Vector3(-11.5, 0.0, -11.5)
+const BOX_MAX := Vector3(11.5, 18.5, 11.5)
+const TRAD_LOD_DISTANCES := [80.0, 250.0]
+
+static var _ray_mesh: BoxMesh
+static var _ray_material: ShaderMaterial
+static var _trad_mesh: Mesh
+static var _trad_lods: Array[Mesh] = []
+
+
 ## The mesh prop's mesh (PropKind.mesh_script): the whole tree, ~12k triangles.
 static func build() -> Mesh:
-	return build_mesh()
+	if _trad_mesh == null:
+		_trad_mesh = build_mesh()
+	return _trad_mesh
+
+
+## The raymarching material (one for every tree; its uniforms tune them all).
+static func ray_material() -> ShaderMaterial:
+	if _ray_material == null:
+		_ray_material = ShaderMaterial.new()
+		_ray_material.shader = load("res://shaders/render/fractal_tree.gdshader")
+		_ray_material.set_shader_parameter("box_min", BOX_MIN)
+		_ray_material.set_shader_parameter("box_max", BOX_MAX)
+	return _ray_material
+
+
+## Switch a kind of these trees between the two techniques, in place (then
+## Population.rebuild()): raymarched at every distance (a box each, the
+## shader simplifying with distance), or meshes, simpler further off (lods).
+## Its lod_material is the meshes' material.
+static func set_raymarched(kind: PropKind, on: bool) -> void:
+	if on:
+		if _ray_mesh == null:
+			_ray_mesh = BoxMesh.new()
+			_ray_mesh.size = BOX_MAX - BOX_MIN
+			_ray_mesh.custom_aabb = AABB(BOX_MIN, BOX_MAX - BOX_MIN)
+		kind.mesh = _ray_mesh
+		kind.material = ray_material()
+		kind.lods = []
+		kind.lod_distances = PackedFloat32Array()
+	else:
+		kind.mesh = build()
+		kind.material = kind.lod_material
+		kind.lods = build_lods()
+		kind.lod_distances = PackedFloat32Array(TRAD_LOD_DISTANCES)
 
 
 ## Simpler versions for further off (PropKind.lods): branches cut after 3
 ## levels (~700 triangles) and after 2 (~110), each cut branch's subtree one
 ## leaf cluster, as the raymarched tree does with distance.
 static func build_lods() -> Array[Mesh]:
-	return [build_mesh(3, 5, 1), build_mesh(2, 4, 0)]
+	if _trad_lods.is_empty():
+		_trad_lods = [build_mesh(3, 5, 1), build_mesh(2, 4, 0)]
+	return _trad_lods
 
 
 ## The tree as triangles: bark (vertex alpha 0) and leaves (alpha 1).
