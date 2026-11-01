@@ -1,0 +1,26 @@
+[gd_resource type="Resource" script_class="PropKind" load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://scripts/population/prop_kind.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/population/fractal_tree.gd" id="2"]
+[ext_resource type="Shader" path="res://shaders/render/prop.gdshader" id="3"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_prop"]
+render_priority = 0
+shader = ExtResource("3")
+
+[resource]
+script = ExtResource("1")
+id = &"fractal_tree_mesh"
+mesh_script = ExtResource("2")
+material = SubResource("ShaderMaterial_prop")
+scale_range = Vector2(0.75, 1.15)
+sink = 0.3
+radius = 0.4
+view_distance = 600.0
+density = {
+"forest": 14.0,
+"prairie": 0.6,
+"taiga": 6.0
+}
+height_range = Vector2(2, 1900)
+min_normal_y = 0.8

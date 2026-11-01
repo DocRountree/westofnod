@@ -7,6 +7,9 @@ extends SpawnRule
 
 @export var id: StringName
 @export var mesh: Mesh
+## With no mesh: a script whose static build() returns one (made at load, e.g.
+## FractalTree from its recipe).
+@export var mesh_script: Script
 @export var material: Material ## Optional: overrides the mesh's own.
 @export var scale_range := Vector2(0.8, 1.2) ## Uniform scale, picked at random in this range.
 ## 0: stands upright (trees); 1: tilts with the ground (rocks, grass).

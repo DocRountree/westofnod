@@ -23,3 +23,23 @@ mountains, island, coast (`""` = land with no biome).
 Runtime hooks: `Population.prop_at(pos, r)` / `remove_prop(uid)` (felling,
 picking up; removals are kept for the session), `push_out(pos, r)`,
 `register_prop()` / `register_actor()`, `stats()` (and `/pop` in the chat).
+
+## Fractal trees: raymarched vs mesh
+
+Two prop kinds draw the same tree (`scripts/population/fractal_tree.gd`, an
+IFS: a trunk, mirrored, tilted, twisted and shrunk 7 times, a leaf cluster at
+each of the 128 tips) so the techniques can be compared side by side:
+
+- `fractal_tree_sdf`: the mesh is a box; `shaders/render/fractal_tree.gdshader`
+  raymarches the tree's distance function in it and writes depth, normal and
+  light position, so it sorts, lights and casts shadows like a mesh. Every
+  instance differs (seeded by its position); far away, subtrees fold into
+  single clusters (`lod_distance`); costs pixels, not memory.
+- `fractal_tree_mesh`: the same recipe as ~12k triangles with LODs, built
+  when it loads (`mesh_script`: `FractalTree.build()`). Every instance is
+  the same tree, turned and scaled.
+
+In game: `/trees` goes to the nearest forest; `/trees sdf`, `/trees mesh`,
+`/trees both` choose which are drawn (watch the fps); `/trees vary 0` makes
+the raymarched ones identical (as the meshes); `/trees lod <m>` sets the
+distance at which they start to simplify.

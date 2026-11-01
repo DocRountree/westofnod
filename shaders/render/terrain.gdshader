@@ -24,7 +24,10 @@ void vertex() {
 	float morph;
 	vec2 wp = cdlod_xz(VERTEX, MODEL_MATRIX, INSTANCE_CUSTOM, lod, morph);
 	float h = terrain_height(wp, max(lod - SUB, 0));
-	if (morph > 0.0) h = mix(h, terrain_height(wp, max(lod + 1 - SUB, 0)), morph);
+	if (morph > 0.0) {
+		float hc = terrain_height(wp, max(lod + 1 - SUB, 0));
+		h = morph >= 1.0 ? hc : mix(h, hc, morph); // (exactly the coarser level's where they meet)
+	}
 	vec3 origin = MODEL_MATRIX[3].xyz;
 	VERTEX = vec3(wp.x - origin.x, h - origin.y, wp.y - origin.z); // instances are only translated
 	NORMAL = terrain_normal(wp, max(lod - SUB, 0), map_cell() * exp2(float(max(lod - SUB, 0))) * 0.5);

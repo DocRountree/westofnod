@@ -80,6 +80,10 @@ func _ready() -> void:
 	population = Population.new()
 	population.world = world
 	add_child(population)
+	for k in population.props: # props with shader materials take the haze too
+		if k.material is ShaderMaterial:
+			_hazed.append(k.material)
+			k.material.set_shader_parameter("haze_sun_dir", _sun.global_basis.z)
 	player = Player.new()
 	player.world = world
 	player.population = population

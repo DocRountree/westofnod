@@ -170,14 +170,22 @@ const int SUB = 3;
 const float GRID = 32.0;
 
 // Returns world xz of the (morphed) vertex; lod and morph out.
+//
+// Vertices go on one lattice for the whole map, by whole-number index from
+// map_origin, so two patches compute bit-identical positions where they
+// meet. (Each patch's own corner + offset rounds differently in 32-bit
+// floats tens of km out, by millimetres: hairline cracks that let the sky
+// through as dotted lines.) A coarser level's spacing is a power-of-two
+// multiple of a finer one's, and scaling by a power of two is exact, so
+// k * (2 s) and (2 k) * s round the same.
 vec2 cdlod_xz(vec3 vertex, mat4 model, vec4 cd, out int lod, out float morph) {
-	vec3 origin = model[3].xyz;
-	vec2 gp = vertex.xz;
-	vec2 wp = origin.xz + gp * cd.w;
+	float step = cd.w / GRID; // this level's vertex spacing
+	vec2 k = round((model[3].xz - map_origin) / step) + round(vertex.xz * GRID); // (patch corners are even)
+	vec2 wp = map_origin + k * step;
 	lod = int(cd.x + 0.5);
 	float d = distance(vec3(wp.x, 0.0, wp.y), vec3(view_pos.x, 0.0, view_pos.z));
 	d = length(vec2(d, max(view_pos.y - 0.0, 0.0) * 0.5)) / lod_zoom;
 	morph = clamp((d - cd.y) / max(cd.z - cd.y, 1e-3), 0.0, 1.0);
-	gp -= fract(gp * GRID * 0.5) * 2.0 / GRID * morph;
-	return origin.xz + gp * cd.w;
+	k -= fract(k * 0.5) * 2.0 * morph; // odd vertices slide onto the coarser grid
+	return map_origin + k * step;
 }

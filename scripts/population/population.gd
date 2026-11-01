@@ -40,6 +40,7 @@ var _removed := {} # prop uid -> true
 var _centre := Vector2i.MAX
 var _radius := 0.0 # chunks are kept this far out (m)
 var _focus := Vector3.ZERO
+var _hidden := {} # prop kind id -> true: not drawn (to compare kinds)
 
 
 class _Chunk:
@@ -55,6 +56,8 @@ class _Chunk:
 func _ready() -> void:
 	for k in _load_dir(PROP_DIR):
 		if k is PropKind:
+			if k.mesh == null and k.mesh_script:
+				k.mesh = k.mesh_script.build()
 			props.append(k)
 	for k in _load_dir(ACTOR_DIR):
 		if k is ActorKind:
@@ -175,6 +178,17 @@ func prop_at(p: Vector3, r: float) -> Dictionary:
 						best_d = d
 						best = {"uid": uids[i], "kind": props[k], "position": at}
 	return best
+
+
+## Show or hide every instance of a prop kind (by id), e.g. to compare two.
+func set_kind_visible(id: StringName, on: bool) -> void:
+	if on:
+		_hidden.erase(id)
+	else:
+		_hidden[id] = true
+	for ch: _Chunk in _chunks.values():
+		for n in ch.nodes:
+			n.visible = not _hidden.has(n.get_meta("kind"))
 
 
 func stats() -> Dictionary:
@@ -375,6 +389,8 @@ func _build_props(ch: _Chunk) -> void:
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if kind.shadows else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		mi.visibility_range_end = kind.view_distance
 		mi.visibility_range_end_margin = CHUNK * 0.5
+		mi.set_meta("kind", kind.id)
+		mi.visible = not _hidden.has(kind.id)
 		add_child(mi)
 		ch.nodes.append(mi)
 

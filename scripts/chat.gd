@@ -44,6 +44,7 @@ func _ready() -> void:
 		"aurora": [_aurora, "/aurora: toggle an aurora every night"],
 		"pos": [_pos, "/pos: where you are"],
 		"pop": [_pop, "/pop: what is living near by (trees, rocks, animals: Population)"],
+		"trees": [_trees, "/trees: to the nearest forest  |  /trees <sdf|mesh|both>: draw the raymarched or mesh fractal trees  |  /trees vary <0-1>  |  /trees lod <m>"],
 		"clear": [_clear, "/clear: clear the chat"],
 	}
 	var box := VBoxContainer.new()
@@ -321,6 +322,40 @@ func _pop(_args: PackedStringArray) -> void:
 	var s: Dictionary = main.population.stats()
 	say("%d props, %d actors in %d chunks (%d generating); %d prop kinds, %d actor kinds" % [
 			s.props, s.actors, s.chunks, s.generating, s.prop_kinds, s.actor_kinds])
+
+
+## The fractal tree comparison: the same tree raymarched
+## (fractal_tree_sdf) and as a mesh (fractal_tree_mesh).
+func _trees(args: PackedStringArray) -> void:
+	var pop: Population = main.population
+	var a := args[0].to_lower() if args.size() > 0 else ""
+	if a in ["sdf", "mesh", "both"]:
+		pop.set_kind_visible(&"fractal_tree_sdf", a != "mesh")
+		pop.set_kind_visible(&"fractal_tree_mesh", a != "sdf")
+		say("Fractal trees: " + {"sdf": "raymarched only.", "mesh": "meshes only.", "both": "both."}[a], Color(0.6, 1.0, 0.6))
+		return
+	if a in ["vary", "lod"] and args.size() > 1 and args[1].is_valid_float():
+		for k in pop.props:
+			if k.id == &"fractal_tree_sdf":
+				k.material.set_shader_parameter("variation" if a == "vary" else "lod_distance", args[1].to_float())
+		say("Raymarched trees: %s %s." % [a, args[1]], Color(0.6, 1.0, 0.6))
+		return
+	if a != "":
+		say(_commands.trees[1], Color(1.0, 0.45, 0.4))
+		return
+	var w: WorldData = main.world
+	var s: Vector3 = main.player.global_position
+	for r in range(0, 40000, 50):
+		for i in 48:
+			var ang := TAU * i / 48.0
+			var x := s.x + cos(ang) * r
+			var z := s.z + sin(ang) * r
+			if w.biome_at(x, z) == "forest" and w.height_at(x, z) > 2.0 and w.normal_at(x, z).y > 0.9:
+				main.player.velocity = Vector3.ZERO
+				main.player.global_position = Vector3(x, w.height_at(x, z) + 1.0, z)
+				say("In the forest at x %.0f z %.0f. /trees sdf, /trees mesh, /trees both to compare (fps top left)." % [x, z], Color(0.6, 1.0, 0.6))
+				return
+	say("No forest near by.", Color(1.0, 0.45, 0.4))
 
 
 func _where() -> String:
