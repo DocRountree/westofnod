@@ -82,6 +82,9 @@ func _init() -> void:
 	elif args.has("bark"): # an arm's length from a dead oak's trunk (the lichen)
 		cam.look_at_from_position(Vector3(62 + 0.3, 1.5, 1.2), Vector3(62, 1.3, 0))
 		cam.fov = 55
+	elif args.has("moss"): # close over the stump's top (its moss and sporophytes)
+		cam.look_at_from_position(Vector3(48 + 0.9, 1.6, 12 + 0.9), Vector3(48, 0.85, 12))
+		cam.fov = 50
 	elif args.has("close"):
 		cam.look_at_from_position(Vector3(-55 + 4.0, 1.7, 6.0), Vector3(-55, 5.0, 0))
 		cam.fov = 65

@@ -111,7 +111,6 @@ static func bark_material(level := 0, kind := "tree") -> ShaderMaterial:
 		m.set_shader_parameter("moss_end", cover[3])
 		m.set_shader_parameter("lichen_tex", _texture("res://data/population/textures/lichen.png"))
 		m.set_shader_parameter("moss_tex", _texture("res://data/population/textures/moss.png"))
-		m.set_shader_parameter("moss_canopy", _texture("res://data/population/textures/moss_canopy.png"))
 		if kind == "stump":
 			m.set_shader_parameter("moss_spill", _stump_top())
 		for p in _growth:

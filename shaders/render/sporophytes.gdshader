@@ -17,11 +17,11 @@ render_mode cull_disabled, world_vertex_coords;
 
 uniform float near_end = 12.0;
 uniform float sway_tip = 0.006;  // m, the capsule's sway in a full gust
-uniform float half_width = 0.0016; // m (the capsule's; the stalk a third of it)
+uniform float half_width = 0.0022; // m (the capsule's; the stalk a third of it)
 uniform vec3 stalk_base : source_color = vec3(0.36, 0.1, 0.06);
-uniform vec3 stalk_top : source_color = vec3(0.62, 0.22, 0.09);
-uniform vec3 capsule : source_color = vec3(0.3, 0.15, 0.3);
-uniform vec3 capsule_light : source_color = vec3(0.5, 0.36, 0.55);
+uniform vec3 stalk_top : source_color = vec3(0.72, 0.3, 0.12);
+uniform vec3 capsule : source_color = vec3(0.4, 0.22, 0.42);
+uniform vec3 capsule_light : source_color = vec3(0.62, 0.48, 0.7);
 
 varying vec3 world_pos;
 
