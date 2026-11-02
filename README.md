@@ -35,6 +35,7 @@ debug mode directly.
 | Space ×2 | *(god mode)* toggle fly mode (Space / Shift to go up / down) |
 | F5 | toggle third-person camera |
 | C | climb a tree (next to its trunk: W/S up and down, A/D round it; where a limb leaves the trunk, move its way, or W from just under it, to go out along it; C again on top of a limb stands you on it) or rock too steep to walk (WASD over the rock); Space lets go |
+| E | the knapsack: 10 slots and a hand each (click to pick up and put down, right-click half or one, shift-click to or from the hands); what the hands hold shows in them. `/give <item> [count]` puts items in it (there is nothing to pick up in the world yet) |
 | Esc | pause: resume, save, main menu, quit (the mouse is freed) |
 
 ## Data (`tools/dem/bake_galapagos.py` → `data/world/`)

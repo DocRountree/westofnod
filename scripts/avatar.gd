@@ -27,6 +27,7 @@ const EYE := Color(0.08, 0.07, 0.07)
 var world: WorldData
 var _hips: Node3D
 var _chest: Node3D
+var _grips := {} # "l"/"r" -> Node3D: where the hands hold things
 var _limbs := {} # name -> {root: Node3D (socket on the body), a, b (bone pivots), len, hold: Vector3, planted}
 var _phase := 0.0
 var _climb_dist := 0.0
@@ -66,6 +67,10 @@ func _ready() -> void:
 		# a hand at the end of the forearm; a boot placed under each foot (see _feet)
 		var arm: Dictionary = _limbs[sname + "_arm"]
 		_part(arm.b, SphereMesh, Vector3(0, 0, -ARM[1] - 0.05), Vector3(0.09, 0.11, 0.07), SKIN)
+		var grip := Node3D.new() # what the hand holds (Player.set_held), across the fist
+		grip.position = Vector3(0, 0, -ARM[1] - 0.07)
+		arm.b.add_child(grip)
+		_grips[sname] = grip
 		var boot := Node3D.new()
 		add_child(boot)
 		_part(boot, CapsuleMesh, Vector3(0, 0.05, -0.04), Vector3(0.11, 0.26, 0.11), BOOT).rotation.x = PI / 2
@@ -327,3 +332,8 @@ func contact_gaps() -> Dictionary:
 		var n := world.normal_at(tip.x, tip.z)
 		out[name] = snappedf((tip.y - world.height_at(tip.x, tip.z)) * n.y, 0.01)
 	return out
+
+
+## Where a hand ("l" or "r") holds what it carries.
+func grip(side: String) -> Node3D:
+	return _grips.get(side)

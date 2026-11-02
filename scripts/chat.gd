@@ -46,6 +46,7 @@ func _ready() -> void:
 		"fly": [_fly, "/fly: toggle flying (god mode)"],
 		"mode": [_mode, "/mode <survival|god>: the game's mode  |  /mode: which it is"],
 		"gamemode": [_mode, "/gamemode: as /mode"],
+		"give": [_give, "/give <item> [count]: put items in the knapsack (%s)" % ", ".join(Items.KINDS.keys())],
 		"zoom": [_zoom, "/zoom <1-8>: magnify"],
 		"aurora": [_aurora, "/aurora: toggle an aurora every night"],
 		"pos": [_pos, "/pos: where you are"],
@@ -320,6 +321,18 @@ func _mode(args: PackedStringArray) -> void:
 		return
 	main.set_mode(m)
 	say("%s mode." % m.capitalize(), Color(0.6, 1.0, 0.6))
+
+
+func _give(args: PackedStringArray) -> void:
+	if args.is_empty() or not Items.exists(args[0]) or (args.size() > 1 and not args[1].is_valid_int()):
+		say(_commands.give[1], Color(1.0, 0.45, 0.4))
+		return
+	var n := maxi(args[1].to_int(), 1) if args.size() > 1 else 1
+	var left: int = main.inventory.add(args[0], n)
+	if left >= n:
+		say("The knapsack is full.", Color(1.0, 0.45, 0.4))
+	else:
+		say("%d %s in the knapsack%s." % [n - left, Items.name_of(args[0]), (" (%d didn't fit)" % left) if left > 0 else ""], Color(0.6, 1.0, 0.6))
 
 
 func _zoom(args: PackedStringArray) -> void:

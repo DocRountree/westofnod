@@ -54,7 +54,8 @@ var grounded := false ## Standing on the ground (see _move).
 var sink := 0.0 ## How deep the feet are in the mud (swamps).
 var _last_space := -100000 # ms of the last Space press, for double-tap
 var frozen := true
-var typing := false ## The chat is open: the keys are the chat's.
+var typing := false ## The chat (or the knapsack) is open: the keys are its.
+var _view_grips: Array[Node3D] = [] # first person: where the held items show, left and right
 
 
 func _ready() -> void:
@@ -84,7 +85,13 @@ func _ready() -> void:
 	avatar = Avatar.new()
 	avatar.visible = false
 	add_child(avatar)
-	_arm.shape = SphereShape3D.new() # a ball, not a ray: no peeking through slopes
+	for side: int in [-1, 1]:
+		var g := Node3D.new() # (first person: the held items at the bottom corners of the view)
+		g.position = Vector3(0.3 * side, -0.27, -0.5)
+		g.rotation = Vector3(-0.9, -0.25 * side, 0.0)
+		camera.add_child(g)
+		_view_grips.append(g)
+		_arm.shape = SphereShape3D.new() # a ball, not a ray: no peeking through slopes
 	_arm.shape.radius = 0.25
 	floor_max_angle = deg_to_rad(52.0)
 	floor_snap_length = 0.6
@@ -154,6 +161,29 @@ func set_zoom(z: float) -> void:
 	_arm.spring_length = 0.0 if zoom > 1.0 or not third_person else THIRD_PERSON_DISTANCE
 	_arm.position.x = 0.0 if zoom > 1.0 or not third_person else 0.45
 	avatar.visible = third_person and zoom <= 1.0
+	_show_view_grips()
+
+
+## What is in each hand (Inventory): its model in the figure's hand and, in
+## first person, at that side of the view.
+func set_held(left: Dictionary, right: Dictionary) -> void:
+	var stacks := [left, right]
+	for k in 2:
+		var id := str(stacks[k].get("id", ""))
+		var holders: Array[Node3D] = [_view_grips[k]]
+		if avatar.grip("l" if k == 0 else "r"):
+			holders.append(avatar.grip("l" if k == 0 else "r"))
+		for h in holders:
+			for c in h.get_children():
+				c.queue_free()
+			if id != "":
+				h.add_child(Items.model(id))
+	_show_view_grips()
+
+
+func _show_view_grips() -> void:
+	for g in _view_grips:
+		g.visible = not third_person and zoom <= 1.0
 
 
 func set_third_person(on: bool) -> void:
@@ -161,6 +191,7 @@ func set_third_person(on: bool) -> void:
 	_arm.spring_length = THIRD_PERSON_DISTANCE if on else 0.0
 	_arm.position.x = 0.45 if on else 0.0
 	avatar.visible = on
+	_show_view_grips()
 
 
 ## Climbing grips a tree's trunk within reach, or else the rock under (or

@@ -11,6 +11,8 @@ var collider: TerrainCollider
 var player: Player
 var hud: Hud
 var chat: Chat
+var inventory := Inventory.new() ## What the player carries (the knapsack and the hands).
+var knapsack: Knapsack
 var env: Environment
 var ocean: MeshInstance3D
 var ocean_material: ShaderMaterial
@@ -130,6 +132,7 @@ func _ready() -> void:
 	Origin.root.add_child(player)
 	player.avatar.world = world
 	player.position = world.spawn
+	inventory.changed.connect(func(): player.set_held(inventory.left, inventory.right))
 	_load_game()
 	Origin.follow(player.position)
 	_last_x = player.position.x
@@ -145,6 +148,10 @@ func _ready() -> void:
 	chat.main = self
 	add_child(chat)
 	set_mode(mode)
+	knapsack = Knapsack.new()
+	knapsack.main = self
+	knapsack.inv = inventory
+	add_child(knapsack)
 	pause_menu = PauseMenu.new()
 	pause_menu.main = self
 	add_child(pause_menu)
@@ -252,6 +259,7 @@ func _load_game() -> void:
 	if pl.get("third_person", false):
 		player.set_third_person(true)
 	clock.from_dict(d.get("clock", {}))
+	inventory.from_dict(d.get("inventory", {}))
 	for uid in d.get("removed", []):
 		population._removed[int(uid)] = true
 	_played = float(d.get("play_seconds", 0.0))
@@ -278,6 +286,7 @@ func save_game() -> void:
 		"player": {"position": [p.x, p.y, p.z], "yaw": player.rotation.y, "pitch": player.head.rotation.x,
 				"third_person": player.third_person},
 		"clock": clock.to_dict(),
+		"inventory": inventory.to_dict(),
 		"removed": population._removed.keys(),
 		"play_seconds": _played,
 		"mode": mode,
