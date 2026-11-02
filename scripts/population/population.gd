@@ -772,13 +772,17 @@ func _generate(key: Vector2i) -> void:
 					var ox := (fposmod(sin(x * 39.346 + z * 11.135) * 24634.634, 1.0) - 0.5) * 700.0
 					var oz := (fposmod(sin(x * 73.156 + z * 52.235) * 51381.457, 1.0) - 0.5) * 700.0
 					bi = world.biome_blend_at(x + ox * u, z + oz * u, u)
+				else:
+					bi = world.biome_blend_at(x, z, u)
+				var dc := kind.density_in(bi) * kind.clump_at(bi, x, z)
+				if keep >= dc * (1.8 if kind.lush else 1.0):
+					continue # (not even on the lushest ground: no need to look closer)
+				if kind.lush:
 					dens = world.lush_at(x, z)
 					# thinning out up the mountains, gone at the top of its range
 					var top := kind.height_range.y
-					dens *= 1.0 - smoothstep(top * 0.5, top, world.height_at(x, z))
-				else:
-					bi = world.biome_blend_at(x, z, u)
-				if keep >= kind.density_in(bi) * kind.clump_at(bi, x, z) * dens:
+					dens *= 1.0 - smoothstep(top * 0.5, top, world.base_height(x, z))
+				if keep >= dc * dens:
 					continue
 				if kind.min_spacing > 0.0:
 					var crowded := false

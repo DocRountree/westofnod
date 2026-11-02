@@ -43,8 +43,8 @@ uniform vec2 cut_stripes = vec2(1.0, 0.0); // the way the axe's strokes follow o
 // both faces drawn): the bark cut away (the notch's wedge, the trunk below
 // the cut) isn't drawn, and the inside seen through the gap is drawn as the
 // cut wood it would be: the line of sight met with the notch's two faces,
-// or the cut across the foot, there shaded as fresh end grain and its depth
-// written there, so the notch is a real hollow in the trunk.
+// or the cut across the foot, there shaded as fresh end grain, so the
+// notch is a real hollow in the trunk.
 varying flat vec3 cam_obj; // the camera in the tree's own space
 varying flat vec4 mm0;     // the tree's own model matrix (in the fragment
 varying flat vec4 mm1;     // shader MODEL_MATRIX is a MultiMesh node's)
@@ -133,7 +133,6 @@ void fragment() {
 	if (lod_hidden(FRAGCOORD.xy, lod_f)) discard;
 	bool cut_face = false; // (the cut wood drawn: none of the bark's)
 #ifdef BARK_CUT
-	DEPTH = FRAGCOORD.z;
 	bool in_notch = false;
 	if (notch.y > 0.0) {
 		vec2 d = vec2(cos(notch.x), sin(notch.x));
@@ -144,7 +143,19 @@ void fragment() {
 	// on the inside, seen through the gap) the line of sight goes on to
 	// where it meets the cut wood. (The mouth's own bark does it: the trunk
 	// is open at its foot, so behind the notch there may be no inside to.)
-	if (!FRONT_FACING || in_notch || notch_p.y < cut_below) {
+	// a felled tree: anything of it seen through the cut across its foot
+	// (within the cut's outline, before the line of sight reaches it) is
+	// behind the cut wood: the trunk's inside, a limb's start in it, a
+	// branch beyond
+	bool behind_cut = false;
+	if (cut_below > -999.0 && cam_obj.y < cut_below) {
+		vec3 dv = notch_p - cam_obj;
+		float tf = length(dv);
+		float tc = (cut_below - cam_obj.y) / max(dv.y / tf, 1e-5);
+		vec3 pc = cam_obj + dv / tf * tc;
+		behind_cut = dv.y > 0.0 && tc < tf && length(pc.xz) < cut_r * 1.15;
+	}
+	if (!FRONT_FACING || in_notch || notch_p.y < cut_below || behind_cut) {
 		vec3 o = cam_obj;
 		vec3 dir = normalize(notch_p - cam_obj);
 		float best = 1e9;
@@ -152,7 +163,9 @@ void fragment() {
 		vec3 hn = vec3(0.0, 1.0, 0.0); // (out of the wood, the tree's own)
 		float rr = 1.0;
 		float dark = 0.0;
-		if (notch.y > 0.0) {
+		// (only for the trunk's own bark round the notch or the cut: a
+		// branch's inside, behind, met the planes too, and drew them over it)
+		if (notch.y > 0.0 && abs(notch_p.y - notch.z) < notch.y * 2.0 + 0.3 && length(notch_p.xz) < notch.w * 1.6) {
 			vec2 d = vec2(cos(notch.x), sin(notch.x));
 			float D = notch.y, R = notch.w, hc = notch.z;
 			for (int f = 0; f < 2; f++) {
@@ -177,10 +190,10 @@ void fragment() {
 				}
 			}
 		}
-		if (cut_below > -999.0 && abs(dir.y) > 1e-5) {
+		if (behind_cut) {
 			float t = (cut_below - o.y) / dir.y;
 			vec3 p = o + dir * t;
-			if (t > 0.0 && t < best && dir.y > 0.0 && length(p.xz) < cut_r * 1.6) {
+			if (t < best) {
 				best = t;
 				hit = p;
 				// chopped in strokes, as the stump's top (along x)
@@ -188,7 +201,7 @@ void fragment() {
 				float band = ps.x * 7.0 + 0.35 * sin(ps.y * 4.6 + 1.1);
 				vec2 sl = (vec2(lc_hash(vec3(floor(band), 17.0, 3.0)), lc_hash(vec3(floor(band), 17.0, 7.0))) - 0.5) * vec2(0.3, 0.45);
 				hn = normalize(vec3(sl.x, -1.0, sl.y));
-				rr = cut_r * 1.3; // (the roots' lobes reach past the mean: the rim's dark only past them)
+				rr = cut_r * 1.2; // (the roots' lobes reach past the mean: the rim's dark only out there)
 				dark = 0.0;
 			}
 		}
@@ -196,8 +209,8 @@ void fragment() {
 			discard; // (cut away, and nothing cut behind it: through)
 		mat4 M = mat4(mm0, mm1, mm2, mm3);
 		vec4 w = M * vec4(hit, 1.0);
-		vec4 clip = PROJECTION_MATRIX * (VIEW_MATRIX * w);
-		DEPTH = clip.z / clip.w;
+		// (its depth left the surface's own: written at the cut, nearer, it
+		// drew over the trunk's bark in front of it, past its outline)
 		vec3 wood = end_grain(hit.xz / rr, true) * (0.9 + 0.2 * lc_noise(hit * vec3(40.0, 4.0, 40.0)));
 		ALBEDO = wood * mix(1.0, 0.75, dark * dark); // (a little darker deep in the cut)
 		NORMAL = normalize((VIEW_MATRIX * vec4(normalize(mat3(M) * hn), 0.0)).xyz);
