@@ -49,7 +49,22 @@ func _init() -> void:
 		var near := OakTree.near_multimesh(v)
 		if not near.is_empty():
 			var smi := MultiMeshInstance3D.new()
-			smi.multimesh = near[0]
+			# (those on its thick moss, as Population picks them out)
+			var mat: ShaderMaterial = near[1]
+			var out := []
+			Population._sporophytes_on_moss((near[0] as MultiMesh).buffer, Transform3D(Basis(), mi.position),
+					Vector4(float(mat.get_shader_parameter("moss_amount")), float(mat.get_shader_parameter("moss_low")),
+					float(mat.get_shader_parameter("moss_spill")), float(mat.get_shader_parameter("moss_end"))), out)
+			var mm := MultiMesh.new()
+			mm.transform_format = MultiMesh.TRANSFORM_3D
+			mm.use_colors = true
+			mm.use_custom_data = true
+			mm.mesh = (near[0] as MultiMesh).mesh
+			mm.instance_count = out[1]
+			if out[1] > 0:
+				mm.buffer = out[0]
+			smi.multimesh = mm
+			smi.custom_aabb = (near[0] as MultiMesh).get_aabb().grow(0.05)
 			smi.material_override = near[1]
 			smi.position = mi.position
 			smi.set_instance_shader_parameter("tree_at", mi.position)

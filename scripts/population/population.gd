@@ -50,7 +50,11 @@ var _notches := {} # prop uid -> Color: an axe's notch in a tree (set_notch; bar
 var _near := {} # prop uid -> MultiMeshInstance3D: what's drawn only close by (sporophytes)
 var _near_at := Vector3.INF # where the player was when _near was last updated
 var _near_walks := -1 # walk_changes then
-var _near_data := {} # prop kind index -> [MultiMesh, material, reach] (or [] for none)
+var _near_data := {} # prop kind index -> [MultiMesh, material, reach, its buffer] (or [] for none)
+var _near_want := {} # prop uid -> [near data, transform]: the logs near now
+var _near_jobs := {} # prop uid -> [task, out, near data]: its sporophytes being worked out
+var _near_mm := {} # prop uid -> MultiMesh (or null): those on its moss (kept a while: _near_order)
+var _near_order: Array = [] # uids in _near_mm, oldest first
 var walk_changes := 0 ## Counts the times logs or stumps came or went (GroundCover rechecks the grass).
 
 
@@ -162,6 +166,12 @@ func refresh() -> void:
 	for uid in _near:
 		_near[uid].queue_free()
 	_near.clear()
+	for uid in _near_jobs:
+		WorkerThreadPool.wait_for_task_completion(_near_jobs[uid][0])
+	_near_jobs.clear()
+	_near_mm.clear()
+	_near_order.clear()
+	_near_want.clear()
 	_near_data.clear()
 	_near_at = Vector3.INF
 	_queue.clear()
@@ -196,11 +206,18 @@ func update(focus: Vector3) -> void:
 
 
 const NEAR := 4.5 ## m: the logs and stumps this near the player (to their mesh's furthest) get their sporophytes
+const NEAR_KEEP := 24 ## Logs' worked-out sporophytes kept after the player leaves them (to come back to)
 
 ## What's drawn only close to the player (a kind's mesh_script.near_multimesh:
 ## the moss's sporophytes): one MultiMeshInstance3D per log or stump whose
-## mesh reaches within NEAR of the focus, placed as that log is.
+## mesh reaches within NEAR of the focus, placed as that log is. Which of a
+## log's sporophytes stand (those on its thick moss: the bark's own moss
+## pattern, which goes by where the log lies and how it's turned) is worked
+## out once, on a worker thread, when it comes near (_sporophytes_on_moss),
+## and only those are drawn: before, every one of up to 40000 a log was
+## drawn and its every corner worked out the moss to hide itself.
 func _update_near(focus: Vector3) -> void:
+	_collect_near()
 	if focus.distance_to(_near_at) < 0.3 and walk_changes == _near_walks:
 		return
 	_near_at = focus
@@ -227,23 +244,137 @@ func _update_near(focus: Vector3) -> void:
 						continue
 					var b := Basis(Vector3(xf[j], xf[j + 4], xf[j + 8]), Vector3(xf[j + 1], xf[j + 5], xf[j + 9]), Vector3(xf[j + 2], xf[j + 6], xf[j + 10]))
 					want[uids[i]] = [nd, Transform3D(b, at)]
+	_near_want = want
 	for uid in _near.keys():
 		if not want.has(uid):
 			_near[uid].queue_free()
 			_near.erase(uid)
 	for uid in want:
-		if _near.has(uid):
+		if _near.has(uid) or _near_jobs.has(uid):
+			continue
+		if _near_mm.has(uid):
+			_add_near(uid)
 			continue
 		var nd: Array = want[uid][0]
-		var mi := MultiMeshInstance3D.new()
-		mi.multimesh = nd[0]
-		mi.material_override = nd[1]
-		mi.transform = want[uid][1]
-		mi.set_instance_shader_parameter("tree_at", (want[uid][1] as Transform3D).origin) # (on the map)
-		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		mi.custom_aabb = (nd[0] as MultiMesh).get_aabb().grow(0.05)
-		add_child(mi)
-		_near[uid] = mi
+		var mat: ShaderMaterial = nd[1]
+		var moss := Vector4(float(mat.get_shader_parameter("moss_amount")), float(mat.get_shader_parameter("moss_low")),
+				float(mat.get_shader_parameter("moss_spill")), float(mat.get_shader_parameter("moss_end")))
+		var out := []
+		var task := WorkerThreadPool.add_task(_sporophytes_on_moss.bind(nd[3], want[uid][1], moss, out))
+		_near_jobs[uid] = [task, out, nd]
+
+
+## The near logs' sporophytes worked out since: drawn if still wanted.
+func _collect_near() -> void:
+	for uid in _near_jobs.keys():
+		var job: Array = _near_jobs[uid]
+		if not WorkerThreadPool.is_task_completed(job[0]):
+			continue
+		WorkerThreadPool.wait_for_task_completion(job[0])
+		_near_jobs.erase(uid)
+		var out: Array = job[1]
+		var mm: MultiMesh = null
+		var src: MultiMesh = job[2][0]
+		if not out.is_empty() and out[1] > 0:
+			mm = MultiMesh.new()
+			mm.transform_format = MultiMesh.TRANSFORM_3D
+			mm.use_colors = true
+			mm.use_custom_data = true
+			mm.mesh = src.mesh
+			mm.instance_count = out[1]
+			mm.buffer = out[0]
+		_near_mm[uid] = mm
+		_near_order.append(uid)
+		while _near_order.size() > NEAR_KEEP:
+			var old = _near_order.pop_front()
+			if not _near.has(old) and not _near_want.has(old):
+				_near_mm.erase(old)
+			else:
+				_near_order.append(old)
+				break
+		if _near_want.has(uid) and not _near.has(uid):
+			_add_near(uid)
+
+
+func _add_near(uid: int) -> void:
+	var mm: MultiMesh = _near_mm[uid]
+	if mm == null:
+		return # (no thick moss on it)
+	var nd: Array = _near_want[uid][0]
+	var xf: Transform3D = _near_want[uid][1]
+	var mi := MultiMeshInstance3D.new()
+	mi.multimesh = mm
+	mi.material_override = nd[1]
+	mi.transform = xf
+	mi.set_instance_shader_parameter("tree_at", xf.origin) # (on the map)
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	mi.custom_aabb = (nd[0] as MultiMesh).get_aabb().grow(0.05)
+	add_child(mi)
+	_near[uid] = mi
+
+
+## (A worker thread.) Of a log's sporophytes (src: its MultiMesh's buffer,
+## 20 floats each: the transform's 12, colour, custom), those on its thick
+## moss: the moss's field over 0.8, as the bark works it out
+## (lichen.gdshaderinc moss_field) where the log lies (xf, on the map) and
+## turned as it is. moss: amount, low, spill, end. out gets [buffer, count].
+static func _sporophytes_on_moss(src: PackedFloat32Array, xf: Transform3D, moss: Vector4, out: Array) -> void:
+	var keep := PackedFloat32Array()
+	var n := 0
+	if moss.x > 0.0:
+		var off := Vector3(fposmod(xf.origin.x * 0.0137, 1.0), 0.0, fposmod(xf.origin.z * 0.0137, 1.0)) * 61.0
+		for i in range(0, src.size(), 20):
+			var custom := Vector3(src[i + 16], src[i + 17], src[i + 18])
+			var up := (xf.basis * Vector3(src[i], src[i + 4], src[i + 8])).normalized().y
+			var m := _moss_field(custom + off, up, moss)
+			if src[i + 19] > 1.5:
+				m *= moss.w
+			if m >= 0.8:
+				keep.append_array(src.slice(i, i + 20))
+				n += 1
+	out.append(keep)
+	out.append(n)
+
+
+## lichen.gdshaderinc moss_field (the same; moss: amount, low, spill).
+static func _moss_field(p: Vector3, up: float, moss: Vector4) -> float:
+	var top := smoothstep(-0.35, 0.7, up)
+	var nz := _lc_noise(p * 2.2)
+	var m := smoothstep(-0.25, 0.35, nz - 1.0 + moss.x * top)
+	if moss.y > 0.0:
+		var low := moss.y * smoothstep(0.8, 0.05, p.y)
+		m = maxf(m, smoothstep(-0.15, 0.2, fposmod(nz * 7.31 + p.y * 0.7, 1.0) * 0.4 + nz * 0.6 - 0.88 + 0.42 * low))
+	if moss.z > 0.0:
+		var below := moss.z - p.y
+		var tongue := _lc_noise(Vector3(p.x * 7.0, p.y * 1.2, p.z * 7.0) + Vector3(9.0, 9.0, 9.0))
+		m = maxf(m, smoothstep(-0.15, 0.2, tongue - 0.45 - below * 1.6))
+	return m
+
+
+static func _lc_hash(x: float, y: float, z: float) -> float:
+	x = fposmod(x * 0.1031, 1.0)
+	y = fposmod(y * 0.1030, 1.0)
+	z = fposmod(z * 0.0973, 1.0)
+	var d := x * (y + 33.33) + y * (x + 33.33) + z * (z + 33.33)
+	x += d
+	y += d
+	z += d
+	return fposmod((x + y) * z, 1.0)
+
+
+static func _lc_noise(p: Vector3) -> float:
+	var ix := floorf(p.x)
+	var iy := floorf(p.y)
+	var iz := floorf(p.z)
+	var fx := p.x - ix
+	var fy := p.y - iy
+	var fz := p.z - iz
+	fx = fx * fx * (3.0 - 2.0 * fx)
+	fy = fy * fy * (3.0 - 2.0 * fy)
+	fz = fz * fz * (3.0 - 2.0 * fz)
+	var a := lerpf(lerpf(_lc_hash(ix, iy, iz), _lc_hash(ix + 1, iy, iz), fx), lerpf(_lc_hash(ix, iy + 1, iz), _lc_hash(ix + 1, iy + 1, iz), fx), fy)
+	var b := lerpf(lerpf(_lc_hash(ix, iy, iz + 1), _lc_hash(ix + 1, iy, iz + 1), fx), lerpf(_lc_hash(ix, iy + 1, iz + 1), _lc_hash(ix + 1, iy + 1, iz + 1), fx), fy)
+	return lerpf(a, b, fz)
 
 
 func _near_of(k: int) -> Array:
@@ -257,7 +388,7 @@ func _near_of(k: int) -> Array:
 				var reach := 0.0
 				for e in 8:
 					reach = maxf(reach, box.get_endpoint(e).length())
-				nd = [nd[0], nd[1], reach]
+				nd = [nd[0], nd[1], reach, (nd[0] as MultiMesh).buffer]
 		_near_data[k] = nd
 	return _near_data[k]
 

@@ -13,7 +13,8 @@ render_mode cull_disabled, world_vertex_coords;
 // INSTANCE_CUSTOM.xyz the foot in the tree's own space, .w 2 on a cut end +
 // a rank 0..1. They stand only where the bark's moss is thick (its
 // moss_field, as bark.gdshader works it out: the same place, the same
-// lie of the surface, the same per-tree pattern), each whole or not at
+// lie of the surface, the same per-tree pattern: Population._sporophytes_on_moss
+// picks those out once, as the log comes near), each whole or not at
 // all; within near_end m of the player only.
 
 #include "res://shaders/render/aerial.gdshaderinc"
@@ -38,18 +39,10 @@ void vertex() {
 	vec3 foot = VERTEX; // (the template's corners are all at the origin: the foot)
 	float grow = 0.0;
 	vec3 tree = tree_at; // (on the map: the bark's MODEL_MATRIX[3] + world_origin)
-	bool cut_end = INSTANCE_CUSTOM.w > 1.5;
-	if (moss_any_biome || growth_at(tree.xz).y > 0.0) {
-		float d = distance(foot + world_origin, player);
-		if (d < near_end) {
-			vec3 obj = INSTANCE_CUSTOM.xyz + vec3(fract(tree.x * 0.0137), 0.0, fract(tree.z * 0.0137)) * 61.0;
-			float up = normalize(MODEL_MATRIX[0].xyz).y;
-			float m = moss_field(obj, up) * (cut_end ? moss_end : 1.0);
-			// only where the bark's moss is thick, solid green (its field over
-			// 0.8: thinner, the bark shows only odd tufts), all of them there
-			grow = step(0.8, m); // (whole, or not there)
-		}
-	}
+	// (only those on the bark's thick moss are here: Population works them
+	// out once, as the log comes near, from the moss's field there)
+	if ((moss_any_biome || growth_at(tree.xz).y > 0.0) && distance(foot + world_origin, player) < near_end)
+		grow = 1.0;
 	if (grow <= 0.0) {
 		VERTEX = foot; // (none here: no pixels)
 	} else {

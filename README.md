@@ -103,7 +103,8 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   `moss.png` from `tools/trees/bake_moss.py`, thinning to tufts at its edges; over
   it, within 4 m of you, red stalks a couple of cm tall with purple capsules,
   standing straight up, only on the green moss: `sporophytes.gdshader`, a MultiMesh per log or stump drawn
-  only for those near you (`Population._update_near`); a stump's top almost covered and
+  only for those near you (`Population._update_near`; which of a log's stand on its
+  moss worked out once on a worker thread as you come near, only those drawn); a stump's top almost covered and
   spilling over, patches up from the ground); on the prairie the standing trees
   only a little lichen (the logs and stumps their moss and lichen as anywhere),
   in the swamp the most; none on saplings
@@ -204,7 +205,7 @@ pools, moss and lichen with snow, conifer floor, banded red sandstone walls on
 scrubby caprock, black basalt and ash, beach and dunes), blending across the
 borders over about 200 m (the sixteen nearest texels of the biome map by a cubic
 B-spline, the borders wandering, so each biome reaches into the next in tongues
-and islands; `biome_ground` lives in `ground.gdshaderinc`, which the grass shares);
+and islands; a pixel works out the two biomes with most of it, `biome_top`; `biome_ground` lives in `ground.gdshaderinc`, which the grass shares);
 the borders also wander in kilometre-wide tongues and islands; the trees are
 picked by the same shares (`WorldData.biome_blend_at`), each read a few hundred
 metres off at random, so they thin out across a border into scattered oaks and

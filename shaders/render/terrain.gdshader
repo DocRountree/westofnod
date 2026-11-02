@@ -68,39 +68,32 @@ void fragment() {
 	Shared sh = ground_shared(p, h, n, m, fp);
 	float patches = sh.patches;
 
-	// The biome here: the four nearest texels of the biome map blended by
-	// distance (biome_grid(): the point jittered, so borders wander).
+	// The biome here: the sixteen nearest texels of the biome map blended
+	// (biome_grid(): the point jittered, so borders wander), the two with
+	// most of it worked out (biome_top()), by their shares
 	vec2 bg = biome_grid(p);
-	vec3 col = vec3(0.0);
-	float rough = 0.0;
-	float rocky = 0.0;
-	float litter = 0.0;
-	float prairie = 0.0;
-	float coast = 0.0;
-	float bw[BIOME_SLOTS];
-	for (int i = 0; i < BIOME_SLOTS; i++)
-		bw[i] = 0.0;
-	for (int k = 0; k < BIOME_TAPS; k++) {
-		float w;
-		int b = biome_texel(bg, k, w);
-		bw[biome_slot(b)] += w;
+	int b1, b2;
+	float w1, w2;
+	biome_top(bg, b1, w1, b2, w2);
+	float r_, k_, l_;
+	vec3 col = biome_ground(b1, sh, r_, k_, l_) * w1;
+	float rough = r_ * w1;
+	float rocky = k_ * w1;
+	float litter = l_ * w1;
+	if (w2 > 0.002) {
+		col += biome_ground(b2, sh, r_, k_, l_) * w2;
+		rough += r_ * w2;
+		rocky += k_ * w2;
+		litter += l_ * w2;
+	} else {
+		w2 = 0.0;
 	}
-	// each biome there worked out once, by its share
-	for (int i = 0; i < BIOME_SLOTS; i++) {
-		float w = bw[i];
-		if (w <= 0.002)
-			continue;
-		int b = slot_biome(i);
-		float r_, k_, l_;
-		col += biome_ground(b, sh, r_, k_, l_) * w;
-		rough += r_ * w;
-		rocky += k_ * w;
-		litter += l_ * w;
-		if (b == 2)
-			prairie += w;
-		else if (b == 10)
-			coast += w;
-	}
+	// (the shares of a few: the prairie and coast dim at night, the forest
+	// and taiga carry the distant canopy)
+	float prairie = (b1 == 2 ? w1 : 0.0) + (b2 == 2 ? w2 : 0.0);
+	float coast = (b1 == 10 ? w1 : 0.0) + (b2 == 10 ? w2 : 0.0);
+	float forest = (b1 == 0 ? w1 : 0.0) + (b2 == 0 ? w2 : 0.0);
+	float taiga = (b1 == 5 ? w1 : 0.0) + (b2 == 5 ? w2 : 0.0);
 	// the fallen leaves, near
 	float near = 1.0 - smoothstep(litter_fade.x, litter_fade.y, distance(world_pos, CAMERA_POSITION_WORLD + world_origin));
 	if (litter * near > 0.0) {
@@ -138,7 +131,7 @@ void fragment() {
 	// once a pixel is wider than a crown
 	float far_trees = smoothstep(520.0, 640.0, distance(world_pos, CAMERA_POSITION_WORLD + world_origin));
 	if (far_trees > 0.0) {
-		float cover = (bw[0] * 0.46 + bw[5] * 0.04 + bw[2] * 0.03) * (1.0 - rocky) * (1.0 - m.a) * step(0.4, h)
+		float cover = (forest * 0.46 + taiga * 0.04 + prairie * 0.03) * (1.0 - rocky) * (1.0 - m.a) * step(0.4, h)
 				* (1.0 - smoothstep(575.0, 1150.0, h)); // (the oaks thinning up the mountains: oak.tres, Population)
 		float crowns = vnoise(p / 5.0) * 0.55 + vnoise(p / 13.0 + 4.1) * 0.45;
 		crowns = mix(crowns, 0.5, smoothstep(2.0, 8.0, fp));

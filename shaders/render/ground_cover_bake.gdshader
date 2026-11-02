@@ -110,19 +110,14 @@ void fragment() {
 	vec3 ground = vec3(0.0);
 	float rocky = 0.0, litter = 0.0, mud = 0.0, fw = 0.0, pw = 0.0, sw = 0.0;
 	float cw = 0.0;
-	float bw[BIOME_SLOTS];
-	for (int i = 0; i < BIOME_SLOTS; i++)
-		bw[i] = 0.0;
-	for (int k = 0; k < BIOME_TAPS; k++) {
-		float w;
-		int b = biome_texel(g, k, w);
-		bw[biome_slot(b)] += w;
-	}
-	for (int i = 0; i < BIOME_SLOTS; i++) {
-		float w = bw[i];
+	int b1, b2;
+	float w1, w2;
+	biome_top(g, b1, w1, b2, w2); // (the two the terrain draws, as it does)
+	for (int i = 0; i < 2; i++) {
+		float w = i == 0 ? w1 : w2;
 		if (w <= 0.002)
 			continue;
-		int bk = slot_biome(i);
+		int bk = i == 0 ? b1 : b2;
 		float r_, k_, l_, pud;
 		ground += biome_ground(bk, sh, r_, k_, l_) * w;
 		rocky += k_ * w;

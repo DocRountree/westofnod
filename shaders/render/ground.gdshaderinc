@@ -211,7 +211,6 @@ vec4 bspline4(float f) {
 }
 
 const int BIOME_TAPS = 16;
-const int BIOME_SLOTS = 12; // the biomes (11), and none (the sea)
 
 // Biome texel k (0-15) of the four by four round g, and its weight (a cubic
 // B-spline: a border takes about three texels, 200 m, to go over from one
@@ -226,12 +225,48 @@ int biome_texel(vec2 g, int k, out float w) {
 	return int(texelFetch(biome_tex, clamp(b0 + o, ivec2(0), ivec2(bsz) - 1), 0).r * 255.0 + 0.5);
 }
 
-// The biome's slot for biome_texel()'s index: itself, or the last for none.
-int biome_slot(int b) {
-	return b < BIOME_SLOTS - 1 ? b : BIOME_SLOTS - 1;
+// The two biomes with most of the sixteen texels' weight round g (biome_grid),
+// and their shares (summing to 1), so the ground works out at most two
+// biomes a pixel (terrain.gdshader, ground_cover_bake.gdshader). Where a
+// third reaches in (three borders meeting) the two give up its share
+// between them smoothly: each less the third's weight, so none jumps in
+// or out as they trade places. (Gathered in plain variables, not an array
+// indexed by biome: that put every pixel's array in slow memory.)
+void biome_top(vec2 g, out int b1, out float w1, out int b2, out float w2) {
+	int s0 = -1, s1 = -1, s2 = -1, s3 = -1;
+	float a0 = 0.0, a1 = 0.0, a2 = 0.0, a3 = 0.0;
+	ivec2 hi = textureSize(biome_tex, 0) - 1;
+	ivec2 c0 = ivec2(floor(g)) - 1;
+	vec4 wx = bspline4(g.x - floor(g.x)), wy = bspline4(g.y - floor(g.y));
+	for (int k = 0; k < BIOME_TAPS; k++) {
+		ivec2 o = ivec2(k & 3, k >> 2);
+		float w = wx[o.x] * wy[o.y];
+		int b = int(texelFetch(biome_tex, clamp(c0 + o, ivec2(0), hi), 0).r * 255.0 + 0.5);
+		if (s0 < 0 || b == s0) {
+			s0 = b;
+			a0 += w;
+		} else if (s1 < 0 || b == s1) {
+			s1 = b;
+			a1 += w;
+		} else if (s2 < 0 || b == s2) {
+			s2 = b;
+			a2 += w;
+		} else { // (a fifth: as good as never)
+			s3 = b;
+			a3 += w;
+		}
+	}
+	// the most first (a few swaps)
+	if (a1 > a0) { float t = a0; a0 = a1; a1 = t; int u = s0; s0 = s1; s1 = u; }
+	if (a2 > a1) { float t = a1; a1 = a2; a2 = t; int u = s1; s1 = s2; s2 = u; }
+	if (a1 > a0) { float t = a0; a0 = a1; a1 = t; int u = s0; s0 = s1; s1 = u; }
+	float third = max(a2, a3);
+	w1 = a0 - third;
+	w2 = max(a1 - third, 0.0);
+	float sum = max(w1 + w2, 1e-6);
+	w1 /= sum;
+	w2 /= sum;
+	b1 = s0;
+	b2 = s1 < 0 ? s0 : s1;
 }
 
-// A slot back to the biome's index (255: none).
-int slot_biome(int s) {
-	return s < BIOME_SLOTS - 1 ? s : 255;
-}
