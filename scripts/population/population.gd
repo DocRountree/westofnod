@@ -678,6 +678,9 @@ func _build_props(ch: _Chunk) -> void:
 			xf[i + 7] -= mid.y
 			xf[i + 11] -= mid.z
 		box.position -= mid
+		# those that cast shadows (none in the biomes it's shadowless in):
+		# all of them (sxf == xf), or drawn without and cast by a copy
+		var sxf := _shadow_casters(kind, xf, at + mid)
 		for l in n + 1:
 			var begin := 0.0 if l == 0 else kind.lod_distances[l - 1]
 			var end := kind.view_distance if l == n else minf(kind.lod_distances[l], kind.view_distance)
@@ -695,7 +698,7 @@ func _build_props(ch: _Chunk) -> void:
 			if mat:
 				mi.material_override = mat
 			var shadows := kind.shadows and begin < kind.shadow_distance and kind.shadow_mesh == null
-			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if shadows else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if shadows and sxf.size() == xf.size() else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 			mi.custom_aabb = box
 			# Each tree's level is decided per tree in its shader
 			# (lod_fade.gdshaderinc: cross-faded, stippled, and collapsed to
@@ -707,13 +710,30 @@ func _build_props(ch: _Chunk) -> void:
 			mi.visibility_range_end = end + pad
 			add_child(mi)
 			ch.nodes.append(mi)
-		if kind.shadow_mesh and kind.shadows:
+			if shadows and sxf.size() != xf.size() and not sxf.is_empty():
+				var cmm := MultiMesh.new()
+				cmm.transform_format = MultiMesh.TRANSFORM_3D
+				cmm.mesh = mm.mesh
+				cmm.instance_count = sxf.size() / 12
+				cmm.buffer = sxf
+				var cmi := MultiMeshInstance3D.new()
+				cmi.multimesh = cmm
+				cmi.position = mi.position
+				if mat:
+					cmi.material_override = mat
+				cmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY
+				cmi.custom_aabb = box
+				cmi.visibility_range_begin = mi.visibility_range_begin
+				cmi.visibility_range_end = mi.visibility_range_end
+				add_child(cmi)
+				ch.nodes.append(cmi)
+		if kind.shadow_mesh and kind.shadows and not sxf.is_empty():
 			# the stand-in, only in the shadow maps
 			var smm := MultiMesh.new()
 			smm.transform_format = MultiMesh.TRANSFORM_3D
 			smm.mesh = kind.shadow_mesh
-			smm.instance_count = xf.size() / 12
-			smm.buffer = xf
+			smm.instance_count = sxf.size() / 12
+			smm.buffer = sxf
 			var smi := MultiMeshInstance3D.new()
 			smi.multimesh = smm
 			smi.position = at + mid
@@ -723,6 +743,24 @@ func _build_props(ch: _Chunk) -> void:
 			smi.visibility_range_end_margin = CHUNK * 0.5
 			add_child(smi)
 			ch.nodes.append(smi)
+
+
+## The instances of xf (placed from `origin`) that cast shadows: not those
+## standing in a biome the kind is shadowless in (kind.shadowless_in).
+func _shadow_casters(kind: PropKind, xf: PackedFloat32Array, origin: Vector3) -> PackedFloat32Array:
+	if kind.shadowless_in.is_empty() or world == null:
+		return xf
+	var none := PackedInt32Array()
+	for b in kind.shadowless_in:
+		if world.biome_names.has(b):
+			none.append(world.biome_names.find(b))
+	if none.is_empty():
+		return xf
+	var out := PackedFloat32Array()
+	for i in range(0, xf.size(), 12):
+		if not world.biome_index_at(origin.x + xf[i + 3], origin.z + xf[i + 11]) in none:
+			out.append_array(xf.slice(i, i + 12))
+	return out if out.size() != xf.size() else xf
 
 
 ## A box (chunk-local) round everything a kind draws in a chunk: the

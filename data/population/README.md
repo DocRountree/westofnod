@@ -73,7 +73,8 @@ shallows, and don't sway.
   grow to keep the cover), each dissolving rather than popping.
 - Shadows: every standing oak casts the same stand-in, a lumpy dome on a
   stalk (`shadow_mesh`); the trees and their leaves cast none and take
-  shadows only part way. The dead wood casts its own.
+  shadows only part way. The dead wood casts its own. In the swamp none of
+  them (standing, dead, saplings, stumps) casts a shadow (`shadowless_in`).
 
 `xvfb-run godot --path . --script res://tools/trees/preview.gd -- <out_dir>
 [side | close | leaves | dead | snag | lod]` renders them on a plain.

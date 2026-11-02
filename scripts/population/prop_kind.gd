@@ -87,3 +87,4 @@ func peak_clumped() -> float:
 @export var climb := PackedFloat32Array()
 @export var view_distance := 250.0 ## Drawn up to this far (m).
 @export var shadows := true
+@export var shadowless_in := PackedStringArray() ## Biomes where it casts none (the oaks: the swamp).
