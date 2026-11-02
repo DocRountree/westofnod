@@ -218,7 +218,7 @@ const NEAR_KEEP := 24 ## Logs' worked-out sporophytes kept after the player leav
 ## drawn and its every corner worked out the moss to hide itself.
 func _update_near(focus: Vector3) -> void:
 	_collect_near()
-	if focus.distance_to(_near_at) < 0.3 and walk_changes == _near_walks:
+	if focus.distance_to(_near_at) < 1.0 and walk_changes == _near_walks: # (NEAR's slack: the shader shows them within 4 m)
 		return
 	_near_at = focus
 	_near_walks = walk_changes
@@ -497,7 +497,7 @@ func deck_at(p: Vector3, below: float, foot := 0.15) -> float:
 ## little wider than they are: a trunk's roots flare out), in xs Vector4(ax,
 ## az, bx, bz) (a trunk: a = b, its middle), in rs each one's radius (a
 ## segment's larger end's). (GroundCover: nothing grows through them.)
-func walk_near(p: Vector3, r: float, n: int, xs: PackedVector4Array, rs: PackedFloat32Array) -> void:
+func walk_near(p: Vector3, r: float, n: int, xs: PackedVector4Array, rs: PackedFloat32Array, ds := PackedFloat32Array()) -> void:
 	var found: Array = [] # [distance, Vector4, radius]
 	var q := Vector2(p.x, p.z)
 	var c := _key(p)
@@ -524,6 +524,7 @@ func walk_near(p: Vector3, r: float, n: int, xs: PackedVector4Array, rs: PackedF
 	for i in mini(found.size(), n):
 		xs.append(found[i][1])
 		rs.append(found[i][2])
+		ds.append(found[i][0]) # (how far, if wanted)
 
 
 const OBSTACLE_GRASS := 1.2 ## a trunk's (boulder's) radius x this is kept clear of grass (the roots' flare)

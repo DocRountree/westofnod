@@ -106,6 +106,7 @@ func _ready() -> void:
 	collider.world = world
 	Origin.root.add_child(collider)
 	OakTree.set_growth_map(world) # (no lichen or moss on the prairie)
+	add_child(ImpostorBaker.new()) # (the far trees' cards: photographed as the trees are made)
 	population = Population.new()
 	population.world = world
 	Origin.root.add_child(population)
@@ -318,6 +319,9 @@ func _set_map(m: ShaderMaterial) -> void:
 	m.set_shader_parameter("map_origin", world.origin)
 
 
+const SUN_SHADOW := 200.0 ## m the sun's shadows reach
+
+
 func _build_environment() -> void:
 	# The sky (after DocRountree/game): a single-scattering atmosphere, the
 	# clock, sun, moon, planets, stars, meteors and the rare aurora.
@@ -342,7 +346,7 @@ func _build_environment() -> void:
 	env.tonemap_mode = Environment.TONE_MAPPER_ACES
 	env.tonemap_exposure = 1.05
 	env.ssao_enabled = true
-	env.ssao_radius = 2.0
+	env.ssao_radius = 2.0 # (worked out at half the screen's resolution: project.godot)
 	# Distance haze is the shaders' aerial perspective (aerial.gdshaderinc), on
 	# surfaces only, never the sky; the environment fog is only used under water.
 	env.fog_enabled = false
@@ -356,7 +360,9 @@ func _build_environment() -> void:
 	add_child(we)
 	_sun = DirectionalLight3D.new()
 	_sun.shadow_enabled = true
-	_sun.directional_shadow_max_distance = 350.0
+	# (to 200 m: the trees cast theirs to 100 m, oak.tres; past that the
+	# haze, and each cascade's pixels finer for it)
+	_sun.directional_shadow_max_distance = SUN_SHADOW
 	_sun.directional_shadow_split_1 = 0.05
 	_sun.directional_shadow_split_2 = 0.15
 	_sun.directional_shadow_split_3 = 0.4
@@ -562,7 +568,7 @@ func _magnify() -> void:
 	cdlod.magnify(dir, z, tan_h)
 	for m in _hazed:
 		m.set_shader_parameter("lod_zoom", z)
-	_sun.directional_shadow_max_distance = 350.0 * z
+	_sun.directional_shadow_max_distance = SUN_SHADOW * z
 
 
 func _unhandled_input(event: InputEvent) -> void:

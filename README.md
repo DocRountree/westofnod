@@ -110,7 +110,8 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   in the swamp the most; none on saplings
   (`lichen.gdshaderinc`).
 - **Grass and ferns** (`scripts/population/ground_cover.gd`, `ground_cover.gdshader`):
-  grids of cells follow the camera in tiles. When a grid moves, a SubViewport works out
+  grids of cells follow the camera in tiles (a tile where its layer can't grow, by the
+  biomes reaching it, isn't drawn: the reeds' off the swamp, the ferns' off the forest). When a grid moves, a SubViewport works out
   every cell once (`ground_cover_bake.gdshader`: what grows, how tall, its height on the
   ground, the ground's colour) into a small texture, and each vertex just reads it. In
   the forest: dense short grass the ground's own colour, and drifts of knee-high ferns

@@ -64,7 +64,11 @@ shallows, and don't sway.
   cut and broken ends show growth rings. Textures: `python3
   tools/trees/bake_oak_textures.py`.
 - Level of detail: full (16-30k triangles a tree) within 40 m, 3-6k to
-  120 m, ~1k to 300 m, 200-400 (the stem and a few big clumps) to 600 m,
+  120 m, ~1k to 250 m, then (standing oaks, live and dead) one card to 600 m:
+  the tree photographed from eight ways round at load (`ImpostorBaker`,
+  `shaders/render/impostor.gdshader`: turned to face you, lit as a crown);
+  stumps, logs and saplings their 200-400 triangle mesh (the stem and a few
+  big clumps) there instead,
   cross-fading stippled tree by tree over 12 m at each switch (and out at
   600 m) in `shaders/render/lod_fade.gdshaderinc` (each level's materials
   hold its span; Population only keeps the levels' nodes drawn a chunk

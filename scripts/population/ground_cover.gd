@@ -18,11 +18,12 @@ extends Node3D
 ## it's ready.
 ##
 ## Layers:
-## - grass, near (to 21 m): dense; short in the forest (the ground's colour,
+## - grass, near (to 17 m): dense; short in the forest (the ground's colour,
 ##   a little lighter at the tips), about head-high on the prairie (green
 ##   to blonde);
-## - grass, middle (15-52 m): bigger, fewer clumps of the same;
-## - grass, far (42-125 m): the prairie's only;
+## - grass, middle (12-52 m): bigger, fewer clumps of the same (fewer,
+##   wider blades);
+## - grass, far (42-125 m): the prairie's only (fewer blades still, straight);
 ## - reeds: the swamp's, 1.8-2.3 m, broad-bladed, in clumps here and there
 ##   (sparse patches, in the water too); to 72 m;
 ## - cattails among them: stalks with brown heads, a few leaves; to 66 m;
@@ -37,16 +38,22 @@ extends Node3D
 ##   to 38 m and 34 m.
 ## The forest's brown patches are leaf litter: a texture on the terrain
 ## (terrain.gdshader), not geometry.
+##
+## A tile where its layer can't grow anything (no biome it grows in reaches
+## it, as the ground blends them: WorldData.biome_bits_at; the marram, no
+## beach either) isn't drawn at all: the reeds' tiles on the prairie, the
+## ferns' out of the forest. Every empty cell of a drawn tile still costs
+## its clump's every corner.
 
 const LAYERS := [
 	# cell (m), cells a tile side, tiles a side (odd), the mesh, uniforms
-	{"cell": 0.25, "cells": 24, "tiles": 9, "blades": 10, "segs": 3, "radius": 0.16, "width": 0.016,
+	{"cell": 0.25, "cells": 24, "tiles": 7, "blades": 10, "segs": 3, "radius": 0.16, "width": 0.016,
 		"u": {"kind": 0, "seed": 1, "forest_height": Vector2(0.07, 0.16), "prairie_height": Vector2(1.5, 2.0),
-			"fade_out": Vector2(15.0, 21.0), "thin_from": 1000.0}},
-	{"cell": 0.55, "cells": 24, "tiles": 9, "blades": 14, "segs": 2, "radius": 0.32, "width": 0.024,
+			"fade_out": Vector2(12.0, 17.0), "thin_from": 1000.0}},
+	{"cell": 0.55, "cells": 24, "tiles": 9, "blades": 11, "segs": 2, "radius": 0.32, "width": 0.027,
 		"u": {"kind": 0, "seed": 2, "forest_height": Vector2(0.07, 0.16), "prairie_height": Vector2(1.5, 2.0),
-			"fade_in": Vector2(15.0, 21.0), "fade_out": Vector2(40.0, 52.0), "thin_from": 28.0}},
-	{"cell": 1.3, "cells": 20, "tiles": 11, "blades": 14, "segs": 2, "radius": 0.6, "width": 0.05,
+			"fade_in": Vector2(12.0, 17.0), "fade_out": Vector2(40.0, 52.0), "thin_from": 28.0}},
+	{"cell": 1.3, "cells": 20, "tiles": 11, "blades": 9, "segs": 1, "radius": 0.6, "width": 0.065,
 		"u": {"kind": 0, "seed": 3, "in_forest": false, "prairie_height": Vector2(1.5, 2.0),
 			"fade_in": Vector2(42.0, 52.0), "fade_out": Vector2(100.0, 125.0), "thin_from": 80.0}},
 	{"cell": 1.0, "cells": 16, "tiles": 9, "blades": 11, "segs": 4, "radius": 0.4, "width": 0.068,
@@ -95,6 +102,17 @@ var world: WorldData
 var population: Population ## (optional) its logs and stumps keep the grass off
 var materials: Array[ShaderMaterial] = []
 var _layers: Array[Dictionary] = []
+const BITS_CELL := 32.0 ## m: the grid the biomes' reach is read on (_bits)
+const BITS_MARGIN := 48.0 ## m round a tile also looked at (between the grid's points, the borders' wander)
+var _bits := {} # Vector2i (a BITS_CELL grid point) -> biome bits there (WorldData.biome_bits_at)
+var _low := {} # the same -> true where the ground's within a few metres of the sea (beaches: the marram)
+# the logs and trunks near the camera, found once for every layer
+# (Population.walk_near, out to the furthest any layer needs, nearest first)
+var _logs_at := Vector3.INF
+var _logs_changes := -1
+var _logs_xs := PackedVector4Array()
+var _logs_rs := PackedFloat32Array()
+var _logs_ds := PackedFloat32Array()
 
 
 func setup(w: WorldData) -> void:
@@ -165,7 +183,15 @@ func setup(w: WorldData) -> void:
 		for i in L.cells:
 			for j in L.cells:
 				mm.set_instance_transform(i * L.cells + j, Transform3D(Basis(), Vector3(i * L.cell, 0.0, j * L.cell)))
-		_layers.append({"L": L, "mm": mm, "size": L.cell * L.cells, "tiles": {}, "centre": Vector2i.MAX,
+		# what it grows in: biome bits, and whether beaches too
+		var need := 0
+		for pair in [["forest", L.u.get("in_forest", true)], ["prairie", L.u.get("in_prairie", true)],
+				["swamp", L.u.get("in_swamp", false)], ["coast", L.u.get("in_coast", false)]]:
+			var b: int = world.biome_id(pair[0])
+			if pair[1] and b >= 0 and b < 31:
+				need |= 1 << b
+		_layers.append({"need": need, "beach": L.u.get("in_coast", false), "live": {},
+				"L": L, "mm": mm, "size": L.cell * L.cells, "tiles": {}, "centre": Vector2i.MAX,
 				"material": m, "vps": vps, "bakes": bakes, "shown": -1, "baking": false, "want": Vector2i.MAX, "cam": Vector3.ZERO, "baked": Vector3.INF, "walks": -1})
 
 
@@ -226,9 +252,64 @@ func update(cam: Vector3) -> void:
 				add_child(mi)
 			mi.position = Vector3(key.x * size, 0.0, key.y * size)
 			mi.custom_aabb = _box(mi.position, size)
+			mi.visible = _tile_grows(layer, key)
 			tiles[key] = mi
 		for mi in spare:
 			mi.queue_free()
+
+
+## Whether anything of the layer can grow in tile key: a biome it grows in
+## reaching it (or near it), or for the marram a beach.
+func _tile_grows(layer: Dictionary, key: Vector2i) -> bool:
+	var live: Dictionary = layer.live
+	if live.has(key):
+		return live[key]
+	if live.size() > 4096:
+		live.clear()
+	var size: float = layer.size
+	var lo := Vector2(key) * size - Vector2(BITS_MARGIN, BITS_MARGIN)
+	var hi := Vector2(key + Vector2i.ONE) * size + Vector2(BITS_MARGIN, BITS_MARGIN)
+	var g0 := Vector2i(floori(lo.x / BITS_CELL), floori(lo.y / BITS_CELL))
+	var g1 := Vector2i(ceili(hi.x / BITS_CELL), ceili(hi.y / BITS_CELL))
+	var grows := false
+	for gz in range(g0.y, g1.y + 1):
+		for gx in range(g0.x, g1.x + 1):
+			var g := Vector2i(gx, gz)
+			if not _bits.has(g):
+				if _bits.size() > 65536:
+					_bits.clear()
+					_low.clear()
+				_bits[g] = world.biome_bits_at(gx * BITS_CELL, gz * BITS_CELL)
+				_low[g] = world.base_height(gx * BITS_CELL, gz * BITS_CELL) < 12.0
+			if (_bits[g] & layer.need) != 0 or (layer.beach and _low[g]):
+				grows = true
+				break
+		if grows:
+			break
+	live[key] = grows
+	return grows
+
+
+## The logs and trunks within r of cam, nearest first (at most MAX_LOGS):
+## found once out to the furthest any layer reaches, again only when the
+## camera's gone a couple of metres or the logs have changed.
+func _logs_near(cam: Vector3, r: float, xs: PackedVector4Array, rs: PackedFloat32Array) -> void:
+	var changes := population.walk_changes
+	if cam.distance_to(_logs_at) > 2.0 or changes != _logs_changes:
+		_logs_at = cam
+		_logs_changes = changes
+		_logs_xs.clear()
+		_logs_rs.clear()
+		_logs_ds.clear()
+		var far := 0.0
+		for layer in _layers:
+			far = maxf(far, layer.size * (layer.L.tiles / 2 + 1) * 1.42)
+		population.walk_near(cam, far + 2.0, MAX_LOGS, _logs_xs, _logs_rs, _logs_ds)
+	for i in _logs_xs.size():
+		if _logs_ds[i] > r + 2.0:
+			break
+		xs.append(_logs_xs[i])
+		rs.append(_logs_rs[i])
 
 
 ## Works out the layer's grid where it's wanted, in the viewport not shown;
@@ -252,7 +333,7 @@ func _bake(layer: Dictionary) -> void:
 		var xs := PackedVector4Array()
 		var rs := PackedFloat32Array()
 		if population:
-			population.walk_near(cam, layer.size * (layer.L.tiles / 2 + 1) * 1.42, MAX_LOGS, xs, rs)
+			_logs_near(cam, layer.size * (layer.L.tiles / 2 + 1) * 1.42, xs, rs)
 		bm.set_shader_parameter("log_count", xs.size())
 		xs.resize(MAX_LOGS)
 		rs.resize(MAX_LOGS)

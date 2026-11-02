@@ -98,6 +98,28 @@ func biome_blend_at(x: float, z: float, u: float) -> int:
 	return b if b < biome_names.size() else -1
 
 
+## Every biome with any share at (x, z) as the ground blends them
+## (biome_blend_at: the sixteen texels round the wandering point), as bits
+## (1 << biome index; none: no bit). GroundCover: which of its tiles can
+## grow anything.
+func biome_bits_at(x: float, z: float) -> int:
+	if _biome_size == 0:
+		return 0
+	var jx := (vnoise(x / 1400.0 + 3.3, z / 1400.0 + 3.3) - 0.5) * 1100.0 + (vnoise(x / 90.0, z / 90.0) - 0.5) * 180.0 + (vnoise(x / 23.0 + 5.1, z / 23.0 + 5.1) - 0.5) * 50.0
+	var jz := (vnoise(x / 1400.0 - 12.9, z / 1400.0 - 12.9) - 0.5) * 1100.0 + (vnoise(x / 90.0 + 31.7, z / 90.0 + 31.7) - 0.5) * 180.0 + (vnoise(x / 23.0 - 8.3, z / 23.0 - 8.3) - 0.5) * 50.0
+	var g := (Vector2(x + jx, z + jz) - origin) / (domain + cell()) * _biome_size - Vector2(0.5, 0.5)
+	var i0 := floori(g.x) - 1
+	var j0 := floori(g.y) - 1
+	var n := _biome_size - 1
+	var bits := 0
+	for j in 4:
+		for i in 4:
+			var b := _biome_bytes[clampi(j0 + j, 0, n) * _biome_size + clampi(i0 + i, 0, n)]
+			if b < 31:
+				bits |= 1 << b
+	return bits
+
+
 ## The biome's name at (x, z) ("" where none).
 func biome_at(x: float, z: float) -> String:
 	var b := biome_index_at(x, z)

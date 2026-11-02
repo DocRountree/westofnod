@@ -71,7 +71,7 @@ const TIP_R := 0.006 ## m, the thinnest twig
 ## Levels of detail: where each simpler one takes over (m), and the last's
 ## end. Each level has its own materials, which know its span (lod_range)
 ## for the stippled hand-over (lod_fade.gdshaderinc).
-const LOD := [40.0, 120.0, 300.0]
+const LOD := [40.0, 120.0, 250.0]
 const VIEW := 600.0
 
 static var _bark_mats := {} # [level, cover] -> ShaderMaterial
@@ -94,7 +94,12 @@ static var _growth := {} # the biome map's parameters (set_growth_map)
 const LICHEN_ANY := ["dead", "log", "stump"] ## Their lichen doesn't go by the biome (the prairie's dry air thins it on the living trees only).
 const MOSS_ANY := ["log", "stump"] ## Their moss grows on the prairie too (on the ground, damp underneath).
 static var _leaf_mats := {}
-static var _cache := {} # variant -> [mesh, lods, near_multimesh]
+static var _cache := {} # variant -> [mesh, lods, near_multimesh, solid lods (the last a mesh, not the impostor)]
+## The far trees' cards waiting to be photographed (ImpostorBaker): each
+## [variant, mesh to photograph, card material, side, middle's height].
+static var impostor_jobs: Array = []
+static var _night := 0.0
+static var _no_photo: ImageTexture
 
 
 static func bark_material(level := 0, kind := "tree") -> ShaderMaterial:
@@ -295,6 +300,7 @@ static func _stump_top() -> float:
 
 ## 0 day .. 1 night: the lichen and the leaves dim at night (main.gd).
 static func set_night(n: float) -> void:
+	_night = n
 	for key in _bark_mats:
 		_bark_mats[key].set_shader_parameter("night", n)
 	for key in _leaf_mats:
@@ -504,7 +510,8 @@ static func cut_meshes(variant := 0) -> Array:
 			_cut_shader = Shader.new()
 			_cut_shader.code = src.code.replace("shader_type spatial;", "shader_type spatial;\nrender_mode cull_disabled;\n#define BARK_CUT")
 		var out := []
-		for m: Mesh in [build(variant)] + build_lods(variant):
+		_models(variant)
+		for m: Mesh in [build(variant)] + (_cache[variant][3] as Array): # (a felled tree, lying, far off: its mesh, not the standing tree's card)
 			var c := m.duplicate() as ArrayMesh
 			for si in c.get_surface_count():
 				var mat := c.surface_get_material(si) as ShaderMaterial
@@ -538,6 +545,42 @@ static func _cut_material(mat: ShaderMaterial) -> ShaderMaterial:
 	return _bark_mats[key]
 
 
+## The card a standing oak is drawn as far off (from LOD[2]): a square on
+## the crown's middle, side the tree's height or width, whichever is more;
+## its material's atlas photographed from `mesh` by ImpostorBaker (until
+## then empty: nothing drawn).
+static func _impostor(variant: int, mesh: Mesh) -> Mesh:
+	var box := mesh.get_aabb()
+	var ext := maxf(maxf(absf(box.position.x), absf(box.end.x)), maxf(absf(box.position.z), absf(box.end.z)))
+	var side := maxf(box.size.y, ext * 2.0) * 1.04
+	var mid := box.position.y + box.size.y * 0.5
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = PackedVector3Array([Vector3.ZERO, Vector3.ZERO, Vector3.ZERO, Vector3.ZERO])
+	arrays[Mesh.ARRAY_NORMAL] = PackedVector3Array([Vector3.BACK, Vector3.BACK, Vector3.BACK, Vector3.BACK])
+	arrays[Mesh.ARRAY_TEX_UV] = PackedVector2Array([Vector2(0, 0), Vector2(1, 0), Vector2(1, 1), Vector2(0, 1)])
+	arrays[Mesh.ARRAY_INDEX] = PackedInt32Array([0, 1, 2, 0, 2, 3])
+	var quad := ArrayMesh.new()
+	quad.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	quad.custom_aabb = AABB(Vector3(-side * 0.5, mid - side * 0.5, -side * 0.5), Vector3(side, side, side))
+	var m := ShaderMaterial.new()
+	m.shader = load("res://shaders/render/impostor.gdshader")
+	m.set_shader_parameter("frame", Vector2(mid, side * 0.5))
+	m.set_shader_parameter("frames", float(ImpostorBaker.FRAMES))
+	m.set_shader_parameter("atlas_px", Vector2(ImpostorBaker.PX * ImpostorBaker.FRAMES, ImpostorBaker.PX))
+	m.set_shader_parameter("night", _night)
+	if _no_photo == null: # (until it's photographed: clear, nothing drawn)
+		var img := Image.create(1, 1, false, Image.FORMAT_RGBA8)
+		img.fill(Color(0, 0, 0, 0))
+		_no_photo = ImageTexture.create_from_image(img)
+	m.set_shader_parameter("atlas", _no_photo)
+	_lod_span(m, LOD.size())
+	_leaf_mats[["impostor", variant]] = m # (told the night, and the levels' fade, with the leaves)
+	quad.surface_set_material(0, m)
+	impostor_jobs.append([variant, mesh, m, side, mid])
+	return quad
+
+
 static func build_lods(variant := 0) -> Array[Mesh]:
 	return _models(variant)[1]
 
@@ -564,12 +607,17 @@ static func _models(variant: int) -> Array:
 				tb = grow(variant)
 				lods = [tb.lod(b[1], l[1], 2, 2, 4, 1.0, LOD[0]), tb.lod(b[2], l[2], 1, 3, 12, 2.0, LOD[1]), tb.lod(b[3], l[3], 0, 4, 36, 3.2, LOD[2])]
 		var mesh := tb.build(b[0], l[0], 12.0)
+		# a standing oak (live or dead) far off: one card, its photograph
+		# (impostor.gdshader), in place of the last level's mesh
+		var solid := lods.duplicate()
+		if k in ["tree", "dead"]:
+			lods[2] = _impostor(variant, lods[1])
 		var near := []
 		if (COVER.get(k, COVER.tree) as Array)[1] > 0.0:
 			var mm := _sporophyte_multimesh(mesh, VARIANTS[variant].get("seed", variant))
 			if mm:
 				near = [mm, sporophyte_material(k)]
-		_cache[variant] = [mesh, lods, near]
+		_cache[variant] = [mesh, lods, near, solid]
 	return _cache[variant]
 
 
