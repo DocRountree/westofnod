@@ -51,6 +51,9 @@ uniform vec3 petal_color = vec3(1.0);
 uniform vec3 petal_base = vec3(1.0);
 uniform vec3 petal_alt = vec3(1.0);
 uniform float petal_alt_share = 0.0;
+// or (over 0) every head somewhere from petal_color to petal_alt, at random
+// (to this power: more of them toward petal_color)
+uniform float petal_mix = 0.0;
 uniform vec3 disc_color = vec3(0.5);
 // a head's size (m): once it's only a few pixels across it takes the
 // stem's colour (a white speck that small sparkled over the grass)
@@ -73,6 +76,7 @@ varying float dim;   // the night's dimming (the prairie's)
 // pixel's middle, off a blade thinner than the pixel, far beyond its 0..1
 // (it read as a ray, white: specks glittering all over the grass).
 varying flat int part;
+varying flat float pick; // a head's (stem's) own random 0..1: the mesh's, shifted per clump
 
 float bayer4(vec2 frag) {
 	ivec2 q = ivec2(mod(frag, 4.0));
@@ -105,6 +109,7 @@ void vertex() {
 		size = a.b / 255.0 * SIZE_MAX * mix(0.6, 1.0, grow); // (coming in, it grows a little as it dithers in)
 	}
 	frac = COLOR.b;
+	pick = 0.0;
 	part = UV.x > 4.0 ? 4 : (UV.x > 3.0 ? 3 : (UV.x > 1.5 ? 2 : (UV.x > 1.1 ? 1 : 0)));
 	fade = grow;
 	if (size <= 0.0) {
@@ -117,6 +122,7 @@ void vertex() {
 	} else {
 		float h = base_h - 512.0 + (round(a.r) * 256.0 + round(a.g)) / 64.0;
 		float spin = h2(c, 8) * 6.2832;
+		pick = fract(COLOR.g + h2(c, 9));
 		mat2 rot = mat2(vec2(cos(spin), sin(spin)), vec2(-sin(spin), cos(spin)));
 		// survivors of the thinning spread wider, to cover for the rest
 		float spread = width_scale * inversesqrt(max(keep, 0.15));
@@ -179,7 +185,8 @@ void fragment() {
 		if (part == 4) // a flower's disc
 			c = pow(disc_color, vec3(2.2)) * COLOR.r * dim;
 		else if (part == 3) // its rays
-			c = pow(COLOR.g < petal_alt_share ? petal_alt : mix(petal_base, petal_color, smoothstep(0.0, 0.45, clamp(UV.y, 0.0, 1.0))), vec3(2.2)) * COLOR.r * dim;
+			c = pow(petal_mix > 0.0 ? mix(petal_color, petal_alt, pow(pick, petal_mix))
+					: (pick < petal_alt_share ? petal_alt : mix(petal_base, petal_color, smoothstep(0.0, 0.45, clamp(UV.y, 0.0, 1.0)))), vec3(2.2)) * COLOR.r * dim;
 		else if (part == 2)
 			c = head_color * COLOR.r;
 	}
