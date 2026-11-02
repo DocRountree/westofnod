@@ -52,7 +52,7 @@ extends SpawnRule
 ## None closer than this (m) to another of its kind (in the same chunk).
 @export var min_spacing := 0.0
 
-const CLUMP_MAX := 3.2 ## The most a clump packs them in (x the density).
+const CLUMP_MAX := 5.5 ## The most a clump packs them in (x the density).
 var _clump_by_biome := PackedFloat32Array()
 
 
@@ -73,7 +73,7 @@ func clump_at(b: int, x: float, z: float) -> float:
 	if k <= 0.0:
 		return 1.0
 	var n := WorldData.vnoise(x / clump_size + 17.3, z / clump_size - 4.1) * 0.65 + WorldData.vnoise(x / (clump_size * 0.37) - 8.2, z / (clump_size * 0.37) + 3.7) * 0.35
-	return lerpf(1.0, CLUMP_MAX * smoothstep(0.45, 0.75, n), k)
+	return lerpf(1.0, CLUMP_MAX * smoothstep(0.56, 0.78, n), k)
 
 
 ## The most it can be anywhere (its peak density, clumped).
