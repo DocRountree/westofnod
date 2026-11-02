@@ -23,6 +23,7 @@ varying vec3 obj; // the tree's own space, offset per tree across (the lichen's 
 varying vec2 growth; // how much lichen and moss grow here (growth_at)
 varying float near;   // 1 the tree's up close (lichen, moss patterns), 0 not
 varying vec2 lichen_uv;
+varying vec2 bark_off; // where each tree reads the bark texture from
 
 void vertex() {
 	lod_f = lod_vertex(CAMERA_POSITION_WORLD, MODEL_MATRIX, PROJECTION_MATRIX);
@@ -40,8 +41,24 @@ void vertex() {
 	// number of repeats round.)
 	vec2 o = fract(MODEL_MATRIX[3].xz * vec2(0.0137, 0.0191) + MODEL_MATRIX[3].zx * vec2(0.0071, 0.0113));
 	lichen_uv = vec2(o.x < 0.5 ? UV.x : -UV.x, UV.y * 0.25) + o * vec2(1.0, 7.0);
+	bark_off = fract(MODEL_MATRIX[3].xz * vec2(0.0419, 0.0283) + MODEL_MATRIX[3].zx * vec2(0.0157, 0.0233)) * vec2(1.0, 5.0);
 	VERTEX += wind_local(MODEL_MATRIX, VERTEX, UV2.y, TIME);
 	world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
+}
+
+// The bark, not to be seen repeating: two readings of the texture (the
+// second mirrored round and stretched along), each patch of bark (a metre
+// or so: a noise in the tree's own space) showing the one or the other,
+// the higher one winning at the borders (one ridge running over the other,
+// not a smear of both); and a little lighter and darker here and there.
+vec4 bark_at(vec2 uv, vec3 p) {
+	vec4 a = texture(bark_tex, uv + bark_off);
+	vec4 b = texture(bark_tex, vec2(-uv.x, uv.y * 0.71) + bark_off.yx + vec2(0.37, 2.9));
+	float n = lc_noise(p * vec3(1.3, 0.55, 1.3));
+	float k = clamp((b.a - a.a) * 3.0 + (n - 0.5) * 9.0 + 0.5, 0.0, 1.0);
+	vec4 t = mix(a, b, k);
+	t.rgb *= 0.86 + 0.28 * lc_noise(p * vec3(0.7, 0.25, 0.7) + 17.0);
+	return t;
 }
 
 // End grain on cut and broken ends (UV2.x = 1; UV across the end, -1..1):
@@ -75,7 +92,7 @@ void fragment() {
 		ROUGHNESS = 0.92;
 		SPECULAR = 0.25;
 	} else {
-		vec4 t = texture(bark_tex, UV);
+		vec4 t = bark_at(UV, obj);
 		float h = t.a * bump;
 		vec3 dpdx = dFdx(VERTEX), dpdy = dFdy(VERTEX);
 		vec3 r1 = cross(dpdy, NORMAL), r2 = cross(NORMAL, dpdx);

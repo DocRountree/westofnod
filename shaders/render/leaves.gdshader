@@ -35,6 +35,8 @@ uniform float translucency = 0.5; // light through the leaves from behind
 uniform vec2 atlas_size = vec2(2048.0, 1024.0);
 uniform float thin_power = 1.3;
 uniform float min_keep = 0.3;
+uniform float night = 0.0; // 0 day .. 1 night (main.gd, via OakTree.set_night)
+const float NIGHT_DIM = 0.5; // the leaves at night (as the prairie's: PRAIRIE_NIGHT_DIM)
 
 varying vec3 world_pos;
 varying float card_fade; // 1 drawn, 0 gone: a card being dropped dissolves (stippled) first
@@ -52,7 +54,7 @@ void vertex() {
 	world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 	float ph = dot(world_pos, vec3(0.37, 0.21, 0.29));
 	VERTEX += NORMAL * sin(TIME * 2.3 + ph) * flutter * UV2.y; // the leaves flutter...
-	VERTEX += wind_local(MODEL_MATRIX, mid, 1.0, TIME);        // ...and sway with their twig
+	VERTEX += wind_local(MODEL_MATRIX, mid, CUSTOM1.r, TIME);  // ...and sway with their twig (as much as it: TreeBuilder.sway)
 	world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 }
 
@@ -64,7 +66,7 @@ void fragment() {
 	ALPHA = t.a * (1.0 + mip * 0.25);
 	ALPHA_SCISSOR_THRESHOLD = 0.5;
 	if (!FRONT_FACING) NORMAL = -NORMAL; // (undo the flip: one normal for both sides)
-	ALBEDO = t.rgb * COLOR.rgb * brightness;
+	ALBEDO = t.rgb * COLOR.rgb * brightness * (1.0 - NIGHT_DIM * night);
 	AO = COLOR.a;
 	AO_LIGHT_AFFECT = 0.4;
 	ROUGHNESS = 0.6;
@@ -81,5 +83,5 @@ void light() {
 	float ndl = dot(NORMAL, LIGHT);
 	DIFFUSE_LIGHT += (clamp(ndl * 0.8 + 0.2, 0.0, 1.0) + max(-ndl, 0.0) * translucency) * a * LIGHT_COLOR / PI;
 	vec3 h = normalize(VIEW + LIGHT);
-	SPECULAR_LIGHT += pow(max(dot(NORMAL, h), 0.0), 24.0) * 0.04 * a * LIGHT_COLOR * clamp(ndl, 0.0, 1.0);
+	SPECULAR_LIGHT += pow(max(dot(NORMAL, h), 0.0), 24.0) * 0.04 * a * LIGHT_COLOR * clamp(ndl, 0.0, 1.0) * (1.0 - NIGHT_DIM * night);
 }

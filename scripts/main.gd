@@ -158,7 +158,6 @@ func _ready() -> void:
 var _loaded := false
 var _loading: CanvasLayer
 var _loading_bar: ProgressBar
-var _loading_label: Label
 
 
 func _loading_screen() -> CanvasLayer:
@@ -186,17 +185,13 @@ func _loading_screen() -> CanvasLayer:
 	_loading_bar.step = 0.0
 	_loading_bar.custom_minimum_size = Vector2(0, 22)
 	box.add_child(_loading_bar)
-	_loading_label = Label.new()
-	_loading_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_loading_label.modulate = Color(0.75, 0.8, 0.85)
-	box.add_child(_loading_label)
 	add_child(layer)
 	return layer
 
 
-## Shows what's being done and how far along, and lets the screen redraw.
-func _step(what: String, progress: float) -> void:
-	_loading_label.text = what + "..."
+## Moves the bar on and lets the screen redraw (_what: what's being done,
+## for reading the code; not shown).
+func _step(_what: String, progress: float) -> void:
 	_loading_bar.value = maxf(_loading_bar.value, progress)
 	await get_tree().process_frame
 	await get_tree().process_frame

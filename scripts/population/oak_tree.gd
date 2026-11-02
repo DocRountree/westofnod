@@ -127,10 +127,12 @@ static func _stump_top() -> float:
 	return 0.0
 
 
-## 0 day .. 1 night: the lichen dims at night (main.gd).
+## 0 day .. 1 night: the lichen and the leaves dim at night (main.gd).
 static func set_night(n: float) -> void:
 	for key in _bark_mats:
 		_bark_mats[key].set_shader_parameter("night", n)
+	for key in _leaf_mats:
+		_leaf_mats[key].set_shader_parameter("night", n)
 
 
 ## Where lichen and moss grow how much (sparse on the prairie, thick in the
@@ -323,6 +325,7 @@ static func _climb_lines(variant: int) -> Array[PackedFloat32Array]:
 		"dead":
 			tb = grow_dead(VARIANTS[variant])
 	if tb:
+		tb.fit_radii() # (as drawn)
 		# the trunk: the branch from the root; then the limbs off it
 		var order: Array[PackedInt32Array] = []
 		for br in tb.branches:

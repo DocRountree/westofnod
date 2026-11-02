@@ -46,13 +46,20 @@ shallows, and don't sway.
   flattest); every branch leaves its parent nearly along it and bends out
   over its first metres; side branches turn up, twigs carry sprigs;
   branches stop at the crown's envelope (a dome) and leaf out there. Radii
-  by the pipe model (exponent 2.4), smoothed into a continuous taper.
+  by the pipe model (exponent 2.4), smoothed into a continuous taper; a
+  branch never starts thicker than its parent there (a side branch at most
+  0.8 of it), and one leaving its parent's very end carries it on as one
+  (`TreeBuilder.fit_radii`).
 - Leaves: alpha-cut cards from `textures/oak_leaves.png`, sprigs of English
   oak leaves (lobed, ~11 cm) near, clumps further off; lit as one crown,
   light through them from behind; flutter in the wind.
 - Wind: the twigs and their leaves sway together in slow gusts
-  (`shaders/render/wind.gdshaderinc`), the leaves flutter on top.
+  (`shaders/render/wind.gdshaderinc`), the leaves flutter on top. A branch
+  sways as its parent where it leaves it (its base stays put on it), more
+  toward its tip (`TreeBuilder.sway`). The leaves dim at night.
 - Bark: `textures/oak_bark.png` (furrowed, alpha = height for the bumps;
+  read twice, the second mirrored and stretched, patch by patch, and from
+  a different place on each branch and tree, so it doesn't show repeating;
   past 60-90 m only its average colour, dissolving between the two);
   cut and broken ends show growth rings. Textures: `python3
   tools/trees/bake_oak_textures.py`.

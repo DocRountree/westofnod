@@ -97,6 +97,57 @@ func compute_radii(trunk_r: float, tip_r: float) -> void:
 			radius[b[j]] = maxf(r[j - 1], tip_r)
 
 
+## Where branches join: a branch never starts out thicker than its parent
+## where it leaves it (a side branch at most 0.8 of it) and only narrows
+## from there; one leaving the very end of its parent carries it on, as
+## thick, the two meeting in one ring (the parent doesn't close to a point
+## there). And how much each node sways (sway): the same as its parent where
+## a branch leaves it (the base stays on the parent), more toward the tips.
+## Run once the radii and branches are final (_mesh does; it can run again).
+const SWAY_RAMP := 0.6 ## m along a branch over which it comes into its own sway
+
+var sway := PackedFloat32Array() ## per node, 0 the stout wood .. 1 the twigs
+var _carried := {} # a branch's end node -> [the direction on through it, the level of the branch carrying it on]
+var _carrier := {} # branch index -> true: it carries its parent on
+
+
+func fit_radii() -> void:
+	_carried.clear()
+	_carrier.clear()
+	radius.resize(pos.size())
+	sway.resize(pos.size())
+	sway.fill(0.0)
+	var ends := {} # a branch's (open) end node -> its last direction
+	for i in branches.size():
+		var b := branches[i]
+		if not caps[i][1]:
+			ends[b[b.size() - 1]] = (pos[b[b.size() - 1]] - pos[b[b.size() - 2]]).normalized()
+	var order := range(branches.size())
+	order.sort_custom(func(a: int, c: int) -> bool: return level[branches[a][1]] < level[branches[c][1]])
+	for i in order:
+		var b := branches[i]
+		var joined: bool = parent[b[0]] >= 0 and not caps[i][0]
+		if joined:
+			var carry := ends.has(b[0]) and not _carried.has(b[0])
+			if carry:
+				_carried[b[0]] = [(ends[b[0]] + (pos[b[1]] - pos[b[0]]).normalized()).normalized(), level[b[1]]]
+				_carrier[i] = true
+			var most := radius[b[0]] * (1.0 if carry else 0.8)
+			for j in range(1, b.size()):
+				most = minf(radius[b[j]], most)
+				radius[b[j]] = most
+		var w0 := sway[b[0]] if joined else 0.0 # (rooted: still at the ground)
+		var along := 0.0
+		for j in range(1, b.size()):
+			along += pos[b[j]].distance_to(pos[b[j - 1]])
+			var w := lerpf(w0, maxf(_sway_of(radius[b[j]]), w0), smoothstep(0.0, SWAY_RAMP, along))
+			sway[b[j]] = maxf(w, sway[b[j - 1]])
+
+
+static func _sway_of(r: float) -> float:
+	return clampf((0.05 - r) / 0.04, 0.0, 1.0)
+
+
 ## The whole tree: [bark, leaves] surfaces in one mesh. thin_from: the
 ## distance (m) from which the leaf cards thin out (see _card()).
 func build(bark_mat: Material, leaf_mat: Material, thin_from := 12.0) -> ArrayMesh:
@@ -112,6 +163,8 @@ func lod(bark_mat: Material, leaf_mat: Material, max_level: int, sides_div: int,
 
 func _mesh(bark_mat: Material, leaf_mat: Material, max_level: int, clump_size: float, sides_div: int, thin: int, thin_from: float) -> ArrayMesh:
 	var mesh := ArrayMesh.new()
+	fit_radii()
+	_max_level = max_level
 	_bark_count = 0
 	_leaf_count = 0
 	_thin_from = thin_from
@@ -120,7 +173,7 @@ func _mesh(bark_mat: Material, leaf_mat: Material, max_level: int, clump_size: f
 	for i in branches.size():
 		var b := branches[i]
 		if level[b[1]] <= max_level:
-			_tube(bark, b, sides_div, caps[i])
+			_tube(bark, b, sides_div, caps[i], i)
 	bark.commit(mesh)
 	mesh.surface_set_material(0, bark_mat)
 	if sprigs.is_empty():
@@ -128,6 +181,7 @@ func _mesh(bark_mat: Material, leaf_mat: Material, max_level: int, clump_size: f
 	var leaves := SurfaceTool.new()
 	leaves.begin(Mesh.PRIMITIVE_TRIANGLES)
 	leaves.set_custom_format(0, SurfaceTool.CUSTOM_RGBA_FLOAT)
+	leaves.set_custom_format(1, SurfaceTool.CUSTOM_R_FLOAT)
 	var centre := _crown_centre()
 	var crown_r := _crown_radius(centre)
 	var r := RandomNumberGenerator.new()
@@ -136,6 +190,7 @@ func _mesh(bark_mat: Material, leaf_mat: Material, max_level: int, clump_size: f
 		var s: Array = sprigs[i]
 		var p: Vector3 = pos[s[0]]
 		var d: Vector3 = s[1]
+		_card_sway = sway[s[0]] if sways else 0.0
 		if thin <= 0:
 			var tile := r.randi() % sprig_tiles
 			var spin := r.randf() * TAU
@@ -162,7 +217,7 @@ func _sides(r: float, div: int) -> int:
 ## A tube along a branch: a ring at every node (parallel-transported frames,
 ## so it doesn't twist), the bark texture wrapped round a whole number of
 ## times.
-func _tube(st: SurfaceTool, b: PackedInt32Array, sides_div: int, cap: Array) -> void:
+func _tube(st: SurfaceTool, b: PackedInt32Array, sides_div: int, cap: Array, idx: int) -> void:
 	if radius[b[1]] < 0.03 and b.size() > 3:
 		# thin: a ring at every other node is enough
 		var thin := PackedInt32Array()
@@ -178,6 +233,12 @@ func _tube(st: SurfaceTool, b: PackedInt32Array, sides_div: int, cap: Array) -> 
 	var nrm := Vector3.ZERO
 	var along := 0.0
 	var trunk := level[b[1]] == 0
+	var carrier: bool = _carrier.has(idx)
+	var end := b[n - 1]
+	var carried: bool = not cap[1] and _carried.has(end) and _carried[end][1] <= _max_level
+	# (each branch its own stretch of the texture, so neighbours don't match)
+	var ou := fposmod(idx * 0.6180339, 1.0)
+	var ov := fposmod(idx * 0.3772 + 0.13, 1.0) * 4.0
 	var rings: Array = []
 	for i in n:
 		var p := pos[b[i]]
@@ -187,15 +248,25 @@ func _tube(st: SurfaceTool, b: PackedInt32Array, sides_div: int, cap: Array) -> 
 		else:
 			nrm = (nrm - t * nrm.dot(t)).normalized()
 			along += p.distance_to(pos[b[i - 1]])
+		# where one carries another on: the joint's ring square to the way
+		# through it, the same for both
+		if (i == 0 and carrier) or (i == n - 1 and carried):
+			t = _carried[b[i]][0]
+			if i > 0:
+				nrm = (nrm - t * nrm.dot(t)).normalized()
+		if i == 0:
+			nrm = (nrm - t * nrm.dot(t)).normalized()
 		var bin := nrm.cross(t)
-		# the first ring sits inside the parent at the child's own radius;
-		# the last closes almost to a point
+		# the first ring sits inside the parent at the child's own radius
+		# (with a collar, never wider than the parent there), or at the
+		# parent's if it carries it on; the last closes almost to a point,
+		# unless another carries it on
 		var r := radius[b[maxi(i, 1)]] if not cap[0] else radius[b[i]]
-		if i == 0 and not cap[0]:
-			r *= 1.15 # (a collar where it leaves the parent)
-		if i == n - 1 and not cap[1]:
+		if i == 0 and not cap[0] and parent[b[0]] >= 0:
+			r = radius[b[0]] if carrier else minf(r * 1.15, radius[b[0]] * 0.92)
+		if i == n - 1 and not cap[1] and not carried:
 			r *= 0.35
-		rings.append([p, t, nrm, bin, r, along])
+		rings.append([p, t, nrm, bin, r, along, sway[b[i]] if sways else 0.0])
 	for i in n:
 		var g: Array = rings[i]
 		for k in sides + 1:
@@ -212,9 +283,10 @@ func _tube(st: SurfaceTool, b: PackedInt32Array, sides_div: int, cap: Array) -> 
 				at += g[1] * _jag(a, cap[2], splinter)
 			elif i == 0 and cap[0]:
 				at -= g[1] * _jag(a, cap[2], splinter)
-			st.set_uv(Vector2(float(k) / sides * wraps, g[5] / bark_tile))
-			# y: how much it sways in the wind (the twigs, not the stout wood)
-			st.set_uv2(Vector2(0.0, clampf((0.05 - g[4]) / 0.04, 0.0, 1.0) if sways else 0.0))
+			st.set_uv(Vector2(float(k) / sides * wraps + ou, g[5] / bark_tile + ov))
+			# y: how much it sways in the wind (the twigs, not the stout wood;
+			# a branch's base as its parent there: see fit_radii)
+			st.set_uv2(Vector2(0.0, g[6]))
 			st.set_normal(dir)
 			st.set_color(bark_tint)
 			st.add_vertex(at)
@@ -319,6 +391,7 @@ func _card(st: SurfaceTool, p: Vector3, d: Vector3, spin: float, size: float, ti
 		st.set_uv(uvs[k])
 		st.set_uv2(Vector2(rank, 0.0 if k < 2 else 1.0)) # y: how far from the twig (for the flutter)
 		st.set_custom(0, Color(off.x, off.y, off.z, _thin_from))
+		st.set_custom(1, Color(_card_sway, 0.0, 0.0, 0.0)) # how much it sways with its twig
 		st.set_normal(nrm)
 		st.set_color(tint)
 		st.add_vertex(corners[k])
@@ -328,6 +401,8 @@ func _card(st: SurfaceTool, p: Vector3, d: Vector3, spin: float, size: float, ti
 
 
 var _leaf_count := 0
+var _card_sway := 1.0
+var _max_level := 99
 
 
 func _crown_centre() -> Vector3:
