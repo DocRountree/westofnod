@@ -499,8 +499,8 @@ func _update_light() -> void:
 	# by night the sky lights almost nothing: a dim blue floor of light, and
 	# the eye opening up (exposure), so the land still reads
 	var night := atmosphere.night_amount()
-	env.ambient_light_sky_contribution = 1.0 - 0.8 * night
-	env.tonemap_exposure = lerpf(1.05, 2.1, night)
+	env.ambient_light_sky_contribution = 1.0 - 0.7 * night
+	env.tonemap_exposure = lerpf(1.05, 1.9, night)
 	var dir := _sun.global_basis.z
 	var c := _sun.light_color * (_sun.light_energy / 1.4)
 	var sun_col := Vector3(c.r, c.g, c.b)
