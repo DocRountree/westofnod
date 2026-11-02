@@ -75,8 +75,13 @@ func _ready() -> void:
 	bg.set_corner_radius_all(6)
 	bg.set_content_margin_all(14)
 	box.add_theme_stylebox_override("panel", bg)
-	box.set_anchors_preset(Control.PRESET_CENTER)
-	_panel.add_child(box)
+	# (in the middle of the screen, whatever its size: a CenterContainer
+	# over it all keeps it there)
+	var middle := CenterContainer.new()
+	middle.set_anchors_preset(Control.PRESET_FULL_RECT)
+	middle.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_panel.add_child(middle)
+	middle.add_child(box)
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 10)
 	box.add_child(v)
@@ -111,8 +116,6 @@ func _ready() -> void:
 	help.add_theme_font_size_override("font_size", 12)
 	help.modulate.a = 0.7
 	v.add_child(help)
-	box.reset_size()
-	box.position = -box.size * 0.5
 	# the hands, at the bottom corners while it's closed
 	for i in 2:
 		var s := _Slot.new(Inventory.LEFT + i, "L" if i == 0 else "R", 54.0)
