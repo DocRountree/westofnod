@@ -269,12 +269,14 @@ func deck_at(p: Vector3, below: float, foot := 0.15) -> float:
 	return best
 
 
-## The segments that can be stood on (logs, stumps: PropKind.walk) within
-## r of p over the ground, nearest first, at most n: in xs Vector4(ax, az,
-## bx, bz), in rs each one's radius (the larger end's). (GroundCover keeps
-## the grass out of them.)
+## What the grass is kept out of within r of p, nearest first, at most n:
+## the segments that can be stood on over the ground (logs, stumps:
+## PropKind.walk) and the solid trunks and boulders (their obstacles, a
+## little wider than they are: a trunk's roots flare out), in xs Vector4(ax,
+## az, bx, bz) (a trunk: a = b, its middle), in rs each one's radius (a
+## segment's larger end's). (GroundCover: nothing grows through them.)
 func walk_near(p: Vector3, r: float, n: int, xs: PackedVector4Array, rs: PackedFloat32Array) -> void:
-	var found: Array = []
+	var found: Array = [] # [distance, Vector4, radius]
 	var q := Vector2(p.x, p.z)
 	var c := _key(p)
 	var reach := ceili(r / CHUNK)
@@ -290,13 +292,19 @@ func walk_near(p: Vector3, r: float, n: int, xs: PackedVector4Array, rs: PackedF
 				var a := _on_segment(w, k, q)
 				var d := q.distance_to(Vector2(a.x, a.z))
 				if d < r:
-					found.append([d, k, w])
+					found.append([d, Vector4(w[k], w[k + 2], w[k + 3], w[k + 5]), maxf(absf(w[k + 6]), w[k + 7])])
+			var o := ch.obstacles
+			for k in range(0, o.size(), 3):
+				var d := q.distance_to(Vector2(o[k], o[k + 1]))
+				if d < r:
+					found.append([d, Vector4(o[k], o[k + 1], o[k], o[k + 1]), o[k + 2] * OBSTACLE_GRASS])
 	found.sort_custom(func(u, v): return u[0] < v[0])
 	for i in mini(found.size(), n):
-		var w: PackedFloat32Array = found[i][2]
-		var k: int = found[i][1]
-		xs.append(Vector4(w[k], w[k + 2], w[k + 3], w[k + 5]))
-		rs.append(maxf(absf(w[k + 6]), w[k + 7]))
+		xs.append(found[i][1])
+		rs.append(found[i][2])
+
+
+const OBSTACLE_GRASS := 1.2 ## a trunk's (boulder's) radius x this is kept clear of grass (the roots' flare)
 
 
 ## Segment k of w stands steeper than 45°: a post (a stump), flat on top,
@@ -763,21 +771,32 @@ func _shadow_casters(kind: PropKind, xf: PackedFloat32Array, origin: Vector3) ->
 	return out if out.size() != xf.size() else xf
 
 
-## A box (chunk-local) round everything a kind draws in a chunk: the
-## instances' spread, plus the largest of its meshes at the largest scale.
+## A box (chunk-local) round everything a kind draws in a chunk: each
+## instance's box (round the largest of its meshes, turned, tilted and
+## scaled as it stands), all together, a little wider (the twigs' sway).
+## (Not the mesh's box as it is, unturned: a long log lying across that
+## stuck out of it, and with the box out of view the whole chunk was culled,
+## the log's end with it, though in view.)
 func _chunk_box(kind: PropKind, xf: PackedFloat32Array) -> AABB:
 	var m := AABB()
 	for mesh in [kind.mesh, kind.shadow_mesh] + kind.lods:
 		if mesh:
 			m = m.merge(mesh.get_aabb())
-	m = AABB(m.position * kind.scale_range.y * 1.05, m.size * kind.scale_range.y * 1.05)
+	var c := m.get_center()
+	var e := m.size * 0.5
 	var lo := Vector3.INF
 	var hi := -Vector3.INF
 	for i in range(0, xf.size(), 12):
-		var o := Vector3(xf[i + 3], xf[i + 7], xf[i + 11])
-		lo = lo.min(o)
-		hi = hi.max(o)
-	return AABB(lo + m.position, hi - lo + m.size)
+		# (a row of the instance's basis, then its origin: x, y, z in turn)
+		var cc := Vector3.ZERO
+		var ee := Vector3.ZERO
+		for r in 3:
+			var k := i + r * 4
+			cc[r] = xf[k] * c.x + xf[k + 1] * c.y + xf[k + 2] * c.z + xf[k + 3]
+			ee[r] = absf(xf[k]) * e.x + absf(xf[k + 1]) * e.y + absf(xf[k + 2]) * e.z
+		lo = lo.min(cc - ee)
+		hi = hi.max(cc + ee)
+	return AABB(lo, hi - lo).grow(0.3)
 
 
 ## Leave out what remove_prop() took (instances and their obstacles).

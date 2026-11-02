@@ -25,14 +25,15 @@ uniform bool in_swamp = false; // (the reeds: prairie_height their height; they 
 uniform vec2 forest_height = vec2(0.08, 0.16); // m (grass; ferns: their length)
 uniform vec2 prairie_height = vec2(0.45, 0.85);
 uniform float cover = 1.0; // the share of cells with a clump
-uniform float clear = 0.2; // m kept clear round a log or stump, past its radius
-// fallen logs and stumps (Population.walk_near()): segments over the ground
-// (ax, az, bx, bz) and their radii; nothing grows through them
-uniform vec4 logs[128];
-uniform float log_r[128];
+uniform float clear = 0.2; // m kept clear round a log, stump or trunk, past its radius
+// fallen logs, stumps, trunks and boulders (Population.walk_near()):
+// segments over the ground (ax, az, bx, bz; a trunk a point) and their
+// radii; nothing grows through them
+uniform vec4 logs[256];
+uniform float log_r[256];
 uniform int log_count = 0;
 
-// Under (or through) a log or stump.
+// Under (or through) a log or stump, or in a trunk.
 bool under_log(vec2 p) {
 	for (int i = 0; i < log_count; i++) {
 		vec2 a = logs[i].xy;

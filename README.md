@@ -112,7 +112,8 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   (a recursive frond texture), none on the leaf litter or the mud; on the prairie,
   grass about up to head-high (1.5-2.0 m), green to blonde, out to 125 m; across a border the one turns into
   the other. In the swamp, broad-bladed reeds 1.8-2.3 m tall in clumps here and there,
-  standing in the water too. Clumps dissolve in and out (stippled) with distance, by which point their
+  standing in the water too. Nothing grows under a log or stump, or in a trunk or boulder
+  (`Population.walk_near`). Clumps dissolve in and out (stippled) with distance, by which point their
   colour is exactly the ground's (`ground.gdshaderinc`, shared with the terrain). The
   forest floor also has patches of damp, matte mud, and its brown patches carry a
   texture of fallen oak and maple leaves near the eye. Textures:

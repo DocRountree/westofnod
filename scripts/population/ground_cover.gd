@@ -53,7 +53,7 @@ const LAYERS := [
 		"u": {"kind": 1, "seed": 4, "in_prairie": false, "forest_height": Vector2(0.25, 0.45),
 			"fade_out": Vector2(32.0, 45.0), "thin_from": 16.0}},
 ]
-const MAX_LOGS := 128 ## log and stump segments the grass is kept out of, nearest first
+const MAX_LOGS := 256 ## logs, stumps, trunks and boulders the grass is kept out of, nearest first (ground_cover_bake.gdshader: logs[])
 const REBAKE := 5.0 ## m the camera moves before a layer's grid is worked out again
 const BAKE_KEYS := ["kind", "seed", "in_forest", "in_prairie", "in_swamp", "forest_height", "prairie_height", "cover"]
 const DRAW_KEYS := ["kind", "seed", "fade_in", "fade_out", "thin_from", "prairie_green", "prairie_blonde"]
@@ -213,7 +213,7 @@ func _bake(layer: Dictionary) -> void:
 		bm.set_shader_parameter("base_h", base_h)
 		bm.set_shader_parameter("eye", cam)
 		bm.set_shader_parameter("view_pos", cam)
-		# the logs and stumps about, which nothing grows through
+		# the logs, stumps, trunks and boulders about, which nothing grows through
 		var xs := PackedVector4Array()
 		var rs := PackedFloat32Array()
 		if population:

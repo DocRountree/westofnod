@@ -128,7 +128,10 @@ def sprig(rgba, cover, ox, oy, size, ang0):
     main_len = rng.uniform(0.15, 0.19) * size
     a = ang0 + rng.uniform(-0.12, 0.12)
     end = (ox + math.cos(a) * main_len, oy + math.sin(a) * main_len)
-    draw_line(rgba, cover, (ox, oy), end, 0.006 * size, 0.0035 * size, twig_c)
+    # (half-widths: the stem 5 mm thick, thinning to 3; the shoots 3 to 2 (on
+    # the card, 1.4x the tile: TreeBuilder.card_size), under the twig it
+    # grows from, 12 mm at its thinnest)
+    draw_line(rgba, cover, (ox, oy), end, 0.0018 * size, 0.0011 * size, twig_c)
     tips = [(end, a)]
     for k, side in enumerate(rng.permutation([-1, 1])[: rng.integers(1, 3)]):
         t = rng.uniform(0.3, 0.6)
@@ -136,7 +139,7 @@ def sprig(rgba, cover, ox, oy, size, ang0):
         b = a + side * rng.uniform(0.6, 1.0)
         l = rng.uniform(0.08, 0.12) * size
         e = (base[0] + math.cos(b) * l, base[1] + math.sin(b) * l)
-        draw_line(rgba, cover, base, e, 0.0035 * size, 0.0025 * size, twig_c)
+        draw_line(rgba, cover, base, e, 0.0011 * size, 0.0007 * size, twig_c)
         tips.append((e, b))
     for k in range(rng.integers(1, 3)):
         t = rng.uniform(0.2, 0.5)
