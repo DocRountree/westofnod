@@ -27,6 +27,10 @@ const EYE := Color(0.08, 0.07, 0.07)
 var world: WorldData
 var _hips: Node3D
 var _chest: Node3D
+## Hands held to a place (world: drawn positions) instead of swinging with
+## the walk: "l"/"r" -> [the hand's target, the elbow's pole] (Felling: on
+## the axe's handle as it swings). Cleared by whoever set them.
+var arm_targets := {}
 var _grips := {} # "l"/"r" -> Node3D: where the hands hold things
 var _limbs := {} # name -> {root: Node3D (socket on the body), a, b (bone pivots), len, hold: Vector3, planted}
 var _phase := 0.0
@@ -206,8 +210,12 @@ func walk(delta: float, speed: float, on_floor: bool) -> void:
 		_solve(leg, foot, fwd)
 		var arm: Dictionary = _limbs[sname + "_arm"]
 		var sh: Vector3 = arm.root.global_position
-		# arms hang a little out from the body, elbows softly bent
-		_solve(arm, sh + Vector3.DOWN * 0.5 - fwd * (s * amp * 0.8 - 0.06) + right * 0.07 * fs, -fwd + Vector3.DOWN * 0.3)
+		# arms hang a little out from the body, elbows softly bent (unless
+		# held somewhere: arm_targets)
+		if arm_targets.has(sname):
+			_solve(arm, arm_targets[sname][0], arm_targets[sname][1])
+		else:
+			_solve(arm, sh + Vector3.DOWN * 0.5 - fwd * (s * amp * 0.8 - 0.06) + right * 0.07 * fs, -fwd + Vector3.DOWN * 0.3)
 		arm.hold = Vector3.INF
 		leg.hold = Vector3.INF
 	var at := Origin.map(global_position)

@@ -85,20 +85,20 @@ vec4 bark_at(vec2 uv, vec3 p) {
 
 // End grain on cut and broken ends (UV2.x = 1; UV across the end, -1..1):
 // growth rings, weathered grey, the bark round the rim.
-vec3 end_grain(vec2 p) {
+vec3 end_grain(vec2 p, bool fresh) {
 	float r = length(p);
 	float a = atan(p.y, p.x);
 	float wob = 0.03 * sin(a * 3.0 + 1.7) + 0.02 * sin(a * 7.0);
 	float ring = fract((r + wob) * 16.0);
 	vec3 light = vec3(0.56, 0.47, 0.36), dark = vec3(0.4, 0.31, 0.22);
-	if (fresh_end) { // (pale, warm, no checks yet)
+	if (fresh) { // (pale, warm, no checks yet)
 		light = vec3(0.8, 0.66, 0.46);
 		dark = vec3(0.68, 0.53, 0.34);
 	}
 	vec3 c = mix(light, dark, smoothstep(0.55, 0.9, ring));
 	c *= 0.8 + 0.2 * smoothstep(0.0, 0.25, r); // the heart, darker
 	c = mix(c, vec3(0.23, 0.18, 0.14), smoothstep(0.88, 0.95, r)); // the bark round the rim
-	float crack = fresh_end ? 0.0 : smoothstep(0.035, 0.0, abs(fract(a / 6.2832 * 5.0 + 0.3 * r) - 0.5) * r * 2.0) * step(0.15, r);
+	float crack = fresh ? 0.0 : smoothstep(0.035, 0.0, abs(fract(a / 6.2832 * 5.0 + 0.3 * r) - 0.5) * r * 2.0) * step(0.15, r);
 	return pow(mix(c, c * 0.35, crack * 0.8), vec3(2.2)); // (to linear)
 }
 
@@ -106,15 +106,17 @@ void fragment() {
 	if (lod_hidden(FRAGCOORD.xy, lod_f)) discard;
 	vec3 geo_n = NORMAL; // (before the bark's bumps: lichen and moss cover them)
 	if (UV2.x > 0.5) {
-		ALBEDO = end_grain(UV) * COLOR.rgb;
+		ALBEDO = end_grain(UV, fresh_end) * COLOR.rgb;
 		AO = 1.0;
 		ROUGHNESS = 0.9;
 		SPECULAR = 0.2;
 		if (fresh_end) {
 			// an axe's top: chopped flat across in strokes, a band a stroke,
 			// each its own tilt (facets lying across the top, not standing
-			// up off it); shaded from the facets' slopes
-			float band = UV.y * 3.5 + 0.35 * sin(UV.x * 2.3 + 1.1);
+			// up off it); shaded from the facets' slopes. The strokes follow
+			// one another along the stump's own x, which Felling turns to
+			// the way the axe came from (the notch's side)
+			float band = notch_p.x * 7.0 + 0.35 * sin(notch_p.z * 4.6 + 1.1);
 			ivec2 bi = ivec2(int(floor(band)), 17);
 			vec2 s0 = (vec2(lc_hash(vec3(vec2(bi), 3.0)), lc_hash(vec3(vec2(bi), 7.0))) - 0.5) * vec2(0.35, 0.55);
 			vec2 s1 = (vec2(lc_hash(vec3(vec2(bi + ivec2(1, 0)), 3.0)), lc_hash(vec3(vec2(bi + ivec2(1, 0)), 7.0))) - 0.5) * vec2(0.35, 0.55);
@@ -200,10 +202,17 @@ void fragment() {
 		float open = notch.y * 0.5 * (1.0 - q / notch.y); // the V's half-height at that depth
 		if (q < notch.y && abs(dy) < open) {
 			float deep = clamp(q / notch.y, 0.0, 1.0);
-			vec3 wood = vec3(0.62, 0.48, 0.3) * (0.9 + 0.2 * lc_noise(notch_p * vec3(40.0, 4.0, 40.0)));
-			wood *= mix(1.0, 0.55, deep * deep);                         // darker toward the bottom of the V
-			wood *= mix(0.6, 1.0, smoothstep(0.0, 0.02, open - abs(dy))); // and at its edges, the bark's
-			ALBEDO = wood * wood;                                        // (to linear, about)
+			// the wood cut across: its growth rings round the trunk's axis,
+			// fresh
+			// (the bark's point stands for the face behind it: as deep in
+			// as the V's face is at that height, so the rings are the
+			// face's, round the axis, not the bark's rim)
+			float face_q = notch.y * (1.0 - abs(dy) / (notch.y * 0.5));
+			vec2 on_face = notch_p.xz - d * max(face_q - q, 0.0);
+			vec3 wood = end_grain(on_face / notch.w, true) * (0.9 + 0.2 * lc_noise(notch_p * vec3(40.0, 4.0, 40.0)));
+			wood *= mix(1.0, 0.45, deep * deep);                          // darker toward the bottom of the V
+			wood *= mix(0.45, 1.0, smoothstep(0.0, 0.02, open - abs(dy))); // and at its edges, the bark's
+			ALBEDO = wood;
 			NORMAL = normalize((VIEW_MATRIX * vec4(dy > 0.0 ? notch_up_n : notch_lo_n, 0.0)).xyz);
 			ROUGHNESS = 0.8;
 			SPECULAR = 0.3;

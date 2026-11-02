@@ -97,12 +97,12 @@ func _process(delta: float) -> void:
 
 func _animate_swing(delta: float) -> void:
 	var hand := _axe_hand()
-	if hand < 0:
-		return
-	var models := _held_models(hand)
-	if _swing < 0.0:
-		for m in models:
-			m.transform = Transform3D() # (at rest in the hand)
+	var avatar: Avatar = main.player.avatar
+	if hand < 0 or _swing < 0.0:
+		avatar.arm_targets.clear()
+		if hand >= 0:
+			for m in _held_models(hand):
+				m.transform = Transform3D() # (at rest in the hand)
 		return
 	_swing += delta / SWING
 	var t := _swing
@@ -111,7 +111,8 @@ func _animate_swing(delta: float) -> void:
 		_strike()
 	if _swing >= 1.0:
 		_swing = -1.0
-		for m in models:
+		avatar.arm_targets.clear()
+		for m in _held_models(hand):
 			m.transform = Transform3D()
 		return
 	# out to the side (wind up), round to the mark faster and faster, on
@@ -131,9 +132,30 @@ func _animate_swing(delta: float) -> void:
 		phi = -FOLLOW
 		w = 1.0 - smoothstep(0.0, 1.0, (t - 0.8) / 0.2)
 	var pose := _swing_pose(phi * side, side)
-	for m in models:
-		var rest: Transform3D = (m.get_parent() as Node3D).global_transform
-		m.global_transform = rest.interpolate_with(pose, w)
+	var p: Player = main.player
+	var view: Node3D = p._view_grips[hand]
+	var grip: Node3D = avatar.grip("l" if hand == 0 else "r")
+	# first person: the axe alone, swung
+	for m in view.get_children():
+		if not m.is_queued_for_deletion():
+			m.global_transform = view.global_transform.interpolate_with(pose, w)
+	# the figure: it turns to face the swing, both hands take the handle
+	# (the axe's hand at the grip, the other a hand's breadth below) and
+	# the arms follow it round; the axe sits in the hand as far as the arm
+	# reaches
+	if avatar.visible and grip:
+		avatar.global_basis = Basis(Vector3.UP, p.rotation.y)
+		var held := Transform3D(grip.global_transform.basis.orthonormalized(), grip.global_position)
+		var at := held.interpolate_with(pose, w)
+		var down := -at.basis.y.normalized()
+		var right := avatar.global_basis.x
+		var me := "l" if hand == 0 else "r"
+		var other := "r" if hand == 0 else "l"
+		avatar.arm_targets[me] = [at.origin, Vector3.DOWN + right * side * 0.6]
+		avatar.arm_targets[other] = [at.origin + down * 0.14, Vector3.DOWN - right * side * 0.6]
+		for m in grip.get_children():
+			if not m.is_queued_for_deletion():
+				m.global_transform = Transform3D(at.basis, grip.global_position)
 
 
 ## The axe (its grip) in the world, swung round to phi (rad from the mark;
@@ -230,10 +252,16 @@ func _fell(kind: PropKind, variant: int, xf: Transform3D, radius: float, away: V
 	node.transform = xf
 	if stump_scale > 0.0:
 		var sn := _model([OakTree.fresh_stump()[0]] + OakTree.fresh_stump()[1])
-		sn.transform = Transform3D(Basis(Vector3.UP, xf.basis.get_euler().y).scaled(Vector3.ONE * stump_scale), xf.origin)
+		sn.transform = Transform3D(_stump_basis(away, stump_scale), xf.origin)
 	entry.falling = {"node": node, "axis": axis, "angle": angle, "t": 0.0, "cut": cut, "end": end,
 			"time": FALL_TIME * sqrt(maxf(height, 1.0) / 15.0), "pivot": pivot, "basis": xf.basis}
 	return entry
+
+
+## The stump turned so its own x runs the way the axe came, away from the
+## player (bark.gdshader lays the chopped top's strokes along it), at scale s.
+static func _stump_basis(away: Vector3, s: float) -> Basis:
+	return Basis(Vector3.UP, atan2(-away.z, away.x)).scaled(Vector3.ONE * s)
 
 
 ## The stump's scale for a trunk of this radius (0: none, a sapling's).
@@ -307,5 +335,5 @@ func from_list(list: Array) -> void:
 		var s := float(e.get("stump_scale", 0.0))
 		if s > 0.0:
 			var sn := _model([OakTree.fresh_stump()[0]] + OakTree.fresh_stump()[1])
-			sn.transform = Transform3D(Basis(Vector3.UP, basis.get_euler().y).scaled(Vector3.ONE * s), origin)
+			sn.transform = Transform3D(_stump_basis(dir, s), origin)
 		_lying.append(e)
