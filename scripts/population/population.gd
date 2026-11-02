@@ -457,6 +457,7 @@ func _resolve() -> void:
 		return
 	for k in props:
 		k.resolve(world.biome_names)
+		k.resolve_clump(world.biome_names)
 		_radius = maxf(_radius, k.view_distance)
 	for k in actor_kinds:
 		k.resolve(world.biome_names)
@@ -533,7 +534,8 @@ func _generate(key: Vector2i) -> void:
 		var kind := props[k]
 		var xf := PackedFloat32Array()
 		var uids := PackedInt64Array()
-		var peak := kind.peak()
+		var peak := kind.peak_clumped()
+		var placed := PackedVector2Array() # (for min_spacing)
 		if peak > 0.0 and kind.mesh:
 			var rng := RandomNumberGenerator.new()
 			rng.seed = _seed(key, k)
@@ -545,8 +547,17 @@ func _generate(key: Vector2i) -> void:
 				var keep := rng.randf() * peak
 				var turn := rng.randf() * TAU
 				var s := rng.randf_range(kind.scale_range.x, kind.scale_range.y)
-				if keep >= kind.density_in(world.biome_index_at(x, z)):
+				var b := world.biome_index_at(x, z)
+				if keep >= kind.density_in(b) * kind.clump_at(b, x, z):
 					continue
+				if kind.min_spacing > 0.0:
+					var crowded := false
+					for q in placed:
+						if q.distance_squared_to(Vector2(x, z)) < kind.min_spacing * kind.min_spacing:
+							crowded = true
+							break
+					if crowded:
+						continue
 				var h := world.height_at(x, z)
 				var nrm := world.normal_at(x, z)
 				if not kind.fits(h, nrm):
@@ -560,6 +571,7 @@ func _generate(key: Vector2i) -> void:
 				var fall := kind.foot * s * sqrt(maxf(1.0 - nrm.y * nrm.y, 0.0)) / maxf(nrm.y, 0.3)
 				var o := Vector3(x - base.x, h - kind.sink * s - fall, z - base.y)
 				xf.append_array([b.x.x, b.y.x, b.z.x, o.x, b.x.y, b.y.y, b.z.y, o.y, b.x.z, b.y.z, b.z.z, o.z])
+				placed.append(Vector2(x, z))
 				var uid := _uid(key, k, i)
 				uids.append(uid)
 				if kind.radius > 0.0:

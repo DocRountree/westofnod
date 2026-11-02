@@ -47,12 +47,14 @@ const VARIANTS := [
 ## edge, too: standing on one lifts you out of the mud), can be stood on
 ## and cast no shadow, the stumps jumped onto; dead oaks stand in the swamp too, as many as all the
 ## standing oaks (live, saplings and dead; not the logs or stumps) on the
-## prairie, down into its shallows.
+## prairie, down into its shallows, gathered there in irregular clumps (no
+## two closer than 7 m: their limbs clear of each other).
 const PROPS := {
 	"tree": {"standing": true, "foot": 0.75},
 	"stump": {"weight": 0.5, "radius": 0.0, "foot": 0.6, "align_to_ground": 0.3, "sink": 0.12, "scale_range": Vector2(0.8, 1.1)},
 	"log": {"weight": 0.25, "radius": 0.0, "align_to_ground": 0.9, "sink": 0.12, "scale_range": Vector2(0.8, 1.15), "shadows": false},
-	"dead": {"weight": 0.5, "standing": true, "density_like": {"swamp": "prairie"}, "like_group": "standing", "height_range": Vector2(-0.5, 1900.0), "foot": 0.65},
+	"dead": {"weight": 0.5, "standing": true, "density_like": {"swamp": "prairie"}, "like_group": "standing", "height_range": Vector2(-0.5, 1900.0), "foot": 0.65,
+		"clump": {"swamp": 1.0}, "clump_size": 28.0, "min_spacing": 7.0},
 	"sapling": {"weight": 0.5, "standing": true, "radius": 0.1, "foot": 0.08, "scale_range": Vector2(0.75, 1.25)},
 }
 

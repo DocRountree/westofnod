@@ -45,6 +45,40 @@ extends SpawnRule
 ## feet; one higher is a wall (jump onto it). With none but a mesh_script
 ## with build_walk(variant), that makes them.
 @export var walk := PackedFloat32Array()
+## Clumping: biome name -> how strongly (0..1) it gathers there in clumps
+## (irregular, of clump_size m), thinning out between them, as many in all.
+@export var clump := {}
+@export var clump_size := 30.0
+## None closer than this (m) to another of its kind (in the same chunk).
+@export var min_spacing := 0.0
+
+const CLUMP_MAX := 3.2 ## The most a clump packs them in (x the density).
+var _clump_by_biome := PackedFloat32Array()
+
+
+## Resolves clump's names too.
+func resolve_clump(names: Array) -> void:
+	_clump_by_biome.resize(names.size() + 1)
+	for i in _clump_by_biome.size():
+		_clump_by_biome[i] = float(clump.get(names[i], 0.0)) if i < names.size() else 0.0
+
+
+## How much more (or less) common it is at (x, z) in biome b than its
+## density there: clumps, irregular (two scales of noise), denser in the
+## middle; between them few.
+func clump_at(b: int, x: float, z: float) -> float:
+	if clump.is_empty():
+		return 1.0
+	var k := _clump_by_biome[b if b >= 0 else _clump_by_biome.size() - 1]
+	if k <= 0.0:
+		return 1.0
+	var n := WorldData.vnoise(x / clump_size + 17.3, z / clump_size - 4.1) * 0.65 + WorldData.vnoise(x / (clump_size * 0.37) - 8.2, z / (clump_size * 0.37) + 3.7) * 0.35
+	return lerpf(1.0, CLUMP_MAX * smoothstep(0.45, 0.75, n), k)
+
+
+## The most it can be anywhere (its peak density, clumped).
+func peak_clumped() -> float:
+	return peak() * (CLUMP_MAX if not clump.is_empty() else 1.0)
 ## What can be climbed (Player, C): lines (a trunk from the foot up, its
 ## limbs from where they leave it) as far as they're stout enough to hold
 ## you; each its node count, then 4 floats a node, local (at scale 1): x, y,
