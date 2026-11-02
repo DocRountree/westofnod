@@ -266,6 +266,28 @@ static func build_walk(variant := 0) -> PackedFloat32Array:
 	return out
 
 
+## Population: the trunk that can be climbed (PropKind.climb): a standing
+## or dead oak's trunk, on up into the crown while it's stout enough (12 cm);
+## saplings are too slender, stumps and logs are stood on instead.
+static func build_climb(variant := 0) -> PackedFloat32Array:
+	var out := PackedFloat32Array()
+	variant = posmod(variant, VARIANTS.size())
+	var tb: TreeBuilder
+	match _kind(variant):
+		"tree":
+			tb = grow(variant)
+		"dead":
+			tb = grow_dead(VARIANTS[variant])
+		_:
+			return out
+	for i in tb.branches[0]:
+		if tb.radius[i] < 0.12 and out.size() >= 8:
+			break
+		var p := tb.pos[i]
+		out.append_array([p.x, p.y, p.z, tb.radius[i]])
+	return out
+
+
 ## A stump: snapped off 0.75-1.1 m up (low enough to jump onto), splinters standing up round a
 ## broken, sunken middle; the roots flaring into buttresses.
 static func grow_stump(P: Dictionary) -> TreeBuilder:

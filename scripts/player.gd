@@ -1,8 +1,8 @@
 class_name Player
 extends CharacterBody3D
 ## First/third-person controller (F5 toggles): walk/sprint/jump, swim (as in
-## Minecraft, see _swim()), climb rock too steep to walk (C toggles; see
-## _climb()) and an optional fly mode. The figure (Avatar) is animated
+## Minecraft, see _swim()), climb rock too steep to walk or a tree's trunk
+## (C toggles; see _climb(), _climb_tree()) and an optional fly mode. The figure (Avatar) is animated
 ## procedurally; the third-person camera never goes inside the terrain.
 
 const WALK_SPEED := 4.6
@@ -37,6 +37,9 @@ var avatar: Avatar
 var climbing := false
 var _was_third_person := false
 var _grip_offset := Vector2.ZERO # rock point under the hands, relative to the origin
+var _trunk := PackedFloat32Array() # the tree being climbed (Population trunk; empty: rock)
+var _trunk_s := 0.0 # how far up its axis the hands are (m)
+var _trunk_a := 0.0 # and round it (radians, from +x toward +z)
 var _cs: CollisionShape3D
 var flying := false
 var can_fly := true ## Double-tapping Space flies (debug mode only: Session).
@@ -157,11 +160,29 @@ func set_third_person(on: bool) -> void:
 	avatar.visible = on
 
 
-## Climbing grips the rock under (or just in front of) the player, if it is
-## steep enough; the view goes third person for the climb.
+## Climbing grips a tree's trunk within reach, or else the rock under (or
+## just in front of) the player, if it is steep enough; the view goes third
+## person for the climb.
 func set_climbing(on: bool) -> void:
 	if on == climbing or world == null:
 		return
+	_trunk = PackedFloat32Array()
+	avatar.trunk = _trunk
+	if on and population:
+		var chest := global_position + Vector3.UP * 1.2
+		var tr := population.trunk_near(chest, 0.9)
+		if not tr.is_empty():
+			_trunk = tr
+			avatar.trunk = tr
+			_trunk_s = clampf(Population.trunk_nearest(tr, chest), 0.0, Population.trunk_length(tr) - 0.3)
+			var f := Population.trunk_frame(tr, _trunk_s)
+			var d: Vector3 = chest - (f[0] as Vector3)
+			_trunk_a = atan2(d.z, d.x)
+			set_flying(false)
+			_was_third_person = third_person
+			set_third_person(true)
+			climbing = true
+			return
 	if on:
 		var fwd := -global_basis.z
 		var p := global_position + fwd * 0.6
@@ -188,7 +209,10 @@ func _physics_process(delta: float) -> void:
 	var head_under := water.x > head.global_position.y
 
 	if climbing:
-		_climb(delta)
+		if _trunk.is_empty():
+			_climb(delta)
+		else:
+			_climb_tree(delta)
 		return
 	if flying:
 		var vy := 0.0
@@ -324,6 +348,43 @@ func _climb(delta: float) -> void:
 	velocity = Vector3.ZERO
 	avatar.global_basis = Basis(right, up_t, n)
 	avatar.climb(surface, n, up_t, surface - before)
+
+
+## Climbing a tree: hands and feet on the bark. W/S up and down the trunk
+## (as high as it's stout enough), A/D round it; Space lets go. Down at the
+## foot, the climb ends by itself.
+func _climb_tree(delta: float) -> void:
+	var input := _move_input()
+	var top := Population.trunk_length(_trunk) - 0.3
+	var f := Population.trunk_frame(_trunk, _trunk_s)
+	var before: Vector3 = (f[0] as Vector3) + _trunk_out(f) * (f[1] as float)
+	_trunk_s = clampf(_trunk_s - input.y * CLIMB_SPEED * 0.7 * delta, 0.0, top)
+	_trunk_a -= input.x * CLIMB_SPEED * 0.7 * delta / maxf(f[1] as float + CLIMB_OFFSET, 0.3)
+	f = Population.trunk_frame(_trunk, _trunk_s)
+	var up_t: Vector3 = f[2]
+	var n := _trunk_out(f)
+	var surface: Vector3 = (f[0] as Vector3) + n * (f[1] as float)
+	var right := up_t.cross(n)
+	var feet := surface + n * CLIMB_OFFSET - up_t * 1.0
+	var ground := world.height_at(feet.x, feet.z)
+	if _just("jump") or (input.y > 0.1 and feet.y <= ground + 0.05):
+		# let go (falling, pushed off the bark a little), or down at the foot
+		global_position = Vector3(feet.x, maxf(feet.y, ground), feet.z)
+		set_climbing(false)
+		velocity = n * 1.5
+		return
+	global_position = Vector3(feet.x, maxf(feet.y, ground), feet.z)
+	velocity = Vector3.ZERO
+	avatar.global_basis = Basis(right, up_t, n)
+	avatar.climb(surface, n, up_t, surface - before)
+
+
+## Out from the trunk's axis toward the climber (round it by _trunk_a,
+## square to the axis), at a trunk frame.
+func _trunk_out(f: Array) -> Vector3:
+	var axis: Vector3 = f[2]
+	var n := Vector3(cos(_trunk_a), 0.0, sin(_trunk_a))
+	return (n - axis * n.dot(axis)).normalized()
 
 
 func _process(_delta: float) -> void:

@@ -52,6 +52,7 @@ class _Chunk:
 	var nodes: Array[Node3D] = [] # one MultiMeshInstance3D per kind present
 	var obstacles := PackedFloat32Array() # x, z, radius
 	var walk := PackedFloat32Array() # world segments to stand on (PropKind.walk)
+	var trunks: Array[PackedFloat32Array] = [] # world trunks to climb (PropKind.climb), one each
 	var spawns: Array = [] # [actor kind index, position, seed]
 	var actors: Array[Actor] = []
 	var uids: Array = [] # per prop kind: PackedInt64Array of the instances' uids
@@ -126,6 +127,8 @@ func _variants(k: PropKind) -> Array[PropKind]:
 			kv.lods = kv.mesh_script.build_lods(v)
 		if kv.walk.is_empty() and kv.mesh_script and kv.mesh_script.has_method("build_walk"):
 			kv.walk = kv.mesh_script.build_walk(v)
+		if kv.climb.is_empty() and kv.mesh_script and kv.mesh_script.has_method("build_climb"):
+			kv.climb = kv.mesh_script.build_climb(v)
 		if kv.shadow_mesh == null and kv.mesh_script and kv.mesh_script.has_method("build_shadow"):
 			kv.shadow_mesh = kv.mesh_script.build_shadow(v)
 		out.append(kv)
@@ -306,6 +309,86 @@ static func _add_walk(out: PackedFloat32Array, kind: PropKind, xf: PackedFloat32
 		out.append_array([a.x, a.y, a.z, e.x, e.y, e.z, w[k + 6] * s, w[k + 7] * s])
 
 
+## Appends instance i's climbable trunk (kind.climb), in the world.
+static func _add_trunk(out: Array[PackedFloat32Array], kind: PropKind, xf: PackedFloat32Array, i: int, base: Vector3) -> void:
+	var c := kind.climb
+	if c.is_empty():
+		return
+	var j := i * 12
+	var b := Basis(Vector3(xf[j], xf[j + 4], xf[j + 8]), Vector3(xf[j + 1], xf[j + 5], xf[j + 9]), Vector3(xf[j + 2], xf[j + 6], xf[j + 10]))
+	var t := Transform3D(b, Vector3(xf[j + 3], xf[j + 7], xf[j + 11]) + base)
+	var s := b.x.length()
+	var tr := PackedFloat32Array()
+	for k in range(0, c.size(), 4):
+		var p := t * Vector3(c[k], c[k + 1], c[k + 2])
+		tr.append_array([p.x, p.y, p.z, c[k + 3] * s])
+	out.append(tr)
+
+
+## The climbable trunk (x, y, z, radius a node, from the foot up) whose bark
+## is nearest p, if within reach of it (m); empty if none.
+func trunk_near(p: Vector3, reach: float) -> PackedFloat32Array:
+	var best := PackedFloat32Array()
+	var best_gap := reach
+	var c := _key(p)
+	for dz in range(-1, 2):
+		for dx in range(-1, 2):
+			var ch: _Chunk = _chunks.get(c + Vector2i(dx, dz))
+			if ch == null:
+				continue
+			for tr in ch.trunks:
+				if Vector2(tr[0] - p.x, tr[2] - p.z).length_squared() > 100.0:
+					continue
+				var s := trunk_nearest(tr, p)
+				var f := trunk_frame(tr, s)
+				var gap := (p - (f[0] as Vector3)).length() - (f[1] as float)
+				if gap < best_gap:
+					best_gap = gap
+					best = tr
+	return best
+
+
+## A trunk's length along its axis (m).
+static func trunk_length(tr: PackedFloat32Array) -> float:
+	var l := 0.0
+	for k in range(4, tr.size(), 4):
+		l += Vector3(tr[k] - tr[k - 4], tr[k + 1] - tr[k - 3], tr[k + 2] - tr[k - 2]).length()
+	return l
+
+
+## The trunk s m up its axis: [axis point, radius, axis direction (up)].
+static func trunk_frame(tr: PackedFloat32Array, s: float) -> Array:
+	var walked := 0.0
+	for k in range(4, tr.size(), 4):
+		var a := Vector3(tr[k - 4], tr[k - 3], tr[k - 2])
+		var b := Vector3(tr[k], tr[k + 1], tr[k + 2])
+		var l := a.distance_to(b)
+		if s <= walked + l or k + 4 >= tr.size():
+			var t := clampf((s - walked) / maxf(l, 1e-4), 0.0, 1.0)
+			return [a.lerp(b, t), lerpf(tr[k - 1], tr[k + 3], t), (b - a) / maxf(l, 1e-4)]
+		walked += l
+	return [Vector3(tr[0], tr[1], tr[2]), tr[3], Vector3.UP]
+
+
+## How far up its axis (m) a trunk passes nearest p.
+static func trunk_nearest(tr: PackedFloat32Array, p: Vector3) -> float:
+	var best := INF
+	var best_s := 0.0
+	var walked := 0.0
+	for k in range(4, tr.size(), 4):
+		var a := Vector3(tr[k - 4], tr[k - 3], tr[k - 2])
+		var b := Vector3(tr[k], tr[k + 1], tr[k + 2])
+		var ab := b - a
+		var l2 := ab.length_squared()
+		var t := clampf((p - a).dot(ab) / maxf(l2, 1e-6), 0.0, 1.0)
+		var d := p.distance_squared_to(a + ab * t)
+		if d < best:
+			best = d
+			best_s = walked + t * sqrt(l2)
+		walked += sqrt(l2)
+	return best_s
+
+
 ## Takes a prop out of the world for good (uid: from prop_at()).
 func remove_prop(uid: int) -> void:
 	_removed[uid] = true
@@ -433,6 +516,7 @@ func _generate(key: Vector2i) -> void:
 	var area_ha := CHUNK * CHUNK / 10000.0
 	var obstacles := PackedFloat32Array()
 	var walk := PackedFloat32Array()
+	var trunks: Array[PackedFloat32Array] = []
 	for k in props.size():
 		var kind := props[k]
 		var xf := PackedFloat32Array()
@@ -469,10 +553,12 @@ func _generate(key: Vector2i) -> void:
 				if kind.radius > 0.0:
 					obstacles.append_array([x, z, kind.radius * s])
 				_add_walk(walk, kind, xf, xf.size() / 12 - 1, Vector3(base.x, 0.0, base.y))
+				_add_trunk(trunks, kind, xf, xf.size() / 12 - 1, Vector3(base.x, 0.0, base.y))
 		ch.xforms.append(xf)
 		ch.uids.append(uids)
 	ch.obstacles = obstacles
 	ch.walk = walk
+	ch.trunks = trunks
 	var area_km2 := CHUNK * CHUNK / 1e6
 	for k in actor_kinds.size():
 		var kind := actor_kinds[k]
@@ -616,6 +702,7 @@ func _chunk_box(kind: PropKind, xf: PackedFloat32Array) -> AABB:
 func _drop_removed(ch: _Chunk) -> void:
 	var obstacles := PackedFloat32Array()
 	var walk := PackedFloat32Array()
+	var trunks: Array[PackedFloat32Array] = []
 	for k in ch.xforms.size():
 		var xf: PackedFloat32Array = ch.xforms[k]
 		var uids: PackedInt64Array = ch.uids[k]
@@ -631,10 +718,12 @@ func _drop_removed(ch: _Chunk) -> void:
 				var s := Vector3(xf[i * 12], xf[i * 12 + 4], xf[i * 12 + 8]).length()
 				obstacles.append_array([xf[i * 12 + 3] + ch.key.x * CHUNK, xf[i * 12 + 11] + ch.key.y * CHUNK, kind.radius * s])
 			_add_walk(walk, kind, xf, i, Vector3(ch.key.x * CHUNK, 0.0, ch.key.y * CHUNK))
+			_add_trunk(trunks, kind, xf, i, Vector3(ch.key.x * CHUNK, 0.0, ch.key.y * CHUNK))
 		ch.xforms[k] = keep_xf
 		ch.uids[k] = keep_uids
 	ch.obstacles = obstacles
 	ch.walk = walk
+	ch.trunks = trunks
 	walk_changes += 1
 
 

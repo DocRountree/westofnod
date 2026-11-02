@@ -44,5 +44,10 @@ extends SpawnRule
 ## feet; one higher is a wall (jump onto it). With none but a mesh_script
 ## with build_walk(variant), that makes them.
 @export var walk := PackedFloat32Array()
+## A trunk that can be climbed (Player, C): its axis from the foot up as
+## far as it's stout enough to hold you, 4 floats a node, local (at scale
+## 1): x, y, z, radius. With none but a mesh_script with
+## build_climb(variant), that makes it.
+@export var climb := PackedFloat32Array()
 @export var view_distance := 250.0 ## Drawn up to this far (m).
 @export var shadows := true

@@ -6,7 +6,8 @@ extends Node3D
 ##  - walking: feet step along the ground in turn (a foot stays planted while
 ##    the other swings forward, lifted), arms swing against the legs;
 ##  - climbing: hands and feet hold points on the rock surface (found by
-##    projecting onto the terrain along its normal). One limb at a time (right
+##    projecting onto the terrain along its normal), or a tree's bark
+##    (`trunk`: projected onto it). One limb at a time (right
 ##    hand, left foot, left hand, right foot) lets go, reaches to a new hold
 ##    ahead in the direction of climbing, and grips; the others stay put.
 ## The body is oriented by the player: upright when walking, facing into the
@@ -32,6 +33,7 @@ var _climb_dist := 0.0
 var _mats := {}
 var _boots := {}
 var sink := 0.0 ## How deep the feet are in mud (the player's).
+var trunk := PackedFloat32Array() ## The tree being climbed (Population trunk), if any: holds are on its bark.
 var _head: MeshInstance3D
 
 
@@ -285,6 +287,12 @@ func climb(surface: Vector3, n: Vector3, up_t: Vector3, moved: Vector3) -> void:
 ## The point on the terrain surface nearest p (a few steps along the normal),
 ## lifted a little so a hand rests on it rather than in it.
 func on_rock(p: Vector3) -> Vector3:
+	if not trunk.is_empty():
+		var f := Population.trunk_frame(trunk, Population.trunk_nearest(trunk, p))
+		var axis: Vector3 = f[0]
+		var d := p - axis
+		d -= (f[2] as Vector3) * d.dot(f[2])
+		return axis + d.normalized() * ((f[1] as float) + 0.04)
 	if world == null:
 		return p
 	for i in 3:
@@ -296,6 +304,9 @@ func on_rock(p: Vector3) -> Vector3:
 
 ## How far p is inside the rock (m, along the surface normal; negative: outside).
 func _depth(p: Vector3) -> float:
+	if not trunk.is_empty():
+		var f := Population.trunk_frame(trunk, Population.trunk_nearest(trunk, p))
+		return (f[1] as float) - p.distance_to(f[0])
 	if world == null:
 		return -1.0
 	return (world.height_at(p.x, p.z) - p.y) * world.normal_at(p.x, p.z).y
