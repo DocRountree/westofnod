@@ -104,7 +104,7 @@ func compute_radii(trunk_r: float, tip_r: float) -> void:
 ## there). And how much each node sways (sway): the same as its parent where
 ## a branch leaves it (the base stays on the parent), more toward the tips.
 ## Run once the radii and branches are final (_mesh does; it can run again).
-const SWAY_RAMP := 0.6 ## m along a branch over which it comes into its own sway
+const SWAY_RAMP := 1.4 ## m along a branch over which it comes into its own sway (slowly at first: squared)
 
 var sway := PackedFloat32Array() ## per node, 0 the stout wood .. 1 the twigs
 var _carried := {} # a branch's end node -> [the direction on through it, the level of the branch carrying it on]
@@ -140,7 +140,7 @@ func fit_radii() -> void:
 		var along := 0.0
 		for j in range(1, b.size()):
 			along += pos[b[j]].distance_to(pos[b[j - 1]])
-			var w := lerpf(w0, maxf(_sway_of(radius[b[j]]), w0), smoothstep(0.0, SWAY_RAMP, along))
+			var w := lerpf(w0, maxf(_sway_of(radius[b[j]]), w0), pow(smoothstep(0.0, SWAY_RAMP, along), 2.0))
 			sway[b[j]] = maxf(w, sway[b[j - 1]])
 
 
