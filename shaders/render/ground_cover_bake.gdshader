@@ -153,7 +153,11 @@ void fragment() {
 	float prairie = pw / max(fw + pw, 1e-4); // 0 forest .. 1 prairie
 	if (!in_prairie)
 		prairie = 0.0;
-	if (!in_forest)
+	// (the far grass, the prairie's only: as tall as the nearer layers draw
+	// it there, its share of the prairie where it blends into the forest,
+	// not all prairie, or its tall grass gave way to short as you came near;
+	// the reeds' and marram's layers, neither forest nor prairie: theirs)
+	if (!in_forest && !in_prairie)
 		prairie = 1.0;
 	float size = 0.0;
 	if (h2(c, 5) < grows && h2(c, 4) < cover && !under_log(pos)) {
