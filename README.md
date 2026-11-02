@@ -8,13 +8,20 @@ popping. Walk, sprint, swim (as in Minecraft), climb and fly.
 
 Open the folder in **Godot 4.3+** (Forward+ renderer) and press Play. The start
 menu (`menu.tscn`) lists your games, the one played last first: resume one, start a
-new one, rename or delete one, or enter **debug mode**. A game saves itself (where
-you are and look, the time and day, what has been taken from the world) every
-minute, when you leave it and when you quit, to `user://saves/` (`scripts/session.gd`).
-Debug mode is the sandbox: flying, the time keys, every command, the frame rate and
-coordinates on screen; nothing is saved. Running `main.tscn` on its own (the editor's
-Run Current Scene, `tools/shot.tscn`) starts debug mode directly. Rows marked
-*(debug)* below work only in debug mode.
+new one, rename or delete one, or enter **debug mode**. A new game asks for its
+**mode** and whether it **allows commands**:
+
+- *Survival*: not defined yet (no flying, no time keys).
+- *God*: fly (Space twice), move time (`[` `]`).
+- *Allow commands*: every chat command, `/mode survival|god` (or `/gamemode`)
+  among them; without, only `/help`, `/pos` and `/clear`, and the mode stays as chosen.
+
+A game saves itself (where you are and look, the time and day, what has been taken
+from the world, its mode) every minute, when you leave it and when you quit, to
+`user://saves/` (`scripts/session.gd`). Debug mode is the sandbox: god mode, every
+command, F6, the frame rate and coordinates on screen; nothing is saved. Running
+`main.tscn` on its own (the editor's Run Current Scene, `tools/shot.tscn`) starts
+debug mode directly.
 
 | Input | Action |
 |---|---|
@@ -22,10 +29,10 @@ Run Current Scene, `tools/shot.tscn`) starts debug mode directly. Rows marked
 | Space / Shift in water | swim up / sink faster (otherwise you slowly sink) |
 | Ctrl + W, head under water | sprint-swim wherever you look |
 | Z | magnify (a telescope, for now a key); mouse wheel sets the power, 2x-8x |
-| [ / ] | *(debug)* run time backward / forward |
-| Enter / `/` | chat / commands (`/help`; in a game `/pos`, `/clear`; *(debug)* also `/tp`, `/time`, `/spawn`, `/fly`, `/zoom`, `/aurora`, `/pop`) |
+| [ / ] | *(god mode)* run time backward / forward |
+| Enter / `/` | chat / commands (`/help`, `/pos`, `/clear`; with commands allowed also `/tp`, `/time`, `/spawn`, `/fly`, `/zoom`, `/aurora`, `/pop`, `/mode`) |
 | F6 | *(debug)* an aurora every night |
-| Space ×2 | *(debug)* toggle fly mode (Space / Shift to go up / down) |
+| Space ×2 | *(god mode)* toggle fly mode (Space / Shift to go up / down) |
 | F5 | toggle third-person camera |
 | C | climb rock too steep to walk (WASD over the rock, Space lets go) |
 | Esc | pause: resume, save, main menu, quit (the mouse is freed) |

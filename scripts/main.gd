@@ -21,6 +21,8 @@ var pause_menu: PauseMenu
 const AUTOSAVE_SECONDS := 60.0
 var _since_save := 0.0
 var _played := 0.0 # seconds played in this game, all sessions
+var mode := "god" ## Session.MODES: survival, god (set_mode()).
+var commands_allowed := true ## Every chat command (else only Chat.PLAY_COMMANDS).
 
 const AURORA_LATITUDE := 45.0 # auroras are seen only north of this
 var config: WorldConfig
@@ -110,8 +112,6 @@ func _ready() -> void:
 	add_child(player)
 	player.avatar.world = world
 	player.global_position = world.spawn
-	player.can_fly = Session.debug
-	clock.scrub_enabled = Session.debug
 	_load_game()
 	_last_x = player.global_position.x
 	aurora.min_latitude = AURORA_LATITUDE
@@ -123,15 +123,15 @@ func _ready() -> void:
 	add_child(hud)
 	chat = Chat.new()
 	chat.main = self
-	chat.debug = Session.debug
 	add_child(chat)
+	set_mode(mode)
 	pause_menu = PauseMenu.new()
 	pause_menu.main = self
 	add_child(pause_menu)
 	if Session.debug:
 		chat.say("Debug mode. Enter to chat, / for commands (/help), Esc for the menu.", Color(0.75, 0.85, 1.0))
-	elif Session.data.is_empty():
-		chat.say("Welcome to West of Nod. Enter to chat, Esc for the menu.", Color(0.75, 0.85, 1.0))
+	elif not Session.data.has("player"):
+		chat.say("Welcome to West of Nod (%s mode%s). Enter to chat, Esc for the menu." % [mode, ", commands on: /help" if commands_allowed else ""], Color(0.75, 0.85, 1.0))
 	else:
 		chat.say("Welcome back. Esc for the menu.", Color(0.75, 0.85, 1.0))
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
@@ -143,8 +143,14 @@ func _ready() -> void:
 ## game, or debug mode, starts at the spawn point.
 func _load_game() -> void:
 	var d := Session.data
-	if Session.debug or d.is_empty():
+	if Session.debug:
 		return
+	mode = d.get("mode", "survival")
+	if not mode in Session.MODES:
+		mode = "survival"
+	commands_allowed = bool(d.get("commands", false))
+	if not d.has("player"):
+		return # (a new game)
 	var pl: Dictionary = d.get("player", {})
 	var pos: Array = pl.get("position", [])
 	if pos.size() == 3:
@@ -159,6 +165,18 @@ func _load_game() -> void:
 	_played = float(d.get("play_seconds", 0.0))
 
 
+## The game's mode. God: flying (Space twice) and the time keys ([ ]).
+## Survival: neither (it isn't defined yet beyond that).
+func set_mode(m: String) -> void:
+	mode = m
+	var god := m == "god"
+	player.can_fly = god
+	if not god and player.flying:
+		player.set_flying(false)
+	clock.scrub_enabled = god
+	chat.commands_allowed = commands_allowed
+
+
 ## Saves the game (nothing in debug mode: Session).
 func save_game() -> void:
 	if Session.debug or player == null:
@@ -170,6 +188,8 @@ func save_game() -> void:
 		"clock": clock.to_dict(),
 		"removed": population._removed.keys(),
 		"play_seconds": _played,
+		"mode": mode,
+		"commands": commands_allowed,
 	})
 	_since_save = 0.0
 

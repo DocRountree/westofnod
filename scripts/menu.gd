@@ -1,6 +1,7 @@
 extends Control
 ## The start menu (menu.tscn, the project's main scene): the saved games,
-## the one played last first, to resume; a new game; renaming and deleting;
+## the one played last first, to resume; a new game (its name, its mode,
+## whether it allows commands); renaming and deleting;
 ## debug mode (flying, the time keys, every command, nothing saved: see
 ## Session); quit.
 
@@ -9,6 +10,9 @@ var _games: Array[Dictionary] = []
 var _name: LineEdit
 var _name_row: HBoxContainer
 var _name_ok: Button
+var _options: HBoxContainer # a new game's: its mode, whether commands are allowed
+var _mode: OptionButton
+var _commands: CheckBox
 var _renaming := "" # the game being renamed ("": the name box makes a new game)
 var _play: Button
 var _rename: Button
@@ -39,11 +43,6 @@ func _ready() -> void:
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.add_theme_font_size_override("font_size", 52)
 	_box.add_child(title)
-	var sub := Label.new()
-	sub.text = ProjectSettings.get_setting("application/config/description", "")
-	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	sub.modulate = Color(0.7, 0.75, 0.8)
-	_box.add_child(sub)
 	_box.add_child(HSeparator.new())
 
 	var heading := Label.new()
@@ -74,7 +73,23 @@ func _ready() -> void:
 	_name.text_changed.connect(func(_t): _name.modulate = Color.WHITE)
 	_name_row.add_child(_name)
 	_name_ok = _button(_name_row, "Start", _name_done)
-	_button(_name_row, "Cancel", func(): _name_row.visible = false)
+	_button(_name_row, "Cancel", _cancel_name)
+	_options = HBoxContainer.new()
+	_options.add_theme_constant_override("separation", 16)
+	_options.visible = false
+	_box.add_child(_options)
+	var ml := Label.new()
+	ml.text = "Mode"
+	_options.add_child(ml)
+	_mode = OptionButton.new()
+	for m in Session.MODES:
+		_mode.add_item(m.capitalize())
+	_mode.tooltip_text = "Survival: not defined yet\nGod: fly (Space twice), move time ([ ])"
+	_options.add_child(_mode)
+	_commands = CheckBox.new()
+	_commands.text = "Allow commands"
+	_commands.tooltip_text = "Every chat command (/tp, /time, /mode ...); without, only /help, /pos and /clear"
+	_options.add_child(_commands)
 
 	_box.add_child(HSeparator.new())
 	var row2 := HBoxContainer.new()
@@ -111,7 +126,8 @@ func _refresh() -> void:
 	for g in _games:
 		var when := Time.get_datetime_string_from_unix_time(int(g.saved) + _tz_offset(), true)
 		var mins := int(g.play_seconds / 60.0)
-		_list.add_item("%s      last played %s      %d:%02d played" % [g.name, when, mins / 60, mins % 60])
+		_list.add_item("%s      %s%s      last played %s      %d:%02d played" % [g.name, String(g.mode).capitalize(),
+				", commands" if g.commands else "", when, mins / 60, mins % 60])
 	if not _games.is_empty():
 		_list.select(0)
 	else:
@@ -151,6 +167,7 @@ func _new_game() -> void:
 	_name_ok.text = "Start"
 	_name.text = Session.free_name()
 	_name_row.visible = true
+	_options.visible = true
 	_name.grab_focus()
 	_name.select_all()
 
@@ -163,6 +180,7 @@ func _start_rename() -> void:
 	_name_ok.text = "Rename"
 	_name.text = g.name
 	_name_row.visible = true
+	_options.visible = false
 	_name.grab_focus()
 	_name.select_all()
 
@@ -173,18 +191,23 @@ func _name_done() -> void:
 		return
 	if _renaming != "":
 		if n != _renaming and Session.rename(_renaming, n):
-			_name_row.visible = false
+			_cancel_name()
 			_refresh()
 		elif n == _renaming:
-			_name_row.visible = false
+			_cancel_name()
 		else:
 			_name.modulate = Color(1, 0.5, 0.5) # (taken)
 		return
 	if Session.exists(n):
 		_name.modulate = Color(1, 0.5, 0.5)
 		return
-	Session.play(n)
+	Session.play_new(n, Session.MODES[_mode.selected], _commands.button_pressed)
 	_start("Starting %s..." % n)
+
+
+func _cancel_name() -> void:
+	_name_row.visible = false
+	_options.visible = false
 
 
 func _ask_delete() -> void:

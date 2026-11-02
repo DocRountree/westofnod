@@ -6,8 +6,8 @@ extends CanvasLayer
 ## fade after a while; with the chat open, all of them show.
 ##
 ## Commands (/help lists them): tp / teleport, time, spawn, fly, zoom, aurora,
-## pos, pop, clear; in a game (not debug mode: Session) only help, pos and
-## clear.
+## pos, pop, clear, mode / gamemode; in a game that doesn't allow commands
+## only help, pos and clear.
 
 const SHOW_SECONDS := 10.0
 const FADE_SECONDS := 1.5
@@ -22,10 +22,10 @@ const PLACES := {
 	"genovesa": Vector2(60.0, 52.0), "spawn": Vector2.INF,
 }
 
-const PLAY_COMMANDS := ["help", "pos", "clear"] ## (in a game; debug mode has them all)
+const PLAY_COMMANDS := ["help", "pos", "clear"] ## (in a game that doesn't allow commands)
 
 var main: Node
-var debug := true ## Every command (Session.debug); in a game only PLAY_COMMANDS.
+var commands_allowed := true ## Every command; else only PLAY_COMMANDS (the game's choice: main.gd).
 var open := false
 var _input: LineEdit
 var _log: VBoxContainer
@@ -43,7 +43,9 @@ func _ready() -> void:
 		"teleport": [_tp, "/teleport: as /tp"],
 		"time": [_time, "/time set <day|noon|sunset|night|midnight|hh:mm>  |  /time add <hours>  |  /time"],
 		"spawn": [_spawn, "/spawn: back to the spawn point"],
-		"fly": [_fly, "/fly: toggle flying"],
+		"fly": [_fly, "/fly: toggle flying (god mode)"],
+		"mode": [_mode, "/mode <survival|god>: the game's mode  |  /mode: which it is"],
+		"gamemode": [_mode, "/gamemode: as /mode"],
 		"zoom": [_zoom, "/zoom <1-8>: magnify"],
 		"aurora": [_aurora, "/aurora: toggle an aurora every night"],
 		"pos": [_pos, "/pos: where you are"],
@@ -208,7 +210,7 @@ func _submit(text: String) -> void:
 # --- commands --------------------------------------------------------------
 
 func _allowed(name: String) -> bool:
-	return debug or name in PLAY_COMMANDS
+	return commands_allowed or name in PLAY_COMMANDS
 
 
 func _help(_args: PackedStringArray) -> void:
@@ -301,8 +303,23 @@ func _spawn(_args: PackedStringArray) -> void:
 
 
 func _fly(_args: PackedStringArray) -> void:
+	if main.mode != "god":
+		say("Flying is for god mode (/mode god).", Color(1.0, 0.45, 0.4))
+		return
 	main.player.set_flying(not main.player.flying)
 	say("Flying " + ("on." if main.player.flying else "off."), Color(0.6, 1.0, 0.6))
+
+
+func _mode(args: PackedStringArray) -> void:
+	if args.is_empty():
+		say("This game is in %s mode." % main.mode, Color(0.75, 0.85, 1.0))
+		return
+	var m := args[0].to_lower()
+	if not m in Session.MODES:
+		say(_commands.mode[1], Color(1.0, 0.45, 0.4))
+		return
+	main.set_mode(m)
+	say("%s mode." % m.capitalize(), Color(0.6, 1.0, 0.6))
 
 
 func _zoom(args: PackedStringArray) -> void:

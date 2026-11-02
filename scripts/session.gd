@@ -4,18 +4,23 @@ class_name Session
 ## main.tscn on its own (the editor's "run current scene", the test tools)
 ## and it's debug mode, as before there was a menu.
 ##
-## Debug mode: flying, the time keys, every chat command, the frame rate and
-## coordinates on screen; nothing is saved. A game: none of that, and it
-## saves itself (where you are and look, the time and day, what has been
-## taken from the world) every minute, on leaving it and on quitting.
+## A game has a mode (MODES: survival, not defined yet; god: flying and the
+## time keys) and allows commands or not (chosen when it's made; without,
+## only /help, /pos and /clear; with, /mode switches the mode). It saves
+## itself (where you are and look, the time and day, what has been taken
+## from the world, its mode) every minute, on leaving it and on quitting.
+## Debug mode: god mode, every command, the frame rate and coordinates on
+## screen, F6; nothing is saved.
 ## Saves are JSON files in user://saves/.
 
 const DIR := "user://saves/"
 const VERSION := 1
 
+const MODES := ["survival", "god"] ## A game's mode (main.gd set_mode(); /mode switches).
+
 static var debug := true
 static var game_name := "" ## The game being played ("" in debug mode).
-static var data := {} ## Its saved state, as loaded (empty: a new game).
+static var data := {} ## Its saved state, as loaded; a new game's only {mode, commands}.
 
 
 ## The saved games, the one played last first: [{name, file, saved (unix
@@ -31,7 +36,8 @@ static func list() -> Array[Dictionary]:
 		var d = JSON.parse_string(FileAccess.get_file_as_string(DIR + f))
 		if d is Dictionary:
 			out.append({"name": d.get("name", f.get_basename()), "file": DIR + f,
-					"saved": float(d.get("saved", 0.0)), "play_seconds": float(d.get("play_seconds", 0.0))})
+					"saved": float(d.get("saved", 0.0)), "play_seconds": float(d.get("play_seconds", 0.0)),
+					"mode": d.get("mode", "survival"), "commands": bool(d.get("commands", false))})
 	out.sort_custom(func(a, b): return a.saved > b.saved)
 	return out
 
@@ -46,6 +52,14 @@ static func play(name: String) -> void:
 		var d = JSON.parse_string(FileAccess.get_file_as_string(f))
 		if d is Dictionary:
 			data = d
+
+
+## Starts a new game called name: its mode (MODES) and whether commands
+## are allowed in it.
+static func play_new(name: String, mode: String, commands: bool) -> void:
+	debug = false
+	game_name = name
+	data = {"mode": mode, "commands": commands}
 
 
 static func play_debug() -> void:
