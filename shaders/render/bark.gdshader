@@ -95,7 +95,7 @@ void fragment() {
 	float up = (INV_VIEW_MATRIX * vec4(NORMAL, 0.0)).y;
 	vec3 lc;
 	float lh;
-	float lichen = UV2.x > 0.5 || (lichen_any_biome ? 1.0 : growth.x) * lichen_amount <= 0.0 || fade <= 0.0 ? 0.0 : lichen_cover(lichen_uv, obj, lichen_amount * (lichen_any_biome ? 1.0 : growth.x), fade, lc, lh);
+	float lichen = UV2.x > 0.5 || (lichen_any_biome ? (growth.x > 1.5 ? lichen_swamp : 1.0) : growth.x) * lichen_amount <= 0.0 || fade <= 0.0 ? 0.0 : lichen_cover(lichen_uv, obj, lichen_amount * (lichen_any_biome ? (growth.x > 1.5 ? lichen_swamp : 1.0) : growth.x), fade, lc, lh);
 	if (lichen > 0.0) {
 		// it lies over the bark's furrows, its lobes domed (bumps from
 		// their height, as the bark's)

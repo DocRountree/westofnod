@@ -81,7 +81,7 @@ static var _bark_mats := {} # [level, cover] -> ShaderMaterial
 ## the ground, and moss on a cut end's face (lichen.gdshaderinc) each kind
 ## carries: none on saplings; dead oaks and logs the same everywhere (not
 ## by biome: LICHEN_ANY), as much as a dead oak in a swamp would otherwise
-## have, less 20%; the stumps mossiest (their tops almost
+## have, less 20% (save dead oaks in the swamp: all of it); the stumps mossiest (their tops almost
 ## covered and spilling over here and there, patches up from the ground),
 ## the logs some on top. On the prairie very little lichen and no moss, in
 ## the swamp the most lichen (lichen.gdshaderinc growth_at; main.gd tells
@@ -107,6 +107,7 @@ static func bark_material(level := 0, kind := "tree") -> ShaderMaterial:
 		m.set_shader_parameter("moss_amount", cover[1])
 		m.set_shader_parameter("moss_low", cover[2])
 		m.set_shader_parameter("lichen_any_biome", kind in LICHEN_ANY)
+		m.set_shader_parameter("lichen_swamp", 1.25 if kind == "dead" else 1.0) # (in the swamp as before: 0.306)
 		m.set_shader_parameter("moss_end", cover[3])
 		m.set_shader_parameter("lichen_tex", _texture("res://data/population/textures/lichen.png"))
 		if kind == "stump":

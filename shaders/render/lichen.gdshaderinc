@@ -14,7 +14,8 @@ const float LICHEN_NEAR = 30.0;
 
 uniform sampler2D lichen_tex : filter_linear_mipmap, repeat_enable;
 uniform float lichen_amount = 0.35;
-uniform bool lichen_any_biome = false; // the same everywhere (dead wood), not by biome (growth_at)
+uniform bool lichen_any_biome = false; // the same everywhere (dead wood), not by biome (growth_at)...
+uniform float lichen_swamp = 1.0;      // ...save this much more in the swamp (dead oaks)
 uniform float moss_amount = 0.0;
 uniform float moss_low = 0.0;    // moss up the sides from the ground (the stumps)
 uniform float moss_end = 0.5;    // moss on a cut or broken end's face (a stump's top), against the bark's
