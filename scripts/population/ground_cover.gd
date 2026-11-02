@@ -25,6 +25,7 @@ extends Node3D
 ## - grass, far (42-125 m): the prairie's only;
 ## - reeds: the swamp's, 2-2.5 m, broad-bladed, in clumps here and there
 ##   (sparse patches, in the water too); to 72 m;
+## - cattails among them: stalks with brown heads, a few leaves; to 66 m;
 ## - ferns: the forest's, in drifts, knee-high; to 45 m.
 ## The forest's brown patches are leaf litter: a texture on the terrain
 ## (terrain.gdshader), not geometry.
@@ -44,6 +45,10 @@ const LAYERS := [
 		"u": {"kind": 0, "seed": 5, "in_forest": false, "in_prairie": false, "in_swamp": true, "prairie_height": Vector2(2.0, 2.5),
 			"prairie_green": Vector3(0.22, 0.33, 0.12), "prairie_blonde": Vector3(0.5, 0.45, 0.28),
 			"fade_out": Vector2(55.0, 72.0), "thin_from": 40.0}},
+	{"cell": 1.6, "cells": 12, "tiles": 7, "cattails": 4, "radius": 0.35,
+		"u": {"kind": 0, "seed": 6, "in_forest": false, "in_prairie": false, "in_swamp": true, "cover": 0.45,
+			"prairie_height": Vector2(1.9, 2.4), "prairie_green": Vector3(0.24, 0.33, 0.13), "prairie_blonde": Vector3(0.45, 0.42, 0.26),
+			"fade_out": Vector2(50.0, 66.0), "thin_from": 40.0}},
 	{"cell": 0.5, "cells": 24, "tiles": 9, "fronds": 8,
 		"u": {"kind": 1, "seed": 4, "in_prairie": false, "forest_height": Vector2(0.25, 0.45),
 			"fade_out": Vector2(32.0, 45.0), "thin_from": 16.0}},
@@ -110,7 +115,13 @@ func setup(w: WorldData) -> void:
 			add_child(vp)
 			vps.append(vp)
 			bakes.append(bm)
-		var mesh: Mesh = fern_mesh(L.fronds) if L.u.kind == 1 else grass_mesh(L.blades, L.segs, L.radius, L.width, L.u.seed)
+		var mesh: Mesh
+		if L.u.kind == 1:
+			mesh = fern_mesh(L.fronds)
+		elif L.has("cattails"):
+			mesh = cattail_mesh(L.cattails, L.radius, L.u.seed)
+		else:
+			mesh = grass_mesh(L.blades, L.segs, L.radius, L.width, L.u.seed)
 		mesh.surface_set_material(0, m)
 		var mm := MultiMesh.new()
 		mm.transform_format = MultiMesh.TRANSFORM_3D
@@ -272,6 +283,69 @@ static func grass_mesh(blades: int, segs: int, radius: float, width: float, seed
 			for q in [i, i + 1, i + 3, i, i + 3, i + 2]:
 				st.add_index(q)
 		base += (SEGS + 1) * 2
+	return st.commit()
+
+
+## A clump of cattails (bulrush, Typha): stalks, each with its brown head
+## (a cylinder, two crossed strips; UV.x 2..3 marks it for the shader) a
+## little below the top and a thin spike above, and a few long leaves round
+## them; in units of the clump's height, as grass_mesh.
+static func cattail_mesh(stalks: int, radius: float, seed: int) -> ArrayMesh:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = seed * 13 + 1
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	st.set_custom_format(0, SurfaceTool.CUSTOM_RGB_FLOAT)
+	var base := [0]
+	var strip := func(root: Vector2, pts: Array, halfs: Array, side: Vector3, n: Vector3, shade: float, u0: float) -> void:
+		for s in pts.size():
+			var t: float = float(s) / (pts.size() - 1)
+			for k in 2:
+				st.set_color(Color(shade, 0.3, t))
+				st.set_uv(Vector2(u0 + float(k), t))
+				st.set_uv2(root)
+				st.set_normal(n)
+				var e: Vector3 = side * (halfs[s] if k == 1 else -halfs[s])
+				st.set_custom(0, Color(e.x, e.y, e.z))
+				st.add_vertex(pts[s])
+		for s in pts.size() - 1:
+			var i: int = base[0] + s * 2
+			for q in [i, i + 1, i + 3, i, i + 3, i + 2]:
+				st.add_index(q)
+		base[0] += pts.size() * 2
+	for b in stalks:
+		var a := rng.randf() * TAU
+		var root := Vector2(cos(a), sin(a)) * sqrt(rng.randf()) * radius
+		var tall := rng.randf_range(0.8, 1.0)
+		var lean := Vector2(cos(a), sin(a)) * rng.randf_range(0.0, 0.06)
+		var face := rng.randf() * TAU
+		var side := Vector3(cos(face), 0.0, sin(face))
+		var n := Vector3(-side.z, 0.3, side.x).normalized()
+		var top := Vector3(lean.x, tall, lean.y)
+		var head0 := top * 0.74
+		var head1 := top * 0.9
+		# the stalk, to the head
+		strip.call(root, [Vector3.ZERO, head0 * 0.5, head0], [0.006, 0.005, 0.005], side, n, rng.randf_range(0.85, 1.1), 0.0)
+		# the head: two crossed strips, 2.4 cm across
+		for k in 2:
+			var sd := side if k == 0 else Vector3(-side.z, 0.0, side.x)
+			strip.call(root, [head0, head0.lerp(head1, 0.5), head1], [0.011, 0.012, 0.011], sd, Vector3(-sd.z, 0.4, sd.x).normalized(), rng.randf_range(0.85, 1.1), 2.0)
+		# the spike above it
+		strip.call(root, [head1, top], [0.003, 0.0015], side, n, 1.0, 0.0)
+		# leaves: long, flat, arching a little
+		for l in rng.randi_range(2, 3):
+			var la := rng.randf() * TAU
+			var dir := Vector2(cos(la), sin(la))
+			var lt := rng.randf_range(0.7, 0.95) * tall
+			var lside := Vector3(-dir.y, 0.0, dir.x)
+			var pts := []
+			var halfs := []
+			for s in 5:
+				var t := s / 4.0
+				var off := dir * 0.12 * t * t
+				pts.append(Vector3(off.x, lt * t, off.y))
+				halfs.append(0.009 * (1.0 - t * 0.8))
+			strip.call(root, pts, halfs, lside, Vector3(dir.x, 0.6, dir.y).normalized(), rng.randf_range(0.85, 1.15), 0.0)
 	return st.commit()
 
 

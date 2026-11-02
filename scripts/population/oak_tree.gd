@@ -246,7 +246,8 @@ static func _models(variant: int) -> Array:
 
 ## Population: what can be stood on (PropKind.walk): a log's trunk, a
 ## segment between each pair of its nodes (not the stubs of its limbs); a
-## stump, a post to the bottom of its splinters (solid all round, too).
+## stump, a post to the bottom of its splinters (solid all round, too); an
+## oak's limbs, where gentle enough.
 static func build_walk(variant := 0) -> PackedFloat32Array:
 	var out := PackedFloat32Array()
 	variant = posmod(variant, VARIANTS.size())
@@ -254,6 +255,19 @@ static func build_walk(variant := 0) -> PackedFloat32Array:
 		var st := grow_stump(VARIANTS[variant])
 		var h := st.pos[st.branches[0][-1]].y
 		out.append_array([0.0, 0.0, 0.0, 0.0, h, 0.0, 0.55, 0.55])
+		return out
+	if _kind(variant) in ["tree", "dead"]:
+		# limbs gentle enough to stand on (under 30 degrees), as far as
+		# they're climbable; marked by a negative first radius (high in the
+		# air: Population.walk_near leaves them out)
+		var lines := _climb_lines(variant)
+		for li in range(1, lines.size()):
+			var l := lines[li]
+			for k in range(4, l.size(), 4):
+				var a := Vector3(l[k - 4], l[k - 3], l[k - 2])
+				var e := Vector3(l[k], l[k + 1], l[k + 2])
+				if absf(e.y - a.y) < (e - a).length() * 0.5:
+					out.append_array([a.x, a.y, a.z, e.x, e.y, e.z, -l[k - 1], l[k + 3]])
 		return out
 	if _kind(variant) != "log":
 		return out
@@ -266,26 +280,53 @@ static func build_walk(variant := 0) -> PackedFloat32Array:
 	return out
 
 
-## Population: the trunk that can be climbed (PropKind.climb): a standing
-## or dead oak's trunk, on up into the crown while it's stout enough (12 cm);
-## saplings are too slender, stumps and logs are stood on instead.
+## Population: what can be climbed (PropKind.climb): a standing or dead
+## oak's trunk, on up into the crown, and its limbs (the first branching),
+## each as far as it's stout enough to hold you (10 cm); saplings are too
+## slender, stumps and logs are stood on instead. Each line: its node count,
+## then x, y, z, radius a node, from where it starts.
 static func build_climb(variant := 0) -> PackedFloat32Array:
 	var out := PackedFloat32Array()
+	for line in _climb_lines(variant):
+		out.append(line.size() / 4)
+		out.append_array(line)
+	return out
+
+
+static var _climb_cache := {}
+
+
+## The trunk (first) and the limbs that can be climbed, x, y, z, r a node.
+static func _climb_lines(variant: int) -> Array[PackedFloat32Array]:
 	variant = posmod(variant, VARIANTS.size())
+	if _climb_cache.has(variant):
+		return _climb_cache[variant]
+	var lines: Array[PackedFloat32Array] = []
 	var tb: TreeBuilder
 	match _kind(variant):
 		"tree":
 			tb = grow(variant)
 		"dead":
 			tb = grow_dead(VARIANTS[variant])
-		_:
-			return out
-	for i in tb.branches[0]:
-		if tb.radius[i] < 0.12 and out.size() >= 8:
-			break
-		var p := tb.pos[i]
-		out.append_array([p.x, p.y, p.z, tb.radius[i]])
-	return out
+	if tb:
+		# the trunk: the branch from the root; then the limbs off it
+		var order: Array[PackedInt32Array] = []
+		for br in tb.branches:
+			if br.size() > 1 and br[0] == 0:
+				order.push_front(br)
+			elif br.size() > 1 and tb.level[br[1]] == 1:
+				order.append(br)
+		for br in order:
+			var line := PackedFloat32Array()
+			for i in br:
+				if tb.radius[i] < 0.1 and line.size() >= 8:
+					break
+				var p := tb.pos[i]
+				line.append_array([p.x, p.y, p.z, tb.radius[i]])
+			if line.size() >= 8 and (lines.is_empty() or tb.radius[br[1]] >= 0.1):
+				lines.append(line)
+	_climb_cache[variant] = lines
+	return lines
 
 
 ## A stump: snapped off 0.75-1.1 m up (low enough to jump onto), splinters standing up round a

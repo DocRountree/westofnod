@@ -39,15 +39,17 @@ extends SpawnRule
 @export var radius := 0.0
 ## What can be stood on (a fallen log's trunk, a stump): round segments, 8
 ## floats each, local (at scale 1): ax, ay, az, bx, by, bz, radius at a, at
-## b. One steeper than 45° is a post with a flat top (a stump).
+## b. One steeper than 45° is a post with a flat top (a stump). A negative
+## radius at a marks one high in the air (a tree's limb).
 ## Bodies step up onto one no higher than Population.STEP_UP above their
 ## feet; one higher is a wall (jump onto it). With none but a mesh_script
 ## with build_walk(variant), that makes them.
 @export var walk := PackedFloat32Array()
-## A trunk that can be climbed (Player, C): its axis from the foot up as
-## far as it's stout enough to hold you, 4 floats a node, local (at scale
-## 1): x, y, z, radius. With none but a mesh_script with
-## build_climb(variant), that makes it.
+## What can be climbed (Player, C): lines (a trunk from the foot up, its
+## limbs from where they leave it) as far as they're stout enough to hold
+## you; each its node count, then 4 floats a node, local (at scale 1): x, y,
+## z, radius. With none but a mesh_script with build_climb(variant), that
+## makes it.
 @export var climb := PackedFloat32Array()
 @export var view_distance := 250.0 ## Drawn up to this far (m).
 @export var shadows := true

@@ -37,6 +37,7 @@ uniform float grass_sway = 0.3;       // the tip's sway, in clump heights per m 
 uniform sampler2D frond_tex : source_color, filter_linear_mipmap_anisotropic, repeat_disable;
 uniform vec3 prairie_green = vec3(0.27, 0.43, 0.12);
 uniform vec3 prairie_blonde = vec3(0.74, 0.64, 0.38);
+uniform vec3 head_color = vec3(0.075, 0.035, 0.017); // linear: a cattail's head (UV.x 2..3 marks it)
 uniform float shadow_strength = 0.7;
 uniform vec3 frond_mean = vec3(0.03, 0.07, 0.006); // linear: the frond texture's mean (GroundCover sets it)
 
@@ -135,6 +136,8 @@ void fragment() {
 		c = t.rgb * tip_col * mix(0.6, 1.0, smoothstep(0.0, 0.5, frac));
 	} else {
 		c = mix(root_col, tip_col, smoothstep(0.0, 0.7, frac)) * mix(0.75, 1.0, frac);
+		if (UV.x > 1.5)
+			c = head_color * COLOR.r;
 	}
 	ALBEDO = mix(c, root_col, far); // far off, exactly the ground's colour
 	ROUGHNESS = 0.85;

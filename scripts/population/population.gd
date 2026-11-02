@@ -265,6 +265,8 @@ func walk_near(p: Vector3, r: float, n: int, xs: PackedVector4Array, rs: PackedF
 				continue
 			var w := ch.walk
 			for k in range(0, w.size(), 8):
+				if w[k + 6] < 0.0:
+					continue # (a tree's limb, up in the air)
 				var a := _on_segment(w, k, q)
 				var d := q.distance_to(Vector2(a.x, a.z))
 				if d < r:
@@ -274,7 +276,7 @@ func walk_near(p: Vector3, r: float, n: int, xs: PackedVector4Array, rs: PackedF
 		var w: PackedFloat32Array = found[i][2]
 		var k: int = found[i][1]
 		xs.append(Vector4(w[k], w[k + 2], w[k + 3], w[k + 5]))
-		rs.append(maxf(w[k + 6], w[k + 7]))
+		rs.append(maxf(absf(w[k + 6]), w[k + 7]))
 
 
 ## Segment k of w stands steeper than 45°: a post (a stump), flat on top,
@@ -291,7 +293,7 @@ static func _on_segment(w: PackedFloat32Array, k: int, q: Vector2) -> Vector4:
 	var l2 := ab.length_squared()
 	var t := clampf((q - a).dot(ab) / l2, 0.0, 1.0) if l2 > 1e-6 else 0.0
 	var at := a + ab * t
-	return Vector4(at.x, lerpf(w[k + 1], w[k + 4], t), at.y, lerpf(w[k + 6], w[k + 7], t))
+	return Vector4(at.x, lerpf(w[k + 1], w[k + 4], t), at.y, lerpf(absf(w[k + 6]), w[k + 7], t))
 
 
 ## Appends instance i's walkable segments (kind.walk), in the world.
@@ -309,7 +311,7 @@ static func _add_walk(out: PackedFloat32Array, kind: PropKind, xf: PackedFloat32
 		out.append_array([a.x, a.y, a.z, e.x, e.y, e.z, w[k + 6] * s, w[k + 7] * s])
 
 
-## Appends instance i's climbable trunk (kind.climb), in the world.
+## Appends instance i's climbable lines (kind.climb), in the world.
 static func _add_trunk(out: Array[PackedFloat32Array], kind: PropKind, xf: PackedFloat32Array, i: int, base: Vector3) -> void:
 	var c := kind.climb
 	if c.is_empty():
@@ -318,18 +320,23 @@ static func _add_trunk(out: Array[PackedFloat32Array], kind: PropKind, xf: Packe
 	var b := Basis(Vector3(xf[j], xf[j + 4], xf[j + 8]), Vector3(xf[j + 1], xf[j + 5], xf[j + 9]), Vector3(xf[j + 2], xf[j + 6], xf[j + 10]))
 	var t := Transform3D(b, Vector3(xf[j + 3], xf[j + 7], xf[j + 11]) + base)
 	var s := b.x.length()
-	var tr := PackedFloat32Array()
-	for k in range(0, c.size(), 4):
-		var p := t * Vector3(c[k], c[k + 1], c[k + 2])
-		tr.append_array([p.x, p.y, p.z, c[k + 3] * s])
-	out.append(tr)
+	var k := 0
+	while k < c.size():
+		var n := int(c[k])
+		k += 1
+		var tr := PackedFloat32Array()
+		for m in n:
+			var p := t * Vector3(c[k], c[k + 1], c[k + 2])
+			tr.append_array([p.x, p.y, p.z, c[k + 3] * s])
+			k += 4
+		out.append(tr)
 
 
-## The climbable trunk (x, y, z, radius a node, from the foot up) whose bark
-## is nearest p, if within reach of it (m); empty if none.
-func trunk_near(p: Vector3, reach: float) -> PackedFloat32Array:
-	var best := PackedFloat32Array()
-	var best_gap := reach
+## The climbable lines (trunks, limbs: x, y, z, radius a node, from where
+## each starts) whose bark is within reach (m) of p: [[line, gap], ...],
+## nearest first.
+func climbs_near(p: Vector3, reach: float) -> Array:
+	var found := []
 	var c := _key(p)
 	for dz in range(-1, 2):
 		for dx in range(-1, 2):
@@ -337,15 +344,20 @@ func trunk_near(p: Vector3, reach: float) -> PackedFloat32Array:
 			if ch == null:
 				continue
 			for tr in ch.trunks:
-				if Vector2(tr[0] - p.x, tr[2] - p.z).length_squared() > 100.0:
+				if Vector2(tr[0] - p.x, tr[2] - p.z).length_squared() > 400.0:
 					continue
-				var s := trunk_nearest(tr, p)
-				var f := trunk_frame(tr, s)
+				var f := trunk_frame(tr, trunk_nearest(tr, p))
 				var gap := (p - (f[0] as Vector3)).length() - (f[1] as float)
-				if gap < best_gap:
-					best_gap = gap
-					best = tr
-	return best
+				if gap < reach:
+					found.append([tr, gap])
+	found.sort_custom(func(u, v): return u[1] < v[1])
+	return found
+
+
+## The climbable line whose bark is nearest p, if within reach; empty if none.
+func trunk_near(p: Vector3, reach: float) -> PackedFloat32Array:
+	var f := climbs_near(p, reach)
+	return f[0][0] if not f.is_empty() else PackedFloat32Array()
 
 
 ## A trunk's length along its axis (m).

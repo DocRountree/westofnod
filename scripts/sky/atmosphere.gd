@@ -72,6 +72,12 @@ var _lut := PackedFloat32Array()
 var _zenith_transmittance := Vector3.ONE
 var _material: ShaderMaterial
 var haze_now := Color(0.48, 0.62, 0.88)   ## The colour of deep air right now.
+## The lights turn in steps of this (radians, ~0.2 degrees), not every frame:
+## a shadow map recast at every slightest turn of the sun makes shadow edges,
+## and everything they fall on, crawl and shimmer while the view is still.
+const LIGHT_STEP := 0.0035
+var _sun_lit := Vector3.ZERO
+var _moon_lit := Vector3.ZERO
 
 
 func _ready() -> void:
@@ -187,7 +193,9 @@ func _update_sun() -> void:
 		_material.set_shader_parameter("sun_direction", dir)
 	if sun == null or not sun.is_inside_tree():
 		return
-	sun.global_basis = Basis.looking_at(-dir, Vector3.UP if absf(dir.y) < 0.99 else Vector3.FORWARD)
+	if _sun_lit == Vector3.ZERO or dir.angle_to(_sun_lit) > LIGHT_STEP:
+		_sun_lit = dir
+		sun.global_basis = Basis.looking_at(-dir, Vector3.UP if absf(dir.y) < 0.99 else Vector3.FORWARD)
 	# sunlight through the air: normalised so the overhead sun is white, sunsets
 	# stay warm; a little less saturated than the air makes it, and as bright as
 	# the light overall (not its reddest part), so a low sun gilds the land
@@ -222,7 +230,9 @@ func _update_sun() -> void:
 	if moon:
 		moon.update_sky(moon_dir, dir, night, equatorial_to_world() * Vector3(0, 0, 1))
 	if moonlight:
-		moonlight.global_basis = Basis.looking_at(-moon_dir, Vector3.UP if absf(moon_dir.y) < 0.99 else Vector3.FORWARD)
+		if _moon_lit == Vector3.ZERO or moon_dir.angle_to(_moon_lit) > LIGHT_STEP:
+			_moon_lit = moon_dir
+			moonlight.global_basis = Basis.looking_at(-moon_dir, Vector3.UP if absf(moon_dir.y) < 0.99 else Vector3.FORWARD)
 		moonlight.light_energy = moon_energy * illuminated * moon_up * night
 		moonlight.visible = moonlight.light_energy > 0.001
 

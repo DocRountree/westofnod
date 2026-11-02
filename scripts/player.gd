@@ -37,9 +37,9 @@ var avatar: Avatar
 var climbing := false
 var _was_third_person := false
 var _grip_offset := Vector2.ZERO # rock point under the hands, relative to the origin
-var _trunk := PackedFloat32Array() # the tree being climbed (Population trunk; empty: rock)
-var _trunk_s := 0.0 # how far up its axis the hands are (m)
-var _trunk_a := 0.0 # and round it (radians, from +x toward +z)
+var _trunk := PackedFloat32Array() # the trunk or limb being climbed (Population climbs_near; empty: rock)
+var _trunk_s := 0.0 # how far along its axis the body is (m)
+var _trunk_n := Vector3.RIGHT # which way out from its axis the body is (world)
 var _cs: CollisionShape3D
 var flying := false
 var can_fly := true ## Double-tapping Space flies (debug mode only: Session).
@@ -166,18 +166,19 @@ func set_third_person(on: bool) -> void:
 func set_climbing(on: bool) -> void:
 	if on == climbing or world == null:
 		return
+	if not on and not _trunk.is_empty():
+		_leave_tree()
 	_trunk = PackedFloat32Array()
 	avatar.trunk = _trunk
 	if on and population:
 		var chest := global_position + Vector3.UP * 1.2
 		var tr := population.trunk_near(chest, 0.9)
+		var at := chest
+		if tr.is_empty(): # (standing on a limb: the limb under your feet)
+			at = global_position + Vector3.UP * 0.1
+			tr = population.trunk_near(at, 0.4)
 		if not tr.is_empty():
-			_trunk = tr
-			avatar.trunk = tr
-			_trunk_s = clampf(Population.trunk_nearest(tr, chest), 0.0, Population.trunk_length(tr) - 0.3)
-			var f := Population.trunk_frame(tr, _trunk_s)
-			var d: Vector3 = chest - (f[0] as Vector3)
-			_trunk_a = atan2(d.z, d.x)
+			_grip(tr, at)
 			set_flying(false)
 			_was_third_person = third_person
 			set_third_person(true)
@@ -350,26 +351,48 @@ func _climb(delta: float) -> void:
 	avatar.climb(surface, n, up_t, surface - before)
 
 
-## Climbing a tree: hands and feet on the bark. W/S up and down the trunk
-## (as high as it's stout enough), A/D round it; Space lets go. Down at the
-## foot, the climb ends by itself.
+## Climbing a tree: hands and feet on the bark. W/S along the trunk or limb
+## (up and down; out and back), A/D round it; Space lets go. Where a limb
+## leaves the trunk, moving its way (or, just under it, W) goes out along
+## it; back at its root, on down the trunk. Down at the foot, the climb ends
+## by itself; C on top of a limb gentle enough stands you on it (_leave_tree).
 func _climb_tree(delta: float) -> void:
 	var input := _move_input()
-	var top := Population.trunk_length(_trunk) - 0.3
 	var f := Population.trunk_frame(_trunk, _trunk_s)
-	var before: Vector3 = (f[0] as Vector3) + _trunk_out(f) * (f[1] as float)
-	_trunk_s = clampf(_trunk_s - input.y * CLIMB_SPEED * 0.7 * delta, 0.0, top)
-	_trunk_a -= input.x * CLIMB_SPEED * 0.7 * delta / maxf(f[1] as float + CLIMB_OFFSET, 0.3)
-	f = Population.trunk_frame(_trunk, _trunk_s)
-	var up_t: Vector3 = f[2]
 	var n := _trunk_out(f)
-	var surface: Vector3 = (f[0] as Vector3) + n * (f[1] as float)
+	var up_t: Vector3 = f[2]
 	var right := up_t.cross(n)
+	var surface: Vector3 = (f[0] as Vector3) + n * (f[1] as float)
+	var before := surface
+	if input.length() > 0.1:
+		var move := (up_t * -input.y + right * input.x).normalized()
+		if _switch_line(surface, n, move, input):
+			f = Population.trunk_frame(_trunk, _trunk_s)
+	var top := Population.trunk_length(_trunk) - 0.3
+	var s_was := _trunk_s
+	_trunk_s = clampf(_trunk_s - input.y * CLIMB_SPEED * 0.7 * delta, 0.0, top)
+	# round it (A/D): turning the way out about the axis
+	_trunk_n = _trunk_out(f).rotated((f[2] as Vector3).normalized(), input.x * CLIMB_SPEED * 0.7 * delta / maxf(f[1] as float + CLIMB_OFFSET, 0.3))
+	f = Population.trunk_frame(_trunk, _trunk_s)
+	up_t = f[2]
+	n = _trunk_out(f)
+	surface = (f[0] as Vector3) + n * (f[1] as float)
+	right = up_t.cross(n)
+	var on_trunk := _is_trunk()
+	# back down a limb to where it leaves the trunk: on down the trunk
+	if not on_trunk and input.y > 0.1 and _trunk_s <= 0.0 and s_was <= 0.05:
+		var others := population.climbs_near(surface, 0.6)
+		for o in others:
+			var tr: PackedFloat32Array = o[0]
+			if tr != _trunk:
+				_grip(tr, surface + n * 0.3)
+				return
 	var feet := surface + n * CLIMB_OFFSET - up_t * 1.0
 	var ground := world.height_at(feet.x, feet.z)
-	if _just("jump") or (input.y > 0.1 and feet.y <= ground + 0.05):
+	if _just("jump") or (on_trunk and input.y > 0.1 and feet.y <= ground + 0.05):
 		# let go (falling, pushed off the bark a little), or down at the foot
 		global_position = Vector3(feet.x, maxf(feet.y, ground), feet.z)
+		_trunk = PackedFloat32Array()
 		set_climbing(false)
 		velocity = n * 1.5
 		return
@@ -379,12 +402,61 @@ func _climb_tree(delta: float) -> void:
 	avatar.climb(surface, n, up_t, surface - before)
 
 
-## Out from the trunk's axis toward the climber (round it by _trunk_a,
-## square to the axis), at a trunk frame.
+## The line being climbed is a trunk (it starts at the ground: lower than
+## any of the lines near its start), not a limb.
+func _is_trunk() -> bool:
+	return absf(_trunk[1] - world.height_at(_trunk[0], _trunk[2])) < 1.0
+
+
+## Takes hold of a trunk or limb at the point of it nearest p.
+func _grip(tr: PackedFloat32Array, p: Vector3) -> void:
+	_trunk = tr
+	avatar.trunk = tr
+	_trunk_s = clampf(Population.trunk_nearest(tr, p), 0.0, Population.trunk_length(tr) - 0.3)
+	var f := Population.trunk_frame(tr, _trunk_s)
+	_trunk_n = p - (f[0] as Vector3)
+	_trunk_n = _trunk_out(f)
+
+
+## Onto a limb leaving the trunk (or another limb) by the hands: one that
+## heads the way you're moving, or, just under it, pressing W.
+func _switch_line(surface: Vector3, n: Vector3, move: Vector3, input: Vector2) -> bool:
+	var hands := surface + (Population.trunk_frame(_trunk, _trunk_s)[2] as Vector3) * 0.6
+	for o in population.climbs_near(hands, 0.5):
+		var tr: PackedFloat32Array = o[0]
+		if tr == _trunk:
+			continue
+		var s := Population.trunk_nearest(tr, hands)
+		if s > 1.2:
+			continue # (not near where it leaves)
+		var t: Vector3 = Population.trunk_frame(tr, s)[2]
+		var under := input.y < -0.1 and t.dot(n) > 0.3 # (it leaves on your side, above)
+		if move.dot(t) > 0.7 or under:
+			_grip(tr, surface)
+			return true
+	return false
+
+
+## Out from the axis toward the climber (_trunk_n, kept square to the axis)
+## at a frame of the line.
 func _trunk_out(f: Array) -> Vector3:
-	var axis: Vector3 = f[2]
-	var n := Vector3(cos(_trunk_a), 0.0, sin(_trunk_a))
-	return (n - axis * n.dot(axis)).normalized()
+	var axis: Vector3 = (f[2] as Vector3).normalized()
+	var n := _trunk_n - axis * _trunk_n.dot(axis)
+	if n.length() < 1e-3: # (along the axis: any way square to it)
+		n = axis.cross(Vector3.UP if absf(axis.y) < 0.9 else Vector3.RIGHT)
+	return n.normalized()
+
+
+## Leaving a tree with C: on top of a limb gentle enough to stand on, you
+## stand on it; otherwise you drop.
+func _leave_tree() -> void:
+	var f := Population.trunk_frame(_trunk, _trunk_s)
+	var axis: Vector3 = f[0]
+	var n := _trunk_out(f)
+	if absf((f[2] as Vector3).y) < 0.5 and n.y > 0.3:
+		global_position = axis + Vector3.UP * ((f[1] as float) + 0.02)
+		grounded = true
+	velocity = Vector3.ZERO
 
 
 func _process(_delta: float) -> void:
