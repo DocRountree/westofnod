@@ -132,18 +132,19 @@ void fragment() {
 	col *= 1.0 - PRAIRIE_NIGHT_DIM * night * clamp(prairie + coast + m.a * (1.0 - rocky * 0.7), 0.0, 1.0);
 	col = mix(col, seabed, 1.0 - smoothstep(-1.0, 0.2, h));
 	col *= mix(1.0, 0.78, (1.0 - smoothstep(0.0, 0.6, h)) * step(-0.3, h)); // damp line
-	// how lush (lush_at: the oaks' density goes by it, and so the canopy
-	// below; the ground's colour doesn't, so the grass, coloured from the
-	// ground as ground_cover_bake works it out, fades into it unseen)
+	// how lush (lush_at): the vegetated grounds greener and darker where
+	// it's lush, yellower and paler where it's dry
 	float lush = lush_at(p, n);
+	float veg = clamp(bw[0] + bw[2] + bw[5] + bw[9], 0.0, 1.0) * (1.0 - rocky) * (1.0 - m.a) * step(0.2, h);
+	col *= mix(vec3(1.0), mix(vec3(1.07, 1.03, 0.9), vec3(0.86, 0.96, 0.84), smoothstep(0.4, 1.5, lush)), veg);
 	// past where the trees are drawn (OakTree.VIEW, 600 m), their canopy
 	// painted on the ground, as much of it as the trees there would cover
 	// (from their density by biome: oak.tres, and lush_at, as Population
-	// places them; not the prairie's few: its grass): crowns lit on top, shadow between, fading to their mean
+	// places them): crowns lit on top, shadow between, fading to their mean
 	// once a pixel is wider than a crown
 	float far_trees = smoothstep(520.0, 640.0, distance(world_pos, CAMERA_POSITION_WORLD + world_origin));
 	if (far_trees > 0.0) {
-		float cover = (bw[0] * 0.46 + bw[5] * 0.04) * lush * (1.0 - rocky) * (1.0 - m.a) * step(0.4, h)
+		float cover = (bw[0] * 0.46 + bw[5] * 0.04 + bw[2] * 0.03) * lush * (1.0 - rocky) * (1.0 - m.a) * step(0.4, h)
 				* (1.0 - smoothstep(575.0, 1150.0, h)); // (the oaks thinning up the mountains: oak.tres, Population)
 		float crowns = vnoise(p / 5.0) * 0.55 + vnoise(p / 13.0 + 4.1) * 0.45;
 		crowns = mix(crowns, 0.5, smoothstep(2.0, 8.0, fp));

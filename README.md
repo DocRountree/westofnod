@@ -101,7 +101,7 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   by `tools/trees/bake_lichen.py`, each tree reading it from its own place, in drifts,
   within 30 m only), and the stumps and logs moss (a cushion of little leafy shoots,
   `moss.png` from `tools/trees/bake_moss.py`, thinning to tufts at its edges; over
-  it, within 4 m of you, red stalks 1-2 cm tall with purple capsules,
+  it, within 4 m of you, red stalks a couple of cm tall with purple capsules,
   standing straight up, only on the green moss: `sporophytes.gdshader`, a MultiMesh per log or stump drawn
   only for those near you (`Population._update_near`); a stump's top almost covered and
   spilling over, patches up from the ground); on the prairie the standing trees
@@ -210,10 +210,9 @@ picked by the same shares (`WorldData.biome_blend_at`), each read a few hundred
 metres off at random, so they thin out across a border into scattered oaks and
 copses. How lush the land is (`lush_at`, in `ground.gdshaderinc` and
 `WorldData`: more on slopes facing away from the equator, less on steep ground,
-swelling and dipping over kilometres) steers the oaks' density (not the ground's
-colour: the grass fades into it). Past 600 m, where the trees stop being drawn, their canopy is painted on
-the terrain (crowns and shadow, as much as the trees there would cover; the forest's and
-taiga's, not the prairie's few), and the
+swelling and dipping over kilometres) steers the oaks' density and the ground's
+green. Past 600 m, where the trees stop being drawn, their canopy is painted on
+the terrain (crowns and shadow, as much as the trees there would cover), and the
 haze is thicker (6.5 km), so distant land softens and blues. The pale
 grounds (prairie, coast, beaches) dim at night, as the leaves do. Marram,
 half the prairie grass's height and as pale as the sand, grows in patches on
