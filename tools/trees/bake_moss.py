@@ -8,8 +8,10 @@ Drawn as a haircap moss cushion grows, seen from above:
   mm long, packed close: the low ones dark, the tall ones lighter and
   yellower, some with pale hair-points at their leaf tips;
 - a sparse canopy over it of sporophytes: thin red-orange stalks leaning
-  every way, each with a purple-brown capsule at its end.
-Channels:
+  every way, each with a purple-brown capsule at its end; in a texture of
+  their own (moss_canopy.png: RGB the colour, A where they are), so the
+  shader can sway them over the shoots.
+moss.png's channels:
   RGB  the colour (sRGB)
   A    how high it stands: 0.04 the gaps down to the bark .. 1 the
        capsules (never 0: an importer may drop the colour of clear pixels).
@@ -29,6 +31,7 @@ SS = 2                    # drawn at twice that, then reduced
 N = W * SS
 PX_MM = N / 300.0         # drawing pixels per mm
 OUT = os.path.join(os.path.dirname(__file__), "..", "..", "data", "population", "textures", "moss.png")
+OUT_CANOPY = os.path.join(os.path.dirname(__file__), "..", "..", "data", "population", "textures", "moss_canopy.png")
 
 rng = np.random.default_rng(31)
 
@@ -61,7 +64,7 @@ class Canvas:
         self.hs.append(np.asarray(h, np.float32).ravel())
         self.cs.append(np.asarray(c, np.float32).reshape(-1, 3))
 
-    def render(self):
+    def render(self, bg=GAP):
         x = np.concatenate(self.xs)
         y = np.concatenate(self.ys)
         h = np.concatenate(self.hs)
@@ -70,7 +73,7 @@ class Canvas:
         xi = np.floor(x[order]).astype(np.int64) % N
         yi = np.floor(y[order]).astype(np.int64) % N
         rgb = np.empty((N, N, 3), np.float32)
-        rgb[:] = GAP
+        rgb[:] = bg
         hh = np.zeros((N, N), np.float32)
         flat = yi * N + xi
         # (numpy: of repeated indices the last assignment stands; sorted by
@@ -146,13 +149,21 @@ def main():
     cv = Canvas()
     shoots(cv, 16000, (0.12, 0.45), (1.2, 2.2), 0.3, 0.1)     # the understory, dark, low
     shoots(cv, 7000, (0.45, 0.82), (1.6, 2.8), 0.5, 0.45)     # the taller shoots
-    sporophytes(cv, 120)
     rgb, h = cv.render()
-    a = 0.04 + 0.96 * h
+    save(OUT, rgb, 0.04 + 0.96 * h)
+    print("saved", OUT, "gaps:", round(float((h < 0.05).mean()), 3))
+    # the canopy, its own layer (it sways over the shoots)
+    sp = Canvas()
+    sporophytes(sp, 120)
+    rgb, h = sp.render(bg=STALK_DARK)
+    save(OUT_CANOPY, rgb, (h > 0.0).astype(np.float32))
+    print("saved", OUT_CANOPY)
+
+
+def save(path, rgb, a):
     chans = [Image.fromarray((np.clip(ch, 0, 1) * 255 + 0.5).astype(np.uint8), "L").resize((W, W), Image.LANCZOS)
              for ch in (rgb[..., 0], rgb[..., 1], rgb[..., 2], a)]
-    Image.merge("RGBA", chans).save(OUT)
-    print("saved", OUT, "gaps:", round(float((h < 0.05).mean()), 3))
+    Image.merge("RGBA", chans).save(path)
 
 
 if __name__ == "__main__":

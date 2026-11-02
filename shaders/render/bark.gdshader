@@ -132,8 +132,10 @@ void fragment() {
 	if (growth.y > 0.0 && moss_amount > 0.0) {
 		// (round the bark: twice to a repeat of its texture, so it wraps
 		// seamlessly; on a cut end, across it)
-		vec4 M = near > 0.0 ? texture(moss_tex, UV2.x > 0.5 ? obj.xz / 0.3 : UV * 2.0 + bark_off) : vec4(0.0);
-		moss = moss_cover(obj, up, near, M, mc, mh) * (UV2.x > 0.5 ? moss_end : 1.0);
+		vec2 muv = UV2.x > 0.5 ? obj.xz / 0.3 : UV * 2.0 + bark_off;
+		vec4 M = near > 0.0 ? texture(moss_tex, muv) : vec4(0.0);
+		vec4 C = near > 0.0 ? texture(moss_canopy, muv + moss_sway(obj, TIME)) : vec4(0.0);
+		moss = moss_cover(obj, up, near, M, C, mc, mh) * (UV2.x > 0.5 ? moss_end : 1.0);
 	}
 	if (moss > 0.0) {
 		// a cushion over the bark: its shoots domed (bumps from their

@@ -29,6 +29,7 @@ uniform vec3 lichen_yellow : source_color = vec3(0.52, 0.56, 0.3);  // powdery c
 // moss.png (tools/trees/bake_moss.py): a cushion of leafy shoots under
 // red stalks and purple capsules, 0.3 m across; alpha its height
 uniform sampler2D moss_tex : source_color, filter_linear_mipmap, repeat_enable;
+uniform sampler2D moss_canopy : source_color, filter_linear_mipmap, repeat_enable; // the stalks and capsules (A: where)
 // How much grows where: very little lichen and no moss on the prairie (its
 // dry, open air), the most lichen in the swamp. Set by main.gd.
 uniform sampler2D growth_biomes : filter_nearest, repeat_disable;
@@ -95,12 +96,21 @@ float lichen_cover(vec2 uv, vec3 p, float amount, float fade, out vec3 col, out 
 	return cover;
 }
 
+// The sporophytes' sway (the moss's texture's own units: 0.3 m): a couple
+// of mm, slowly, in gusts, a patch of them leaning together, as the grass.
+vec2 moss_sway(vec3 p, float t) {
+	float gust = 0.6 + 0.4 * sin(t * 0.37 + dot(p.xz, vec2(0.21, 0.17)));
+	return vec2(sin(t * 1.7 + dot(p, vec3(3.1, 1.3, 2.7))), cos(t * 1.3 + dot(p, vec3(2.3, 2.9, 1.7)))) * 0.006 * gust;
+}
+
 // Moss's share of the bark at p, facing `up` (the surface's world normal's
 // y), its colour there and how far it stands off the bark (m). M: moss.png
 // read here. Where there's less of it, only its taller shoots and the
 // capsules show, in tufts, not a green wash; at its fullest it covers
-// all. `near`: 0 far off, a plain share in the moss's average colour.
-float moss_cover(vec3 p, float up, float near, vec4 M, out vec3 col, out float relief) {
+// all. C: moss_canopy.png read here (swaying: moss_sway), over the shoots
+// where the moss is thick. `near`: 0 far off, a plain share in the moss's
+// average colour.
+float moss_cover(vec3 p, float up, float near, vec4 M, vec4 C, out vec3 col, out float relief) {
 	col = vec3(0.0);
 	relief = 0.0;
 	if (moss_amount <= 0.0)
@@ -128,5 +138,8 @@ float moss_cover(vec3 p, float up, float near, vec4 M, out vec3 col, out float r
 	// thinner moss, a little yellower and paler; the gaps between shoots dark
 	col = M.rgb * mix(vec3(1.12, 1.08, 0.9), vec3(1.0), m);
 	relief = cover * h * 0.006; // (m)
-	return cover;
+	float canopy = C.a * smoothstep(0.35, 0.75, m);
+	col = mix(col, C.rgb, canopy);
+	relief = max(relief, canopy * 0.006);
+	return max(cover, canopy);
 }
