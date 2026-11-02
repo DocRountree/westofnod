@@ -105,7 +105,7 @@ void vertex() {
 		nrm.xz = rot * nrm.xz;
 		// lit mostly as the ground under it is (and the shadow map read
 		// above it: thin blades caught speckles of the ground's own shadow)
-		NORMAL = normalize(mat3(VIEW_MATRIX) * normalize(mix(nrm, vec3(0.0, 1.0, 0.0), kind == 1 ? 0.5 : 0.85)));
+		NORMAL = normalize(mat3(VIEW_MATRIX) * normalize(mix(nrm, vec3(0.0, 1.0, 0.0), kind == 1 ? 0.5 : (UV.x > 1.5 ? 0.2 : 0.85)))); // (a cattail's head: round, lit as round)
 		// colours: the ground's at the root; toward the tip lighter
 		// (forest), green to blonde (prairie); all the ground's far off
 		// (all the ground's colour by the time it starts to go: ferns from

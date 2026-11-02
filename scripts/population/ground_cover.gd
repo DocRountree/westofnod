@@ -287,9 +287,11 @@ static func grass_mesh(blades: int, segs: int, radius: float, width: float, seed
 
 
 ## A clump of cattails (bulrush, Typha): stalks, each with its brown head
-## (a cylinder, two crossed strips; UV.x 2..3 marks it for the shader) a
-## little below the top and a thin spike above, and a few long leaves round
-## them; in units of the clump's height, as grass_mesh.
+## (a cylinder with rounded ends, solid: UV.x 2..3 marks it for the shader)
+## a little below the top and a thin spike above, and a few long leaves
+## round them; in units of the clump's height, as grass_mesh. COLOR.b is
+## the height (not how far along each strip), so stalk, head and spike sway
+## as one.
 static func cattail_mesh(stalks: int, radius: float, seed: int) -> ArrayMesh:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed * 13 + 1
@@ -299,7 +301,7 @@ static func cattail_mesh(stalks: int, radius: float, seed: int) -> ArrayMesh:
 	var base := [0]
 	var strip := func(root: Vector2, pts: Array, halfs: Array, side: Vector3, n: Vector3, shade: float, u0: float) -> void:
 		for s in pts.size():
-			var t: float = float(s) / (pts.size() - 1)
+			var t: float = (pts[s] as Vector3).y
 			for k in 2:
 				st.set_color(Color(shade, 0.3, t))
 				st.set_uv(Vector2(u0 + float(k), t))
@@ -326,10 +328,9 @@ static func cattail_mesh(stalks: int, radius: float, seed: int) -> ArrayMesh:
 		var head1 := top * 0.9
 		# the stalk, to the head
 		strip.call(root, [Vector3.ZERO, head0 * 0.5, head0], [0.006, 0.005, 0.005], side, n, rng.randf_range(0.85, 1.1), 0.0)
-		# the head: two crossed strips, 2.4 cm across
-		for k in 2:
-			var sd := side if k == 0 else Vector3(-side.z, 0.0, side.x)
-			strip.call(root, [head0, head0.lerp(head1, 0.5), head1], [0.011, 0.012, 0.011], sd, Vector3(-sd.z, 0.4, sd.x).normalized(), rng.randf_range(0.85, 1.1), 2.0)
+		# the head: a cylinder, rounded at both ends, ~2.4 cm across (in
+		# clump heights: the clumps are about 2.15 m)
+		_capsule(st, base, root, head0, head1, 0.012 / 2.15, rng.randf_range(0.85, 1.1))
 		# the spike above it
 		strip.call(root, [head1, top], [0.003, 0.0015], side, n, 1.0, 0.0)
 		# leaves: long, flat, arching a little
@@ -347,6 +348,41 @@ static func cattail_mesh(stalks: int, radius: float, seed: int) -> ArrayMesh:
 				halfs.append(0.009 * (1.0 - t * 0.8))
 			strip.call(root, pts, halfs, lside, Vector3(dir.x, 0.6, dir.y).normalized(), rng.randf_range(0.85, 1.15), 0.0)
 	return st.commit()
+
+
+## A capsule from a to b (radius r) into st: rings round the axis, the ends
+## hemispheres; solid (CUSTOM0 zero), UV.x 2.5 (a cattail's head).
+static func _capsule(st: SurfaceTool, base: Array, root: Vector2, a: Vector3, b: Vector3, r: float, shade: float) -> void:
+	const SIDES := 8
+	var axis := (b - a).normalized()
+	var u := axis.cross(Vector3.RIGHT if absf(axis.x) < 0.9 else Vector3.FORWARD).normalized()
+	var v := axis.cross(u)
+	var rings := [] # [centre of its sphere or the axis point, along (m), ring radius]
+	for k in 4: # the bottom end, pole up to the equator
+		var th := PI * 0.5 * k / 3.0
+		rings.append([a, a - axis * r * cos(th), r * sin(th)])
+	for k in 4: # the top end, equator up to the pole
+		var th := PI * 0.5 * (3 - k) / 3.0
+		rings.append([b, b + axis * r * cos(th), r * sin(th)])
+	for ring in rings:
+		for i in SIDES:
+			var ang := TAU * i / SIDES
+			var out := u * cos(ang) + v * sin(ang)
+			var p: Vector3 = ring[1] + out * float(ring[2])
+			var nrm := (p - (ring[0] as Vector3)).normalized() if p.distance_to(ring[0]) > 1e-6 else out
+			st.set_color(Color(shade, 0.3, p.y))
+			st.set_uv(Vector2(2.5, 0.0))
+			st.set_uv2(root)
+			st.set_normal(nrm)
+			st.set_custom(0, Color(0, 0, 0))
+			st.add_vertex(p)
+	for k in rings.size() - 1:
+		for i in SIDES:
+			var i0: int = base[0] + k * SIDES + i
+			var i1: int = base[0] + k * SIDES + (i + 1) % SIDES
+			for q in [i0, i1, i1 + SIDES, i0, i1 + SIDES, i0 + SIDES]:
+				st.add_index(q)
+	base[0] += rings.size() * SIDES
 
 
 ## A fern: fronds arching out and down from the middle, each a bent strip
