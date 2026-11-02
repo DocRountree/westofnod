@@ -257,11 +257,22 @@ func _update_near(focus: Vector3) -> void:
 			continue
 		var nd: Array = want[uid][0]
 		var mat: ShaderMaterial = nd[1]
-		var moss := Vector4(float(mat.get_shader_parameter("moss_amount")), float(mat.get_shader_parameter("moss_low")),
-				float(mat.get_shader_parameter("moss_spill")), float(mat.get_shader_parameter("moss_end")))
+		var moss := moss_of(mat)
 		var out := []
 		var task := WorkerThreadPool.add_task(_sporophytes_on_moss.bind(nd[3], want[uid][1], moss, out))
 		_near_jobs[uid] = [task, out, nd]
+
+
+## A sporophyte material's moss settings (lichen.gdshaderinc): amount, low,
+## spill, end (a setting left unset is null: the shader's default then).
+static func moss_of(mat: ShaderMaterial) -> Vector4:
+	var v := Vector4(0.0, 0.0, 0.0, 0.5)
+	var names := ["moss_amount", "moss_low", "moss_spill", "moss_end"]
+	for i in 4:
+		var x = mat.get_shader_parameter(names[i])
+		if x != null:
+			v[i] = float(x)
+	return v
 
 
 ## The near logs' sporophytes worked out since: drawn if still wanted.

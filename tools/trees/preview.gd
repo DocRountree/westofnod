@@ -53,8 +53,7 @@ func _init() -> void:
 			var mat: ShaderMaterial = near[1]
 			var out := []
 			Population._sporophytes_on_moss((near[0] as MultiMesh).buffer, Transform3D(Basis(), mi.position),
-					Vector4(float(mat.get_shader_parameter("moss_amount")), float(mat.get_shader_parameter("moss_low")),
-					float(mat.get_shader_parameter("moss_spill")), float(mat.get_shader_parameter("moss_end"))), out)
+					Population.moss_of(mat), out)
 			var mm := MultiMesh.new()
 			mm.transform_format = MultiMesh.TRANSFORM_3D
 			mm.use_colors = true
