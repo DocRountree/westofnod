@@ -55,6 +55,7 @@ uniform vec3 disc_color = vec3(0.5);
 // a head's size (m): once it's only a few pixels across it takes the
 // stem's colour (a white speck that small sparkled over the grass)
 uniform float head_size = 0.05;
+uniform vec2 head_px = vec2(2.5, 6.0); // pixels across: its stem's colour below x, its own above y
 uniform float shadow_strength = 0.7;
 uniform float night = 0.0; // 0 day .. 1 night (main.gd): the prairie's grass darker at night, as its ground
 uniform vec3 frond_mean = vec3(0.03, 0.07, 0.006); // linear: the frond texture's mean (GroundCover sets it)
@@ -182,7 +183,7 @@ void fragment() {
 	float head_k = 1.0;
 	if (UV.x > 3.0) {
 		float mpp = 2.0 * max(-VERTEX.z, 0.01) / (PROJECTION_MATRIX[1][1] * VIEWPORT_SIZE.y);
-		head_k = smoothstep(2.5, 6.0, head_size / max(mpp, 1e-6));
+		head_k = smoothstep(head_px.x, head_px.y, head_size / max(mpp, 1e-6));
 		c = mix(tip_col * 0.9, c, head_k);
 	}
 	ALBEDO = mix(c, root_col, UV.x > 3.0 ? far * (1.0 - head_k) : far);
