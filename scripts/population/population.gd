@@ -726,7 +726,9 @@ func _generate(key: Vector2i) -> void:
 				var keep := rng.randf() * peak
 				var turn := rng.randf() * TAU
 				var s := rng.randf_range(kind.scale_range.x, kind.scale_range.y)
-				var bi := world.biome_index_at(x, z)
+				# (the biomes blended across their borders, as the ground's: a
+				# pick by a hash of the place, so the rng's draws stay as they were)
+				var bi := world.biome_blend_at(x, z, fposmod(sin(x * 12.9898 + z * 78.233) * 43758.5453, 1.0))
 				if keep >= kind.density_in(bi) * kind.clump_at(bi, x, z):
 					continue
 				if kind.min_spacing > 0.0:

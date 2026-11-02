@@ -69,6 +69,35 @@ func biome_index_at(x: float, z: float) -> int:
 	return b if b < biome_names.size() else -1
 
 
+## A biome for something placed at (x, z) (Population: its trees, stumps,
+## rocks), picked among the biomes there by their shares, as the ground
+## blends them (ground.gdshaderinc: biome_grid, biome_texel; the borders
+## wandering and the sixteen nearest texels by a cubic B-spline): across a
+## border, about 200 m, the one thins out as the other comes in, and each
+## reaches into the other here and there. u: 0..1, the pick (a hash of the
+## place, so the same each time). -1 where none.
+func biome_blend_at(x: float, z: float, u: float) -> int:
+	if _biome_size == 0:
+		return -1
+	var jx := (vnoise(x / 90.0, z / 90.0) - 0.5) * 180.0 + (vnoise(x / 23.0 + 5.1, z / 23.0 + 5.1) - 0.5) * 50.0
+	var jz := (vnoise(x / 90.0 + 31.7, z / 90.0 + 31.7) - 0.5) * 180.0 + (vnoise(x / 23.0 - 8.3, z / 23.0 - 8.3) - 0.5) * 50.0
+	var g := (Vector2(x + jx, z + jz) - origin) / (domain + cell()) * _biome_size - Vector2(0.5, 0.5)
+	var i0 := floori(g.x) - 1
+	var j0 := floori(g.y) - 1
+	var wx := _bspline(g.x - floorf(g.x))
+	var wz := _bspline(g.y - floorf(g.y))
+	var n := _biome_size - 1
+	var acc := 0.0
+	var b := 255
+	for j in 4:
+		for i in 4:
+			acc += wx[i] * wz[j]
+			b = _biome_bytes[clampi(j0 + j, 0, n) * _biome_size + clampi(i0 + i, 0, n)]
+			if u < acc:
+				return b if b < biome_names.size() else -1
+	return b if b < biome_names.size() else -1
+
+
 ## The biome's name at (x, z) ("" where none).
 func biome_at(x: float, z: float) -> String:
 	var b := biome_index_at(x, z)

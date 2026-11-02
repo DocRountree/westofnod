@@ -191,21 +191,44 @@ Shared ground_shared(vec2 p, float h, vec3 n, vec4 m, float fp) {
 }
 
 // Where the biome map is read for p: jittered, so borders wander instead of
-// running straight along its texels. Then the four nearest texels blend
+// running straight along its texels, and reach out into each other in
+// tongues and islands. Then the sixteen nearest texels blend
 // (biome_texel()).
 vec2 biome_grid(vec2 p) {
-	vec2 jit = (vec2(vnoise(p / 70.0), vnoise(p / 70.0 + 31.7)) - 0.5) * 140.0
-			+ (vec2(vnoise(p / 19.0 + 5.1), vnoise(p / 19.0 - 8.3)) - 0.5) * 40.0;
+	vec2 jit = (vec2(vnoise(p / 90.0), vnoise(p / 90.0 + 31.7)) - 0.5) * 180.0
+			+ (vec2(vnoise(p / 23.0 + 5.1), vnoise(p / 23.0 - 8.3)) - 0.5) * 50.0;
 	vec2 bsz = vec2(textureSize(biome_tex, 0));
 	return (p + jit - map_origin) / (map_domain + map_cell()) * bsz - 0.5;
 }
 
-// Biome texel k (0-3) of the four round g, and its weight.
+// Cubic B-spline weights for the four texels round a fraction f.
+vec4 bspline4(float f) {
+	float f2 = f * f, f3 = f2 * f;
+	return vec4((1.0 - f) * (1.0 - f) * (1.0 - f), 3.0 * f3 - 6.0 * f2 + 4.0, -3.0 * f3 + 3.0 * f2 + 3.0 * f + 1.0, f3) / 6.0;
+}
+
+const int BIOME_TAPS = 16;
+const int BIOME_SLOTS = 12; // the biomes (11), and none (the sea)
+
+// Biome texel k (0-15) of the four by four round g, and its weight (a cubic
+// B-spline: a border takes about three texels, 200 m, to go over from one
+// biome to the next, smoothly, where the four nearest made it 68 m).
 int biome_texel(vec2 g, int k, out float w) {
 	vec2 bsz = vec2(textureSize(biome_tex, 0));
-	ivec2 b0 = ivec2(floor(g));
+	ivec2 b0 = ivec2(floor(g)) - 1;
 	vec2 bf = g - floor(g);
-	ivec2 o = ivec2(k & 1, k >> 1);
-	w = (o.x == 1 ? bf.x : 1.0 - bf.x) * (o.y == 1 ? bf.y : 1.0 - bf.y);
+	ivec2 o = ivec2(k & 3, k >> 2);
+	vec4 wx = bspline4(bf.x), wy = bspline4(bf.y);
+	w = wx[o.x] * wy[o.y];
 	return int(texelFetch(biome_tex, clamp(b0 + o, ivec2(0), ivec2(bsz) - 1), 0).r * 255.0 + 0.5);
+}
+
+// The biome's slot for biome_texel()'s index: itself, or the last for none.
+int biome_slot(int b) {
+	return b < BIOME_SLOTS - 1 ? b : BIOME_SLOTS - 1;
+}
+
+// A slot back to the biome's index (255: none).
+int slot_biome(int s) {
+	return s < BIOME_SLOTS - 1 ? s : 255;
 }

@@ -201,5 +201,12 @@ the game. The terrain shader colours each biome its own way (`biome_ground` in
 `terrain.gdshader`: leaf litter, red sand and scrub, golden grass, mud and
 pools, moss and lichen with snow, conifer floor, banded red sandstone walls on
 scrubby caprock, black basalt and ash, beach and dunes), blending across the
-borders (`biome_ground` lives in `ground.gdshaderinc`, which the grass shares). `/pos`
+borders over about 200 m (the sixteen nearest texels of the biome map by a cubic
+B-spline, the borders wandering, so each biome reaches into the next in tongues
+and islands; `biome_ground` lives in `ground.gdshaderinc`, which the grass shares);
+the trees and other props are picked by the same shares
+(`WorldData.biome_blend_at`), so they thin out across a border. The pale
+grounds (prairie, coast, beaches) dim at night, as the leaves do. Crabgrass,
+half the prairie grass's height and as pale as the sand, grows in patches on
+the coast and beaches: none at the water's edge, thicker and taller up the beach. `/pos`
 names the biome you're in.

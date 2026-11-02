@@ -76,11 +76,21 @@ void fragment() {
 	float rocky = 0.0;
 	float litter = 0.0;
 	float prairie = 0.0;
-	for (int k = 0; k < 4; k++) {
+	float coast = 0.0;
+	float bw[BIOME_SLOTS];
+	for (int i = 0; i < BIOME_SLOTS; i++)
+		bw[i] = 0.0;
+	for (int k = 0; k < BIOME_TAPS; k++) {
 		float w;
 		int b = biome_texel(bg, k, w);
-		if (w <= 0.0)
+		bw[biome_slot(b)] += w;
+	}
+	// each biome there worked out once, by its share
+	for (int i = 0; i < BIOME_SLOTS; i++) {
+		float w = bw[i];
+		if (w <= 0.002)
 			continue;
+		int b = slot_biome(i);
 		float r_, k_, l_;
 		col += biome_ground(b, sh, r_, k_, l_) * w;
 		rough += r_ * w;
@@ -88,9 +98,9 @@ void fragment() {
 		litter += l_ * w;
 		if (b == 2)
 			prairie += w;
+		else if (b == 10)
+			coast += w;
 	}
-	// the prairie's pale ground, a little darker at night (main.gd: night)
-	col *= 1.0 - PRAIRIE_NIGHT_DIM * night * prairie;
 	// the fallen leaves, near
 	float near = 1.0 - smoothstep(litter_fade.x, litter_fade.y, distance(world_pos, CAMERA_POSITION_WORLD + world_origin));
 	if (litter * near > 0.0) {
@@ -117,6 +127,9 @@ void fragment() {
 	vec3 sand = mix(vec3(0.84, 0.80, 0.68), vec3(0.90, 0.86, 0.74), patches);
 	vec3 seabed = mix(vec3(0.70, 0.68, 0.56), vec3(0.42, 0.44, 0.40), smoothstep(-2.0, -25.0, h));
 	col = mix(col, sand, m.a * (1.0 - rocky * 0.7));
+	// the pale grounds (the prairie's, the coast's, the beaches' sand) a
+	// little darker at night (main.gd: night), as the leaves are
+	col *= 1.0 - PRAIRIE_NIGHT_DIM * night * clamp(prairie + coast + m.a * (1.0 - rocky * 0.7), 0.0, 1.0);
 	col = mix(col, seabed, 1.0 - smoothstep(-1.0, 0.2, h));
 	col *= mix(1.0, 0.78, (1.0 - smoothstep(0.0, 0.6, h)) * step(-0.3, h)); // damp line
 	float fine = mix(0.5, vnoise(p * 0.7), 1.0 - smoothstep(0.4, 1.2, fp * 0.7));

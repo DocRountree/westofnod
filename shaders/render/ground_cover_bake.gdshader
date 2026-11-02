@@ -22,6 +22,7 @@ uniform int kind = 0;      // 0 grass, 1 fern
 uniform bool in_forest = true;
 uniform bool in_prairie = true;
 uniform bool in_swamp = false; // (the reeds: prairie_height their height; they take the prairie's colours)
+uniform bool in_coast = false; // (crabgrass: on the coast and the beaches, in patches, none at the water's edge, more and taller inland)
 uniform vec2 forest_height = vec2(0.08, 0.16); // m (grass; ferns: their length)
 uniform vec2 prairie_height = vec2(0.45, 0.85);
 uniform float cover = 1.0; // the share of cells with a clump
@@ -101,18 +102,27 @@ void fragment() {
 	float d = distance(eye.xz, pos);
 	float fp = 0.0016 * d * max(1.0, d / max(eye.y - h, 0.5));
 	Shared sh = ground_shared(pos, h, n, m, max(fp, 0.01));
-	// the biomes here blended as the terrain blends them (the four nearest
-	// texels by their weights): the ground's colour, and how much is
+	// the biomes here blended as the terrain blends them (the sixteen
+	// nearest texels by their weights): the ground's colour, and how much is
 	// forest, how much prairie; across a border the clumps go from the one
 	// to the other, short to tall, by degrees
 	vec2 g = biome_grid(pos);
 	vec3 ground = vec3(0.0);
 	float rocky = 0.0, litter = 0.0, mud = 0.0, fw = 0.0, pw = 0.0, sw = 0.0;
-	for (int k = 0; k < 4; k++) {
+	float cw = 0.0;
+	float bw[BIOME_SLOTS];
+	for (int i = 0; i < BIOME_SLOTS; i++)
+		bw[i] = 0.0;
+	for (int k = 0; k < BIOME_TAPS; k++) {
 		float w;
-		int bk = biome_texel(g, k, w);
-		if (w <= 0.0)
+		int b = biome_texel(g, k, w);
+		bw[biome_slot(b)] += w;
+	}
+	for (int i = 0; i < BIOME_SLOTS; i++) {
+		float w = bw[i];
+		if (w <= 0.002)
 			continue;
+		int bk = slot_biome(i);
 		float r_, k_, l_, pud;
 		ground += biome_ground(bk, sh, r_, k_, l_) * w;
 		rocky += k_ * w;
@@ -124,11 +134,22 @@ void fragment() {
 			pw += w;
 		else if (bk == swamp_biome)
 			sw += w;
+		else if (bk == 10)
+			cw += w;
 	}
 	float grows = (in_forest ? fw : 0.0) + (in_prairie ? pw : 0.0);
 	// the swamp's reeds: in clumps a few metres across, well apart
 	if (in_swamp)
 		grows += sw * smoothstep(0.6, 0.68, vnoise(pos / 11.0 + 41.0) * 0.7 + vnoise(pos / 3.5 + 5.0) * 0.3);
+	// crabgrass along the coast: patches on the beaches and the coast,
+	// none at the water's edge, thicker and taller up from it (by the
+	// height above the sea: the beach rising to the dunes behind)
+	float inland = smoothstep(0.8, 8.0, h + (vnoise(pos / 13.0 + 7.0) - 0.5) * 2.0);
+	if (in_coast) {
+		float coastal = max(cw, m.a);
+		float patchy = vnoise(pos / 6.0 + 23.0) * 0.7 + vnoise(pos / 1.9 - 3.0) * 0.3;
+		grows += coastal * inland * smoothstep(0.66 - 0.3 * inland, 0.74 - 0.3 * inland, patchy);
+	}
 	float prairie = pw / max(fw + pw, 1e-4); // 0 forest .. 1 prairie
 	if (!in_prairie)
 		prairie = 0.0;
@@ -137,7 +158,7 @@ void fragment() {
 	float size = 0.0;
 	if (h2(c, 5) < grows && h2(c, 4) < cover && !under_log(pos)) {
 		// not on rock, sand, mud or the shore; nothing on the forest's litter
-		float bare = max(max(rocky, m.a), mud * 3.0) + (in_swamp ? 0.0 : 1.0 - smoothstep(0.3, 1.2, h)); // (reeds stand in water)
+		float bare = max(max(rocky, in_coast ? 0.0 : m.a), mud * 3.0) + (in_swamp ? 0.0 : 1.0 - smoothstep(0.3, 1.2, h)); // (reeds stand in water; crabgrass on sand)
 		float here = mix(smoothstep(0.3, 0.05, litter / max(fw, 1e-4)), 1.0, prairie);
 		if (kind == 1) // ferns in drifts, and only well inside the forest
 			here *= smoothstep(0.24, 0.4, vnoise(pos / 7.0 + 13.0) * 0.7 + vnoise(pos / 2.3) * 0.3) * smoothstep(0.75, 0.95, fw);
@@ -145,6 +166,8 @@ void fragment() {
 			vec2 hr = mix(forest_height, prairie_height, prairie);
 			// taller and shorter in patches, and from clump to clump
 			size = mix(hr.x, hr.y, vnoise(pos / 5.0) * 0.6 + h2(c, 7) * 0.4);
+			if (in_coast)
+				size *= 0.35 + 0.65 * inland;
 		}
 	}
 	float blonde = clamp(vnoise(pos / 9.0) * 0.9 - 0.05, 0.0, 1.0);
