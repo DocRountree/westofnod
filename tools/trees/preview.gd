@@ -52,6 +52,7 @@ func _init() -> void:
 			smi.multimesh = near[0]
 			smi.material_override = near[1]
 			smi.position = mi.position
+			smi.set_instance_shader_parameter("tree_at", mi.position)
 			root3.add_child(smi)
 		if shadow:
 			var sh := MeshInstance3D.new()

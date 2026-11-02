@@ -239,6 +239,7 @@ func _update_near(focus: Vector3) -> void:
 		mi.multimesh = nd[0]
 		mi.material_override = nd[1]
 		mi.transform = want[uid][1]
+		mi.set_instance_shader_parameter("tree_at", (want[uid][1] as Transform3D).origin) # (on the map)
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		mi.custom_aabb = (nd[0] as MultiMesh).get_aabb().grow(0.05)
 		add_child(mi)

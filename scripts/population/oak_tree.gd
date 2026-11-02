@@ -141,7 +141,7 @@ static func sporophyte_material(kind: String) -> ShaderMaterial:
 	return _bark_mats[key]
 
 
-const SPOROPHYTES := 4500.0 ## a m², on what faces up (fewer down the sides); shown where the moss is thick
+const SPOROPHYTES := 3000.0 ## a m², on what faces up (fewer down the sides); shown where the moss is thick
 const SPOROPHYTES_MOST := 40000
 
 
@@ -251,11 +251,13 @@ static func _sporophyte_multimesh(mesh: ArrayMesh, seed: int) -> MultiMesh:
 				r1 = 1.0 - r1
 				r2 = 1.0 - r2
 			var foot := p0 + e1 * r1 + e2 * r2
+			# (the bark's normal there, as the bark shader has it: interpolated)
+			var nf := (normals[idx[i]] * (1.0 - r1 - r2) + normals[idx[i + 1]] * r1 + normals[idx[i + 2]] * r2).normalized()
 			var stalk := (Vector3.UP + Vector3(rng.randf_range(-1, 1), 0.0, rng.randf_range(-1, 1)) * 0.06).normalized() * rng.randf_range(0.01, 0.022)
-			var side := n.cross(stalk)
+			var side := nf.cross(stalk)
 			if side.length_squared() < 1e-10:
 				side = Vector3.RIGHT.cross(stalk)
-			xfs.append(Transform3D(Basis(n, stalk, side.normalized()), foot))
+			xfs.append(Transform3D(Basis(nf, stalk, side.normalized()), foot))
 			# the bark's UV at the foot (the instance's colour: the shader
 			# reads the moss texture there, as the bark does, to stand only
 			# on green moss)
