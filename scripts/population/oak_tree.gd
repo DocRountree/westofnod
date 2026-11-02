@@ -121,6 +121,85 @@ static func bark_material(level := 0, kind := "tree") -> ShaderMaterial:
 	return _bark_mats[key]
 
 
+## The moss's sporophytes, for a kind with moss (sporophytes.gdshader): its
+## moss's settings, the same as its bark's.
+static func sporophyte_material(kind: String) -> ShaderMaterial:
+	var cover: Array = COVER.get(kind, COVER.tree)
+	var key := ["sporophytes", cover]
+	if not _bark_mats.has(key):
+		var bark := bark_material(0, kind)
+		var m := ShaderMaterial.new()
+		m.shader = load("res://shaders/render/sporophytes.gdshader")
+		for p in ["moss_amount", "moss_low", "moss_end", "moss_spill"]:
+			m.set_shader_parameter(p, bark.get_shader_parameter(p))
+		for p in _growth:
+			m.set_shader_parameter(p, _growth[p])
+		_bark_mats[key] = m # (with the bark's: told the night and the biomes too)
+	return _bark_mats[key]
+
+
+const SPOROPHYTES := 1500.0 ## a m², on what faces up (fewer down the sides); shown where the moss is thick
+const SPOROPHYTES_MOST := 6000
+
+
+## The moss's sporophytes, on the bark of mesh (its first surface) as a
+## surface of their own: stalks 1.2-2.8 cm, leaning a little every way off
+## the upright, all over what faces up or sideways (the shader shows those
+## where the moss is), each a ribbon's four corners at its foot.
+static func sporophytes(mesh: ArrayMesh, mat: Material, seed: int) -> void:
+	var a := mesh.surface_get_arrays(0)
+	var verts: PackedVector3Array = a[Mesh.ARRAY_VERTEX]
+	var normals: PackedVector3Array = a[Mesh.ARRAY_NORMAL]
+	var uv2: PackedVector2Array = a[Mesh.ARRAY_TEX_UV2]
+	var idx: PackedInt32Array = a[Mesh.ARRAY_INDEX]
+	var rng := RandomNumberGenerator.new()
+	rng.seed = seed * 31 + 7
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	st.set_custom_format(0, SurfaceTool.CUSTOM_RGBA_FLOAT)
+	st.set_custom_format(1, SurfaceTool.CUSTOM_RGBA_FLOAT)
+	var count := 0
+	for i in range(0, idx.size(), 3):
+		var p0 := verts[idx[i]]
+		var e1 := verts[idx[i + 1]] - p0
+		var e2 := verts[idx[i + 2]] - p0
+		var n := (normals[idx[i]] + normals[idx[i + 1]] + normals[idx[i + 2]]).normalized()
+		if n.y < -0.3:
+			continue # (underneath)
+		var k := 0.5 * e1.cross(e2).length() * SPOROPHYTES * (0.3 + 0.7 * smoothstep(-0.35, 0.7, n.y))
+		var many := int(k) + (1 if rng.randf() < k - int(k) else 0)
+		var end := 1.0 if uv2.size() > idx[i] and uv2[idx[i]].x > 0.5 else 0.0
+		for _j in many:
+			if count >= SPOROPHYTES_MOST:
+				break
+			var r1 := rng.randf()
+			var r2 := rng.randf()
+			if r1 + r2 > 1.0:
+				r1 = 1.0 - r1
+				r2 = 1.0 - r2
+			var foot := p0 + e1 * r1 + e2 * r2
+			var lean := Vector3(rng.randf_range(-1, 1), rng.randf_range(-1, 1), rng.randf_range(-1, 1)) * 0.35
+			var stalk := (Vector3.UP + n * 0.6 + lean).normalized() * rng.randf_range(0.012, 0.028)
+			var custom0 := Color(stalk.x, stalk.y, stalk.z, rng.randf() * TAU)
+			var custom1 := Color(foot.x, foot.y, foot.z, 0.0)
+			var rank := rng.randf()
+			for c in [Vector2(-1, 0), Vector2(1, 0), Vector2(1, 1), Vector2(-1, 1)]:
+				st.set_uv(c)
+				st.set_uv2(Vector2(end, rank))
+				st.set_normal(n)
+				st.set_custom(0, custom0)
+				st.set_custom(1, custom1)
+				st.add_vertex(foot)
+			var b := count * 4
+			for j in [b, b + 1, b + 2, b, b + 2, b + 3]:
+				st.add_index(j)
+			count += 1
+	if count == 0:
+		return
+	st.commit(mesh)
+	mesh.surface_set_material(mesh.get_surface_count() - 1, mat)
+
+
 ## The stump's top (m, its own space): where its moss spills over.
 static func _stump_top() -> float:
 	for v in VARIANTS.size():
@@ -261,7 +340,10 @@ static func _models(variant: int) -> Array:
 			_:
 				tb = grow(variant)
 				lods = [tb.lod(b[1], l[1], 2, 2, 4, 1.0, LOD[0]), tb.lod(b[2], l[2], 1, 3, 12, 2.0, LOD[1]), tb.lod(b[3], l[3], 0, 4, 36, 3.2, LOD[2])]
-		_cache[variant] = [tb.build(b[0], l[0], 12.0), lods]
+		var mesh := tb.build(b[0], l[0], 12.0)
+		if (COVER.get(k, COVER.tree) as Array)[1] > 0.0:
+			sporophytes(mesh, sporophyte_material(k), VARIANTS[variant].get("seed", variant))
+		_cache[variant] = [mesh, lods]
 	return _cache[variant]
 
 

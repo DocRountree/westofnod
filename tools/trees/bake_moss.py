@@ -7,11 +7,9 @@ Drawn as a haircap moss cushion grows, seen from above:
 - an understory of little leafy shoots, each a star of narrow leaves a few
   mm long, packed close: the low ones dark, the tall ones lighter and
   yellower, some with pale hair-points at their leaf tips;
-- a sparse canopy over it of sporophytes: thin red-orange stalks leaning
-  every way, each with a purple-brown capsule at its end; in a texture of
-  their own (moss_canopy.png: RGB the colour, A where they are), so the
-  shader can sway them over the shoots.
-moss.png's channels:
+(The sporophytes over it, red stalks and purple capsules, are geometry,
+standing up off it and swaying: OakTree.sporophytes, sporophytes.gdshader.)
+Channels:
   RGB  the colour (sRGB)
   A    how high it stands: 0.04 the gaps down to the bark .. 1 the
        capsules (never 0: an importer may drop the colour of clear pixels).
@@ -31,7 +29,6 @@ SS = 2                    # drawn at twice that, then reduced
 N = W * SS
 PX_MM = N / 300.0         # drawing pixels per mm
 OUT = os.path.join(os.path.dirname(__file__), "..", "..", "data", "population", "textures", "moss.png")
-OUT_CANOPY = os.path.join(os.path.dirname(__file__), "..", "..", "data", "population", "textures", "moss_canopy.png")
 
 rng = np.random.default_rng(31)
 
@@ -45,10 +42,6 @@ DEEP = srgb(0.11, 0.2, 0.06)
 MID = srgb(0.22, 0.34, 0.09)
 LIGHT = srgb(0.4, 0.48, 0.13)
 HAIR = srgb(0.66, 0.66, 0.5)
-STALK = srgb(0.6, 0.2, 0.09)
-STALK_DARK = srgb(0.36, 0.1, 0.06)
-CAPSULE = srgb(0.3, 0.15, 0.3)
-CAPSULE_LIGHT = srgb(0.52, 0.38, 0.56)
 
 
 class Canvas:
@@ -116,35 +109,6 @@ def shoots(cv, n, h_range, size_mm, light_share, hair_share):
     cv.stamp(cx, cy, h0 + 0.01, base * 1.1)
 
 
-def sporophytes(cv, n):
-    """n stalks, leaning every way, a capsule at each one's end."""
-    for _ in range(n):
-        x0, y0 = rng.uniform(0, N, 2)
-        a = rng.uniform(0, 2 * np.pi)
-        ln = rng.uniform(5, 16) * PX_MM
-        bend = rng.uniform(-0.25, 0.25)
-        t = np.linspace(0, 1, int(ln * 2))
-        ang = a + bend * t
-        x = x0 + np.cumsum(np.cos(ang)) * (ln / len(t))
-        y = y0 + np.cumsum(np.sin(ang)) * (ln / len(t))
-        h = 0.86 + 0.08 * t
-        col = STALK_DARK + (STALK - STALK_DARK) * t[:, None] * rng.uniform(0.8, 1.1)
-        for w in (-0.7, 0.0, 0.7):
-            cv.stamp(x + np.cos(a + 1.57) * w, y + np.sin(a + 1.57) * w, h, col)
-        # the capsule: a slim oval along the stalk's last way, lit along one side
-        e = ang[-1]
-        L, R = rng.uniform(1.4, 2.0) * PX_MM, rng.uniform(0.6, 0.85) * PX_MM
-        u, v = np.meshgrid(np.linspace(-1, 1, 31), np.linspace(-1, 1, 17))
-        inside = u * u + v * v <= 1.0
-        u, v = u[inside], v[inside]
-        cxp, cyp = x[-1] + np.cos(e) * L, y[-1] + np.sin(e) * L
-        px = cxp + np.cos(e) * u * L - np.sin(e) * v * R
-        py = cyp + np.sin(e) * u * L + np.cos(e) * v * R
-        lit = np.clip(0.5 - 0.5 * v - 0.2 * u, 0, 1)[:, None]
-        col = CAPSULE + (CAPSULE_LIGHT - CAPSULE) * lit ** 2
-        cv.stamp(px, py, 0.95 + 0.05 * (1 - u * u - v * v), col * rng.uniform(0.85, 1.1))
-
-
 def main():
     cv = Canvas()
     shoots(cv, 16000, (0.12, 0.45), (1.2, 2.2), 0.3, 0.1)     # the understory, dark, low
@@ -152,12 +116,6 @@ def main():
     rgb, h = cv.render()
     save(OUT, rgb, 0.04 + 0.96 * h)
     print("saved", OUT, "gaps:", round(float((h < 0.05).mean()), 3))
-    # the canopy, its own layer (it sways over the shoots)
-    sp = Canvas()
-    sporophytes(sp, 120)
-    rgb, h = sp.render(bg=STALK_DARK)
-    save(OUT_CANOPY, rgb, (h > 0.0).astype(np.float32))
-    print("saved", OUT_CANOPY)
 
 
 def save(path, rgb, a):
