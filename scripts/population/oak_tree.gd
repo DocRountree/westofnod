@@ -378,6 +378,41 @@ static func trunk_radius(v: int) -> float:
 	return 0.4
 
 
+## The trunk's radius (m, at scale 1) at height h of a standing variant, as
+## its mesh has it: the mean distance from the trunk's middle of where its
+## bark crosses the plane y = h (Felling: the rings' scale on a cut).
+static var _radius_at := {}
+
+
+static func trunk_radius_at(v: int, h: float) -> float:
+	var key := [posmod(v, VARIANTS.size()), snappedf(h, 0.01)]
+	if not _radius_at.has(key):
+		var arrays := build(v).surface_get_arrays(0)
+		var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		var idx: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+		var mid := Vector2.ZERO
+		var near: Array[Vector2] = []
+		# where the triangles' edges cross the plane y = h, near the trunk
+		for i in range(0, idx.size(), 3):
+			for e in 3:
+				var a := verts[idx[i + e]]
+				var b := verts[idx[i + (e + 1) % 3]]
+				if (a.y - h) * (b.y - h) < 0.0:
+					var p := a.lerp(b, (h - a.y) / (b.y - a.y))
+					if Vector2(p.x, p.z).length() < trunk_radius(v) * 2.5:
+						near.append(Vector2(p.x, p.z))
+						mid += Vector2(p.x, p.z)
+		var r := trunk_radius(v)
+		if near.size() > 4:
+			mid /= near.size()
+			r = 0.0
+			for q in near:
+				r += q.distance_to(mid)
+			r /= near.size()
+		_radius_at[key] = r
+	return _radius_at[key]
+
+
 static func _kind(v: int) -> String:
 	return VARIANTS[posmod(v, VARIANTS.size())].get("kind", "tree")
 
@@ -432,33 +467,41 @@ static func fresh_stump() -> Array:
 	return _fresh_stump
 
 
-## A felled trunk's cut end (Felling): a disc of radius 1 across y = 0,
-## both faces, end grain (UV2.x 1, UV across it), in the axe's stump's
-## fresh-cut material.
-static var _cut_disc: ArrayMesh
+## The cut variant of a variant's meshes (its levels of detail: [mesh,
+## lods]): their bark in bark.gdshader compiled with BARK_CUT, both faces
+## drawn, so a notch (Population.set_notch) is a real hollow and a felled
+## tree's foot (Felling: cut_below) a cut face. For the trees being felled
+## (Population: their chunk's nearest level) and the felled.
+static var _cut_meshes := {}
+static var _cut_shader: Shader
 
 
-static func cut_disc() -> ArrayMesh:
-	if _cut_disc == null:
-		var st := SurfaceTool.new()
-		st.begin(Mesh.PRIMITIVE_TRIANGLES)
-		const N := 28
-		for face in [-1.0, 1.0]:
-			for k in N:
-				var a0 := TAU * k / N
-				var a1 := TAU * (k + 1) / N
-				var tri := [Vector2.ZERO, Vector2(cos(a0), sin(a0)), Vector2(cos(a1), sin(a1))]
-				if face < 0.0:
-					tri = [tri[0], tri[2], tri[1]]
-				for q: Vector2 in tri:
-					st.set_normal(Vector3(0.0, face, 0.0))
-					st.set_uv(q)
-					st.set_uv2(Vector2(1.0, 0.0))
-					st.set_color(Color.WHITE)
-					st.add_vertex(Vector3(q.x, 0.0, q.y))
-		_cut_disc = st.commit()
-		_cut_disc.surface_set_material(0, bark_material(0, "fresh_stump"))
-	return _cut_disc
+static func cut_meshes(variant := 0) -> Array:
+	variant = posmod(variant, VARIANTS.size())
+	if not _cut_meshes.has(variant):
+		if _cut_shader == null:
+			var src: Shader = load("res://shaders/render/bark.gdshader")
+			_cut_shader = Shader.new()
+			_cut_shader.code = src.code.replace("shader_type spatial;", "shader_type spatial;\nrender_mode cull_disabled;\n#define BARK_CUT")
+		var out := []
+		for m: Mesh in [build(variant)] + build_lods(variant):
+			var c := m.duplicate() as ArrayMesh
+			for si in c.get_surface_count():
+				var mat := c.surface_get_material(si) as ShaderMaterial
+				if mat and mat.shader and mat.shader.resource_path == "res://shaders/render/bark.gdshader":
+					c.surface_set_material(si, _cut_material(mat))
+			out.append(c)
+		_cut_meshes[variant] = [out[0], out.slice(1)]
+	return _cut_meshes[variant]
+
+
+static func _cut_material(mat: ShaderMaterial) -> ShaderMaterial:
+	var key := ["cut", mat]
+	if not _bark_mats.has(key):
+		var c := mat.duplicate() as ShaderMaterial
+		c.shader = _cut_shader
+		_bark_mats[key] = c # (with the bark's: told the night and the biomes too)
+	return _bark_mats[key]
 
 
 static func build_lods(variant := 0) -> Array[Mesh]:

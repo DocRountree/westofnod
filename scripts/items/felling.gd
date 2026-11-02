@@ -67,7 +67,17 @@ func _mark() -> Vector3:
 	if tree.is_empty():
 		return Vector3.INF
 	var at: Vector3 = (tree.transform as Transform3D).origin
-	return at + Vector3.UP * _cut(float(tree.radius)) - _view_dir() * float(tree.radius)
+	return at + Vector3.UP * _cut(float(tree.radius)) + _notch_side() * float(tree.radius)
+
+
+## The side of the trunk the notch is cut in (on the map, across the ground,
+## unit): the side the axe swings in from, square to the view (the right
+## for an axe in the right hand).
+func _notch_side() -> Vector3:
+	var right := (main.player as Player).camera.global_basis.x
+	right.y = 0.0
+	right = right.normalized() if right.length() > 0.01 else (main.player as Player).global_basis.x
+	return right * (1.0 if _axe_hand() != 0 else -1.0)
 
 
 ## The way the player looks, across the ground (on the map, unit).
@@ -217,13 +227,14 @@ func _strike() -> void:
 	var n: int = _blows.get(tree.uid, 0) + 1
 	if n < need:
 		_blows[tree.uid] = n
-		_notch(tree, -_view_dir(), float(n) / need)
+		_notch(tree, _notch_side(), float(n) / need)
 		return
 	_blows.erase(tree.uid)
 	main.population.remove_prop(tree.uid)
 	var xf: Transform3D = tree.transform
-	var away := _view_dir() # (falling the way the blows went: away from the notch)
-	var entry := _fell(tree.kind, tree.variant, xf, tree.radius, away)
+	var away := _view_dir() # (falling away from the player)
+	var chop := -_notch_side() # (the way the axe went in)
+	var entry := _fell(tree.kind, tree.variant, xf, tree.radius, away, chop)
 	var f: Dictionary = entry.falling
 	_falling.append(f)
 	entry.erase("falling")
@@ -233,7 +244,7 @@ func _strike() -> void:
 ## Puts a felled tree in the world: its stump (if it has one) and the tree,
 ## upright, to fall over toward `away`. Returns the entry to save, with
 ## "falling" the fall to animate.
-func _fell(kind: PropKind, variant: int, xf: Transform3D, radius: float, away: Vector3) -> Dictionary:
+func _fell(kind: PropKind, variant: int, xf: Transform3D, radius: float, away: Vector3, chop: Vector3) -> Dictionary:
 	var world: WorldData = main.world
 	var cut := 0.08
 	var stump_scale := _stump_scale(radius)
@@ -252,14 +263,14 @@ func _fell(kind: PropKind, variant: int, xf: Transform3D, radius: float, away: V
 	var entry := {
 		"kind": String(kind.id), "basis": _floats(xf.basis), "at": [xf.origin.x, xf.origin.y, xf.origin.z],
 		"away": [away.x, away.z], "angle": angle, "cut": cut, "stump_scale": stump_scale,
-		"end": [end.x, end.y, end.z],
+		"end": [end.x, end.y, end.z], "chop": [chop.x, chop.z],
 	}
-	var node := _model([kind.mesh] + kind.lods)
+	var node := _model(_felled_meshes(kind, variant))
 	node.transform = xf
 	_cut_base(node, kind, variant, xf, cut)
 	if stump_scale > 0.0:
 		var sn := _model([OakTree.fresh_stump()[0]] + OakTree.fresh_stump()[1])
-		sn.transform = Transform3D(_stump_basis(away, stump_scale), xf.origin)
+		sn.transform = Transform3D(_stump_basis(chop, stump_scale), xf.origin)
 		_solid_stump(xf.origin, cut, stump_scale)
 	_solid(kind, Transform3D(Basis(axis, angle) * xf.basis, end), cut)
 	entry.falling = {"node": node, "axis": axis, "angle": angle, "t": 0.0, "cut": cut, "end": end,
@@ -343,23 +354,27 @@ func _solid_stump(at: Vector3, top: float, s: float) -> void:
 	main.population.add_fallen(PackedFloat32Array([at.x, at.y, at.z, at.x, at.y + top, at.z, 0.5 * s, 0.5 * s]), [] as Array[PackedFloat32Array])
 
 
+## A felled tree's meshes (every level of detail): the cut variant, so its
+## foot is a cut face (OakTree.cut_meshes).
+static func _felled_meshes(kind: PropKind, variant: int) -> Array:
+	if kind.mesh_script and kind.mesh_script.has_method("cut_meshes"):
+		var cm: Array = kind.mesh_script.cut_meshes(variant)
+		return [cm[0]] + cm[1]
+	return [kind.mesh] + kind.lods
+
+
 ## A felled tree's foot: not drawn below the cut (that stays in the stump),
-## and closed there by a disc of fresh-cut wood a little wider than the trunk
-## (its root flare reaching up past the cut in places).
+## closed there by the cut face (bark.gdshader, BARK_CUT: cut_below, cut_r).
 func _cut_base(node: Node3D, kind: PropKind, variant: int, xf: Transform3D, cut: float) -> void:
 	var s := xf.basis.get_scale().y
-	var h := cut / s # (the tree's own units)
-	for c in node.get_children():
-		if c is GeometryInstance3D:
-			(c as GeometryInstance3D).set_instance_shader_parameter("cut_below", h)
-	if not kind.mesh_script.has_method("trunk_radius"):
-		return
-	var r: float = kind.mesh_script.trunk_radius(variant) * 1.3
-	var disc := MeshInstance3D.new()
-	disc.mesh = OakTree.cut_disc()
-	disc.transform = Transform3D(Basis.from_scale(Vector3(r, 1.0, r)), Vector3(0.0, h, 0.0))
-	disc.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	node.add_child(disc)
+	var h := cut / s
+	var r := 0.5
+	if kind.mesh_script.has_method("trunk_radius_at"):
+		r = kind.mesh_script.trunk_radius_at(variant, h) # (the rings' scale)
+	for c2 in node.get_children():
+		if c2 is GeometryInstance3D:
+			(c2 as GeometryInstance3D).set_instance_shader_parameter("cut_below", h)
+			(c2 as GeometryInstance3D).set_instance_shader_parameter("cut_r", r)
 
 
 ## Meshes drawn as the population draws a kind: every level of detail, each
@@ -405,13 +420,14 @@ func from_list(list: Array) -> void:
 		var end: Array = e.get("end", [])
 		if end.size() == 3:
 			pivot = Vector3(end[0], end[1], end[2])
-		var node := _model([kind.mesh] + kind.lods)
+		var node := _model(_felled_meshes(kind, int(kind.get_meta("variant", 0))))
 		node.transform = Transform3D(Basis(Vector3.UP.cross(dir).normalized(), float(e.get("angle", PI * 0.5))) * basis, pivot)
 		_cut_base(node, kind, int(kind.get_meta("variant", 0)), Transform3D(basis, origin), float(e.get("cut", 0.0)))
 		_solid(kind, node.transform, float(e.get("cut", 0.0)))
 		var s := float(e.get("stump_scale", 0.0))
 		if s > 0.0:
 			var sn := _model([OakTree.fresh_stump()[0]] + OakTree.fresh_stump()[1])
-			sn.transform = Transform3D(_stump_basis(dir, s), origin)
+			var ch: Array = e.get("chop", [dir.x, dir.z])
+			sn.transform = Transform3D(_stump_basis(Vector3(ch[0], 0.0, ch[1]), s), origin)
 			_solid_stump(origin, float(e.get("cut", 0.0)), s)
 		_lying.append(e)

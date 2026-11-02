@@ -34,6 +34,20 @@ varying flat vec4 notch;
 // a felled tree (Felling): the trunk below the cut (its own height) is in
 // the stump, not drawn; the cut end is a disc of its own (OakTree.cut_disc)
 instance uniform float cut_below = -1000.0;
+instance uniform float cut_r = 0.5; // the trunk's radius at the cut (its own units: the rings' scale)
+#ifdef BARK_CUT
+// The cut variant (OakTree.cut_meshes: trees being felled, and felled;
+// both faces drawn): the bark cut away (the notch's wedge, the trunk below
+// the cut) isn't drawn, and the inside seen through the gap is drawn as the
+// cut wood it would be: the line of sight met with the notch's two faces,
+// or the cut across the foot, there shaded as fresh end grain and its depth
+// written there, so the notch is a real hollow in the trunk.
+varying flat vec3 cam_obj; // the camera in the tree's own space
+varying flat vec4 mm0;     // the tree's own model matrix (in the fragment
+varying flat vec4 mm1;     // shader MODEL_MATRIX is a MultiMesh node's)
+varying flat vec4 mm2;
+varying flat vec4 mm3;
+#endif
 uniform bool fresh_end = false; // cut ends fresh-sawn (an axed tree's stump: OakTree.fresh_stump), not weathered
 varying vec3 notch_p; // the tree's own space, unoffset
 varying flat vec3 notch_up_n; // world: the upper face's normal (out of the wood)
@@ -61,6 +75,13 @@ void vertex() {
 	bark_off = fract(tree.xz * vec2(0.0419, 0.0283) + tree.zx * vec2(0.0157, 0.0233)) * vec2(1.0, 5.0);
 	notch = INSTANCE_CUSTOM;
 	notch_p = VERTEX;
+#ifdef BARK_CUT
+	cam_obj = (inverse(MODEL_MATRIX) * vec4(CAMERA_POSITION_WORLD, 1.0)).xyz;
+	mm0 = MODEL_MATRIX[0];
+	mm1 = MODEL_MATRIX[1];
+	mm2 = MODEL_MATRIX[2];
+	mm3 = MODEL_MATRIX[3];
+#endif
 	if (notch.y > 0.0) {
 		vec2 d = vec2(cos(notch.x), sin(notch.x));
 		float k = 0.5; // half the opening / the depth
@@ -107,7 +128,84 @@ vec3 end_grain(vec2 p, bool fresh) {
 
 void fragment() {
 	if (lod_hidden(FRAGCOORD.xy, lod_f)) discard;
+	bool cut_face = false; // (the cut wood drawn: none of the bark's)
+#ifdef BARK_CUT
+	DEPTH = FRAGCOORD.z;
+	bool in_notch = false;
+	if (notch.y > 0.0) {
+		vec2 d = vec2(cos(notch.x), sin(notch.x));
+		float q = notch.w - dot(notch_p.xz, d);
+		in_notch = q < notch.y && abs(notch_p.y - notch.z) < 0.5 * (notch.y - q);
+	}
+	if (FRONT_FACING) {
+		if (in_notch || notch_p.y < cut_below)
+			discard; // (cut away)
+	} else {
+		// inside, seen through the gap: where the line of sight meets the
+		// cut wood
+		vec3 o = cam_obj;
+		vec3 dir = normalize(notch_p - cam_obj);
+		float best = 1e9;
+		vec3 hit = vec3(0.0);
+		vec3 hn = vec3(0.0, 1.0, 0.0); // (out of the wood, the tree's own)
+		float rr = 1.0;
+		float dark = 0.0;
+		if (notch.y > 0.0) {
+			vec2 d = vec2(cos(notch.x), sin(notch.x));
+			float D = notch.y, R = notch.w, hc = notch.z;
+			for (int f = 0; f < 2; f++) {
+				float sg = f == 0 ? 1.0 : -1.0; // the upper face, the lower
+				// face: y - sg * 0.5 * (d . xz) = hc + sg * 0.5 * (D - R)
+				vec3 n = vec3(-sg * 0.5 * d.x, 1.0, -sg * 0.5 * d.y);
+				float c = hc + sg * 0.5 * (D - R);
+				float den = dot(n, dir);
+				if (abs(den) < 1e-5)
+					continue;
+				float t = (c - dot(n, o)) / den;
+				vec3 p = o + dir * t;
+				float q = R - dot(p.xz, d);
+				if (t > 0.0 && t < best && q >= 0.0 && q <= D && length(p.xz) <= R) {
+					best = t;
+					hit = p;
+					hn = normalize(vec3(0.5 * d.x, -sg, 0.5 * d.y));
+					rr = R;
+					dark = q / D;
+				}
+			}
+		}
+		if (cut_below > -999.0 && abs(dir.y) > 1e-5) {
+			float t = (cut_below - o.y) / dir.y;
+			vec3 p = o + dir * t;
+			if (t > 0.0 && t < best && length(p.xz) < cut_r * 1.6) {
+				best = t;
+				hit = p;
+				// chopped in strokes, as the stump's top (along x)
+				float band = p.x * 7.0 + 0.35 * sin(p.z * 4.6 + 1.1);
+				vec2 sl = (vec2(lc_hash(vec3(floor(band), 17.0, 3.0)), lc_hash(vec3(floor(band), 17.0, 7.0))) - 0.5) * vec2(0.3, 0.45);
+				hn = normalize(vec3(sl.x, -1.0, sl.y));
+				rr = cut_r * 1.3; // (the roots' lobes reach past the mean: the rim's dark only past them)
+				dark = 0.0;
+			}
+		}
+		if (best > 1e8)
+			discard;
+		mat4 M = mat4(mm0, mm1, mm2, mm3);
+		vec4 w = M * vec4(hit, 1.0);
+		vec4 clip = PROJECTION_MATRIX * (VIEW_MATRIX * w);
+		DEPTH = clip.z / clip.w;
+		vec3 wood = end_grain(hit.xz / rr, true) * (0.9 + 0.2 * lc_noise(hit * vec3(40.0, 4.0, 40.0)));
+		ALBEDO = wood * mix(1.0, 0.45, dark * dark);
+		NORMAL = normalize((VIEW_MATRIX * vec4(normalize(mat3(M) * hn), 0.0)).xyz);
+		AO = 1.0;
+		ROUGHNESS = 0.8;
+		SPECULAR = 0.3;
+		FOG = aerial_fog(w.xyz, CAMERA_POSITION_WORLD);
+		cut_face = true;
+	}
+#else
 	if (notch_p.y < cut_below && UV2.x < 0.5) discard;
+#endif
+	if (!cut_face) {
 	vec3 geo_n = NORMAL; // (before the bark's bumps: lichen and moss cover them)
 	if (UV2.x > 0.5) {
 		ALBEDO = end_grain(UV, fresh_end) * COLOR.rgb;
@@ -223,6 +321,7 @@ void fragment() {
 		}
 	}
 	FOG = aerial_fog(world_pos, CAMERA_POSITION_WORLD);
+	}
 }
 
 // Lit by hand so a shadow only dims it part way (shadow_strength): trees

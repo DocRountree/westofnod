@@ -52,6 +52,10 @@ var zoom := 1.0
 var zoom_power := 6.0
 var grounded := false ## Standing on the ground (see _move).
 var sink := 0.0 ## How deep the feet are in the mud (swamps).
+## Crouching (Shift held, on foot): lower, slower. 0 standing .. 1 down.
+var crouch := 0.0
+const CROUCH_SPEED := 0.45 ## of the walking speed
+const CROUCH_EYE := 1.05 ## m: the eye's height crouched (standing: 1.62)
 var _last_space := -100000 # ms of the last Space press, for double-tap
 var frozen := true
 var typing := false ## The chat (or the knapsack) is open: the keys are its.
@@ -99,6 +103,14 @@ func _ready() -> void:
 
 func _move_input() -> Vector2:
 	return Vector2.ZERO if typing else Input.get_vector("move_left", "move_right", "move_forward", "move_back")
+
+
+## Climbing's input: as walking's, and Space climbs on up as W does.
+func _climb_input() -> Vector2:
+	var v := _move_input()
+	if _held("jump"):
+		v.y = minf(v.y, -1.0)
+	return v
 
 
 func _held(action: StringName) -> bool:
@@ -243,6 +255,10 @@ func _physics_process(delta: float) -> void:
 	var in_water := depth > 0.6
 	var head_under := water.x > head.global_position.y
 
+	if climbing or flying or in_water:
+		crouch = 0.0 # (only on foot)
+		head.position.y = 1.62
+		avatar.crouch = 0.0
 	if climbing:
 		if _trunk.is_empty():
 			_climb(delta)
@@ -262,7 +278,11 @@ func _physics_process(delta: float) -> void:
 		_swim(delta, dir, depth, head_under)
 	else:
 		swimming = false
-		var speed := SPRINT_SPEED if _held("sprint") else WALK_SPEED
+		# Shift crouches: down by degrees, and slower
+		crouch = move_toward(crouch, 1.0 if _held("descend") else 0.0, delta * 5.0)
+		head.position.y = lerpf(1.62, CROUCH_EYE, crouch)
+		var speed := SPRINT_SPEED if _held("sprint") and crouch < 0.5 else WALK_SPEED
+		speed *= lerpf(1.0, CROUCH_SPEED, crouch)
 		speed *= lerpf(1.0, SWAMP_SLOW, _mud(position))
 		velocity.y -= GRAVITY * delta
 		if _held("jump") and grounded:
@@ -290,6 +310,7 @@ func _physics_process(delta: float) -> void:
 		avatar.global_basis = Basis(Vector3.UP, avatar.global_rotation.y)
 	if avatar.visible:
 		avatar.sink = sink
+		avatar.crouch = crouch
 		avatar.walk(delta, hv.length(), grounded or flying)
 
 
@@ -364,11 +385,12 @@ func _move(delta: float, in_water: bool) -> void:
 	position = p
 
 
-## Climbing: hands and feet on the rock, moving over its surface. W/S climb up
-## and down the fall line, A/D traverse; Space lets go. Over the top (or down
-## onto ground gentle enough to stand on) the climb ends by itself.
+## Climbing: hands and feet on the rock, moving over its surface. W (or
+## Space) and S climb up and down the fall line, A/D traverse; C lets go. Over
+## the top (or down onto ground gentle enough to stand on) the climb ends by
+## itself.
 func _climb(delta: float) -> void:
-	var input := _move_input()
+	var input := _climb_input()
 	var g := Vector2(position.x, position.z) + _grip_offset
 	var n := world.normal_at(g.x, g.y)
 	var up_t := (Vector3.UP - n * n.y).normalized()
@@ -380,8 +402,8 @@ func _climb(delta: float) -> void:
 	n = world.normal_at(g.x, g.y)
 	up_t = (Vector3.UP - n * n.y).normalized()
 	right = up_t.cross(n)
-	if _just("jump") or (n.y > CLIMBABLE + 0.05 and input.length() > 0.1):
-		# Let go, or step out onto ground you can stand on.
+	if n.y > CLIMBABLE + 0.05 and input.length() > 0.1:
+		# Step out onto ground you can stand on.
 		position = surface + Vector3.UP * 0.05
 		set_climbing(false)
 		return
@@ -399,7 +421,7 @@ func _climb(delta: float) -> void:
 ## it; back at its root, on down the trunk. Down at the foot, the climb ends
 ## by itself; C on top of a limb stands you on it (_leave_tree).
 func _climb_tree(delta: float) -> void:
-	var input := _move_input()
+	var input := _climb_input()
 	var f := Population.trunk_frame(_trunk, _trunk_s)
 	var n := _trunk_out(f)
 	var up_t: Vector3 = f[2]
@@ -432,8 +454,8 @@ func _climb_tree(delta: float) -> void:
 				return
 	var feet := surface + n * CLIMB_OFFSET - up_t * 1.0
 	var ground := world.height_at(feet.x, feet.z)
-	if _just("jump") or (on_trunk and input.y > 0.1 and feet.y <= ground + 0.05):
-		# let go (falling, pushed off the bark a little), or down at the foot
+	if on_trunk and input.y > 0.1 and feet.y <= ground + 0.05:
+		# down at the foot
 		position = Vector3(feet.x, maxf(feet.y, ground), feet.z)
 		_trunk = PackedFloat32Array()
 		set_climbing(false)

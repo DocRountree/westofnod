@@ -908,6 +908,10 @@ func _build_props(ch: _Chunk) -> void:
 			mm.transform_format = MultiMesh.TRANSFORM_3D
 			mm.use_custom_data = not with_custom.is_empty()
 			mm.mesh = kind.mesh if l == 0 else kind.lods[l - 1]
+			if not with_custom.is_empty() and kind.mesh_script and kind.mesh_script.has_method("cut_meshes"):
+				# (a tree being felled in it: the cut variant, its notch a real hollow)
+				var cm: Array = kind.mesh_script.cut_meshes(int(kind.get_meta("variant", 0)))
+				mm.mesh = cm[0] if l == 0 else cm[1][l - 1]
 			mm.instance_count = xf.size() / 12
 			mm.buffer = xf if with_custom.is_empty() else with_custom
 			var mi := MultiMeshInstance3D.new()

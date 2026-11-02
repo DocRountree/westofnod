@@ -31,6 +31,7 @@ var _chest: Node3D
 ## the walk: "l"/"r" -> [the hand's target, the elbow's pole] (Felling: on
 ## the axe's handle as it swings). Cleared by whoever set them.
 var arm_targets := {}
+var crouch := 0.0 ## 0 standing .. 1 crouched (the player's): hips down, knees bent, leaning in
 var _grips := {} # "l"/"r" -> Node3D: where the hands hold things
 var _limbs := {} # name -> {root: Node3D (socket on the body), a, b (bone pivots), len, hold: Vector3, planted}
 var _phase := 0.0
@@ -188,12 +189,13 @@ func walk(delta: float, speed: float, on_floor: bool) -> void:
 	var fwd := -b.z
 	var right := b.x
 	var amp := clampf(speed / 4.6, 0.0, 1.4) * 0.35
-	_hips.position.y = 0.95 - absf(sin(_phase)) * 0.04 * amp * 3.0
+	_hips.position.y = 0.95 - absf(sin(_phase)) * 0.04 * amp * 3.0 - crouch * 0.42
 	# lean into the pace; the shoulders twist against the hips with the stride,
-	# the hips sway a little; the head keeps level
-	_hips.rotation = Vector3(-amp * 0.25, sin(_phase) * amp * 0.25, 0.0)
-	_chest.rotation = Vector3(-amp * 0.1, -sin(_phase) * amp * 0.6, 0.0)
-	_head.rotation = Vector3(amp * 0.3, sin(_phase) * amp * 0.3, 0.0)
+	# the hips sway a little; the head keeps level (crouched: the body leans
+	# in over the bent knees, the head up)
+	_hips.rotation = Vector3(-amp * 0.25 - crouch * 0.5, sin(_phase) * amp * 0.25, 0.0)
+	_chest.rotation = Vector3(-amp * 0.1 - crouch * 0.15, -sin(_phase) * amp * 0.6, 0.0)
+	_head.rotation = Vector3(amp * 0.3 + crouch * 0.6, sin(_phase) * amp * 0.3, 0.0)
 	for side: int in [-1, 1]:
 		var sname := "l" if side < 0 else "r"
 		var s := sin(_phase + (0.0 if side < 0 else PI))
