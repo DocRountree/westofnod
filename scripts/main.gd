@@ -507,6 +507,10 @@ func _update_light() -> void:
 	var night := atmosphere.night_amount()
 	env.ambient_light_sky_contribution = 1.0 - 0.7 * night
 	env.tonemap_exposure = lerpf(1.05, 1.9, night)
+	# the prairie's pale ground and grass, a little darker at night
+	terrain_material.set_shader_parameter("night", night)
+	for m in ground_cover.materials:
+		m.set_shader_parameter("night", night)
 	var dir := _sun.global_basis.z
 	var c := _sun.light_color * (_sun.light_energy / 1.4)
 	var sun_col := Vector3(c.r, c.g, c.b)

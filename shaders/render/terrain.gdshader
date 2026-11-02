@@ -19,6 +19,8 @@ render_mode diffuse_burley, specular_schlick_ggx, skip_vertex_transform;
 #include "res://shaders/render/height_map.gdshaderinc"
 #include "res://shaders/render/aerial.gdshaderinc"
 
+uniform float night = 0.0; // 0 day .. 1 night (main.gd)
+const float PRAIRIE_NIGHT_DIM = 0.15; // (also ground_cover.gdshader)
 uniform vec3 sun_direction = vec3(0.4, 0.6, 0.6);
 
 varying vec3 world_pos;
@@ -67,6 +69,7 @@ void fragment() {
 	float rough = 0.0;
 	float rocky = 0.0;
 	float litter = 0.0;
+	float prairie = 0.0;
 	for (int k = 0; k < 4; k++) {
 		float w;
 		int b = biome_texel(bg, k, w);
@@ -77,7 +80,11 @@ void fragment() {
 		rough += r_ * w;
 		rocky += k_ * w;
 		litter += l_ * w;
+		if (b == 2)
+			prairie += w;
 	}
+	// the prairie's pale ground, a little darker at night (main.gd: night)
+	col *= 1.0 - PRAIRIE_NIGHT_DIM * night * prairie;
 	// the fallen leaves, near
 	float near = 1.0 - smoothstep(litter_fade.x, litter_fade.y, distance(world_pos, CAMERA_POSITION_WORLD));
 	if (litter * near > 0.0) {

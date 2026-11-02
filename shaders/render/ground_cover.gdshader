@@ -35,10 +35,11 @@ uniform vec2 fade_out = vec2(30.0, 40.0); // m: shrinks away over this
 uniform float thin_from = 12.0;       // m: beyond this a share (thin_from / d)^1.5 is kept
 uniform float grass_sway = 0.3;       // the tip's sway, in clump heights per m of the wind
 uniform sampler2D frond_tex : source_color, filter_linear_mipmap_anisotropic, repeat_disable;
-uniform vec3 prairie_green = vec3(0.25, 0.4, 0.11);
-uniform vec3 prairie_blonde = vec3(0.66, 0.57, 0.34);
+uniform vec3 prairie_green = vec3(0.27, 0.43, 0.12);
+uniform vec3 prairie_blonde = vec3(0.74, 0.64, 0.38);
 uniform vec3 head_color = vec3(0.075, 0.035, 0.017); // linear: a cattail's head (UV.x 2..3 marks it)
 uniform float shadow_strength = 0.7;
+uniform float night = 0.0; // 0 day .. 1 night (main.gd): the prairie's grass a little darker at night, as its ground
 uniform vec3 frond_mean = vec3(0.03, 0.07, 0.006); // linear: the frond texture's mean (GroundCover sets it)
 
 varying vec3 world_pos;
@@ -111,6 +112,7 @@ void vertex() {
 		// (all the ground's colour by the time it starts to go: ferns from
 		// a few metres off, little by little; grass further out)
 		far = kind == 1 ? smoothstep(3.0, fade_out.x, d) : smoothstep(fade_out.x * 0.4, fade_out.x, d);
+		ground *= 1.0 - 0.15 * night * prairie;
 		root_col = pow(ground, vec3(2.2));
 		if (kind == 1) { // (a tint on the frond's texture, halfway to the ground's colour)
 			tip_col = mix(vec3(COLOR.r), root_col / frond_mean, 0.5);
@@ -118,7 +120,7 @@ void vertex() {
 			vec3 tip = mix(ground * vec3(1.12, 1.22, 1.05), // forest: the ground's, a little lighter
 					mix(prairie_green, prairie_blonde, clamp(a.a / 255.0 + COLOR.g * 0.5 - 0.25, 0.0, 1.0)) * 0.85, // prairie
 					prairie);
-			tip_col = pow(tip * COLOR.r, vec3(2.2));
+			tip_col = pow(tip * COLOR.r * (1.0 - 0.15 * night * prairie), vec3(2.2));
 		}
 	}
 }

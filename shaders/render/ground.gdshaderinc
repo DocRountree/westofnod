@@ -107,9 +107,9 @@ vec3 biome_ground(int b, Shared s, out float rough, out float rocky, out float l
 		rock = sandstone(s);
 		steep = smoothstep(0.62, 0.42, s.n.y);
 	} else if (b == 2) {     // prairie: golden-green grass in broad patches
-		ground = mix(vec3(0.40, 0.41, 0.18), vec3(0.52, 0.47, 0.235), s.patches);
-		ground = mix(ground, vec3(0.27, 0.36, 0.135), s.m.g * 0.6);   // greener where it's wetter
-		ground = mix(ground, vec3(0.56, 0.495, 0.27), clump(s, 0.12) * 0.6);
+		ground = mix(vec3(0.44, 0.45, 0.20), vec3(0.58, 0.52, 0.26), s.patches);
+		ground = mix(ground, vec3(0.30, 0.40, 0.15), s.m.g * 0.6);   // greener where it's wetter
+		ground = mix(ground, vec3(0.62, 0.55, 0.30), clump(s, 0.12) * 0.6);
 	} else if (b == 3) {     // swamp: dark mud and moss, standing water
 		ground = mix(vec3(0.15, 0.16, 0.09), vec3(0.22, 0.25, 0.12), s.patches);
 		float pools = clump(s, 0.6);                                    // mostly water
