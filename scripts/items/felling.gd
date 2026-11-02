@@ -419,19 +419,20 @@ func _cut_base(node: Node3D, kind: PropKind, variant: int, xf: Transform3D, cut:
 				mi.set_surface_override_material(si, fm)
 				if cap == null:
 					cap = fm
-	# the cut itself, a face across the foot (just below it: the material
-	# draws there the cut it sees, as through the open trunk), so the wood
+	# the cut itself, a face across the foot (just inside the wood, beyond
+	# the cut seen from outside: the material draws there the cut it sees
+	# through the trunk's open foot; on this side of it, it drew nothing), so the wood
 	# is there in depth: where the foot sinks into the ground the ground
 	# hides it, not the trunk's inside behind it (with the cut drawn on it)
 	if cap and kind.mesh_script.has_method("trunk_outline_at"):
 		var ring: PackedVector2Array = kind.mesh_script.trunk_outline_at(variant, h)
 		if ring.size() > 4:
 			var mid := ring[0]
-			var y := h - 0.003
+			var y := h + 0.003
 			var verts := PackedVector3Array()
 			for i in range(1, ring.size()):
-				var a := mid + (ring[i] - mid) * 1.02
-				var b := mid + (ring[1 + i % (ring.size() - 1)] - mid) * 1.02
+				var a := ring[i]
+				var b := ring[1 + i % (ring.size() - 1)]
 				verts.append_array([Vector3(mid.x, y, mid.y), Vector3(a.x, y, a.y), Vector3(b.x, y, b.y)])
 			var norms := PackedVector3Array()
 			norms.resize(verts.size())
