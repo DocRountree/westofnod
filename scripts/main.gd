@@ -39,8 +39,17 @@ var _under := false
 
 
 func _ready() -> void:
+	# The world loads step by step behind the loading screen (a bar, what
+	# it's doing), the screen redrawn between steps; then it waits for
+	# everything round the spawn (the trees and rocks within view, the
+	# grass's grids, the shaders' first use), so it's all there at once
+	# when the player comes in.
+	_loading = _loading_screen()
+	await _step("Lighting the sky", 0.02)
 	_build_environment()
+	await _step("Reading the land", 0.06)
 	world = WorldData.new().load_world()
+	await _step("Laying out the ground", 0.14)
 
 	var terrain_mat := ShaderMaterial.new()
 	terrain_material = terrain_mat
@@ -83,6 +92,7 @@ func _ready() -> void:
 	for m in _hazed:
 		m.set_shader_parameter("haze_sun_dir", _sun.global_basis.z)
 
+	await _step("Growing the trees", 0.18)
 	collider = TerrainCollider.new()
 	collider.world = world
 	add_child(collider)
@@ -100,6 +110,7 @@ func _ready() -> void:
 			if m is ShaderMaterial and not _hazed.has(m):
 				_hazed.append(m)
 				m.set_shader_parameter("haze_sun_dir", _sun.global_basis.z)
+	await _step("Sowing the grass", 0.3)
 	ground_cover = GroundCover.new()
 	ground_cover.population = population
 	add_child(ground_cover)
@@ -118,6 +129,7 @@ func _ready() -> void:
 	aurora.min_latitude = AURORA_LATITUDE
 	_update_position_on_planet()
 	collider.follow(player.global_position)
+	await _warm_up()
 	player.frozen = false
 	hud = Hud.new()
 	hud.player = player
@@ -137,6 +149,83 @@ func _ready() -> void:
 		chat.say("Welcome back. Esc for the menu.", Color(0.75, 0.85, 1.0))
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	hud.status.text = ""
+	_loaded = true
+	_loading.queue_free()
+
+
+# ---- the loading screen
+
+var _loaded := false
+var _loading: CanvasLayer
+var _loading_bar: ProgressBar
+var _loading_label: Label
+
+
+func _loading_screen() -> CanvasLayer:
+	var layer := CanvasLayer.new()
+	layer.layer = 50
+	var bg := ColorRect.new()
+	bg.color = Color(0.06, 0.08, 0.1)
+	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	layer.add_child(bg)
+	var centre := CenterContainer.new()
+	centre.set_anchors_preset(Control.PRESET_FULL_RECT)
+	layer.add_child(centre)
+	var box := VBoxContainer.new()
+	box.custom_minimum_size = Vector2(520, 0)
+	box.add_theme_constant_override("separation", 14)
+	centre.add_child(box)
+	var title := Label.new()
+	title.text = "Loading %s" % (Session.game_name if Session.game_name != "" else "debug mode")
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", 28)
+	box.add_child(title)
+	_loading_bar = ProgressBar.new()
+	_loading_bar.min_value = 0.0
+	_loading_bar.max_value = 1.0
+	_loading_bar.step = 0.0
+	_loading_bar.custom_minimum_size = Vector2(0, 22)
+	box.add_child(_loading_bar)
+	_loading_label = Label.new()
+	_loading_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_loading_label.modulate = Color(0.75, 0.8, 0.85)
+	box.add_child(_loading_label)
+	add_child(layer)
+	return layer
+
+
+## Shows what's being done and how far along, and lets the screen redraw.
+func _step(what: String, progress: float) -> void:
+	_loading_label.text = what + "..."
+	_loading_bar.value = maxf(_loading_bar.value, progress)
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+
+## Runs the world round the spawn (behind the screen) until it's all there:
+## the terrain's detail, every chunk of trees and rocks within view (added
+## many a frame now), the grass's grids; then a few frames more, so the
+## shaders have all been used once (no hitch on the first look round).
+func _warm_up() -> void:
+	population.apply_per_frame = 64
+	var t0 := Time.get_ticks_msec()
+	var p := 0.0
+	while Time.get_ticks_msec() - t0 < 120000: # (never stuck for good)
+		var cam := player.camera.global_position
+		_update_world(cam)
+		var trees := population.load_progress(player.global_position)
+		var grass := ground_cover.is_ready()
+		p = 0.35 + 0.55 * trees + (0.05 if grass else 0.0)
+		var what := "Sowing the grass"
+		if trees < 1.0:
+			what = "Placing the trees (%d%%)" % roundi(trees * 100.0)
+		await _step(what, p)
+		if trees >= 1.0 and grass and population.stats().generating == 0:
+			break
+	population.apply_per_frame = Population.APPLY_PER_FRAME
+	for i in 8:
+		_update_world(player.camera.global_position)
+		await _step("Almost there", lerpf(p, 1.0, (i + 1) / 8.0))
 
 
 ## Picks a saved game up where it was left (Session.data): where you stood
@@ -449,10 +538,18 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _process(delta: float) -> void:
+	if not _loaded:
+		return
 	_played += delta
 	_since_save += delta
 	if _since_save >= AUTOSAVE_SECONDS:
 		save_game()
+	_update_world(player.camera.global_position)
+
+
+## Everything that follows the player and the camera, each frame (and,
+## loading, behind the loading screen).
+func _update_world(_cam: Vector3) -> void:
 	_wrap()
 	_update_position_on_planet()
 	_update_light()

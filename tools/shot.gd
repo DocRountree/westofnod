@@ -38,7 +38,7 @@ func _view(pos: Vector3, yaw: float, pitch: float, settle: float = 2.0) -> void:
 
 func _run() -> void:
 	var t0 := Time.get_ticks_msec()
-	while main.player.frozen:
+	while main.player == null or main.player.frozen:
 		await _wait(0.5)
 		if Time.get_ticks_msec() - t0 > 900000:
 			print("TIMEOUT waiting for the world")

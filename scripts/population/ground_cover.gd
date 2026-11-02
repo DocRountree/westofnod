@@ -141,6 +141,14 @@ static func setup_terrain(terrain: ShaderMaterial) -> void:
 	terrain.set_shader_parameter("litter_mean", _mean(t))
 
 
+## Every layer's grid worked out and shown (after the first update()s).
+func is_ready() -> bool:
+	for layer in _layers:
+		if layer.shown < 0 or layer.baking:
+			return false
+	return true
+
+
 ## Moves the tiles to keep round the camera. Call every frame.
 func update(cam: Vector3) -> void:
 	for layer in _layers:

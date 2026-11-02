@@ -22,7 +22,8 @@ extends Node3D
 const CHUNK := 64.0
 const PROP_DIR := "res://data/population/props/"
 const ACTOR_DIR := "res://data/population/actors/"
-const APPLY_PER_FRAME := 2 ## Generated chunks added to the scene per frame, at most.
+const APPLY_PER_FRAME := 2 ## Generated chunks added to the scene per frame, at most (playing).
+var apply_per_frame := APPLY_PER_FRAME ## (more while the world loads, behind its screen)
 const MAX_TASKS := 4 ## Chunks generating at once.
 const UID_OFFSET := 1 << 18
 const STEP_UP := 0.7 ## m: a body steps up onto a log or stump this high above its feet; higher, it must jump
@@ -172,13 +173,32 @@ func update(focus: Vector3) -> void:
 			WorkerThreadPool.wait_for_task_completion(_tasks[key])
 			_tasks.erase(key)
 	_lock.lock()
-	var batch := _done.slice(0, APPLY_PER_FRAME)
-	_done = _done.slice(APPLY_PER_FRAME)
+	var batch := _done.slice(0, apply_per_frame)
+	_done = _done.slice(apply_per_frame)
 	_lock.unlock()
 	for ch: _Chunk in batch:
 		if _wanted(ch.key):
 			_apply(ch)
 	_update_actors(focus)
+
+
+## How much of what should be round `focus` is in place, 0..1 (the share of
+## the chunks within view that have been generated and added).
+func load_progress(focus: Vector3) -> float:
+	if world == null or (props.is_empty() and actor_kinds.is_empty()):
+		return 1.0
+	var c := _key(focus)
+	var n := ceili(_radius / CHUNK) + 1
+	var total := 0
+	var done := 0
+	for dz in range(-n, n + 1):
+		for dx in range(-n, n + 1):
+			var key := c + Vector2i(dx, dz)
+			if _chunk_dist(key, focus) <= _radius:
+				total += 1
+				if _chunks.has(key):
+					done += 1
+	return float(done) / maxf(total, 1)
 
 
 ## Moves a body (a circle of radius r at p, horizontally) out of any solid

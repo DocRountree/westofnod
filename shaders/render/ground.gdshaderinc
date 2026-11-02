@@ -63,12 +63,12 @@ float biome_mud(int b, Shared s, out float puddle) {
 	puddle = 0.0;
 	float from;
 	if (b == 0)
-		from = 0.75 - 0.05 * s.m.g;  // (the forest's only)
+		from = 0.71 - 0.05 * s.m.g;  // (the forest's only)
 	else
 		return 0.0;
 	float n = vnoise(s.p / 5.0 + 41.0) * 0.6 + vnoise(s.p / 1.7 - 17.0) * 0.3 + vnoise(s.p / 0.6) * 0.1;
 	float detail = 1.0 - smoothstep(1.0, 4.0, s.fp);
-	float mud = mix(0.05, smoothstep(from, from + 0.02, n), detail);
+	float mud = mix(0.08, smoothstep(from, from + 0.02, n), detail);
 	puddle = smoothstep(from + 0.09, from + 0.11, n) * detail;
 	return mud;
 }
