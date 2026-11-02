@@ -67,6 +67,12 @@ varying float frac;
 varying float fade;  // 1 drawn, 0 gone: a clump coming or going dissolves (stippled)
 varying float far;   // 0 its own colours, 1 all the ground's
 varying float dim;   // the night's dimming (the prairie's)
+// which part of the clump (from UV.x, the vertex's own, exact): 0 a blade
+// or leaf, 1 a round stalk, 2 a cattail's head, 3 a flower's rays, 4 its
+// disc. Flat: not from UV.x in the pixel, which multisampling reads at the
+// pixel's middle, off a blade thinner than the pixel, far beyond its 0..1
+// (it read as a ray, white: specks glittering all over the grass).
+varying flat int part;
 
 float bayer4(vec2 frag) {
 	ivec2 q = ivec2(mod(frag, 4.0));
@@ -99,6 +105,7 @@ void vertex() {
 		size = a.b / 255.0 * SIZE_MAX * mix(0.6, 1.0, grow); // (coming in, it grows a little as it dithers in)
 	}
 	frac = COLOR.b;
+	part = UV.x > 4.0 ? 4 : (UV.x > 3.0 ? 3 : (UV.x > 1.5 ? 2 : (UV.x > 1.1 ? 1 : 0)));
 	fade = grow;
 	if (size <= 0.0) {
 		VERTEX = vec3(0.0, -1e4, 0.0); // nothing here: no pixels
@@ -126,7 +133,7 @@ void vertex() {
 		nrm.xz = rot * nrm.xz;
 		// lit mostly as the ground under it is (and the shadow map read
 		// above it: thin blades caught speckles of the ground's own shadow)
-		NORMAL = normalize(mat3(VIEW_MATRIX) * normalize(mix(nrm, vec3(0.0, 1.0, 0.0), kind == 1 ? 0.5 : (UV.x > 1.5 ? (UV.x > 3.0 ? 0.35 : 0.2) : (UV.x > 1.1 ? 0.35 : 0.85))))); // (a cattail's head and stalk: round, lit as round)
+		NORMAL = normalize(mat3(VIEW_MATRIX) * normalize(mix(nrm, vec3(0.0, 1.0, 0.0), kind == 1 ? 0.5 : (part >= 2 ? (part >= 3 ? 0.35 : 0.2) : (part == 1 ? 0.35 : 0.85))))); // (a cattail's head and stalk: round, lit as round)
 		// colours: the ground's at the root; toward the tip lighter
 		// (forest), green to blonde (prairie); all the ground's far off
 		// (all the ground's colour by the time it starts to go: ferns from
@@ -169,11 +176,11 @@ void fragment() {
 		c = t.rgb * tip_col * mix(0.6, 1.0, smoothstep(0.0, 0.5, frac));
 	} else {
 		c = mix(root_col, tip_col, smoothstep(0.0, 0.7, frac)) * mix(0.75, 1.0, frac);
-		if (UV.x > 4.0) // a flower's disc
+		if (part == 4) // a flower's disc
 			c = pow(disc_color, vec3(2.2)) * COLOR.r * dim;
-		else if (UV.x > 3.0) // its rays
-			c = pow(COLOR.g < petal_alt_share ? petal_alt : mix(petal_base, petal_color, smoothstep(0.0, 0.45, UV.y)), vec3(2.2)) * COLOR.r * dim;
-		else if (UV.x > 1.5)
+		else if (part == 3) // its rays
+			c = pow(COLOR.g < petal_alt_share ? petal_alt : mix(petal_base, petal_color, smoothstep(0.0, 0.45, clamp(UV.y, 0.0, 1.0))), vec3(2.2)) * COLOR.r * dim;
+		else if (part == 2)
 			c = head_color * COLOR.r;
 	}
 	// far off, exactly the ground's colour (a flower's head its own: it
@@ -181,12 +188,12 @@ void fragment() {
 	// a flower's head: its own colours, or its stem's once it's only a few
 	// pixels across (the metres a pixel spans at its distance)
 	float head_k = 1.0;
-	if (UV.x > 3.0) {
+	if (part >= 3) {
 		float mpp = 2.0 * max(-VERTEX.z, 0.01) / (PROJECTION_MATRIX[1][1] * VIEWPORT_SIZE.y);
 		head_k = smoothstep(head_px.x, head_px.y, head_size / max(mpp, 1e-6));
 		c = mix(tip_col * 0.9, c, head_k);
 	}
-	ALBEDO = mix(c, root_col, UV.x > 3.0 ? far * (1.0 - head_k) : far);
+	ALBEDO = mix(c, root_col, part >= 3 ? far * (1.0 - head_k) : far);
 	ROUGHNESS = 0.85;
 	SPECULAR = 0.2;
 	FOG = aerial_fog(world_pos, CAMERA_POSITION_WORLD + world_origin);
