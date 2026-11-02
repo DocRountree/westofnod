@@ -66,7 +66,6 @@ varying float frac;
 varying float fade;  // 1 drawn, 0 gone: a clump coming or going dissolves (stippled)
 varying float far;   // 0 its own colours, 1 all the ground's
 varying float dim;   // the night's dimming (the prairie's)
-varying float head_k; // a flower's head: 1 its own colours, 0 its stem's (too small to show)
 
 float bayer4(vec2 frag) {
 	ivec2 q = ivec2(mod(frag, 4.0));
@@ -107,7 +106,6 @@ void vertex() {
 		tip_col = vec3(0.0);
 		far = 0.0;
 		dim = 1.0;
-		head_k = 0.0;
 	} else {
 		float h = base_h - 512.0 + (round(a.r) * 256.0 + round(a.g)) / 64.0;
 		float spin = h2(c, 8) * 6.2832;
@@ -134,9 +132,7 @@ void vertex() {
 		// a few metres off, little by little; grass further out)
 		far = kind == 1 ? smoothstep(3.0, fade_out.x, d) : smoothstep(fade_out.x * 0.4, fade_out.x, d);
 		dim = 1.0 - 0.5 * night * prairie;
-		// how many pixels across a head is from here
-		float px = head_size * PROJECTION_MATRIX[1][1] * VIEWPORT_SIZE.y * 0.5 / max(distance(w, CAMERA_POSITION_WORLD + world_origin), 0.01);
-		head_k = smoothstep(2.5, 6.0, px);
+
 		ground *= dim;
 		root_col = pow(ground, vec3(2.2));
 		if (kind == 1) { // (a tint on the frond's texture, halfway to the ground's colour)
@@ -181,8 +177,14 @@ void fragment() {
 	}
 	// far off, exactly the ground's colour (a flower's head its own: it
 	// dissolves away)
-	if (UV.x > 3.0) // (a head too small to show: its stem's top's colour)
+	// a flower's head: its own colours, or its stem's once it's only a few
+	// pixels across (the metres a pixel spans at its distance)
+	float head_k = 1.0;
+	if (UV.x > 3.0) {
+		float mpp = 2.0 * max(-VERTEX.z, 0.01) / (PROJECTION_MATRIX[1][1] * VIEWPORT_SIZE.y);
+		head_k = smoothstep(2.5, 6.0, head_size / max(mpp, 1e-6));
 		c = mix(tip_col * 0.9, c, head_k);
+	}
 	ALBEDO = mix(c, root_col, UV.x > 3.0 ? far * (1.0 - head_k) : far);
 	ROUGHNESS = 0.85;
 	SPECULAR = 0.2;
