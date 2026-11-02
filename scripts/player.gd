@@ -355,7 +355,7 @@ func _climb(delta: float) -> void:
 ## (up and down; out and back), A/D round it; Space lets go. Where a limb
 ## leaves the trunk, moving its way (or, just under it, W) goes out along
 ## it; back at its root, on down the trunk. Down at the foot, the climb ends
-## by itself; C on top of a limb gentle enough stands you on it (_leave_tree).
+## by itself; C on top of a limb stands you on it (_leave_tree).
 func _climb_tree(delta: float) -> void:
 	var input := _move_input()
 	var f := Population.trunk_frame(_trunk, _trunk_s)
@@ -447,13 +447,13 @@ func _trunk_out(f: Array) -> Vector3:
 	return n.normalized()
 
 
-## Leaving a tree with C: on top of a limb gentle enough to stand on, you
-## stand on it; otherwise you drop.
+## Leaving a tree with C: on top of a limb, you stand on it; otherwise
+## (on the trunk, or under a limb) you drop.
 func _leave_tree() -> void:
 	var f := Population.trunk_frame(_trunk, _trunk_s)
 	var axis: Vector3 = f[0]
 	var n := _trunk_out(f)
-	if absf((f[2] as Vector3).y) < 0.5 and n.y > 0.3:
+	if not _is_trunk() and n.y > 0.3:
 		global_position = axis + Vector3.UP * ((f[1] as float) + 0.02)
 		grounded = true
 	velocity = Vector3.ZERO

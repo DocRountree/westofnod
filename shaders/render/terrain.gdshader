@@ -109,5 +109,7 @@ void fragment() {
 	ALBEDO = pow(col, vec3(2.2));
 	FOG = aerial_fog(world_pos, CAMERA_POSITION_WORLD);
 	ROUGHNESS = rough;
-	SPECULAR = 0.25;
+	// matte where it's rough (dry ground: no sheen, even at a glancing
+	// look), glossy only where it's smooth (standing water)
+	SPECULAR = mix(0.5, 0.03, smoothstep(0.3, 0.8, rough));
 }

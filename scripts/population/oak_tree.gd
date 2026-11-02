@@ -247,7 +247,7 @@ static func _models(variant: int) -> Array:
 ## Population: what can be stood on (PropKind.walk): a log's trunk, a
 ## segment between each pair of its nodes (not the stubs of its limbs); a
 ## stump, a post to the bottom of its splinters (solid all round, too); an
-## oak's limbs, where gentle enough.
+## oak's limbs.
 static func build_walk(variant := 0) -> PackedFloat32Array:
 	var out := PackedFloat32Array()
 	variant = posmod(variant, VARIANTS.size())
@@ -257,17 +257,14 @@ static func build_walk(variant := 0) -> PackedFloat32Array:
 		out.append_array([0.0, 0.0, 0.0, 0.0, h, 0.0, 0.55, 0.55])
 		return out
 	if _kind(variant) in ["tree", "dead"]:
-		# limbs gentle enough to stand on (under 30 degrees), as far as
-		# they're climbable; marked by a negative first radius (high in the
-		# air: Population.walk_near leaves them out)
+		# the limbs, all of them, as far as they're climbable; marked by a
+		# negative first radius (high in the air: Population.walk_near
+		# leaves them out; never a post however steep)
 		var lines := _climb_lines(variant)
 		for li in range(1, lines.size()):
 			var l := lines[li]
 			for k in range(4, l.size(), 4):
-				var a := Vector3(l[k - 4], l[k - 3], l[k - 2])
-				var e := Vector3(l[k], l[k + 1], l[k + 2])
-				if absf(e.y - a.y) < (e - a).length() * 0.5:
-					out.append_array([a.x, a.y, a.z, e.x, e.y, e.z, -l[k - 1], l[k + 3]])
+				out.append_array([l[k - 4], l[k - 3], l[k - 2], l[k], l[k + 1], l[k + 2], -l[k - 1], l[k + 3]])
 		return out
 	if _kind(variant) != "log":
 		return out
@@ -282,7 +279,7 @@ static func build_walk(variant := 0) -> PackedFloat32Array:
 
 ## Population: what can be climbed (PropKind.climb): a standing or dead
 ## oak's trunk, on up into the crown, and its limbs (the first branching),
-## each as far as it's stout enough to hold you (10 cm); saplings are too
+## each as far as it's stout enough to hold you (5 cm); saplings are too
 ## slender, stumps and logs are stood on instead. Each line: its node count,
 ## then x, y, z, radius a node, from where it starts.
 static func build_climb(variant := 0) -> PackedFloat32Array:
@@ -319,11 +316,11 @@ static func _climb_lines(variant: int) -> Array[PackedFloat32Array]:
 		for br in order:
 			var line := PackedFloat32Array()
 			for i in br:
-				if tb.radius[i] < 0.1 and line.size() >= 8:
-					break
+				if tb.radius[i] < 0.05 and line.size() >= 8:
+					break # (too thin to bear you)
 				var p := tb.pos[i]
 				line.append_array([p.x, p.y, p.z, tb.radius[i]])
-			if line.size() >= 8 and (lines.is_empty() or tb.radius[br[1]] >= 0.1):
+			if line.size() >= 8:
 				lines.append(line)
 	_climb_cache[variant] = lines
 	return lines

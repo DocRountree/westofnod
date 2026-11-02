@@ -282,7 +282,7 @@ func walk_near(p: Vector3, r: float, n: int, xs: PackedVector4Array, rs: PackedF
 ## Segment k of w stands steeper than 45°: a post (a stump), flat on top,
 ## not a log lying round.
 static func _is_post(w: PackedFloat32Array, k: int) -> bool:
-	return absf(w[k + 4] - w[k + 1]) > Vector2(w[k + 3] - w[k], w[k + 5] - w[k + 2]).length()
+	return w[k + 6] >= 0.0 and absf(w[k + 4] - w[k + 1]) > Vector2(w[k + 3] - w[k], w[k + 5] - w[k + 2]).length()
 
 
 ## The point of segment k of w (a log's axis) nearest q over the ground

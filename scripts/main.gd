@@ -226,7 +226,7 @@ func _build_environment() -> void:
 	env.sky = sky
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
 	env.ambient_light_energy = 0.95 # (shadows filled in by the sky; see also _update_light: nights)
-	env.ambient_light_color = Color(0.32, 0.38, 0.55) # moonlit-blue floor at night
+	env.ambient_light_color = Color(0.42, 0.5, 0.72) # moonlit-blue floor at night
 	env.reflected_light_source = Environment.REFLECTION_SOURCE_SKY
 	env.tonemap_mode = Environment.TONE_MAPPER_ACES
 	env.tonemap_exposure = 1.05
@@ -410,8 +410,8 @@ func _update_light() -> void:
 	# by night the sky lights almost nothing: a dim blue floor of light, and
 	# the eye opening up (exposure), so the land still reads
 	var night := atmosphere.night_amount()
-	env.ambient_light_sky_contribution = 1.0 - 0.55 * night
-	env.tonemap_exposure = lerpf(1.05, 1.6, night)
+	env.ambient_light_sky_contribution = 1.0 - 0.8 * night
+	env.tonemap_exposure = lerpf(1.05, 2.1, night)
 	var dir := _sun.global_basis.z
 	var c := _sun.light_color * (_sun.light_energy / 1.4)
 	var sun_col := Vector3(c.r, c.g, c.b)
