@@ -26,8 +26,9 @@ uniform vec3 lichen_color : source_color = vec3(0.5, 0.57, 0.46);   // leafy, sa
 uniform vec3 lichen_crust : source_color = vec3(0.6, 0.61, 0.56);   // crust, pale grey
 uniform vec3 lichen_disc : source_color = vec3(0.3, 0.18, 0.12);    // the crust's fruiting discs
 uniform vec3 lichen_yellow : source_color = vec3(0.52, 0.56, 0.3);  // powdery crust
-uniform vec3 moss_color : source_color = vec3(0.12, 0.2, 0.08);
-uniform vec3 moss_light : source_color = vec3(0.22, 0.32, 0.13);
+// moss.png (tools/trees/bake_moss.py): a cushion of leafy shoots under
+// red stalks and purple capsules, 0.3 m across; alpha its height
+uniform sampler2D moss_tex : source_color, filter_linear_mipmap, repeat_enable;
 // How much grows where: very little lichen and no moss on the prairie (its
 // dry, open air), the most lichen in the swamp. Set by main.gd.
 uniform sampler2D growth_biomes : filter_nearest, repeat_disable;
@@ -95,27 +96,37 @@ float lichen_cover(vec2 uv, vec3 p, float amount, float fade, out vec3 col, out 
 }
 
 // Moss's share of the bark at p, facing `up` (the surface's world normal's
-// y), and how light it is there (fuzz: a fine 0..1 pattern). `near`: 0
-// far off, a plain share.
-float moss_cover(vec3 p, float up, float near, float fuzz, out float light) {
-	light = 0.5;
+// y), its colour there and how far it stands off the bark (m). M: moss.png
+// read here. Where there's less of it, only its taller shoots and the
+// capsules show, in tufts, not a green wash; at its fullest it covers
+// all. `near`: 0 far off, a plain share in the moss's average colour.
+float moss_cover(vec3 p, float up, float near, vec4 M, out vec3 col, out float relief) {
+	col = vec3(0.0);
+	relief = 0.0;
 	if (moss_amount <= 0.0)
 		return 0.0;
 	float top = smoothstep(-0.35, 0.7, up);
-	if (near <= 0.0)
+	if (near <= 0.0) {
+		col = textureLod(moss_tex, vec2(0.5), 10.0).rgb;
+		relief = 0.004; // (for its shade, AO: about the average)
 		return smoothstep(0.2, 0.8, moss_amount * top);
+	}
 	float n = lc_noise(p * 2.2);
-	float m = smoothstep(0.0, 0.1, n - 1.0 + moss_amount * top);
+	// how much moss here (soft: the moss's own height makes the edge)
+	float m = smoothstep(-0.25, 0.35, n - 1.0 + moss_amount * top);
 	if (moss_low > 0.0) { // up from the ground: in patches, fewer higher up
 		float low = moss_low * smoothstep(0.8, 0.05, p.y);
-		m = max(m, smoothstep(0.0, 0.06, fract(n * 7.31 + p.y * 0.7) * 0.4 + n * 0.6 - 0.88 + 0.42 * low));
+		m = max(m, smoothstep(-0.15, 0.2, fract(n * 7.31 + p.y * 0.7) * 0.4 + n * 0.6 - 0.88 + 0.42 * low));
 	}
 	if (moss_spill > 0.0) { // over a stump's rim, down its side, in tongues
 		float below = moss_spill - p.y;
 		float tongue = lc_noise(vec3(p.x * 7.0, p.y * 1.2, p.z * 7.0) + 9.0);
-		m = max(m, smoothstep(0.0, 0.05, tongue - 0.45 - below * 1.6));
+		m = max(m, smoothstep(-0.15, 0.2, tongue - 0.45 - below * 1.6));
 	}
-	light = fuzz;
-	m *= smoothstep(0.0, 0.25, fuzz + m - 0.5);
-	return m;
+	float h = (M.a - 0.04) / 0.96;
+	float cover = smoothstep(0.0, 0.08, h + 0.06 - (1.0 - m) * 1.1);
+	// thinner moss, a little yellower and paler; the gaps between shoots dark
+	col = M.rgb * mix(vec3(1.12, 1.08, 0.9), vec3(1.0), m);
+	relief = cover * h * 0.006; // (m)
+	return cover;
 }

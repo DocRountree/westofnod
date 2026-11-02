@@ -126,18 +126,27 @@ void fragment() {
 		ROUGHNESS = mix(ROUGHNESS, 1.0, lichen);
 		SPECULAR = mix(SPECULAR, 0.05, lichen);
 	}
-	float ml;
+	vec3 mc;
+	float mh;
 	float moss = 0.0;
 	if (growth.y > 0.0 && moss_amount > 0.0) {
-		float fuzz = near > 0.0 ? texture(bark_tex, (UV2.x > 0.5 ? obj.xz * 1.7 : UV) * 2.3).a : 0.5; // (the bark's relief, finer)
-		moss = moss_cover(obj, up, near, fuzz, ml) * (UV2.x > 0.5 ? moss_end : 1.0);
+		// (round the bark: twice to a repeat of its texture, so it wraps
+		// seamlessly; on a cut end, across it)
+		vec4 M = near > 0.0 ? texture(moss_tex, UV2.x > 0.5 ? obj.xz / 0.3 : UV * 2.0 + bark_off) : vec4(0.0);
+		moss = moss_cover(obj, up, near, M, mc, mh) * (UV2.x > 0.5 ? moss_end : 1.0);
 	}
 	if (moss > 0.0) {
-		ALBEDO = mix(ALBEDO, mix(moss_color, moss_light, ml), moss);
-		NORMAL = normalize(mix(NORMAL, geo_n, moss * 0.7));
-		AO = mix(AO, mix(0.7, 1.0, ml), moss);
+		// a cushion over the bark: its shoots domed (bumps from their
+		// height), shadowed down between them
+		vec3 n = normalize(mix(NORMAL, geo_n, moss * 0.85));
+		vec3 dpdx = dFdx(VERTEX), dpdy = dFdy(VERTEX);
+		vec3 r1 = cross(dpdy, n), r2 = cross(n, dpdx);
+		float det = dot(dpdx, r1);
+		NORMAL = normalize(abs(det) * n - sign(det) * (dFdx(mh) * r1 + dFdy(mh) * r2));
+		ALBEDO = mix(ALBEDO, mc, moss);
+		AO = mix(AO, mix(0.5, 1.0, mh / 0.006), moss);
 		ROUGHNESS = mix(ROUGHNESS, 1.0, moss);
-		SPECULAR = mix(SPECULAR, 0.1, moss);
+		SPECULAR = mix(SPECULAR, 0.08, moss);
 	}
 	FOG = aerial_fog(world_pos, CAMERA_POSITION_WORLD);
 }

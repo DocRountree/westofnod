@@ -88,7 +88,9 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   Their bark carries lichen (leafy rosettes, cracked crust with fruiting discs, a
   powdery yellow-green crust: `data/population/textures/lichen.png`, drawn lobe by lobe
   by `tools/trees/bake_lichen.py`, each tree reading it from its own place, in drifts,
-  within 30 m only), and the stumps and logs moss (a stump's top almost covered and
+  within 30 m only), and the stumps and logs moss (a cushion of little leafy shoots
+  under red stalks and purple capsules, `moss.png` from `tools/trees/bake_moss.py`,
+  thinning to tufts at its edges; a stump's top almost covered and
   spilling over, patches up from the ground); on the prairie only a little lichen,
   in the swamp the most; none on saplings
   (`lichen.gdshaderinc`).
