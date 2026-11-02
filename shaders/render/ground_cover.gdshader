@@ -52,6 +52,9 @@ uniform vec3 petal_base = vec3(1.0);
 uniform vec3 petal_alt = vec3(1.0);
 uniform float petal_alt_share = 0.0;
 uniform vec3 disc_color = vec3(0.5);
+// a head's size (m): once it's only a few pixels across it takes the
+// stem's colour (a white speck that small sparkled over the grass)
+uniform float head_size = 0.05;
 uniform float shadow_strength = 0.7;
 uniform float night = 0.0; // 0 day .. 1 night (main.gd): the prairie's grass darker at night, as its ground
 uniform vec3 frond_mean = vec3(0.03, 0.07, 0.006); // linear: the frond texture's mean (GroundCover sets it)
@@ -63,6 +66,7 @@ varying float frac;
 varying float fade;  // 1 drawn, 0 gone: a clump coming or going dissolves (stippled)
 varying float far;   // 0 its own colours, 1 all the ground's
 varying float dim;   // the night's dimming (the prairie's)
+varying float head_k; // a flower's head: 1 its own colours, 0 its stem's (too small to show)
 
 float bayer4(vec2 frag) {
 	ivec2 q = ivec2(mod(frag, 4.0));
@@ -103,6 +107,7 @@ void vertex() {
 		tip_col = vec3(0.0);
 		far = 0.0;
 		dim = 1.0;
+		head_k = 0.0;
 	} else {
 		float h = base_h - 512.0 + (round(a.r) * 256.0 + round(a.g)) / 64.0;
 		float spin = h2(c, 8) * 6.2832;
@@ -129,6 +134,9 @@ void vertex() {
 		// a few metres off, little by little; grass further out)
 		far = kind == 1 ? smoothstep(3.0, fade_out.x, d) : smoothstep(fade_out.x * 0.4, fade_out.x, d);
 		dim = 1.0 - 0.5 * night * prairie;
+		// how many pixels across a head is from here
+		float px = head_size * PROJECTION_MATRIX[1][1] * VIEWPORT_SIZE.y * 0.5 / max(distance(w, CAMERA_POSITION_WORLD + world_origin), 0.01);
+		head_k = smoothstep(2.5, 6.0, px);
 		ground *= dim;
 		root_col = pow(ground, vec3(2.2));
 		if (kind == 1) { // (a tint on the frond's texture, halfway to the ground's colour)
@@ -173,7 +181,9 @@ void fragment() {
 	}
 	// far off, exactly the ground's colour (a flower's head its own: it
 	// dissolves away)
-	ALBEDO = mix(c, root_col, UV.x > 3.0 ? 0.0 : far);
+	if (UV.x > 3.0) // (a head too small to show: its stem's top's colour)
+		c = mix(tip_col * 0.9, c, head_k);
+	ALBEDO = mix(c, root_col, UV.x > 3.0 ? far * (1.0 - head_k) : far);
 	ROUGHNESS = 0.85;
 	SPECULAR = 0.2;
 	FOG = aerial_fog(world_pos, CAMERA_POSITION_WORLD + world_origin);

@@ -72,14 +72,14 @@ const LAYERS := [
 			"forest_height": Vector2(1.25, 1.7), "prairie_height": Vector2(1.25, 1.7),
 			"prairie_green": Vector3(0.26, 0.36, 0.12), "prairie_blonde": Vector3(0.36, 0.4, 0.16),
 			"petal_color": Vector3(0.96, 0.71, 0.06), "petal_base": Vector3(0.9, 0.47, 0.05), "petal_alt": Vector3(0.97, 0.6, 0.05), "petal_alt_share": 0.3,
-			"disc_color": Vector3(0.17, 0.08, 0.04),
+			"disc_color": Vector3(0.17, 0.08, 0.04), "head_size": 0.07,
 			"fade_out": Vector2(28.0, 38.0), "thin_from": 22.0}},
 	{"cell": 2.0, "cells": 12, "tiles": 7, "flowers": "fleabane", "stems": 3, "radius": 0.2,
 		"u": {"kind": 2, "seed": 10, "in_forest": false, "cover": 0.45, "drift": Vector3(15.0, 0.5, -7.7),
 			"forest_height": Vector2(1.3, 1.75), "prairie_height": Vector2(1.3, 1.75),
 			"prairie_green": Vector3(0.28, 0.38, 0.14), "prairie_blonde": Vector3(0.38, 0.42, 0.18),
 			"petal_color": Vector3(0.96, 0.95, 0.93), "petal_base": Vector3(0.96, 0.95, 0.93), "petal_alt": Vector3(0.95, 0.84, 0.88), "petal_alt_share": 0.25,
-			"disc_color": Vector3(0.95, 0.78, 0.12),
+			"disc_color": Vector3(0.95, 0.78, 0.12), "head_size": 0.02,
 			"fade_out": Vector2(24.0, 34.0), "thin_from": 20.0}},
 	{"cell": 0.5, "cells": 24, "tiles": 9, "fronds": 8,
 		"u": {"kind": 1, "seed": 4, "in_prairie": false, "forest_height": Vector2(0.25, 0.45),
@@ -89,7 +89,7 @@ const MAX_LOGS := 256 ## logs, stumps, trunks and boulders the grass is kept out
 const REBAKE := 5.0 ## m the camera moves before a layer's grid is worked out again
 const BAKE_KEYS := ["kind", "seed", "in_forest", "in_prairie", "in_swamp", "in_coast", "forest_height", "prairie_height", "cover", "drift"]
 const DRAW_KEYS := ["kind", "seed", "fade_in", "fade_out", "thin_from", "prairie_green", "prairie_blonde", "patch_tints",
-		"petal_color", "petal_base", "petal_alt", "petal_alt_share", "disc_color"]
+		"petal_color", "petal_base", "petal_alt", "petal_alt_share", "disc_color", "head_size"]
 
 var world: WorldData
 var population: Population ## (optional) its logs and stumps keep the grass off
