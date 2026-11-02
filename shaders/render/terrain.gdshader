@@ -20,7 +20,7 @@ render_mode diffuse_burley, specular_schlick_ggx, skip_vertex_transform;
 #include "res://shaders/render/aerial.gdshaderinc"
 
 uniform float night = 0.0; // 0 day .. 1 night (main.gd)
-const float PRAIRIE_NIGHT_DIM = 0.15; // (also ground_cover.gdshader)
+const float PRAIRIE_NIGHT_DIM = 0.5; // (also ground_cover.gdshader): at night it looks only half again as bright as the forest floor (by day ~2.8x)
 uniform vec3 sun_direction = vec3(0.4, 0.6, 0.6);
 
 varying vec3 world_pos;
