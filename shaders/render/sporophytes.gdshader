@@ -1,7 +1,7 @@
 shader_type spatial;
 render_mode cull_disabled, world_vertex_coords;
 
-// The moss's sporophytes (OakTree._sporophyte_multimesh): thin red stalks 1-2.2 cm
+// The moss's sporophytes (OakTree._sporophyte_multimesh): thin red stalks 0.8-1.7 cm
 // tall standing straight up off the stumps' and logs' moss, still, a
 // dark purple capsule (a spheroid, long along the stalk) on each one's
 // top. Each is an instance of a MultiMesh (OakTree._sporophyte_multimesh)
@@ -26,8 +26,8 @@ uniform float near_end = 4.0;   // m from the player
 // moss's pattern under every one differently from the bark's.
 instance uniform vec3 tree_at = vec3(0.0);
 uniform vec3 player = vec3(0.0); // on the map (main.gd, each frame: OakTree.set_player)
-uniform float stalk_r = 0.00045;  // m
-uniform vec2 capsule_r = vec2(0.0015, 0.003); // m: round, along the stalk (longer that way)
+uniform float stalk_r = 0.0004;  // m
+uniform vec2 capsule_r = vec2(0.0012, 0.0024); // m: round, along the stalk (longer that way)
 uniform vec3 stalk_base : source_color = vec3(0.33, 0.17, 0.12);
 uniform vec3 stalk_top : source_color = vec3(0.58, 0.37, 0.24);
 uniform vec3 capsule : source_color = vec3(0.26, 0.19, 0.27);

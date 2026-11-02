@@ -198,7 +198,7 @@ static var _spo_mesh: ArrayMesh
 
 ## The moss's sporophytes on the bark of mesh (its first surface), as a
 ## MultiMesh in the tree's own space, one instance each: its origin the
-## foot, basis x the bark's normal there, y the stalk (1-2.2 cm, standing
+## foot, basis x the bark's normal there, y the stalk (0.8-1.7 cm, standing
 ## straight up); its colour the bark's UV there (r, g); custom the foot
 ## (xyz) and 2 on a cut end + a rank 0..1 (w).
 ## All over what faces up or sideways (the shader shows those where the moss
@@ -253,7 +253,7 @@ static func _sporophyte_multimesh(mesh: ArrayMesh, seed: int) -> MultiMesh:
 			var foot := p0 + e1 * r1 + e2 * r2
 			# (the bark's normal there, as the bark shader has it: interpolated)
 			var nf := (normals[idx[i]] * (1.0 - r1 - r2) + normals[idx[i + 1]] * r1 + normals[idx[i + 2]] * r2).normalized()
-			var stalk := (Vector3.UP + Vector3(rng.randf_range(-1, 1), 0.0, rng.randf_range(-1, 1)) * 0.06).normalized() * rng.randf_range(0.01, 0.022)
+			var stalk := (Vector3.UP + Vector3(rng.randf_range(-1, 1), 0.0, rng.randf_range(-1, 1)) * 0.06).normalized() * rng.randf_range(0.008, 0.017)
 			var side := nf.cross(stalk)
 			if side.length_squared() < 1e-10:
 				side = Vector3.RIGHT.cross(stalk)
