@@ -119,8 +119,14 @@ void fragment() {
 		float mean_b = flux(lv_mag[k]) * 0.7071;               // mean flux over a one-magnitude bin
 		if (mean_b < 1e-5)
 			continue;                                          // too faint to show at this power
+		// Whether its stars are drawn one by one goes by the cells' size at a
+		// face's middle, the same all over the sky: by their size here (down
+		// to a third of it toward a face's edges and corners), the glow of the
+		// unresolved stars (brightened by the eye's adaptation) took over
+		// sooner along the cube's edges, drawing them across the sky as lines
+		// of brighter fuzz meeting by threes.
 		float cell_angle = 2.0 / lv_cells[k] / stretch;        // ~ angular size of a cell here
-		float resolved = smoothstep(1.2, 2.4, cell_angle / pixel_angle);
+		float resolved = smoothstep(1.2, 2.4, 2.0 / lv_cells[k] / pixel_angle);
 		if (resolved < 1.0) {
 			// unresolved: the summed light of the stars in a patch about a pixel across
 			float ng = exp2(floor(log2(2.0 / pixel_angle)));    // grain cells per face side (fixed steps)
@@ -137,8 +143,13 @@ void fragment() {
 			// resolved: each star a point, from this cell and its neighbours
 			vec2 cpos = (uv * 0.5 + 0.5) * lv_cells[k];
 			ivec2 c0 = ivec2(floor(cpos));
-			for (int j = -1; j <= 1; j++) {
-				for (int i = -1; i <= 1; i++) {
+			// (near the edges cells can be smaller than a star's glow: look
+			// two cells out there, so none is cut short)
+			int reach = cell_angle < 2.5 * sigma_px * pixel_angle ? 2 : 1;
+			for (int j = -2; j <= 2; j++) {
+				for (int i = -2; i <= 2; i++) {
+					if (abs(i) > reach || abs(j) > reach)
+						continue;
 					ivec2 c = c0 + ivec2(i, j);
 					if (c.x < 0 || c.y < 0 || float(c.x) >= lv_cells[k] || float(c.y) >= lv_cells[k])
 						continue;
