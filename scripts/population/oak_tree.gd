@@ -432,6 +432,35 @@ static func fresh_stump() -> Array:
 	return _fresh_stump
 
 
+## A felled trunk's cut end (Felling): a disc of radius 1 across y = 0,
+## both faces, end grain (UV2.x 1, UV across it), in the axe's stump's
+## fresh-cut material.
+static var _cut_disc: ArrayMesh
+
+
+static func cut_disc() -> ArrayMesh:
+	if _cut_disc == null:
+		var st := SurfaceTool.new()
+		st.begin(Mesh.PRIMITIVE_TRIANGLES)
+		const N := 28
+		for face in [-1.0, 1.0]:
+			for k in N:
+				var a0 := TAU * k / N
+				var a1 := TAU * (k + 1) / N
+				var tri := [Vector2.ZERO, Vector2(cos(a0), sin(a0)), Vector2(cos(a1), sin(a1))]
+				if face < 0.0:
+					tri = [tri[0], tri[2], tri[1]]
+				for q: Vector2 in tri:
+					st.set_normal(Vector3(0.0, face, 0.0))
+					st.set_uv(q)
+					st.set_uv2(Vector2(1.0, 0.0))
+					st.set_color(Color.WHITE)
+					st.add_vertex(Vector3(q.x, 0.0, q.y))
+		_cut_disc = st.commit()
+		_cut_disc.surface_set_material(0, bark_material(0, "fresh_stump"))
+	return _cut_disc
+
+
 static func build_lods(variant := 0) -> Array[Mesh]:
 	return _models(variant)[1]
 

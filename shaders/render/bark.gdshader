@@ -31,6 +31,9 @@ varying vec2 bark_off; // where each tree reads the bark texture from
 // from, as wide at the bark as it is deep: there the bark gives way to
 // fresh-cut wood, shaded as the cut's two faces.
 varying flat vec4 notch;
+// a felled tree (Felling): the trunk below the cut (its own height) is in
+// the stump, not drawn; the cut end is a disc of its own (OakTree.cut_disc)
+instance uniform float cut_below = -1000.0;
 uniform bool fresh_end = false; // cut ends fresh-sawn (an axed tree's stump: OakTree.fresh_stump), not weathered
 varying vec3 notch_p; // the tree's own space, unoffset
 varying flat vec3 notch_up_n; // world: the upper face's normal (out of the wood)
@@ -104,6 +107,7 @@ vec3 end_grain(vec2 p, bool fresh) {
 
 void fragment() {
 	if (lod_hidden(FRAGCOORD.xy, lod_f)) discard;
+	if (notch_p.y < cut_below && UV2.x < 0.5) discard;
 	vec3 geo_n = NORMAL; // (before the bark's bumps: lichen and moss cover them)
 	if (UV2.x > 0.5) {
 		ALBEDO = end_grain(UV, fresh_end) * COLOR.rgb;

@@ -45,7 +45,7 @@ const LAYERS := [
 	{"cell": 1.3, "cells": 20, "tiles": 11, "blades": 14, "segs": 2, "radius": 0.6, "width": 0.05,
 		"u": {"kind": 0, "seed": 3, "in_forest": false, "prairie_height": Vector2(1.5, 2.0),
 			"fade_in": Vector2(42.0, 52.0), "fade_out": Vector2(100.0, 125.0), "thin_from": 80.0}},
-	{"cell": 1.0, "cells": 16, "tiles": 9, "blades": 11, "segs": 4, "radius": 0.4, "width": 0.075,
+	{"cell": 1.0, "cells": 16, "tiles": 9, "blades": 11, "segs": 4, "radius": 0.4, "width": 0.068,
 		"u": {"kind": 0, "seed": 5, "in_forest": false, "in_prairie": false, "in_swamp": true, "prairie_height": Vector2(1.8, 2.3),
 			"prairie_green": Vector3(0.22, 0.33, 0.12), "prairie_blonde": Vector3(0.5, 0.45, 0.28),
 			"fade_out": Vector2(55.0, 72.0), "thin_from": 40.0}},
@@ -347,8 +347,8 @@ static func cattail_mesh(stalks: int, radius: float, seed: int) -> ArrayMesh:
 		var top := Vector3(lean.x, tall, lean.y)
 		var head0 := top * 0.74
 		var head1 := top * 0.9
-		# the stalk, to the head
-		strip.call(root, [Vector3.ZERO, head0 * 0.5, head0], [0.006, 0.005, 0.005], side, n, rng.randf_range(0.85, 1.1), 0.0)
+		# the stalk, to the head: round, ~1.4 cm across at its foot
+		_tube(st, base, root, [Vector3.ZERO, head0 * 0.5, head0], [0.0072 / 1.95, 0.0064 / 1.95, 0.006 / 1.95], rng.randf_range(0.85, 1.1))
 		# the head: a cylinder, rounded at both ends, ~2.4 cm across (in
 		# clump heights: the clumps are about 1.95 m)
 		_capsule(st, base, root, head0, head1, 0.012 / 1.95, rng.randf_range(0.85, 1.1))
@@ -369,6 +369,34 @@ static func cattail_mesh(stalks: int, radius: float, seed: int) -> ArrayMesh:
 				halfs.append(0.009 * (1.0 - t * 0.8))
 			strip.call(root, pts, halfs, lside, Vector3(dir.x, 0.6, dir.y).normalized(), rng.randf_range(0.85, 1.15), 0.0)
 	return st.commit()
+
+
+## A round stalk through pts (radii r, in clump heights) into st: rings of
+## six round it; solid (CUSTOM0 zero), UV.x 1.25 (lit as round, coloured as
+## a blade: ground_cover.gdshader).
+static func _tube(st: SurfaceTool, base: Array, root: Vector2, pts: Array, r: Array, shade: float) -> void:
+	const SIDES := 6
+	for s in pts.size():
+		var p: Vector3 = pts[s]
+		var axis: Vector3 = ((pts[mini(s + 1, pts.size() - 1)] as Vector3) - (pts[maxi(s - 1, 0)] as Vector3)).normalized()
+		var u := axis.cross(Vector3.RIGHT if absf(axis.x) < 0.9 else Vector3.FORWARD).normalized()
+		var v := axis.cross(u)
+		for i in SIDES:
+			var ang := TAU * i / SIDES
+			var out := u * cos(ang) + v * sin(ang)
+			st.set_color(Color(shade, 0.3, p.y))
+			st.set_uv(Vector2(1.25, p.y))
+			st.set_uv2(root)
+			st.set_normal(out)
+			st.set_custom(0, Color(0, 0, 0))
+			st.add_vertex(p + out * float(r[s]))
+	for s in pts.size() - 1:
+		for i in SIDES:
+			var i0: int = base[0] + s * SIDES + i
+			var i1: int = base[0] + s * SIDES + (i + 1) % SIDES
+			for q in [i0, i1 + SIDES, i1, i0, i0 + SIDES, i1 + SIDES]:
+				st.add_index(q)
+	base[0] += pts.size() * SIDES
 
 
 ## A capsule from a to b (radius r) into st: rings round the axis, the ends

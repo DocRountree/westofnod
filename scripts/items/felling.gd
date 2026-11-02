@@ -58,16 +58,21 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 ## Where a swing now would strike (on the map): the middle of the notch on
-## the trunk in reach, on the player's side; INF if none.
+## the trunk in reach, facing the view; INF if none.
 func _mark() -> Vector3:
 	var p: Player = main.player
 	var tree: Dictionary = main.population.choppable_near(Origin.map(p.camera.global_position), -p.camera.global_basis.z, REACH)
 	if tree.is_empty():
 		return Vector3.INF
 	var at: Vector3 = (tree.transform as Transform3D).origin
-	var to := Vector3(p.position.x - at.x, 0.0, p.position.z - at.z)
-	to = to.normalized() if to.length() > 0.01 else Vector3.FORWARD
-	return at + Vector3.UP * _cut(float(tree.radius)) + to * float(tree.radius)
+	return at + Vector3.UP * _cut(float(tree.radius)) - _view_dir() * float(tree.radius)
+
+
+## The way the player looks, across the ground (on the map, unit).
+func _view_dir() -> Vector3:
+	var f := -(main.player as Player).camera.global_basis.z
+	f.y = 0.0
+	return f.normalized() if f.length() > 0.01 else -(main.player as Player).global_basis.z
 
 
 ## Which hand holds an axe: 1 right, 0 left, -1 neither (the right first).
@@ -126,11 +131,13 @@ func _animate_swing(delta: float) -> void:
 	elif t < STRIKE:
 		var k := (t - 0.3) / (STRIKE - 0.3)
 		phi = WIND_UP * (1.0 - k * k)
-	elif t < 0.8:
-		phi = -FOLLOW * smoothstep(0.0, 1.0, (t - STRIKE) / (0.8 - STRIKE))
 	else:
-		phi = -FOLLOW
-		w = 1.0 - smoothstep(0.0, 1.0, (t - 0.8) / 0.2)
+		# into the notch it stops there (lodged a moment, then pulled back);
+		# swung at nothing it follows on through
+		var follow := 0.0 if _aim != Vector3.INF else FOLLOW
+		phi = -follow * smoothstep(0.0, 1.0, minf((t - STRIKE) / (0.8 - STRIKE), 1.0))
+		if t >= 0.8:
+			w = 1.0 - smoothstep(0.0, 1.0, (t - 0.8) / 0.2)
 	var pose := _swing_pose(phi * side, side)
 	var p: Player = main.player
 	var view: Node3D = p._view_grips[hand]
@@ -208,15 +215,12 @@ func _strike() -> void:
 	var n: int = _blows.get(tree.uid, 0) + 1
 	if n < need:
 		_blows[tree.uid] = n
-		_notch(tree, p.position, float(n) / need)
+		_notch(tree, -_view_dir(), float(n) / need)
 		return
 	_blows.erase(tree.uid)
 	main.population.remove_prop(tree.uid)
 	var xf: Transform3D = tree.transform
-	var away := Vector3(xf.origin.x - p.position.x, 0.0, xf.origin.z - p.position.z)
-	if away.length() < 0.01:
-		away = -p.global_basis.z
-	away = away.normalized()
+	var away := _view_dir() # (falling the way the blows went: away from the notch)
 	var entry := _fell(tree.kind, tree.variant, xf, tree.radius, away)
 	var f: Dictionary = entry.falling
 	_falling.append(f)
@@ -250,6 +254,7 @@ func _fell(kind: PropKind, variant: int, xf: Transform3D, radius: float, away: V
 	}
 	var node := _model([kind.mesh] + kind.lods)
 	node.transform = xf
+	_cut_base(node, kind, variant, xf, cut)
 	if stump_scale > 0.0:
 		var sn := _model([OakTree.fresh_stump()[0]] + OakTree.fresh_stump()[1])
 		sn.transform = Transform3D(_stump_basis(away, stump_scale), xf.origin)
@@ -276,15 +281,35 @@ static func _cut(radius: float) -> float:
 	return OakTree.fresh_stump()[0].get_aabb().end.y * CUT * s if s > 0.0 else 0.08
 
 
-## A blow's mark: the notch, done part of the way (0..1), on the side toward
-## `from` (on the map).
-func _notch(tree: Dictionary, from: Vector3, done: float) -> void:
+## A blow's mark: the notch, done part of the way (0..1), facing `toward`
+## (on the map, across the ground: back along the player's view, so the cut
+## lies square to it).
+func _notch(tree: Dictionary, toward: Vector3, done: float) -> void:
 	var xf: Transform3D = tree.transform
 	var s := xf.basis.get_scale().x
-	var to := xf.basis.inverse() * (from - xf.origin) # (the tree's own space)
+	var to := xf.basis.inverse() * toward # (the tree's own space)
 	var r: float = float(tree.radius) / s * 1.05 # (a little over: the bark's ridges)
 	var depth := r * 1.1 * done # (over half way through, by the last blow)
 	main.population.set_notch(tree.uid, Color(atan2(to.z, to.x), depth, _cut(float(tree.radius)) / s, r))
+
+
+## A felled tree's foot: not drawn below the cut (that stays in the stump),
+## and closed there by a disc of fresh-cut wood a little wider than the trunk
+## (its root flare reaching up past the cut in places).
+func _cut_base(node: Node3D, kind: PropKind, variant: int, xf: Transform3D, cut: float) -> void:
+	var s := xf.basis.get_scale().y
+	var h := cut / s # (the tree's own units)
+	for c in node.get_children():
+		if c is GeometryInstance3D:
+			(c as GeometryInstance3D).set_instance_shader_parameter("cut_below", h)
+	if not kind.mesh_script.has_method("trunk_radius"):
+		return
+	var r: float = kind.mesh_script.trunk_radius(variant) * 1.3
+	var disc := MeshInstance3D.new()
+	disc.mesh = OakTree.cut_disc()
+	disc.transform = Transform3D(Basis.from_scale(Vector3(r, 1.0, r)), Vector3(0.0, h, 0.0))
+	disc.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	node.add_child(disc)
 
 
 ## Meshes drawn as the population draws a kind: every level of detail, each
@@ -332,6 +357,7 @@ func from_list(list: Array) -> void:
 			pivot = Vector3(end[0], end[1], end[2])
 		var node := _model([kind.mesh] + kind.lods)
 		node.transform = Transform3D(Basis(Vector3.UP.cross(dir).normalized(), float(e.get("angle", PI * 0.5))) * basis, pivot)
+		_cut_base(node, kind, int(kind.get_meta("variant", 0)), Transform3D(basis, origin), float(e.get("cut", 0.0)))
 		var s := float(e.get("stump_scale", 0.0))
 		if s > 0.0:
 			var sn := _model([OakTree.fresh_stump()[0]] + OakTree.fresh_stump()[1])
