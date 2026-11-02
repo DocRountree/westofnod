@@ -24,7 +24,11 @@ uniform float night = 0.0; // 0 day .. 1 night (main.gd)
 const float PRAIRIE_NIGHT_DIM = 0.5; // (also ground_cover.gdshader): at night it looks only half again as bright as the forest floor (by day ~2.8x)
 uniform vec3 sun_direction = vec3(0.4, 0.6, 0.6);
 
-varying vec3 world_pos;
+// Where it is as drawn (small numbers, near the origin): a varying of the
+// map's own coordinates, tens of km, loses mm to the rasteriser's
+// interpolation, differently as the view moves, so textures (the litter's
+// tiles) swam. The map's is made from it per pixel.
+varying vec3 local_pos;
 
 void vertex() {
 	int lod;
@@ -37,7 +41,7 @@ void vertex() {
 	}
 	VERTEX = (VIEW_MATRIX * vec4(wp.x - world_origin.x, h, wp.y - world_origin.z, 1.0)).xyz;
 	NORMAL = mat3(VIEW_MATRIX) * terrain_normal(wp, max(lod - SUB, 0), map_cell() * exp2(float(max(lod - SUB, 0))) * 0.5);
-	world_pos = vec3(wp.x, h, wp.y); // (the map's)
+	local_pos = vec3(wp.x - world_origin.x, h, wp.y - world_origin.z);
 }
 
 #include "res://shaders/render/ground.gdshaderinc"
@@ -52,6 +56,7 @@ uniform vec3 litter_mean = vec3(0.372, 0.262, 0.153); // the texture's mean (Gro
 uniform vec2 litter_fade = vec2(25.0, 45.0); // m
 
 void fragment() {
+	vec3 world_pos = local_pos + world_origin; // (the map's)
 	vec2 p = world_pos.xz;
 	float fp = max(length(fwidth(p)), 0.01);
 	int pm = pixel_mip(fp);
@@ -92,10 +97,13 @@ void fragment() {
 		// each tile of it turned a random quarter turn (the texture fits
 		// itself every way round), so its repeat doesn't show; the
 		// derivatives turned with it, so the seams don't pick a coarse mip
-		vec2 uv = p / litter_tile;
+		// (in tiles from the origin's own tile, so small and exact: the map's
+		// tile numbers are tens of thousands, with no fraction left to them)
+		vec2 o_tiles = floor(world_origin.xz / litter_tile);
+		vec2 uv = (local_pos.xz + (world_origin.xz - o_tiles * litter_tile)) / litter_tile;
 		vec2 tile = floor(uv);
 		vec2 f = uv - tile;
-		int turn = int(hash(ivec2(tile) + ivec2(911, -373)) * 4.0) & 3;
+		int turn = int(hash(ivec2(tile) + ivec2(o_tiles) + ivec2(911, -373)) * 4.0) & 3;
 		vec2 dx = dFdx(uv), dy = dFdy(uv);
 		for (int k = 0; k < turn; k++) {
 			f = vec2(f.y, 1.0 - f.x);

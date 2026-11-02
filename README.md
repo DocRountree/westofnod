@@ -100,7 +100,8 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   within 30 m only), and the stumps and logs moss (a cushion of little leafy shoots,
   `moss.png` from `tools/trees/bake_moss.py`, thinning to tufts at its edges; over
   it, within 4 m of you, red stalks a couple of cm tall with purple capsules,
-  standing straight up: `sporophytes.gdshader`; a stump's top almost covered and
+  standing straight up: `sporophytes.gdshader`, a MultiMesh per log or stump drawn
+  only for those near you (`Population._update_near`); a stump's top almost covered and
   spilling over, patches up from the ground); on the prairie only a little lichen,
   in the swamp the most; none on saplings
   (`lichen.gdshaderinc`).

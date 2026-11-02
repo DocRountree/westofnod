@@ -45,6 +45,10 @@ var _removed := {} # prop uid -> true
 var _centre := Vector2i.MAX
 var _radius := 0.0 # chunks are kept this far out (m)
 var _focus := Vector3.ZERO
+var _near := {} # prop uid -> MultiMeshInstance3D: what's drawn only close by (sporophytes)
+var _near_at := Vector3.INF # where the player was when _near was last updated
+var _near_walks := -1 # walk_changes then
+var _near_data := {} # prop kind index -> [MultiMesh, material, reach] (or [] for none)
 var walk_changes := 0 ## Counts the times logs or stumps came or went (GroundCover rechecks the grass).
 
 
@@ -122,6 +126,7 @@ func _variants(k: PropKind) -> Array[PropKind]:
 			for key in vp[v]:
 				if not key in ["weight", "density_like", "like_group"] and key in kv:
 					kv.set(key, vp[v][key])
+		kv.set_meta("variant", v)
 		if kv.mesh == null and kv.mesh_script:
 			kv.mesh = kv.mesh_script.build(v)
 		if kv.lods.is_empty() and kv.mesh_script and kv.mesh_script.has_method("build_lods"):
@@ -152,6 +157,11 @@ func refresh() -> void:
 	_lock.unlock()
 	for key in _chunks.keys():
 		_unload(key)
+	for uid in _near:
+		_near[uid].queue_free()
+	_near.clear()
+	_near_data.clear()
+	_near_at = Vector3.INF
 	_queue.clear()
 	_centre = Vector2i.MAX
 
@@ -179,7 +189,74 @@ func update(focus: Vector3) -> void:
 	for ch: _Chunk in batch:
 		if _wanted(ch.key):
 			_apply(ch)
+	_update_near(focus)
 	_update_actors(focus)
+
+
+const NEAR := 4.5 ## m: the logs and stumps this near the player (to their mesh's furthest) get their sporophytes
+
+## What's drawn only close to the player (a kind's mesh_script.near_multimesh:
+## the moss's sporophytes): one MultiMeshInstance3D per log or stump whose
+## mesh reaches within NEAR of the focus, placed as that log is.
+func _update_near(focus: Vector3) -> void:
+	if focus.distance_to(_near_at) < 0.3 and walk_changes == _near_walks:
+		return
+	_near_at = focus
+	_near_walks = walk_changes
+	var want := {}
+	var c := _key(focus)
+	for dz in range(-1, 2):
+		for dx in range(-1, 2):
+			var ch: _Chunk = _chunks.get(c + Vector2i(dx, dz))
+			if ch == null:
+				continue
+			var base := Vector3(ch.key.x * CHUNK, 0.0, ch.key.y * CHUNK)
+			for k in ch.xforms.size():
+				var nd := _near_of(k)
+				if nd.is_empty():
+					continue
+				var xf: PackedFloat32Array = ch.xforms[k]
+				var uids: PackedInt64Array = ch.uids[k]
+				for i in uids.size():
+					var j := i * 12
+					var at := base + Vector3(xf[j + 3], xf[j + 7], xf[j + 11])
+					var s := Vector3(xf[j], xf[j + 4], xf[j + 8]).length()
+					if at.distance_to(focus) > NEAR + nd[2] * s or _removed.has(uids[i]):
+						continue
+					var b := Basis(Vector3(xf[j], xf[j + 4], xf[j + 8]), Vector3(xf[j + 1], xf[j + 5], xf[j + 9]), Vector3(xf[j + 2], xf[j + 6], xf[j + 10]))
+					want[uids[i]] = [nd, Transform3D(b, at)]
+	for uid in _near.keys():
+		if not want.has(uid):
+			_near[uid].queue_free()
+			_near.erase(uid)
+	for uid in want:
+		if _near.has(uid):
+			continue
+		var nd: Array = want[uid][0]
+		var mi := MultiMeshInstance3D.new()
+		mi.multimesh = nd[0]
+		mi.material_override = nd[1]
+		mi.transform = want[uid][1]
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		mi.custom_aabb = (nd[0] as MultiMesh).get_aabb().grow(0.05)
+		add_child(mi)
+		_near[uid] = mi
+
+
+func _near_of(k: int) -> Array:
+	if not _near_data.has(k):
+		var kind := props[k]
+		var nd := []
+		if kind.mesh_script and kind.mesh_script.has_method("near_multimesh"):
+			nd = kind.mesh_script.near_multimesh(int(kind.get_meta("variant", 0)))
+			if not nd.is_empty():
+				var box: AABB = kind.mesh.get_aabb() if kind.mesh else AABB()
+				var reach := 0.0
+				for e in 8:
+					reach = maxf(reach, box.get_endpoint(e).length())
+				nd = [nd[0], nd[1], reach]
+		_near_data[k] = nd
+	return _near_data[k]
 
 
 ## How much of what should be round `focus` is in place, 0..1 (the share of

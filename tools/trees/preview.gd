@@ -46,6 +46,13 @@ func _init() -> void:
 		var casts: bool = shadow == null and OakTree.variant_props(v).get("shadows", true)
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if casts else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		root3.add_child(mi)
+		var near := OakTree.near_multimesh(v)
+		if not near.is_empty():
+			var smi := MultiMeshInstance3D.new()
+			smi.multimesh = near[0]
+			smi.material_override = near[1]
+			smi.position = mi.position
+			root3.add_child(smi)
 		if shadow:
 			var sh := MeshInstance3D.new()
 			sh.mesh = shadow

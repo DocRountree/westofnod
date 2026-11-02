@@ -93,7 +93,7 @@ const COVER := {
 static var _growth := {} # the biome map's parameters (set_growth_map)
 const LICHEN_ANY := ["dead", "log"] ## Their lichen doesn't go by the biome.
 static var _leaf_mats := {}
-static var _cache := {} # variant -> [mesh, lods]
+static var _cache := {} # variant -> [mesh, lods, near_multimesh]
 
 
 static func bark_material(level := 0, kind := "tree") -> ShaderMaterial:
@@ -138,7 +138,7 @@ static func sporophyte_material(kind: String) -> ShaderMaterial:
 
 
 const SPOROPHYTES := 3000.0 ## a m², on what faces up (fewer down the sides); shown where the moss is thick
-const SPOROPHYTES_MOST := 8000
+const SPOROPHYTES_MOST := 40000
 
 
 ## Where the player is (main.gd, each frame): the sporophytes stand only
@@ -187,12 +187,35 @@ static func _sporophyte_template() -> void:
 		_spo_idx.append_array([top, a + 2 * ROUND, b + 2 * ROUND])
 
 
-## The moss's sporophytes, on the bark of mesh (its first surface) as a
-## surface of their own: stalks 1-2.2 cm, standing straight up, all over
-## what faces up or sideways (the shader shows those where the moss is),
-## every corner at its foot (the shader builds the shape).
-static func sporophytes(mesh: ArrayMesh, mat: Material, seed: int) -> void:
+## The template every sporophyte is drawn from (sporophytes.gdshader builds
+## the shape): every corner at the origin, told apart by its UV.
+static var _spo_mesh: ArrayMesh
+
+
+## The moss's sporophytes on the bark of mesh (its first surface), as a
+## MultiMesh in the tree's own space, one instance each: its origin the
+## foot, basis x the bark's normal there, y the stalk (1-2.2 cm, standing
+## straight up), custom the foot (xyz) and 2 on a cut end + a rank 0..1 (w).
+## All over what faces up or sideways (the shader shows those where the moss
+## is). Drawn only for the logs and stumps near the player (Population,
+## near_multimesh), so a log can carry all it should.
+static func _sporophyte_multimesh(mesh: ArrayMesh, seed: int) -> MultiMesh:
 	_sporophyte_template()
+	if _spo_mesh == null:
+		var t := []
+		t.resize(Mesh.ARRAY_MAX)
+		var v := PackedVector3Array()
+		var n := PackedVector3Array()
+		v.resize(_spo_uv.size())
+		n.resize(_spo_uv.size())
+		n.fill(Vector3.UP)
+		t[Mesh.ARRAY_VERTEX] = v
+		t[Mesh.ARRAY_NORMAL] = n
+		t[Mesh.ARRAY_TEX_UV] = _spo_uv
+		t[Mesh.ARRAY_INDEX] = _spo_idx
+		_spo_mesh = ArrayMesh.new()
+		_spo_mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, t)
+		_spo_mesh.custom_aabb = AABB(Vector3(-0.01, -0.01, -0.01), Vector3(0.02, 0.04, 0.02))
 	var a := mesh.surface_get_arrays(0)
 	var verts: PackedVector3Array = a[Mesh.ARRAY_VERTEX]
 	var normals: PackedVector3Array = a[Mesh.ARRAY_NORMAL]
@@ -200,15 +223,8 @@ static func sporophytes(mesh: ArrayMesh, mat: Material, seed: int) -> void:
 	var idx: PackedInt32Array = a[Mesh.ARRAY_INDEX]
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed * 31 + 7
-	var o_v := PackedVector3Array()
-	var o_n := PackedVector3Array()
-	var o_uv := PackedVector2Array()
-	var o_uv2 := PackedVector2Array()
-	var o_c0 := PackedFloat32Array()
-	var o_c1 := PackedFloat32Array()
-	var o_i := PackedInt32Array()
-	var nv := _spo_uv.size()
-	var count := 0
+	var xfs: Array[Transform3D] = []
+	var customs: Array[Color] = []
 	for i in range(0, idx.size(), 3):
 		var p0 := verts[idx[i]]
 		var e1 := verts[idx[i + 1]] - p0
@@ -218,9 +234,9 @@ static func sporophytes(mesh: ArrayMesh, mat: Material, seed: int) -> void:
 			continue # (underneath)
 		var k := 0.5 * e1.cross(e2).length() * SPOROPHYTES * (0.3 + 0.7 * smoothstep(-0.35, 0.7, n.y))
 		var many := int(k) + (1 if rng.randf() < k - int(k) else 0)
-		var end := 1.0 if uv2.size() > idx[i] and uv2[idx[i]].x > 0.5 else 0.0
+		var end := 2.0 if uv2.size() > idx[i] and uv2[idx[i]].x > 0.5 else 0.0
 		for _j in many:
-			if count >= SPOROPHYTES_MOST:
+			if xfs.size() >= SPOROPHYTES_MOST:
 				break
 			var r1 := rng.randf()
 			var r2 := rng.randf()
@@ -229,33 +245,29 @@ static func sporophytes(mesh: ArrayMesh, mat: Material, seed: int) -> void:
 				r2 = 1.0 - r2
 			var foot := p0 + e1 * r1 + e2 * r2
 			var stalk := (Vector3.UP + Vector3(rng.randf_range(-1, 1), 0.0, rng.randf_range(-1, 1)) * 0.06).normalized() * rng.randf_range(0.01, 0.022)
-			var phase := rng.randf() * TAU
-			var rank := rng.randf()
-			var base := o_v.size()
-			for uv in _spo_uv:
-				o_v.append(foot)
-				o_n.append(n)
-				o_uv.append(uv)
-				o_uv2.append(Vector2(end, rank))
-				o_c0.append_array([stalk.x, stalk.y, stalk.z, phase])
-				o_c1.append_array([foot.x, foot.y, foot.z, 0.0])
-			for j in _spo_idx:
-				o_i.append(base + j)
-			count += 1
-	if count == 0:
-		return
-	var arr := []
-	arr.resize(Mesh.ARRAY_MAX)
-	arr[Mesh.ARRAY_VERTEX] = o_v
-	arr[Mesh.ARRAY_NORMAL] = o_n
-	arr[Mesh.ARRAY_TEX_UV] = o_uv
-	arr[Mesh.ARRAY_TEX_UV2] = o_uv2
-	arr[Mesh.ARRAY_CUSTOM0] = o_c0
-	arr[Mesh.ARRAY_CUSTOM1] = o_c1
-	arr[Mesh.ARRAY_INDEX] = o_i
-	var fmt := (Mesh.ARRAY_CUSTOM_RGBA_FLOAT << Mesh.ARRAY_FORMAT_CUSTOM0_SHIFT) | (Mesh.ARRAY_CUSTOM_RGBA_FLOAT << Mesh.ARRAY_FORMAT_CUSTOM1_SHIFT)
-	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arr, [], {}, fmt)
-	mesh.surface_set_material(mesh.get_surface_count() - 1, mat)
+			var side := n.cross(stalk)
+			if side.length_squared() < 1e-10:
+				side = Vector3.RIGHT.cross(stalk)
+			xfs.append(Transform3D(Basis(n, stalk, side.normalized()), foot))
+			customs.append(Color(foot.x, foot.y, foot.z, end + rng.randf()))
+	if xfs.is_empty():
+		return null
+	var mm := MultiMesh.new()
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	mm.use_custom_data = true
+	mm.mesh = _spo_mesh
+	mm.instance_count = xfs.size()
+	for i in xfs.size():
+		mm.set_instance_transform(i, xfs[i])
+		mm.set_instance_custom_data(i, customs[i])
+	return mm
+
+
+## A variant's sporophytes: [MultiMesh (in the tree's own space), material],
+## or [] for one without moss. Population draws them on the logs and stumps
+## near the player.
+static func near_multimesh(variant := 0) -> Array:
+	return _models(variant)[2]
 
 
 ## The stump's top (m, its own space): where its moss spills over.
@@ -399,9 +411,12 @@ static func _models(variant: int) -> Array:
 				tb = grow(variant)
 				lods = [tb.lod(b[1], l[1], 2, 2, 4, 1.0, LOD[0]), tb.lod(b[2], l[2], 1, 3, 12, 2.0, LOD[1]), tb.lod(b[3], l[3], 0, 4, 36, 3.2, LOD[2])]
 		var mesh := tb.build(b[0], l[0], 12.0)
+		var near := []
 		if (COVER.get(k, COVER.tree) as Array)[1] > 0.0:
-			sporophytes(mesh, sporophyte_material(k), VARIANTS[variant].get("seed", variant))
-		_cache[variant] = [mesh, lods]
+			var mm := _sporophyte_multimesh(mesh, VARIANTS[variant].get("seed", variant))
+			if mm:
+				near = [mm, sporophyte_material(k)]
+		_cache[variant] = [mesh, lods, near]
 	return _cache[variant]
 
 

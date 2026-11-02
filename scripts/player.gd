@@ -232,8 +232,7 @@ func _physics_process(delta: float) -> void:
 	else:
 		swimming = false
 		var speed := SPRINT_SPEED if _held("sprint") else WALK_SPEED
-		if world.biome_index_at(position.x, position.z) == world.swamp:
-			speed *= SWAMP_SLOW
+		speed *= lerpf(1.0, SWAMP_SLOW, _mud(position))
 		velocity.y -= GRAVITY * delta
 		if _held("jump") and grounded:
 			velocity.y = JUMP_VELOCITY
@@ -263,6 +262,14 @@ func _physics_process(delta: float) -> void:
 		avatar.walk(delta, hv.length(), grounded or flying)
 
 
+## How deep in the swamp's mud p is, 0..1: 1 in the swamp, 0 out of it,
+## easing between across the band where the ground blends from the swamp
+## into the next biome (WorldData.swampiness: about 68 m across, the
+## edge in its middle).
+func _mud(p: Vector3) -> float:
+	return smoothstep(0.0, 1.0, world.swampiness(p.x, p.z))
+
+
 ## Moving over the terrain. It is a height field, so the body moves against
 ## the exact surface that is drawn (WorldData.height_at), not a physics
 ## approximation of it: nothing to snag on, nothing to sink into. On foot, the
@@ -290,10 +297,11 @@ func _move(delta: float, in_water: bool) -> void:
 		# a step above the ground, or the mud's surface)
 		var deck := population.deck_at(p, position.y + sink + Population.STEP_UP) if population else -INF
 		# a swamp swallows you to the knees or hips (deeper here, shallower
-		# there), easing in and out at its edge
+		# there); less and less across the ground between it and the next
+		# biome (_mud), so you wade out of it gradually
 		var want := 0.0
-		if deck <= g and world.biome_index_at(p.x, p.z) == world.swamp:
-			want = lerpf(SWAMP_SINK.x, SWAMP_SINK.y, WorldData.vnoise(p.x / 7.0, p.z / 7.0))
+		if deck <= g:
+			want = lerpf(SWAMP_SINK.x, SWAMP_SINK.y, WorldData.vnoise(p.x / 7.0, p.z / 7.0)) * _mud(p)
 		sink = move_toward(sink, want, delta)
 		g -= sink
 		if deck > g:
