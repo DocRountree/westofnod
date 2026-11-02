@@ -150,8 +150,8 @@ static func set_player(pos: Vector3) -> void:
 
 
 ## One sporophyte's corners (UV, as sporophytes.gdshader reads them): the
-## stalk, three sides, rings at its foot, middle and top; the capsule, a
-## ring of five round its middle between two poles. And its triangles.
+## stalk, three sides, rings at its foot, middle and top; the capsule,
+## three rings of five between two poles. And its triangles.
 static var _spo_uv := PackedVector2Array()
 static var _spo_idx := PackedInt32Array()
 
@@ -171,14 +171,20 @@ static func _sporophyte_template() -> void:
 	const ROUND := 5
 	var bottom := _spo_uv.size()
 	_spo_uv.append(Vector2(0.0, 2.0))
-	for k in ROUND:
-		_spo_uv.append(Vector2(float(k) / ROUND, 2.5))
+	for ring in 3:
+		for k in ROUND:
+			_spo_uv.append(Vector2(float(k) / ROUND, 2.25 + ring * 0.25))
 	_spo_uv.append(Vector2(0.0, 3.0))
-	var top := bottom + ROUND + 1
+	var top := bottom + 3 * ROUND + 1
 	for k in ROUND:
 		var a := bottom + 1 + k
 		var b := bottom + 1 + (k + 1) % ROUND
-		_spo_idx.append_array([bottom, b, a, top, a, b])
+		_spo_idx.append_array([bottom, b, a])
+		for ring in 2:
+			var c := a + ring * ROUND
+			var d := b + ring * ROUND
+			_spo_idx.append_array([c, d, d + ROUND, c, d + ROUND, c + ROUND])
+		_spo_idx.append_array([top, a + 2 * ROUND, b + 2 * ROUND])
 
 
 ## The moss's sporophytes, on the bark of mesh (its first surface) as a

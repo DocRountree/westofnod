@@ -3,7 +3,7 @@ render_mode cull_disabled, world_vertex_coords;
 
 // The moss's sporophytes (OakTree.sporophytes): thin red stalks 1.5-3.5
 // cm tall standing straight up off the stumps' and logs' moss, a purple-
-// brown capsule (an oblate spheroid) on each one's top; swaying a little,
+// brown capsule (a spheroid, long along the stalk) on each one's top; swaying a little,
 // the tip, not the foot (the more the higher, as the trees' branches), in
 // slow gusts. All of a sporophyte's corners are at its foot in the mesh:
 // VERTEX/NORMAL the foot and the bark's normal there, CUSTOM1.xyz the foot
@@ -21,7 +21,7 @@ uniform float near_end = 2.0;   // m from the player
 uniform vec3 player = vec3(0.0); // (main.gd, each frame: OakTree.set_player)
 uniform float sway_tip = 0.0025;  // m, the capsule's sway in a full gust
 uniform float stalk_r = 0.0006;   // m
-uniform vec2 capsule_r = vec2(0.0018, 0.0012); // m: round, up
+uniform vec2 capsule_r = vec2(0.0022, 0.0045); // m: round, along the stalk (longer that way)
 uniform vec3 stalk_base : source_color = vec3(0.36, 0.1, 0.06);
 uniform vec3 stalk_top : source_color = vec3(0.72, 0.3, 0.12);
 uniform vec3 capsule : source_color = vec3(0.4, 0.22, 0.42);
