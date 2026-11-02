@@ -188,7 +188,7 @@ static func _sporophyte_template() -> void:
 
 
 ## The moss's sporophytes, on the bark of mesh (its first surface) as a
-## surface of their own: stalks 1.5-3.5 cm, standing straight up, all over
+## surface of their own: stalks 1-2.2 cm, standing straight up, all over
 ## what faces up or sideways (the shader shows those where the moss is),
 ## every corner at its foot (the shader builds the shape).
 static func sporophytes(mesh: ArrayMesh, mat: Material, seed: int) -> void:
@@ -228,7 +228,7 @@ static func sporophytes(mesh: ArrayMesh, mat: Material, seed: int) -> void:
 				r1 = 1.0 - r1
 				r2 = 1.0 - r2
 			var foot := p0 + e1 * r1 + e2 * r2
-			var stalk := (Vector3.UP + Vector3(rng.randf_range(-1, 1), 0.0, rng.randf_range(-1, 1)) * 0.06).normalized() * rng.randf_range(0.015, 0.035)
+			var stalk := (Vector3.UP + Vector3(rng.randf_range(-1, 1), 0.0, rng.randf_range(-1, 1)) * 0.06).normalized() * rng.randf_range(0.01, 0.022)
 			var phase := rng.randf() * TAU
 			var rank := rng.randf()
 			var base := o_v.size()
