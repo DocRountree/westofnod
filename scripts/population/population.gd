@@ -765,8 +765,7 @@ func _generate(key: Vector2i) -> void:
 				# pick by a hash of the place, so the rng's draws stay as they were)
 				var u := fposmod(sin(x * 12.9898 + z * 78.233) * 43758.5453, 1.0)
 				var bi: int
-				var dens := 1.0
-				if kind.lush:
+				if kind.strays:
 					# straying over the border: the biome read a few hundred
 					# metres off, at random, so a kind thins out across it
 					var ox := (fposmod(sin(x * 39.346 + z * 11.135) * 24634.634, 1.0) - 0.5) * 700.0
@@ -775,15 +774,13 @@ func _generate(key: Vector2i) -> void:
 				else:
 					bi = world.biome_blend_at(x, z, u)
 				var dc := kind.density_in(bi) * kind.clump_at(bi, x, z)
-				if keep >= dc * (1.8 if kind.lush else 1.0):
-					continue # (not even on the lushest ground: no need to look closer)
-				if kind.lush:
-					dens = world.lush_at(x, z)
+				if keep >= dc:
+					continue
+				if kind.strays:
 					# thinning out up the mountains, gone at the top of its range
 					var top := kind.height_range.y
-					dens *= 1.0 - smoothstep(top * 0.5, top, world.base_height(x, z))
-				if keep >= dc * dens:
-					continue
+					if keep >= dc * (1.0 - smoothstep(top * 0.5, top, world.base_height(x, z))):
+						continue
 				if kind.min_spacing > 0.0:
 					var crowded := false
 					for q in placed:

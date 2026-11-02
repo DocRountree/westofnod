@@ -213,17 +213,6 @@ vec4 bspline4(float f) {
 const int BIOME_TAPS = 16;
 const int BIOME_SLOTS = 12; // the biomes (11), and none (the sea)
 
-// How lush the land is at p, n its normal (WorldData.lush_at, the same: the
-// trees' density goes by it there, the ground's green and the canopy here):
-// more on slopes facing away from the equator (shaded, damper), less on
-// steep ground, and up and down over kilometres (meadows and copses).
-// About 0.15..1.8, 1 on the level.
-float lush_at(vec2 p, vec3 n) {
-	float pole = n.z * sign(p.y); // (the equator at z = 0: toward the pole is -z north of it)
-	float l = 1.0 + 2.0 * pole - 2.2 * (1.0 - n.y) + 0.9 * (vnoise(p / 1100.0) - 0.5) + 0.5 * (vnoise(p / 330.0 + vec2(7.3, -2.1)) - 0.5);
-	return clamp(l, 0.15, 1.8);
-}
-
 // Biome texel k (0-15) of the four by four round g, and its weight (a cubic
 // B-spline: a border takes about three texels, 200 m, to go over from one
 // biome to the next, smoothly, where the four nearest made it 68 m).

@@ -208,10 +208,7 @@ and islands; `biome_ground` lives in `ground.gdshaderinc`, which the grass share
 the borders also wander in kilometre-wide tongues and islands; the trees are
 picked by the same shares (`WorldData.biome_blend_at`), each read a few hundred
 metres off at random, so they thin out across a border into scattered oaks and
-copses. How lush the land is (`lush_at`, in `ground.gdshaderinc` and
-`WorldData`: more on slopes facing away from the equator, less on steep ground,
-swelling and dipping over kilometres) steers the oaks' density and the ground's
-green. Past 600 m, where the trees stop being drawn, their canopy is painted on
+copses, thinning out up the mountains. Past 600 m, where the trees stop being drawn, their canopy is painted on
 the terrain (crowns and shadow, as much as the trees there would cover), and the
 haze is thicker (6.5 km), so distant land softens and blues. The pale
 grounds (prairie, coast, beaches) dim at night, as the leaves do. Marram,

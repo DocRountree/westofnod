@@ -98,20 +98,6 @@ func biome_blend_at(x: float, z: float, u: float) -> int:
 	return b if b < biome_names.size() else -1
 
 
-## How lush the land is at (x, z) (ground.gdshaderinc lush_at, the same: it
-## steers the trees' density here and the ground's green and the distant
-## canopy there): more on slopes facing away from the equator, less on steep
-## ground, up and down over kilometres. About 0.15..1.8, 1 on the level. (The
-## slope over 30 m: the trees go by the lie of the land, not its bumps.)
-func lush_at(x: float, z: float) -> float:
-	# (from the map's own heights, without the fine relief: three samples, cheap)
-	var h0 := base_height(x, z)
-	var n := Vector3(h0 - base_height(x + 15.0, z), 15.0, h0 - base_height(x, z + 15.0)).normalized()
-	var pole := n.z * signf(z)
-	var l := 1.0 + 2.0 * pole - 2.2 * (1.0 - n.y) + 0.9 * (vnoise(x / 1100.0, z / 1100.0) - 0.5) + 0.5 * (vnoise(x / 330.0 + 7.3, z / 330.0 - 2.1) - 0.5)
-	return clampf(l, 0.15, 1.8)
-
-
 ## The biome's name at (x, z) ("" where none).
 func biome_at(x: float, z: float) -> String:
 	var b := biome_index_at(x, z)
