@@ -2,19 +2,35 @@
 // (`p`, m, per instance offset by `seed`), so they stay put on the bark as
 // it sways and differ tree to tree.
 //
-// Lichen: teal-grey crusts, rosettes a few cm across with lobed edges and
-// paler rims, gathered in drifts here and there (lichen_amount: their
-// share of the bark). Moss (moss_amount; the stumps and logs): soft green
-// cushions on whatever faces up, thinning down the sides, in patches.
-// Far off both give way to their average (lichen_mean), so they don't
-// shimmer.
+// Lichen: leafy lobes, crusts, gathered in drifts here and there
+// (lichen_amount: their share of the bark). Moss (moss_amount; the stumps
+// and logs): dark green cushions on whatever faces up, thinning down the
+// sides, and (moss_low) up from the ground, in patches.
+// Past a few tens of metres both give way to a faint average (no pattern
+// to shimmer, and much cheaper: the pattern is only worked out up close).
 
 uniform float lichen_amount = 0.35;
 uniform float moss_amount = 0.0;
-uniform vec3 lichen_color : source_color = vec3(0.42, 0.58, 0.55);
-uniform vec3 lichen_rim : source_color = vec3(0.6, 0.71, 0.67);
-uniform vec3 moss_color : source_color = vec3(0.23, 0.33, 0.07);
-uniform vec3 moss_light : source_color = vec3(0.38, 0.48, 0.12);
+uniform float moss_low = 0.0;    // moss up the sides from the ground (the stumps)
+uniform vec3 lichen_color : source_color = vec3(0.46, 0.52, 0.45);  // leafy, sage
+uniform vec3 lichen_crust : source_color = vec3(0.55, 0.56, 0.52);  // crusts, pale grey
+uniform vec3 lichen_yellow : source_color = vec3(0.5, 0.53, 0.32);
+uniform vec3 moss_color : source_color = vec3(0.12, 0.2, 0.08);
+uniform vec3 moss_light : source_color = vec3(0.22, 0.32, 0.13);
+// Where they grow: not on the prairie (its dry, open air). Set by main.gd.
+uniform sampler2D growth_biomes : filter_nearest, repeat_disable;
+uniform vec2 growth_origin = vec2(-4096.0);
+uniform float growth_domain = 8192.0;
+uniform int prairie_biome = -1;
+
+// 1 where lichen and moss grow at world xz, 0 on the prairie.
+float growth_at(vec2 xz) {
+	if (prairie_biome < 0)
+		return 1.0;
+	ivec2 n = textureSize(growth_biomes, 0);
+	ivec2 c = clamp(ivec2((xz - growth_origin) / growth_domain * vec2(n)), ivec2(0), n - 1);
+	return int(texelFetch(growth_biomes, c, 0).r * 255.0 + 0.5) == prairie_biome ? 0.0 : 1.0;
+}
 
 float lc_hash(vec3 p) {
 	p = fract(p * vec3(0.1031, 0.1030, 0.0973));
@@ -35,38 +51,32 @@ float lc_noise(vec3 p) {
 			mix(lc_hash(i + vec3(0, 1, 1)), lc_hash(i + vec3(1, 1, 1)), f.x), f.y), f.z);
 }
 
-// The nearest rosette: (distance / its radius, its random 0..1). Each cell
-// has one rosette of its own size; some cells none.
-vec2 lc_rosette(vec3 p) {
-	vec3 i = floor(p), f = fract(p);
-	float best = 9.0, id = 0.0;
-	for (int z = -1; z <= 1; z++)
-	for (int y = -1; y <= 1; y++)
-	for (int x = -1; x <= 1; x++) {
-		vec3 g = vec3(float(x), float(y), float(z));
-		vec3 h = lc_hash3(i + g);
-		float r = mix(0.3, 0.8, h.z);
-		float d = length(g + h * 0.8 + 0.1 - f) / r;
-		if (h.x < 0.8 && d < best) { best = d; id = h.y; }
-	}
-	return vec2(best, id);
-}
-
-// Lichen's share of the bark at p, 0..1 (rim: how much of it is the pale rim).
-float lichen_cover(vec3 p, float far, out float rim) {
-	rim = 0.0;
-	float drift = smoothstep(0.75 - lichen_amount, 1.05 - lichen_amount, lc_noise(p * 0.9) * 0.7 + lc_noise(p * 2.7) * 0.3);
-	if (drift <= 0.0 || lichen_amount <= 0.0)
+// Lichen's share of the bark at p, 0..1, and its colour there. Leafy
+// (foliose) lobes, sage to grey-green with paler, upturned rims and darker
+// gaps; pale grey crusts; now and then a yellow-green crust. Shapes from
+// warped noise, so no two patches alike.
+float lichen_cover(vec3 p, float far, out vec3 col) {
+	col = lichen_color;
+	float drift = smoothstep(0.85 - lichen_amount, 1.1 - lichen_amount, lc_noise(p * 1.3));
+	if (drift <= 0.0)
 		return 0.0;
-	if (far >= 1.0)
-		return drift * 0.55; // (the rosettes' average share)
-	vec3 q = p * 6.0; // rosettes ~5-25 cm
-	vec2 r = lc_rosette(q);
-	float lobe = lc_noise(q * 3.1 + r.y * 13.0) * 0.45 + lc_noise(q * 7.3) * 0.15;
-	float edge = r.x + lobe - 0.3;
-	float cover = (1.0 - smoothstep(0.62, 0.7, edge)) * smoothstep(0.0, 0.3, drift);
-	rim = smoothstep(0.42, 0.62, edge) * cover;
-	return mix(cover, drift * 0.55, far);
+	float kind = lc_noise(p * 2.1 + 7.0);
+	vec3 base = mix(lichen_crust, lichen_color, smoothstep(0.35, 0.55, kind));
+	base = mix(base, lichen_yellow, smoothstep(0.8, 0.88, kind) * 0.8);
+	if (far >= 1.0) {
+		col = base;
+		return drift * 0.04; // (a faint share of their colour: the patches' average)
+	}
+	vec3 q = p * 11.0; // patches a few cm across
+	q += (lc_noise(q * 0.6) - 0.5) * vec3(1.7, -1.3, 1.1);
+	float f1 = lc_noise(q);
+	float f = f1 * 0.65 + lc_noise(q * 2.7) * 0.35;
+	float t = 0.68 - drift * 0.08;
+	float cover = smoothstep(t, t + 0.015, f);
+	float rim = 1.0 - smoothstep(t + 0.01, t + 0.05, f);
+	col = base * mix(0.8, 1.0, f1) * mix(1.0, 1.15, rim);
+	col = mix(col, base, far);
+	return mix(cover, drift * 0.04, far);
 }
 
 // Moss's share of the bark at p, facing `up` (the surface's world normal's
@@ -75,8 +85,8 @@ float moss_cover(vec3 p, float up, float far, out float light) {
 	light = 0.0;
 	if (moss_amount <= 0.0)
 		return 0.0;
-	float n = lc_noise(p * 1.6) * 0.6 + lc_noise(p * 5.0) * 0.4;
-	float side = smoothstep(-0.35, 0.7, up);
+	float n = lc_noise(p * 2.2);
+	float side = max(smoothstep(-0.35, 0.7, up), moss_low * smoothstep(0.9, 0.1, p.y));
 	float m = smoothstep(0.0, 0.1, n - 1.0 + moss_amount * side);
 	if (far < 1.0) {
 		float fuzz = lc_noise(p * 60.0);

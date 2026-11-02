@@ -86,6 +86,7 @@ func _ready() -> void:
 	collider = TerrainCollider.new()
 	collider.world = world
 	add_child(collider)
+	OakTree.set_growth_map(world) # (no lichen or moss on the prairie)
 	population = Population.new()
 	population.world = world
 	add_child(population)

@@ -19,14 +19,16 @@ uniform float shadow_strength = 0.6;
 uniform vec2 detail_far = vec2(60.0, 90.0); // m: the texture fades out between these
 
 varying vec3 world_pos;
-varying vec3 obj; // the tree's own space, offset per tree (the lichen's and moss's patterns)
+varying vec3 obj; // the tree's own space, offset per tree across (the lichen's and moss's patterns)
+varying float growth; // 0 on the prairie: no lichen or moss
 
 void vertex() {
 	lod_f = lod_vertex(CAMERA_POSITION_WORLD, MODEL_MATRIX, PROJECTION_MATRIX);
 	if (lod_gone(lod_f)) {
 		VERTEX = vec3(0.0); // (not this level here: no pixels)
 	}
-	obj = VERTEX + fract(MODEL_MATRIX[3].xyz * 0.0137) * 61.0;
+	obj = VERTEX + vec3(fract(MODEL_MATRIX[3].x * 0.0137), 0.0, fract(MODEL_MATRIX[3].z * 0.0137)) * 61.0;
+	growth = growth_at(MODEL_MATRIX[3].xz);
 	VERTEX += wind_local(MODEL_MATRIX, VERTEX, UV2.y, TIME);
 	world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 }
@@ -77,18 +79,18 @@ void fragment() {
 	// lichen, then moss over it (not on the end grain's face, save moss on
 	// a stump's top)
 	float d = distance(world_pos, CAMERA_POSITION_WORLD);
-	float far = smoothstep(detail_far.x * 0.5, detail_far.x, d);
+	float far = smoothstep(12.0, 30.0, d);
 	float up = (INV_VIEW_MATRIX * vec4(NORMAL, 0.0)).y;
-	float rim;
-	float lichen = UV2.x > 0.5 ? 0.0 : lichen_cover(obj, far, rim);
+	vec3 lc;
+	float lichen = UV2.x > 0.5 || growth <= 0.0 || lichen_amount <= 0.0 ? 0.0 : lichen_cover(obj, far, lc);
 	if (lichen > 0.0) {
-		vec3 lc = mix(lichen_color, lichen_rim, rim) * mix(0.85, 1.0, AO);
+		lc *= mix(0.85, 1.0, AO);
 		ALBEDO = mix(ALBEDO, lc, lichen);
 		AO = mix(AO, 1.0, lichen * 0.7);
 		ROUGHNESS = mix(ROUGHNESS, 0.8, lichen);
 	}
 	float ml;
-	float moss = moss_cover(obj, up, far, ml) * (UV2.x > 0.5 ? 0.5 : 1.0);
+	float moss = growth <= 0.0 ? 0.0 : moss_cover(obj, up, far, ml) * (UV2.x > 0.5 ? 0.5 : 1.0);
 	if (moss > 0.0) {
 		ALBEDO = mix(ALBEDO, mix(moss_color, moss_light, ml), moss);
 		AO = mix(AO, mix(0.7, 1.0, ml), moss);
