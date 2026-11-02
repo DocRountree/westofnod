@@ -22,7 +22,7 @@ uniform int kind = 0;      // 0 grass, 1 fern
 uniform bool in_forest = true;
 uniform bool in_prairie = true;
 uniform bool in_swamp = false; // (the reeds: prairie_height their height; they take the prairie's colours)
-uniform bool in_coast = false; // (crabgrass: on the coast and the beaches, in patches, none at the water's edge, more and taller inland)
+uniform bool in_coast = false; // (marram: on the coast and the beaches, in patches, none at the water's edge, more and taller inland)
 uniform vec2 forest_height = vec2(0.08, 0.16); // m (grass; ferns: their length)
 uniform vec2 prairie_height = vec2(0.45, 0.85);
 uniform float cover = 1.0; // the share of cells with a clump
@@ -141,7 +141,7 @@ void fragment() {
 	// the swamp's reeds: in clumps a few metres across, well apart
 	if (in_swamp)
 		grows += sw * smoothstep(0.6, 0.68, vnoise(pos / 11.0 + 41.0) * 0.7 + vnoise(pos / 3.5 + 5.0) * 0.3);
-	// crabgrass along the coast: patches on the beaches and the coast,
+	// marram along the coast: patches on the beaches and the coast,
 	// none at the water's edge, thicker and taller up from it (by the
 	// height above the sea: the beach rising to the dunes behind)
 	float inland = smoothstep(0.8, 8.0, h + (vnoise(pos / 13.0 + 7.0) - 0.5) * 2.0);
@@ -158,7 +158,7 @@ void fragment() {
 	float size = 0.0;
 	if (h2(c, 5) < grows && h2(c, 4) < cover && !under_log(pos)) {
 		// not on rock, sand, mud or the shore; nothing on the forest's litter
-		float bare = max(max(rocky, in_coast ? 0.0 : m.a), mud * 3.0) + (in_swamp ? 0.0 : 1.0 - smoothstep(0.3, 1.2, h)); // (reeds stand in water; crabgrass on sand)
+		float bare = max(max(rocky, in_coast ? 0.0 : m.a), mud * 3.0) + (in_swamp ? 0.0 : 1.0 - smoothstep(0.3, 1.2, h)); // (reeds stand in water; marram on sand)
 		float here = mix(smoothstep(0.3, 0.05, litter / max(fw, 1e-4)), 1.0, prairie);
 		if (kind == 1) // ferns in drifts, and only well inside the forest
 			here *= smoothstep(0.24, 0.4, vnoise(pos / 7.0 + 13.0) * 0.7 + vnoise(pos / 2.3) * 0.3) * smoothstep(0.75, 0.95, fw);

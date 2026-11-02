@@ -37,7 +37,7 @@ uniform float grass_sway = 0.3;       // the tip's sway, in clump heights per m 
 uniform sampler2D frond_tex : source_color, filter_linear_mipmap_anisotropic, repeat_disable;
 uniform vec3 prairie_green = vec3(0.27, 0.43, 0.12);
 uniform vec3 prairie_blonde = vec3(0.74, 0.64, 0.38);
-// patches of a tint (the crabgrass): in irregular patches a few metres
+// patches of a tint (the marram): in irregular patches a few metres
 // across, a share patch_tints.x of them greener, as many again (.y) yellower,
 // the rest as they are; by how much (multiplying the tip's colour)
 uniform vec2 patch_tints = vec2(0.0);

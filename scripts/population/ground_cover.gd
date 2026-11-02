@@ -26,7 +26,7 @@ extends Node3D
 ## - reeds: the swamp's, 1.8-2.3 m, broad-bladed, in clumps here and there
 ##   (sparse patches, in the water too); to 72 m;
 ## - cattails among them: stalks with brown heads, a few leaves; to 66 m;
-## - crabgrass: the coast's and the beaches', half the prairie grass's height,
+## - marram: the coast's and the beaches', half the prairie grass's height,
 ##   as pale as the sand (a fifth of the patches a tad greener, a fifth a tad
 ##   yellower), in patches: none at the water's edge, thicker and
 ##   taller up the beach; near (to 25 m) and middle (18-62 m);
@@ -53,7 +53,7 @@ const LAYERS := [
 		"u": {"kind": 0, "seed": 6, "in_forest": false, "in_prairie": false, "in_swamp": true, "cover": 0.45,
 			"prairie_height": Vector2(1.7, 2.2), "prairie_green": Vector3(0.24, 0.33, 0.13), "prairie_blonde": Vector3(0.45, 0.42, 0.26),
 			"fade_out": Vector2(50.0, 66.0), "thin_from": 40.0}},
-	# crabgrass, along the coast: half the prairie grass's height, as pale as the sand
+	# marram, along the coast: half the prairie grass's height, as pale as the sand
 	{"cell": 0.3, "cells": 24, "tiles": 9, "blades": 12, "segs": 3, "radius": 0.2, "width": 0.018,
 		"u": {"kind": 0, "seed": 7, "in_forest": false, "in_prairie": false, "in_coast": true, "prairie_height": Vector2(0.75, 1.0),
 			"prairie_green": Vector3(0.76, 0.74, 0.58), "prairie_blonde": Vector3(0.88, 0.84, 0.69), "patch_tints": Vector2(0.2, 0.2),
