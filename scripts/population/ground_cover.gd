@@ -27,7 +27,8 @@ extends Node3D
 ##   (sparse patches, in the water too); to 72 m;
 ## - cattails among them: stalks with brown heads, a few leaves; to 66 m;
 ## - crabgrass: the coast's and the beaches', half the prairie grass's height,
-##   as pale as the sand, in patches: none at the water's edge, thicker and
+##   as pale as the sand (a fifth of the patches a tad greener, a fifth a tad
+##   yellower), in patches: none at the water's edge, thicker and
 ##   taller up the beach; near (to 25 m) and middle (18-62 m);
 ## - ferns: the forest's, in drifts, knee-high; to 45 m.
 ## The forest's brown patches are leaf litter: a texture on the terrain
@@ -55,11 +56,11 @@ const LAYERS := [
 	# crabgrass, along the coast: half the prairie grass's height, as pale as the sand
 	{"cell": 0.3, "cells": 24, "tiles": 9, "blades": 12, "segs": 3, "radius": 0.2, "width": 0.018,
 		"u": {"kind": 0, "seed": 7, "in_forest": false, "in_prairie": false, "in_coast": true, "prairie_height": Vector2(0.75, 1.0),
-			"prairie_green": Vector3(0.76, 0.74, 0.58), "prairie_blonde": Vector3(0.88, 0.84, 0.69),
+			"prairie_green": Vector3(0.76, 0.74, 0.58), "prairie_blonde": Vector3(0.88, 0.84, 0.69), "patch_tints": Vector2(0.2, 0.2),
 			"fade_out": Vector2(18.0, 25.0), "thin_from": 1000.0}},
 	{"cell": 0.7, "cells": 20, "tiles": 9, "blades": 14, "segs": 2, "radius": 0.38, "width": 0.028,
 		"u": {"kind": 0, "seed": 8, "in_forest": false, "in_prairie": false, "in_coast": true, "prairie_height": Vector2(0.75, 1.0),
-			"prairie_green": Vector3(0.76, 0.74, 0.58), "prairie_blonde": Vector3(0.88, 0.84, 0.69),
+			"prairie_green": Vector3(0.76, 0.74, 0.58), "prairie_blonde": Vector3(0.88, 0.84, 0.69), "patch_tints": Vector2(0.2, 0.2),
 			"fade_in": Vector2(18.0, 25.0), "fade_out": Vector2(48.0, 62.0), "thin_from": 32.0}},
 	{"cell": 0.5, "cells": 24, "tiles": 9, "fronds": 8,
 		"u": {"kind": 1, "seed": 4, "in_prairie": false, "forest_height": Vector2(0.25, 0.45),
@@ -68,7 +69,7 @@ const LAYERS := [
 const MAX_LOGS := 256 ## logs, stumps, trunks and boulders the grass is kept out of, nearest first (ground_cover_bake.gdshader: logs[])
 const REBAKE := 5.0 ## m the camera moves before a layer's grid is worked out again
 const BAKE_KEYS := ["kind", "seed", "in_forest", "in_prairie", "in_swamp", "in_coast", "forest_height", "prairie_height", "cover"]
-const DRAW_KEYS := ["kind", "seed", "fade_in", "fade_out", "thin_from", "prairie_green", "prairie_blonde"]
+const DRAW_KEYS := ["kind", "seed", "fade_in", "fade_out", "thin_from", "prairie_green", "prairie_blonde", "patch_tints"]
 
 var world: WorldData
 var population: Population ## (optional) its logs and stumps keep the grass off

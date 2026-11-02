@@ -37,6 +37,12 @@ uniform float grass_sway = 0.3;       // the tip's sway, in clump heights per m 
 uniform sampler2D frond_tex : source_color, filter_linear_mipmap_anisotropic, repeat_disable;
 uniform vec3 prairie_green = vec3(0.27, 0.43, 0.12);
 uniform vec3 prairie_blonde = vec3(0.74, 0.64, 0.38);
+// patches of a tint (the crabgrass): in irregular patches a few metres
+// across, a share patch_tints.x of them greener, as many again (.y) yellower,
+// the rest as they are; by how much (multiplying the tip's colour)
+uniform vec2 patch_tints = vec2(0.0);
+uniform vec3 tint_green = vec3(0.92, 1.04, 0.9);
+uniform vec3 tint_yellow = vec3(1.04, 1.02, 0.82);
 uniform vec3 head_color = vec3(0.075, 0.035, 0.017); // linear: a cattail's head (UV.x 2..3 marks it)
 uniform float shadow_strength = 0.7;
 uniform float night = 0.0; // 0 day .. 1 night (main.gd): the prairie's grass darker at night, as its ground
@@ -120,6 +126,12 @@ void vertex() {
 			vec3 tip = mix(ground * vec3(1.12, 1.22, 1.05), // forest: the ground's, a little lighter
 					mix(prairie_green, prairie_blonde, clamp(a.a / 255.0 + COLOR.g * 0.5 - 0.25, 0.0, 1.0)) * 0.85, // prairie
 					prairie);
+			if (patch_tints.x + patch_tints.y > 0.0) {
+				// the patches: cells 7 m across, their edges wavering
+				vec2 q = pos + vec2(sin(pos.y * 0.37) + sin(pos.y * 0.11 + 1.3), sin(pos.x * 0.41) + sin(pos.x * 0.13 + 2.1)) * 2.0;
+				float t = gc_hash(ivec2(floor(q / 7.0)) + ivec2(577, -211));
+				tip *= t < patch_tints.x ? tint_green : (t < patch_tints.x + patch_tints.y ? tint_yellow : vec3(1.0));
+			}
 			tip_col = pow(tip * COLOR.r * (1.0 - 0.5 * night * prairie), vec3(2.2));
 		}
 	}
