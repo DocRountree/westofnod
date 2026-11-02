@@ -52,13 +52,13 @@ const VARIANTS := [
 ## and cast no shadow, the stumps jumped onto; dead oaks stand in the swamp too, as many as all the
 ## standing oaks (live, saplings and dead; not the logs or stumps) on the
 ## prairie, down into its shallows, gathered there in irregular clumps (no
-## two closer than 4.5 m: their trunks clear, limbs may interlace).
+## two closer than 7.5 m: their trunks clear, limbs may interlace).
 const PROPS := {
 	"tree": {"standing": true, "foot": 0.75, "shadowless_in": ["swamp"]},
 	"stump": {"weight": 0.5, "shadowless_in": ["swamp"], "radius": 0.0, "foot": 0.6, "align_to_ground": 0.3, "sink": 0.12, "scale_range": Vector2(0.8, 1.1)},
 	"log": {"weight": 0.25, "radius": 0.0, "align_to_ground": 0.9, "sink": 0.12, "scale_range": Vector2(0.8, 1.15), "shadows": false},
 	"dead": {"weight": 0.5 / 3.0, "standing": true, "density_like": {"swamp": "prairie"}, "like_group": "standing", "height_range": Vector2(-0.5, 1900.0), "foot": 0.65,
-		"clump": {"swamp": 1.0}, "clump_size": 34.0, "min_spacing": 4.5, "shadowless_in": ["swamp"]},
+		"clump": {"swamp": 1.0}, "clump_size": 34.0, "min_spacing": 7.5, "shadowless_in": ["swamp"]},
 	"sapling": {"weight": 0.5, "standing": true, "radius": 0.1, "foot": 0.08, "scale_range": Vector2(0.75, 1.25), "shadowless_in": ["swamp"]},
 }
 
@@ -92,7 +92,8 @@ const COVER := {
 	"fresh_stump": [0.11, 0.0, 0.0, 0.0], # (an axed tree's: its bark as the tree's, its top clean)
 }
 static var _growth := {} # the biome map's parameters (set_growth_map)
-const LICHEN_ANY := ["dead", "log"] ## Their lichen doesn't go by the biome.
+const LICHEN_ANY := ["dead", "log", "stump"] ## Their lichen doesn't go by the biome (the prairie's dry air thins it on the living trees only).
+const MOSS_ANY := ["log", "stump"] ## Their moss grows on the prairie too (on the ground, damp underneath).
 static var _leaf_mats := {}
 static var _cache := {} # variant -> [mesh, lods, near_multimesh]
 
@@ -109,6 +110,7 @@ static func bark_material(level := 0, kind := "tree") -> ShaderMaterial:
 		m.set_shader_parameter("moss_amount", cover[1])
 		m.set_shader_parameter("moss_low", cover[2])
 		m.set_shader_parameter("lichen_any_biome", kind in LICHEN_ANY)
+		m.set_shader_parameter("moss_any_biome", kind in MOSS_ANY)
 		m.set_shader_parameter("lichen_swamp", 1.25 if kind == "dead" else 1.0) # (in the swamp as before: 0.306)
 		m.set_shader_parameter("moss_end", cover[3])
 		m.set_shader_parameter("lichen_tex", _texture("res://data/population/textures/lichen.png"))
@@ -131,7 +133,7 @@ static func sporophyte_material(kind: String) -> ShaderMaterial:
 		var bark := bark_material(0, kind)
 		var m := ShaderMaterial.new()
 		m.shader = load("res://shaders/render/sporophytes.gdshader")
-		for p in ["moss_amount", "moss_low", "moss_end", "moss_spill"]:
+		for p in ["moss_amount", "moss_low", "moss_end", "moss_spill", "moss_any_biome", "moss_tex"]:
 			m.set_shader_parameter(p, bark.get_shader_parameter(p))
 		for p in _growth:
 			m.set_shader_parameter(p, _growth[p])
@@ -197,7 +199,8 @@ static var _spo_mesh: ArrayMesh
 ## The moss's sporophytes on the bark of mesh (its first surface), as a
 ## MultiMesh in the tree's own space, one instance each: its origin the
 ## foot, basis x the bark's normal there, y the stalk (1-2.2 cm, standing
-## straight up), custom the foot (xyz) and 2 on a cut end + a rank 0..1 (w).
+## straight up); its colour the bark's UV there (r, g); custom the foot
+## (xyz) and 2 on a cut end + a rank 0..1 (w).
 ## All over what faces up or sideways (the shader shows those where the moss
 ## is). Drawn only for the logs and stumps near the player (Population,
 ## near_multimesh), so a log can carry all it should.
@@ -222,11 +225,13 @@ static func _sporophyte_multimesh(mesh: ArrayMesh, seed: int) -> MultiMesh:
 	var verts: PackedVector3Array = a[Mesh.ARRAY_VERTEX]
 	var normals: PackedVector3Array = a[Mesh.ARRAY_NORMAL]
 	var uv2: PackedVector2Array = a[Mesh.ARRAY_TEX_UV2]
+	var uvs: PackedVector2Array = a[Mesh.ARRAY_TEX_UV]
 	var idx: PackedInt32Array = a[Mesh.ARRAY_INDEX]
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed * 31 + 7
 	var xfs: Array[Transform3D] = []
 	var customs: Array[Color] = []
+	var colors: Array[Color] = []
 	for i in range(0, idx.size(), 3):
 		var p0 := verts[idx[i]]
 		var e1 := verts[idx[i + 1]] - p0
@@ -251,17 +256,24 @@ static func _sporophyte_multimesh(mesh: ArrayMesh, seed: int) -> MultiMesh:
 			if side.length_squared() < 1e-10:
 				side = Vector3.RIGHT.cross(stalk)
 			xfs.append(Transform3D(Basis(n, stalk, side.normalized()), foot))
+			# the bark's UV at the foot (the instance's colour: the shader
+			# reads the moss texture there, as the bark does, to stand only
+			# on green moss)
+			var uv := uvs[idx[i]] + (uvs[idx[i + 1]] - uvs[idx[i]]) * r1 + (uvs[idx[i + 2]] - uvs[idx[i]]) * r2
+			colors.append(Color(uv.x, uv.y, 0.0, 1.0))
 			customs.append(Color(foot.x, foot.y, foot.z, end + rng.randf()))
 	if xfs.is_empty():
 		return null
 	var mm := MultiMesh.new()
 	mm.transform_format = MultiMesh.TRANSFORM_3D
 	mm.use_custom_data = true
+	mm.use_colors = true
 	mm.mesh = _spo_mesh
 	mm.instance_count = xfs.size()
 	for i in xfs.size():
 		mm.set_instance_transform(i, xfs[i])
 		mm.set_instance_custom_data(i, customs[i])
+		mm.set_instance_color(i, colors[i])
 	return mm
 
 

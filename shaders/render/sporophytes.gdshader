@@ -8,11 +8,13 @@ render_mode cull_disabled, world_vertex_coords;
 // drawn on a log or stump near the player: every corner of the template at
 // its origin, told apart by UV (UV.x the way round 0..1, UV.y up the stalk
 // 0..1 or on the capsule, 2 its bottom .. 3 its top). The instance: its
-// origin the foot, basis x the bark's normal there, y the stalk;
+// origin the foot, basis x the bark's normal there, y the stalk; its
+// colour the bark's UV there (COLOR.rg);
 // INSTANCE_CUSTOM.xyz the foot in the tree's own space, .w 2 on a cut end +
-// a rank 0..1. They stand where the bark's moss is thick (moss_field, the
-// same as bark.gdshader's), more of them the thicker it is, each whole or
-// not at all; within near_end m of the player only.
+// a rank 0..1. They stand only on the green moss the bark shows there
+// (moss_cover, read from moss.png where the bark reads it), more of them
+// the thicker it is, each whole or not at all; within near_end m of the
+// player only.
 
 #include "res://shaders/render/aerial.gdshaderinc"
 #include "res://shaders/render/lichen.gdshaderinc"
@@ -33,12 +35,20 @@ void vertex() {
 	vec3 tree = NODE_POSITION_WORLD + world_origin; // (on the map)
 	bool cut_end = INSTANCE_CUSTOM.w > 1.5;
 	float rank = INSTANCE_CUSTOM.w - (cut_end ? 2.0 : 0.0);
-	if (growth_at(tree.xz).y > 0.0) {
+	if (moss_any_biome || growth_at(tree.xz).y > 0.0) {
 		float d = distance(foot + world_origin, player);
 		if (d < near_end) {
 			vec3 obj = INSTANCE_CUSTOM.xyz + vec3(fract(tree.x * 0.0137), 0.0, fract(tree.z * 0.0137)) * 61.0;
-			float m = moss_field(obj, normalize(MODEL_MATRIX[0].xyz).y) * (cut_end ? moss_end : 1.0);
-			grow = step(0.35 + rank * 0.35, m); // (whole, or not there)
+			float up = normalize(MODEL_MATRIX[0].xyz).y;
+			float m = moss_field(obj, up) * (cut_end ? moss_end : 1.0);
+			// the moss the bark shows here (as bark.gdshader: its texture
+			// read where the bark reads it)
+			vec2 bark_off = fract(tree.xz * vec2(0.0419, 0.0283) + tree.zx * vec2(0.0157, 0.0233)) * vec2(1.0, 5.0);
+			vec2 muv = cut_end ? obj.xz / 0.3 : COLOR.rg * 2.0 + bark_off;
+			vec3 mc;
+			float mh;
+			float cover = moss_cover(obj, up, 1.0, textureLod(moss_tex, muv, 0.0), mc, mh) * (cut_end ? moss_end : 1.0);
+			grow = step(0.5, cover) * step(0.35 + rank * 0.35, m); // (whole, or not there)
 		}
 	}
 	if (grow <= 0.0) {

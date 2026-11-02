@@ -20,6 +20,7 @@ uniform float night = 0.0; // 0 day .. 1 night (main.gd): pale lichen glared und
 uniform bool lichen_any_biome = false; // the same everywhere (dead wood), not by biome (growth_at)...
 uniform float lichen_swamp = 1.0;      // ...save this much more in the swamp (dead oaks)
 uniform float moss_amount = 0.0;
+uniform bool moss_any_biome = false; // its moss grows on the prairie too (logs and stumps: growth_at's moss ignored)
 uniform float moss_low = 0.0;    // moss up the sides from the ground (the stumps)
 uniform float moss_end = 0.5;    // moss on a cut or broken end's face (a stump's top), against the bark's
 uniform float moss_spill = 0.0;  // the height (m, the tree's own) moss spills over from (a stump's top); 0 none

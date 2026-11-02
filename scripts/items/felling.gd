@@ -8,8 +8,14 @@ extends Node
 ## stump will be: Population.set_notch, drawn by bark.gdshader). Felled, the
 ## tree leaves the population for good (Population.remove_prop) and falls
 ## away from the player, off a fresh-sawn stump left where it stood
-## (OakTree.fresh_stump: flat, its top pale wood, no moss; none for a
-## sapling), and lies where it fell.
+## (OakTree.fresh_stump: its top chopped flat in strokes, pale wood, no moss;
+## none for a sapling), its foot landing a little beyond the stump, and lies
+## where it fell.
+##
+## The swing is sideways, from the axe's side across: the blade's edge
+## leading, sweeping round the body in a level arc tilted to pass through
+## the point it aims at, the notch's middle on the trunk in reach (or ahead
+## at waist height with none), and meeting it at the strike.
 ##
 ## The fallen trees and their stumps are saved with the game (to_list,
 ## from_list: main.gd), as nodes under Origin.root (their positions the
@@ -23,11 +29,17 @@ const STRIKE := 0.62 ## where in the swing the blade meets the trunk (0..1)
 const BLOW_DEPTH := 0.045 ## m of trunk radius one blow cuts: a 0.5 m trunk takes 11
 const FALL_TIME := 2.6 ## s, a full-sized tree from upright to the ground
 const CUT := 0.75 ## of the stump's own height: where the trunk comes away (at the stump's top)
+const KICK := 0.5 ## m beyond the stump (and as much again as the trunk's radius) the felled trunk's foot lands
+const WIND_UP := 1.5 ## rad round from the aim the swing starts (to the axe's side)
+const FOLLOW := 0.6 ## rad past the aim it follows through
+const HANDLE := 0.43 ## m from the grip to the head (Items._axe)
+const EDGE := 0.135 ## m from the handle to the blade's edge
 
 var main: Node
 var _swing := -1.0 # 0..1 through a swing; < 0 none
 var _struck := false
 var _blows := {} # tree uid -> blows so far
+var _aim := Vector3.INF # the swing's mark (on the map): the notch's middle; INF none
 var _falling: Array = [] # {node, axis, angle, t, time, pivot, basis}
 var _lying: Array = [] # what to_list saves, one entry a tree
 
@@ -41,7 +53,21 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	_swing = 0.0
 	_struck = false
+	_aim = _mark()
 	get_viewport().set_input_as_handled()
+
+
+## Where a swing now would strike (on the map): the middle of the notch on
+## the trunk in reach, on the player's side; INF if none.
+func _mark() -> Vector3:
+	var p: Player = main.player
+	var tree: Dictionary = main.population.choppable_near(Origin.map(p.camera.global_position), -p.camera.global_basis.z, REACH)
+	if tree.is_empty():
+		return Vector3.INF
+	var at: Vector3 = (tree.transform as Transform3D).origin
+	var to := Vector3(p.position.x - at.x, 0.0, p.position.z - at.z)
+	to = to.normalized() if to.length() > 0.01 else Vector3.FORWARD
+	return at + Vector3.UP * _cut(float(tree.radius)) + to * float(tree.radius)
 
 
 ## Which hand holds an axe: 1 right, 0 left, -1 neither (the right first).
@@ -62,34 +88,76 @@ func _process(delta: float) -> void:
 		var a: float = f.angle * u * u # (gathering speed as it goes over)
 		var turn := Basis(f.axis, a)
 		# the trunk's foot starts where it stood (below the cut, in the
-		# stump) and slides off the stump's top as it goes over
-		f.node.transform = Transform3D(turn * f.basis, f.pivot - turn * Vector3.UP * f.cut * (1.0 - u))
+		# stump) and slides off the stump's top as it goes over, landing a
+		# little beyond it
+		f.node.transform = Transform3D(turn * f.basis, f.pivot - turn * Vector3.UP * f.cut * (1.0 - u) + (f.end - f.pivot) * u * u)
 		if f.t >= f.time:
 			_falling.erase(f)
 
 
 func _animate_swing(delta: float) -> void:
 	var hand := _axe_hand()
-	var angle := 0.0
-	if _swing >= 0.0:
-		_swing += delta / SWING
-		var t := _swing
-		# up and back, then down and through, then back to rest
-		if t < 0.45:
-			angle = lerpf(0.0, 0.9, smoothstep(0.0, 1.0, t / 0.45))
-		elif t < STRIKE:
-			angle = lerpf(0.9, -0.8, (t - 0.45) / (STRIKE - 0.45))
-		else:
-			angle = lerpf(-0.8, 0.0, smoothstep(0.0, 1.0, (t - STRIKE) / (1.0 - STRIKE)))
-		if not _struck and t >= STRIKE:
-			_struck = true
-			_strike()
-		if _swing >= 1.0:
-			_swing = -1.0
-			angle = 0.0
-	if hand >= 0:
-		for m in _held_models(hand):
-			m.rotation.x = angle
+	if hand < 0:
+		return
+	var models := _held_models(hand)
+	if _swing < 0.0:
+		for m in models:
+			m.transform = Transform3D() # (at rest in the hand)
+		return
+	_swing += delta / SWING
+	var t := _swing
+	if not _struck and t >= STRIKE:
+		_struck = true
+		_strike()
+	if _swing >= 1.0:
+		_swing = -1.0
+		for m in models:
+			m.transform = Transform3D()
+		return
+	# out to the side (wind up), round to the mark faster and faster, on
+	# through it, and back to the hand
+	var side := 1.0 if hand == 1 else -1.0
+	var phi := 0.0
+	var w := 1.0
+	if t < 0.3:
+		phi = WIND_UP
+		w = smoothstep(0.0, 1.0, t / 0.3)
+	elif t < STRIKE:
+		var k := (t - 0.3) / (STRIKE - 0.3)
+		phi = WIND_UP * (1.0 - k * k)
+	elif t < 0.8:
+		phi = -FOLLOW * smoothstep(0.0, 1.0, (t - STRIKE) / (0.8 - STRIKE))
+	else:
+		phi = -FOLLOW
+		w = 1.0 - smoothstep(0.0, 1.0, (t - 0.8) / 0.2)
+	var pose := _swing_pose(phi * side, side)
+	for m in models:
+		var rest: Transform3D = (m.get_parent() as Node3D).global_transform
+		m.global_transform = rest.interpolate_with(pose, w)
+
+
+## The axe (its grip) in the world, swung round to phi (rad from the mark;
+## the side it comes from: +1 the right): round the chest in a level arc,
+## tilted to pass through the mark, the handle out along the arc's radius,
+## the blade's edge leading.
+func _swing_pose(phi: float, side: float) -> Transform3D:
+	var p: Player = main.player
+	var head: Transform3D = p.head.global_transform
+	var centre := Vector3(0.0, -0.5, 0.0) # (the chest, in the head's space)
+	var mark := Vector3(0.0, -0.45, -1.1) # (ahead, at the waist: no tree in reach)
+	if _aim != Vector3.INF:
+		mark = head.affine_inverse() * Origin.render(_aim)
+	var to := mark - centre
+	var dist := maxf(to.length(), HANDLE + 0.1)
+	var elev := asin(clampf(to.y / dist, -1.0, 1.0))
+	var yaw := atan2(to.x, -to.z) + phi
+	var out := Vector3(sin(yaw) * cos(elev), sin(elev), -cos(yaw) * cos(elev))
+	var moving := -side * Vector3(cos(yaw), 0.0, sin(yaw)) # (phi falling toward the mark)
+	moving = (moving - out * moving.dot(out)).normalized()
+	var z := -moving
+	var x := out.cross(z).normalized()
+	var grip := centre + out * dist - out * HANDLE - moving * EDGE
+	return head * Transform3D(Basis(x, out, z), grip)
 
 
 ## The axe's models (first-person and in the figure's hand).
@@ -145,21 +213,25 @@ func _fell(kind: PropKind, variant: int, xf: Transform3D, radius: float, away: V
 		cut = _cut(radius)
 	var pivot := xf.origin + Vector3.UP * cut
 	var axis := Vector3.UP.cross(away).normalized()
+	# its foot lands beyond the stump, lying on the ground
+	var end := pivot + away * (KICK + radius)
+	end.y = maxf(world.height_at(end.x, end.z) + radius * 0.7, xf.origin.y)
 	# over until its crown, about half its height out, comes down on the ground
 	var height := kind.mesh.get_aabb().end.y * xf.basis.get_scale().y
 	var reach := height * 0.5
-	var ground := world.height_at(pivot.x + away.x * reach, pivot.z + away.z * reach)
-	var angle := clampf(PI * 0.5 + atan2(pivot.y - ground, reach), deg_to_rad(65.0), deg_to_rad(105.0))
+	var ground := world.height_at(end.x + away.x * reach, end.z + away.z * reach)
+	var angle := clampf(PI * 0.5 + atan2(end.y - ground, reach), deg_to_rad(65.0), deg_to_rad(105.0))
 	var entry := {
 		"kind": String(kind.id), "basis": _floats(xf.basis), "at": [xf.origin.x, xf.origin.y, xf.origin.z],
 		"away": [away.x, away.z], "angle": angle, "cut": cut, "stump_scale": stump_scale,
+		"end": [end.x, end.y, end.z],
 	}
 	var node := _model([kind.mesh] + kind.lods)
 	node.transform = xf
 	if stump_scale > 0.0:
 		var sn := _model([OakTree.fresh_stump()[0]] + OakTree.fresh_stump()[1])
 		sn.transform = Transform3D(Basis(Vector3.UP, xf.basis.get_euler().y).scaled(Vector3.ONE * stump_scale), xf.origin)
-	entry.falling = {"node": node, "axis": axis, "angle": angle, "t": 0.0, "cut": cut,
+	entry.falling = {"node": node, "axis": axis, "angle": angle, "t": 0.0, "cut": cut, "end": end,
 			"time": FALL_TIME * sqrt(maxf(height, 1.0) / 15.0), "pivot": pivot, "basis": xf.basis}
 	return entry
 
@@ -227,6 +299,9 @@ func from_list(list: Array) -> void:
 		var origin := Vector3(at[0], at[1], at[2])
 		var dir := Vector3(away[0], 0.0, away[1]).normalized()
 		var pivot := origin + Vector3.UP * float(e.get("cut", 0.0))
+		var end: Array = e.get("end", [])
+		if end.size() == 3:
+			pivot = Vector3(end[0], end[1], end[2])
 		var node := _model([kind.mesh] + kind.lods)
 		node.transform = Transform3D(Basis(Vector3.UP.cross(dir).normalized(), float(e.get("angle", PI * 0.5))) * basis, pivot)
 		var s := float(e.get("stump_scale", 0.0))

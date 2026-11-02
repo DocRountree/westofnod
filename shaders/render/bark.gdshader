@@ -44,6 +44,8 @@ void vertex() {
 	vec3 tree = MODEL_MATRIX[3].xyz + world_origin; // (on the map: the patterns go by it)
 	obj = VERTEX + vec3(fract(tree.x * 0.0137), 0.0, fract(tree.z * 0.0137)) * 61.0;
 	growth = growth_at(tree.xz);
+	if (moss_any_biome)
+		growth.y = max(growth.y, 1.0);
 	// (whole trees, by their distance: a big one's nearest bark may be a
 	// dozen metres nearer than its foot)
 	near = distance(MODEL_MATRIX[3].xyz, CAMERA_POSITION_WORLD) < LICHEN_NEAR + 15.0 ? 1.0 : 0.0;
@@ -108,6 +110,22 @@ void fragment() {
 		AO = 1.0;
 		ROUGHNESS = 0.9;
 		SPECULAR = 0.2;
+		if (fresh_end) {
+			// an axe's top: chopped flat across in strokes, a band a stroke,
+			// each its own tilt (facets lying across the top, not standing
+			// up off it); shaded from the facets' slopes
+			float band = UV.y * 3.5 + 0.35 * sin(UV.x * 2.3 + 1.1);
+			ivec2 bi = ivec2(int(floor(band)), 17);
+			vec2 s0 = (vec2(lc_hash(vec3(vec2(bi), 3.0)), lc_hash(vec3(vec2(bi), 7.0))) - 0.5) * vec2(0.35, 0.55);
+			vec2 s1 = (vec2(lc_hash(vec3(vec2(bi + ivec2(1, 0)), 3.0)), lc_hash(vec3(vec2(bi + ivec2(1, 0)), 7.0))) - 0.5) * vec2(0.35, 0.55);
+			vec2 slope = mix(s0, s1, smoothstep(0.8, 1.0, fract(band))); // (a stroke rounds over into the next)
+			float fh = dot(UV, slope) * 0.45; // (m)
+			vec3 dpdx = dFdx(VERTEX), dpdy = dFdy(VERTEX);
+			vec3 r1 = cross(dpdy, NORMAL), r2 = cross(NORMAL, dpdx);
+			float det = dot(dpdx, r1);
+			NORMAL = normalize(abs(det) * NORMAL - sign(det) * (dFdx(fh) * r1 + dFdy(fh) * r2));
+			ALBEDO *= 0.94 + 0.12 * mix(lc_hash(vec3(vec2(bi), 11.0)), lc_hash(vec3(vec2(bi + ivec2(1, 0)), 11.0)), smoothstep(0.8, 1.0, fract(band))); // (each stroke a shade apart)
+		}
 	} else if (smoothstep(detail_far.x, detail_far.y, distance(world_pos, CAMERA_POSITION_WORLD)) > bayer4(FRAGCOORD.xy + 1.0)) {
 		// far: the bark's average colour (the texture's smallest mip), flat
 		ALBEDO = textureLod(bark_tex, vec2(0.5), 12.0).rgb * COLOR.rgb;
