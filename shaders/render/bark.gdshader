@@ -21,6 +21,8 @@ uniform vec2 detail_far = vec2(60.0, 90.0); // m: the texture fades out between 
 varying vec3 world_pos;
 varying vec3 obj; // the tree's own space, offset per tree across (the lichen's and moss's patterns)
 varying float growth; // 0 on the prairie: no lichen or moss
+varying float near;   // 1 the tree's up close (lichen, moss patterns), 0 not
+varying vec2 lichen_uv;
 
 void vertex() {
 	lod_f = lod_vertex(CAMERA_POSITION_WORLD, MODEL_MATRIX, PROJECTION_MATRIX);
@@ -29,6 +31,15 @@ void vertex() {
 	}
 	obj = VERTEX + vec3(fract(MODEL_MATRIX[3].x * 0.0137), 0.0, fract(MODEL_MATRIX[3].z * 0.0137)) * 61.0;
 	growth = growth_at(MODEL_MATRIX[3].xz);
+	// (whole trees, by their distance: a big one's nearest bark may be a
+	// dozen metres nearer than its foot)
+	near = distance(MODEL_MATRIX[3].xyz, CAMERA_POSITION_WORLD) < LICHEN_NEAR + 15.0 ? 1.0 : 0.0;
+	// (lichen.png: 0.6 m round, as the bark's texture, and 2.4 m along;
+	// each tree reads it from its own place, and every other one mirrored.
+	// Any shift keeps the seam round the trunk seamless: a trunk is a whole
+	// number of repeats round.)
+	vec2 o = fract(MODEL_MATRIX[3].xz * vec2(0.0137, 0.0191) + MODEL_MATRIX[3].zx * vec2(0.0071, 0.0113));
+	lichen_uv = vec2(o.x < 0.5 ? UV.x : -UV.x, UV.y * 0.25) + o * vec2(1.0, 7.0);
 	VERTEX += wind_local(MODEL_MATRIX, VERTEX, UV2.y, TIME);
 	world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 }
@@ -80,11 +91,11 @@ void fragment() {
 	// lichen, then moss over it (not on the end grain's face, save moss on
 	// a stump's top)
 	float d = distance(world_pos, CAMERA_POSITION_WORLD);
-	float far = smoothstep(12.0, 30.0, d);
+	float fade = near * (1.0 - smoothstep(LICHEN_NEAR * 0.5, LICHEN_NEAR, d));
 	float up = (INV_VIEW_MATRIX * vec4(NORMAL, 0.0)).y;
 	vec3 lc;
 	float lh;
-	float lichen = UV2.x > 0.5 || growth <= 0.0 || lichen_amount <= 0.0 ? 0.0 : lichen_cover(obj, far, lc, lh);
+	float lichen = UV2.x > 0.5 || growth <= 0.0 || lichen_amount <= 0.0 || fade <= 0.0 ? 0.0 : lichen_cover(lichen_uv, obj, fade, lc, lh);
 	if (lichen > 0.0) {
 		// it lies over the bark's furrows, its lobes domed (bumps from
 		// their height, as the bark's)
@@ -95,10 +106,15 @@ void fragment() {
 		NORMAL = normalize(abs(det) * n - sign(det) * (dFdx(lh) * r1 + dFdy(lh) * r2));
 		ALBEDO = mix(ALBEDO, lc, lichen);
 		AO = mix(AO, 1.0, lichen * 0.7);
-		ROUGHNESS = mix(ROUGHNESS, 0.8, lichen);
+		ROUGHNESS = mix(ROUGHNESS, 1.0, lichen);
+		SPECULAR = mix(SPECULAR, 0.05, lichen);
 	}
 	float ml;
-	float moss = growth <= 0.0 ? 0.0 : moss_cover(obj, up, far, ml) * (UV2.x > 0.5 ? 0.5 : 1.0);
+	float moss = 0.0;
+	if (growth > 0.0 && moss_amount > 0.0) {
+		float fuzz = near > 0.0 ? texture(bark_tex, (UV2.x > 0.5 ? obj.xz * 1.7 : UV) * 2.3).a : 0.5; // (the bark's relief, finer)
+		moss = moss_cover(obj, up, near, fuzz, ml) * (UV2.x > 0.5 ? moss_end : 1.0);
+	}
 	if (moss > 0.0) {
 		ALBEDO = mix(ALBEDO, mix(moss_color, moss_light, ml), moss);
 		NORMAL = normalize(mix(NORMAL, geo_n, moss * 0.7));
@@ -118,5 +134,6 @@ void light() {
 	float ndl = dot(NORMAL, LIGHT);
 	DIFFUSE_LIGHT += (clamp(ndl * 0.8 + 0.2, 0.0, 1.0)) * a * LIGHT_COLOR / PI;
 	vec3 h = normalize(VIEW + LIGHT);
-	SPECULAR_LIGHT += pow(max(dot(NORMAL, h), 0.0), 8.0) * 0.04 * a * LIGHT_COLOR * clamp(ndl, 0.0, 1.0);
+	// (a dull sheen, none on the matte lichen and moss: ROUGHNESS 1)
+	SPECULAR_LIGHT += pow(max(dot(NORMAL, h), 0.0), 8.0) * 0.04 * a * LIGHT_COLOR * clamp(ndl, 0.0, 1.0) * smoothstep(1.0, 0.9, ROUGHNESS);
 }

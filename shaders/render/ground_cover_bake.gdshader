@@ -21,6 +21,7 @@ uniform vec3 eye;          // the camera, when baked (for the colour's detail)
 uniform int kind = 0;      // 0 grass, 1 fern
 uniform bool in_forest = true;
 uniform bool in_prairie = true;
+uniform bool in_swamp = false; // (the reeds: prairie_height their height; they take the prairie's colours)
 uniform vec2 forest_height = vec2(0.08, 0.16); // m (grass; ferns: their length)
 uniform vec2 prairie_height = vec2(0.45, 0.85);
 uniform float cover = 1.0; // the share of cells with a clump
@@ -105,7 +106,7 @@ void fragment() {
 	// to the other, short to tall, by degrees
 	vec2 g = biome_grid(pos);
 	vec3 ground = vec3(0.0);
-	float rocky = 0.0, litter = 0.0, mud = 0.0, fw = 0.0, pw = 0.0;
+	float rocky = 0.0, litter = 0.0, mud = 0.0, fw = 0.0, pw = 0.0, sw = 0.0;
 	for (int k = 0; k < 4; k++) {
 		float w;
 		int bk = biome_texel(g, k, w);
@@ -120,8 +121,13 @@ void fragment() {
 			fw += w;
 		else if (bk == 2)
 			pw += w;
+		else if (bk == swamp_biome)
+			sw += w;
 	}
 	float grows = (in_forest ? fw : 0.0) + (in_prairie ? pw : 0.0);
+	// the swamp's reeds: in clumps a few metres across, well apart
+	if (in_swamp)
+		grows += sw * smoothstep(0.6, 0.68, vnoise(pos / 11.0 + 41.0) * 0.7 + vnoise(pos / 3.5 + 5.0) * 0.3);
 	float prairie = pw / max(fw + pw, 1e-4); // 0 forest .. 1 prairie
 	if (!in_prairie)
 		prairie = 0.0;
@@ -130,7 +136,7 @@ void fragment() {
 	float size = 0.0;
 	if (h2(c, 5) < grows && h2(c, 4) < cover && !under_log(pos)) {
 		// not on rock, sand, mud or the shore; nothing on the forest's litter
-		float bare = max(max(rocky, m.a), mud * 3.0) + (1.0 - smoothstep(0.3, 1.2, h));
+		float bare = max(max(rocky, m.a), mud * 3.0) + (in_swamp ? 0.0 : 1.0 - smoothstep(0.3, 1.2, h)); // (reeds stand in water)
 		float here = mix(smoothstep(0.3, 0.05, litter / max(fw, 1e-4)), 1.0, prairie);
 		if (kind == 1) // ferns in drifts, and only well inside the forest
 			here *= smoothstep(0.24, 0.4, vnoise(pos / 7.0 + 13.0) * 0.7 + vnoise(pos / 2.3) * 0.3) * smoothstep(0.75, 0.95, fw);

@@ -85,6 +85,12 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   the depth buffer can't be read, so the water's thickness falls back to the channel
   depth (rivers) or the sea floor (sea) and the view angle.
 - **Trees**: English oaks (`data/population/README.md`), streamed by `Population`.
+  Their bark carries lichen (leafy rosettes, cracked crust with fruiting discs, a
+  powdery yellow-green crust: `data/population/textures/lichen.png`, drawn lobe by lobe
+  by `tools/trees/bake_lichen.py`, each tree reading it from its own place, in drifts,
+  within 30 m only), and the stumps and logs moss (a stump's top almost covered and
+  spilling over, patches up from the ground); neither on the prairie, none on saplings
+  (`lichen.gdshaderinc`).
 - **Grass and ferns** (`scripts/population/ground_cover.gd`, `ground_cover.gdshader`):
   grids of cells follow the camera in tiles. When a grid moves, a SubViewport works out
   every cell once (`ground_cover_bake.gdshader`: what grows, how tall, its height on the
@@ -92,7 +98,8 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   the forest: dense short grass the ground's own colour, and drifts of knee-high ferns
   (a recursive frond texture), none on the leaf litter or the mud; on the prairie,
   grass about up to head-high (1.5-2.0 m), green to blonde, out to 125 m; across a border the one turns into
-  the other. Clumps dissolve in and out (stippled) with distance, by which point their
+  the other. In the swamp, broad-bladed reeds 2-2.5 m tall in clumps here and there,
+  standing in the water too. Clumps dissolve in and out (stippled) with distance, by which point their
   colour is exactly the ground's (`ground.gdshaderinc`, shared with the terrain). The
   forest floor also has patches of damp, matte mud, and its brown patches carry a
   texture of fallen oak and maple leaves near the eye. Textures:

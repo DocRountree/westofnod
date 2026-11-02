@@ -71,13 +71,15 @@ const VIEW := 600.0
 
 static var _bark_mats := {} # [level, cover] -> ShaderMaterial
 
-## How much lichen (its share of the bark), moss, and moss up the sides
-## from the ground (lichen.gdshaderinc) each kind carries: the stumps
-## mossiest, the logs some on top. None on the prairie (main.gd tells the
+## How much lichen (its share of the bark), moss, moss up the sides from
+## the ground, and moss on a cut end's face (lichen.gdshaderinc) each kind
+## carries: none on saplings; the stumps mossiest (their tops almost
+## covered and spilling over here and there, patches up from the ground),
+## the logs some on top. None on the prairie (main.gd tells the
 ## materials where it is: set_growth_map).
 const COVER := {
-	"tree": [0.22, 0.0, 0.0], "sapling": [0.12, 0.0, 0.0], "dead": [0.32, 0.0, 0.0],
-	"stump": [0.28, 0.85, 1.0], "log": [0.26, 0.6, 0.25],
+	"tree": [0.22, 0.0, 0.0, 0.0], "sapling": [0.0, 0.0, 0.0, 0.0], "dead": [0.32, 0.0, 0.0, 0.0],
+	"stump": [0.28, 0.92, 1.0, 1.0], "log": [0.26, 0.6, 0.25, 0.4],
 }
 static var _growth := {} # the biome map's parameters (set_growth_map)
 static var _leaf_mats := {}
@@ -94,11 +96,23 @@ static func bark_material(level := 0, kind := "tree") -> ShaderMaterial:
 		m.set_shader_parameter("lichen_amount", cover[0])
 		m.set_shader_parameter("moss_amount", cover[1])
 		m.set_shader_parameter("moss_low", cover[2])
+		m.set_shader_parameter("moss_end", cover[3])
+		m.set_shader_parameter("lichen_tex", _texture("res://data/population/textures/lichen.png"))
+		if kind == "stump":
+			m.set_shader_parameter("moss_spill", _stump_top())
 		for p in _growth:
 			m.set_shader_parameter(p, _growth[p])
 		_lod_span(m, level)
 		_bark_mats[key] = m
 	return _bark_mats[key]
+
+
+## The stump's top (m, its own space): where its moss spills over.
+static func _stump_top() -> float:
+	for v in VARIANTS.size():
+		if _kind(v) == "stump":
+			return build_walk(v)[4]
+	return 0.0
 
 
 ## Where lichen and moss grow: everywhere but the prairie, from the world's
