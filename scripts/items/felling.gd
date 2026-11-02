@@ -318,8 +318,8 @@ func _notch(tree: Dictionary, toward: Vector3, done: float) -> void:
 
 ## A felled tree, lying at t (on the map), to stand on and climb: its kind's
 ## climbable lines (the trunk from the cut up, the limbs) as they lie, and
-## between each line's nodes a segment to stand on (the limbs' marked, as a
-## standing tree's are: never posts, no grass kept off).
+## between each line's nodes a segment to stand on, which keeps the grass
+## and ferns off too (Population.walk_near), as the stump's post does.
 func _solid(kind: PropKind, t: Transform3D, cut: float) -> void:
 	var c := kind.climb
 	if c.is_empty():
@@ -351,7 +351,7 @@ func _solid(kind: PropKind, t: Transform3D, cut: float) -> void:
 		if line.size() >= 8:
 			trunks.append(line)
 			for i in range(4, line.size(), 4):
-				var r0 := line[i - 1] if first else -line[i - 1]
+				var r0 := line[i - 1] # (limbs too: they lie on the ground, so keep the grass off as the trunk does)
 				walk.append_array([line[i - 4], line[i - 3], line[i - 2], line[i], line[i + 1], line[i + 2], r0, line[i + 3]])
 		first = false
 	main.population.add_fallen(walk, trunks)
