@@ -13,8 +13,10 @@ from one, set in lichen.gdshaderinc):
   fruiting discs, brown in a pale rim;
 - now and then a yellow-green powdery crust.
 Channels:
-  R  how far inside the lichen (0.5 its margin, more inside): the shader
-     sets the margin where it wants it, for more or less
+  R  0 bare bark; on lichen 0.52 + 0.48 x its rarity, one value for a
+     whole rosette or crust patch (blurred a little at their margins): the
+     shader shows those rarer than it wants (R over a threshold), whole,
+     for more or less lichen; the big ones are the rarest
   G  how high it stands off the bark (0..1: margins turned up, crinkled)
   B  shade x 0.75 (overlaps, cracks darker; margins paler)
   A  kind: 1 leafy (and bare bark), 0.7 crust, 0.45 a disc, 0.2 yellow
@@ -155,15 +157,20 @@ def main():
     draw = ImageDraw.Draw(ids_im)
     taken = []
     next_id = 1
-    for _ in range(150):
-        R = rng.uniform(0.018, 0.07) * PX_M
+    rarity = [0.0]
+    for _ in range(320):
+        big = rng.random() ** 2.5  # (mostly small)
+        R = (0.012 + 0.055 * big) * PX_M
         spot = free_spot(taken, R)
         if spot is None:
             continue
         taken.append((spot[0], spot[1], R))
+        first = next_id
         next_id = rosette(draw, spot[0], spot[1], R, next_id)
+        rarity += [rng.random() * (1.0 - 0.75 * big)] * (next_id - first)
     ids = fold(np.asarray(ids_im, dtype=np.int64), "id")
     leafy = (ids > 0).astype(np.float32)
+    leafy_rar = np.asarray(rarity, np.float32)[ids]
     # overlaps: where one lobe meets another
     meet = np.zeros_like(leafy)
     for dy, dx in ((1, 0), (0, 1), (1, 1), (-1, 1)):
@@ -172,8 +179,8 @@ def main():
     overlap = np.clip(blur_wrap(meet, 1.5) * 2.5, 0, 1)
 
     # crust: blobs where no rosette is, cracked into plates, with discs
-    blobs = value_noise((h, w), (6, 24), 3) * 0.7 + value_noise((h, w), (17, 68), 4) * 0.3
-    crust = np.clip((blobs - 0.6) / 0.03, 0, 1) * (1 - np.clip(blur_wrap(leafy, 6) * 3, 0, 1))
+    blobs = value_noise((h, w), (12, 48), 3) * 0.7 + value_noise((h, w), (30, 120), 4) * 0.3
+    crust = np.clip((blobs - 0.64) / 0.03, 0, 1) * (1 - np.clip(blur_wrap(leafy, 6) * 3, 0, 1))
     n1 = value_noise((h, w), (40, 160), 5)
     n2 = value_noise((h, w), (64, 256), 6)
     crack = np.clip(1 - np.minimum(np.abs(n1 - 0.5), np.abs(n2 - 0.5)) / 0.025, 0, 1) * crust
@@ -197,8 +204,11 @@ def main():
 
     lichen = np.clip(leafy + crust + yellow + rim, 0, 1)
     # inside: a softened mask, 0.5 at the margin
-    soft = blur_wrap(lichen, 3.0)
-    r_ch = np.where(lichen > 0.5, np.maximum(soft, 0.52), np.minimum(soft, 0.48))
+    # rarity: a rosette's own; a crust patch's from a noise as big as the
+    # patches (crust patches rarer: they're the big ones)
+    crust_rar = value_noise((h, w), (12, 48), 12) * 0.55
+    rar = np.where(leafy > 0.5, leafy_rar, crust_rar)
+    r_ch = blur_wrap(np.where(lichen > 0.5, 0.52 + 0.48 * rar, 0.0), 1.2)
     # height: leafy margins turned up and crinkled, crust low
     margin = np.clip(1 - blur_wrap(leafy, 5.0) * 1.6, 0, 1) * leafy
     crinkle = value_noise((h, w), (90, 360), 10)

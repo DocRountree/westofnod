@@ -61,13 +61,18 @@ float lc_noise(vec3 p) {
 float lichen_cover(vec2 uv, vec3 p, float fade, out vec3 col, out float relief) {
 	col = lichen_color;
 	relief = 0.0;
-	float drift = smoothstep(0.88 - lichen_amount, 1.08 - lichen_amount, lc_noise(p * 1.3));
-	if (drift * fade <= 0.0)
+	// how much lichen here: lichen_amount, more in some places, less in
+	// others; shown as the rosettes and patches rarer than that, whole
+	// (lichen.png's R: 0.52 + 0.48 x rarity), the big ones only where
+	// there's most
+	float dens = lichen_amount * 4.5 * smoothstep(0.15, 0.8, lc_noise(p * 1.1));
+	if (dens * fade <= 0.0)
 		return 0.0;
 	vec4 L = texture(lichen_tex, uv);
-	// the margin where it's wanted: more lichen deep in a drift
-	float thr = 0.5 + 0.1 * (1.0 - drift);
-	float cover = smoothstep(thr, thr + fwidth(L.r) + 0.01, L.r) * fade;
+	float thr = 1.0 - 0.48 * min(dens, 1.0);
+	float cover = smoothstep(thr, thr + fwidth(L.r) + 0.004, L.r) * fade;
+	if (cover <= 0.0)
+		return 0.0;
 	// the kind (lichen.png's alpha: 1 leafy, 0.7 crust, 0.45 disc, 0.2 yellow)
 	float leafy = smoothstep(0.8, 0.9, L.a);
 	float crust = smoothstep(0.57, 0.65, L.a) * (1.0 - leafy);
