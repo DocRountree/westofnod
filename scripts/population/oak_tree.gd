@@ -387,6 +387,19 @@ static var _radius_at := {}
 
 
 static func trunk_radius_at(v: int, h: float) -> float:
+	return _section_at(v, h)[0]
+
+
+## The trunk's outline across the plane y = h (its own space): points round
+## it in order (by their angle about its middle), to close the cut across a
+## felled trunk's foot with (Felling).
+static func trunk_outline_at(v: int, h: float) -> PackedVector2Array:
+	return _section_at(v, h)[1]
+
+
+## [mean radius, outline] of the trunk across y = h: where the triangles'
+## edges cross the plane, near the trunk.
+static func _section_at(v: int, h: float) -> Array:
 	var key := [posmod(v, VARIANTS.size()), snappedf(h, 0.01)]
 	if not _radius_at.has(key):
 		var arrays := build(v).surface_get_arrays(0)
@@ -394,24 +407,29 @@ static func trunk_radius_at(v: int, h: float) -> float:
 		var idx: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
 		var mid := Vector2.ZERO
 		var near: Array[Vector2] = []
-		# where the triangles' edges cross the plane y = h, near the trunk
+		var reach := trunk_radius(v) * 2.5
 		for i in range(0, idx.size(), 3):
 			for e in 3:
 				var a := verts[idx[i + e]]
 				var b := verts[idx[i + (e + 1) % 3]]
 				if (a.y - h) * (b.y - h) < 0.0:
 					var p := a.lerp(b, (h - a.y) / (b.y - a.y))
-					if Vector2(p.x, p.z).length() < trunk_radius(v) * 2.5:
+					if Vector2(p.x, p.z).length() < reach:
 						near.append(Vector2(p.x, p.z))
 						mid += Vector2(p.x, p.z)
 		var r := trunk_radius(v)
+		var outline := PackedVector2Array()
 		if near.size() > 4:
 			mid /= near.size()
 			r = 0.0
 			for q in near:
 				r += q.distance_to(mid)
 			r /= near.size()
-		_radius_at[key] = r
+			near.sort_custom(func(a: Vector2, b: Vector2) -> bool: return (a - mid).angle() < (b - mid).angle())
+			outline.append(mid) # (the first: its middle, the fan's hub)
+			for q in near:
+				outline.append(q)
+		_radius_at[key] = [r, outline]
 	return _radius_at[key]
 
 
