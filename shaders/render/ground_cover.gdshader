@@ -38,10 +38,11 @@ uniform sampler2D frond_tex : source_color, filter_linear_mipmap_anisotropic, re
 uniform vec3 prairie_green = vec3(0.27, 0.43, 0.12);
 uniform vec3 prairie_blonde = vec3(0.74, 0.64, 0.38);
 // patches of a tint (the marram): in irregular patches a few metres
-// across, a share patch_tints.x of them greener, as many again (.y) yellower,
-// the rest as they are; by how much (multiplying the tip's colour)
+// across, a share patch_tints.x of them green (the green of the coast's
+// floor, its clumps: ground.gdshaderinc, biome_ground), as many again (.y)
+// a tad yellower (multiplying the tip's colour), the rest as they are
 uniform vec2 patch_tints = vec2(0.0);
-uniform vec3 tint_green = vec3(0.92, 1.04, 0.9);
+uniform vec3 tint_green = vec3(0.42, 0.46, 0.25);
 uniform vec3 tint_yellow = vec3(1.04, 1.02, 0.82);
 uniform vec3 head_color = vec3(0.075, 0.035, 0.017); // linear: a cattail's head (UV.x 2..3 marks it)
 uniform float shadow_strength = 0.7;
@@ -130,7 +131,10 @@ void vertex() {
 				// the patches: cells 7 m across, their edges wavering
 				vec2 q = pos + vec2(sin(pos.y * 0.37) + sin(pos.y * 0.11 + 1.3), sin(pos.x * 0.41) + sin(pos.x * 0.13 + 2.1)) * 2.0;
 				float t = gc_hash(ivec2(floor(q / 7.0)) + ivec2(577, -211));
-				tip *= t < patch_tints.x ? tint_green : (t < patch_tints.x + patch_tints.y ? tint_yellow : vec3(1.0));
+				if (t < patch_tints.x) // (the green, keeping the clump's own lighter and darker)
+					tip = tint_green * tip / (mix(prairie_green, prairie_blonde, 0.5) * 0.85);
+				else if (t < patch_tints.x + patch_tints.y)
+					tip *= tint_yellow;
 			}
 			tip_col = pow(tip * COLOR.r * (1.0 - 0.5 * night * prairie), vec3(2.2));
 		}
