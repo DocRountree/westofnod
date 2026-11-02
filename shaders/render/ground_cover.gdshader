@@ -28,7 +28,7 @@ uniform sampler2D data_tex : filter_nearest, repeat_disable;
 uniform ivec2 grid_origin; // the cell of data_tex's texel (0, 0)
 uniform ivec2 grid_size = ivec2(0); // cells
 uniform float base_h;
-uniform int kind = 0;                 // 0 grass, 1 fern
+uniform int kind = 0;                 // 0 grass, 1 fern, 2 flowers (stems as grass; their heads: UV.x 3..5)
 uniform float width_scale = 1.0;      // the clump's spread and the blades' width
 uniform vec2 fade_in = vec2(0.0, 0.0);   // m: grows in over this (0: from the eye)
 uniform vec2 fade_out = vec2(30.0, 40.0); // m: shrinks away over this
@@ -45,6 +45,13 @@ uniform vec2 patch_tints = vec2(0.0);
 uniform vec3 tint_green = vec3(0.42, 0.46, 0.25);
 uniform vec3 tint_yellow = vec3(1.04, 1.02, 0.82);
 uniform vec3 head_color = vec3(0.075, 0.035, 0.017); // linear: a cattail's head (UV.x 2..3 marks it)
+// the flowers' heads (sRGB): the rays (from petal_base at their base to
+// petal_color; a share petal_alt_share of the stems petal_alt instead), the disc
+uniform vec3 petal_color = vec3(1.0);
+uniform vec3 petal_base = vec3(1.0);
+uniform vec3 petal_alt = vec3(1.0);
+uniform float petal_alt_share = 0.0;
+uniform vec3 disc_color = vec3(0.5);
 uniform float shadow_strength = 0.7;
 uniform float night = 0.0; // 0 day .. 1 night (main.gd): the prairie's grass darker at night, as its ground
 uniform vec3 frond_mean = vec3(0.03, 0.07, 0.006); // linear: the frond texture's mean (GroundCover sets it)
@@ -55,6 +62,7 @@ varying vec3 tip_col;    // linear
 varying float frac;
 varying float fade;  // 1 drawn, 0 gone: a clump coming or going dissolves (stippled)
 varying float far;   // 0 its own colours, 1 all the ground's
+varying float dim;   // the night's dimming (the prairie's)
 
 float bayer4(vec2 frag) {
 	ivec2 q = ivec2(mod(frag, 4.0));
@@ -94,6 +102,7 @@ void vertex() {
 		root_col = vec3(0.0);
 		tip_col = vec3(0.0);
 		far = 0.0;
+		dim = 1.0;
 	} else {
 		float h = base_h - 512.0 + (round(a.r) * 256.0 + round(a.g)) / 64.0;
 		float spin = h2(c, 8) * 6.2832;
@@ -113,13 +122,14 @@ void vertex() {
 		nrm.xz = rot * nrm.xz;
 		// lit mostly as the ground under it is (and the shadow map read
 		// above it: thin blades caught speckles of the ground's own shadow)
-		NORMAL = normalize(mat3(VIEW_MATRIX) * normalize(mix(nrm, vec3(0.0, 1.0, 0.0), kind == 1 ? 0.5 : (UV.x > 1.5 ? 0.2 : (UV.x > 1.1 ? 0.35 : 0.85))))); // (a cattail's head and stalk: round, lit as round)
+		NORMAL = normalize(mat3(VIEW_MATRIX) * normalize(mix(nrm, vec3(0.0, 1.0, 0.0), kind == 1 ? 0.5 : (UV.x > 1.5 ? (UV.x > 3.0 ? 0.35 : 0.2) : (UV.x > 1.1 ? 0.35 : 0.85))))); // (a cattail's head and stalk: round, lit as round)
 		// colours: the ground's at the root; toward the tip lighter
 		// (forest), green to blonde (prairie); all the ground's far off
 		// (all the ground's colour by the time it starts to go: ferns from
 		// a few metres off, little by little; grass further out)
 		far = kind == 1 ? smoothstep(3.0, fade_out.x, d) : smoothstep(fade_out.x * 0.4, fade_out.x, d);
-		ground *= 1.0 - 0.5 * night * prairie;
+		dim = 1.0 - 0.5 * night * prairie;
+		ground *= dim;
 		root_col = pow(ground, vec3(2.2));
 		if (kind == 1) { // (a tint on the frond's texture, halfway to the ground's colour)
 			tip_col = mix(vec3(COLOR.r), root_col / frond_mean, 0.5);
@@ -154,10 +164,16 @@ void fragment() {
 		c = t.rgb * tip_col * mix(0.6, 1.0, smoothstep(0.0, 0.5, frac));
 	} else {
 		c = mix(root_col, tip_col, smoothstep(0.0, 0.7, frac)) * mix(0.75, 1.0, frac);
-		if (UV.x > 1.5)
+		if (UV.x > 4.0) // a flower's disc
+			c = pow(disc_color, vec3(2.2)) * COLOR.r * dim;
+		else if (UV.x > 3.0) // its rays
+			c = pow(COLOR.g < petal_alt_share ? petal_alt : mix(petal_base, petal_color, smoothstep(0.0, 0.45, UV.y)), vec3(2.2)) * COLOR.r * dim;
+		else if (UV.x > 1.5)
 			c = head_color * COLOR.r;
 	}
-	ALBEDO = mix(c, root_col, far); // far off, exactly the ground's colour
+	// far off, exactly the ground's colour (a flower's head its own: it
+	// dissolves away)
+	ALBEDO = mix(c, root_col, UV.x > 3.0 ? 0.0 : far);
 	ROUGHNESS = 0.85;
 	SPECULAR = 0.2;
 	FOG = aerial_fog(world_pos, CAMERA_POSITION_WORLD + world_origin);

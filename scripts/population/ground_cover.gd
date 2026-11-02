@@ -31,6 +31,10 @@ extends Node3D
 ##   yellower), in patches: none at the water's edge, thicker and
 ##   taller up the beach; near (to 25 m) and middle (18-62 m);
 ## - ferns: the forest's, in drifts, knee-high; to 45 m.
+## - black-eyed Susans (Rudbeckia hirta) and fleabane (Erigeron annuus): the
+##   prairie's wildflowers among its grass, in drifts, their heads up
+##   among the grass's tips (taller than they'd be, the grass being head-high);
+##   to 38 m and 34 m.
 ## The forest's brown patches are leaf litter: a texture on the terrain
 ## (terrain.gdshader), not geometry.
 
@@ -62,14 +66,30 @@ const LAYERS := [
 		"u": {"kind": 0, "seed": 8, "in_forest": false, "in_prairie": false, "in_coast": true, "prairie_height": Vector2(0.75, 1.0),
 			"prairie_green": Vector3(0.76, 0.74, 0.58), "prairie_blonde": Vector3(0.88, 0.84, 0.69), "patch_tints": Vector2(0.2, 0.2),
 			"fade_in": Vector2(18.0, 25.0), "fade_out": Vector2(48.0, 62.0), "thin_from": 32.0}},
+	# the prairie's flowers: black-eyed Susans in drifts, fleabane scattered more widely
+	{"cell": 2.0, "cells": 12, "tiles": 7, "flowers": "susan", "stems": 3, "radius": 0.22,
+		"u": {"kind": 2, "seed": 9, "in_forest": false, "cover": 0.65, "drift": Vector3(26.0, 0.6, 3.1),
+			"forest_height": Vector2(1.25, 1.7), "prairie_height": Vector2(1.25, 1.7),
+			"prairie_green": Vector3(0.26, 0.36, 0.12), "prairie_blonde": Vector3(0.36, 0.4, 0.16),
+			"petal_color": Vector3(0.96, 0.71, 0.06), "petal_base": Vector3(0.9, 0.47, 0.05), "petal_alt": Vector3(0.97, 0.6, 0.05), "petal_alt_share": 0.3,
+			"disc_color": Vector3(0.17, 0.08, 0.04),
+			"fade_out": Vector2(28.0, 38.0), "thin_from": 22.0}},
+	{"cell": 2.0, "cells": 12, "tiles": 7, "flowers": "fleabane", "stems": 3, "radius": 0.2,
+		"u": {"kind": 2, "seed": 10, "in_forest": false, "cover": 0.45, "drift": Vector3(15.0, 0.5, -7.7),
+			"forest_height": Vector2(1.3, 1.75), "prairie_height": Vector2(1.3, 1.75),
+			"prairie_green": Vector3(0.28, 0.38, 0.14), "prairie_blonde": Vector3(0.38, 0.42, 0.18),
+			"petal_color": Vector3(0.96, 0.95, 0.93), "petal_base": Vector3(0.96, 0.95, 0.93), "petal_alt": Vector3(0.95, 0.84, 0.88), "petal_alt_share": 0.25,
+			"disc_color": Vector3(0.95, 0.78, 0.12),
+			"fade_out": Vector2(24.0, 34.0), "thin_from": 20.0}},
 	{"cell": 0.5, "cells": 24, "tiles": 9, "fronds": 8,
 		"u": {"kind": 1, "seed": 4, "in_prairie": false, "forest_height": Vector2(0.25, 0.45),
 			"fade_out": Vector2(32.0, 45.0), "thin_from": 16.0}},
 ]
 const MAX_LOGS := 256 ## logs, stumps, trunks and boulders the grass is kept out of, nearest first (ground_cover_bake.gdshader: logs[])
 const REBAKE := 5.0 ## m the camera moves before a layer's grid is worked out again
-const BAKE_KEYS := ["kind", "seed", "in_forest", "in_prairie", "in_swamp", "in_coast", "forest_height", "prairie_height", "cover"]
-const DRAW_KEYS := ["kind", "seed", "fade_in", "fade_out", "thin_from", "prairie_green", "prairie_blonde", "patch_tints"]
+const BAKE_KEYS := ["kind", "seed", "in_forest", "in_prairie", "in_swamp", "in_coast", "forest_height", "prairie_height", "cover", "drift"]
+const DRAW_KEYS := ["kind", "seed", "fade_in", "fade_out", "thin_from", "prairie_green", "prairie_blonde", "patch_tints",
+		"petal_color", "petal_base", "petal_alt", "petal_alt_share", "disc_color"]
 
 var world: WorldData
 var population: Population ## (optional) its logs and stumps keep the grass off
@@ -131,6 +151,8 @@ func setup(w: WorldData) -> void:
 		var mesh: Mesh
 		if L.u.kind == 1:
 			mesh = fern_mesh(L.fronds)
+		elif L.has("flowers"):
+			mesh = flower_mesh(L.flowers, L.stems, L.radius, L.u.seed)
 		elif L.has("cattails"):
 			mesh = cattail_mesh(L.cattails, L.radius, L.u.seed)
 		else:
@@ -368,6 +390,112 @@ static func cattail_mesh(stalks: int, radius: float, seed: int) -> ArrayMesh:
 				pts.append(Vector3(off.x, lt * t, off.y))
 				halfs.append(0.009 * (1.0 - t * 0.8))
 			strip.call(root, pts, halfs, lside, Vector3(dir.x, 0.6, dir.y).normalized(), rng.randf_range(0.85, 1.15), 0.0)
+	return st.commit()
+
+
+## A clump of wildflowers ("susan": black-eyed Susans; "fleabane"), in
+## units of the clump's height, as grass_mesh: stems (strips, coloured as
+## grass, CUSTOM0 their half width in m), a leaf or two low down, and the
+## heads, solid: ray florets (UV.x 3..4, UV.y from their base out to their
+## tip) round a disc (UV.x 4..5); COLOR.b the height, so a head sways with
+## its stem's top; COLOR.g per stem (ground_cover.gdshader: the odd one's
+## other petal colour). Susans: a head a stem, 6-7 cm across, thirteen
+## golden rays drooping a little round a dark brown dome. Fleabane: a stem
+## branching near its top into a few small heads, 2 cm across, a white
+## (now and then pinkish) fringe of fine rays round a yellow disc.
+static func flower_mesh(kind: String, stems: int, radius: float, seed: int) -> ArrayMesh:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = seed * 17 + 3
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	st.set_custom_format(0, SurfaceTool.CUSTOM_RGB_FLOAT)
+	var base := [0]
+	const H := 1.5 # m: about a clump's height (the heads' sizes in it)
+	var vert := func(root: Vector2, p: Vector3, n: Vector3, uv: Vector2, col: Color, e := Vector3.ZERO) -> void:
+		st.set_color(col)
+		st.set_uv(uv)
+		st.set_uv2(root)
+		st.set_normal(n)
+		st.set_custom(0, Color(e.x, e.y, e.z))
+		st.add_vertex(p)
+	# a strip (a stem, a leaf) through pts, half widths halfs (m)
+	var strip := func(root: Vector2, pts: Array, halfs: Array, side: Vector3, n: Vector3, shade: float, g: float) -> void:
+		for s in pts.size():
+			var t: float = (pts[s] as Vector3).y
+			for k in 2:
+				vert.call(root, pts[s], n, Vector2(float(k), t), Color(shade, g, t), side * (halfs[s] if k == 1 else -halfs[s]))
+		for s in pts.size() - 1:
+			var i: int = base[0] + s * 2
+			for q in [i, i + 1, i + 3, i, i + 3, i + 2]:
+				st.add_index(q)
+		base[0] += pts.size() * 2
+	# a head at c, facing up (tipped a little by tilt): rays from r_in to
+	# r_out (m), drooping by droop at their tips; a disc of radius r_in,
+	# raised by dome
+	var head := func(root: Vector2, c: Vector3, tilt: Vector3, rays: int, r_in: float, r_out: float, ray_w: float, droop: float, dome: float, g: float) -> void:
+		var up := (Vector3.UP + tilt).normalized()
+		var u := up.cross(Vector3.FORWARD).normalized()
+		var v := up.cross(u)
+		var col := Color(rng.randf_range(0.9, 1.1), g, c.y)
+		var turn := rng.randf() * TAU
+		for i in rays:
+			var a := turn + TAU * (i + rng.randf_range(-0.15, 0.15)) / rays
+			var out := u * cos(a) + v * sin(a)
+			var side := (u * -sin(a) + v * cos(a)) * (ray_w * 0.5 / H)
+			var p0 := c + out * (r_in * 0.8 / H)
+			var p1 := c + out * (r_out / H) - up * (droop / H)
+			var n := up
+			var b: int = base[0]
+			vert.call(root, p0 - side * 0.6, n, Vector2(3.25, 0.0), col)
+			vert.call(root, p0 + side * 0.6, n, Vector2(3.25, 0.0), col)
+			vert.call(root, p1 - side, n, Vector2(3.25, 1.0), col)
+			vert.call(root, p1 + side, n, Vector2(3.25, 1.0), col)
+			for q in [b, b + 1, b + 3, b, b + 3, b + 2]:
+				st.add_index(q)
+			base[0] += 4
+		const RIM := 6
+		var b0: int = base[0]
+		vert.call(root, c + up * (dome / H), up, Vector2(4.5, 0.0), col)
+		for i in RIM:
+			var a := TAU * i / RIM
+			var out := u * cos(a) + v * sin(a)
+			vert.call(root, c + out * (r_in / H), (out + up).normalized(), Vector2(4.5, 1.0), col)
+		for i in RIM:
+			st.add_index(b0)
+			st.add_index(b0 + 1 + i)
+			st.add_index(b0 + 1 + (i + 1) % RIM)
+		base[0] += RIM + 1
+	for b in stems:
+		var a := rng.randf() * TAU
+		var root := Vector2(cos(a), sin(a)) * sqrt(rng.randf()) * radius
+		var tall := rng.randf_range(0.8, 1.0)
+		var lean := Vector2(cos(a), sin(a)) * rng.randf_range(0.0, 0.05)
+		var face := rng.randf() * TAU
+		var side := Vector3(cos(face), 0.0, sin(face))
+		var n := Vector3(-side.z, 0.4, side.x).normalized()
+		var g := rng.randf()
+		var shade := rng.randf_range(0.85, 1.1)
+		var top := Vector3(lean.x, tall, lean.y)
+		# a leaf low down
+		var la := rng.randf() * TAU
+		var dir := Vector2(cos(la), sin(la))
+		var lt := rng.randf_range(0.15, 0.3)
+		strip.call(root, [Vector3(0.0, lt * 0.5, 0.0), Vector3(dir.x * 0.05, lt, dir.y * 0.05), Vector3(dir.x * 0.1, lt * 1.15, dir.y * 0.1)],
+				[0.004, 0.009, 0.001], Vector3(-dir.y, 0.0, dir.x), Vector3(dir.x, 0.6, dir.y).normalized(), shade, 0.0)
+		if kind == "susan":
+			strip.call(root, [Vector3.ZERO, top * 0.5 + Vector3(lean.x, 0.0, lean.y) * 0.3, top], [0.0035, 0.003, 0.0022], side, n, shade, 0.0)
+			head.call(root, top, Vector3(lean.x, 0.0, lean.y) * 2.0 + Vector3(rng.randf_range(-0.2, 0.2), 0.0, rng.randf_range(-0.2, 0.2)),
+					13, 0.009, 0.034, 0.008, 0.012, 0.011, g)
+		else:
+			var fork := top * 0.82
+			strip.call(root, [Vector3.ZERO, fork * 0.5, fork], [0.003, 0.0025, 0.002], side, n, shade, 0.0)
+			var heads := rng.randi_range(2, 3)
+			for h in heads:
+				var ha := rng.randf() * TAU
+				var reach := rng.randf_range(0.02, 0.06)
+				var c := fork + Vector3(cos(ha) * reach, rng.randf_range(0.08, 0.18) * tall, sin(ha) * reach)
+				strip.call(root, [fork, c], [0.0013, 0.001], side, n, shade, 0.0)
+				head.call(root, c, Vector3(cos(ha), 0.0, sin(ha)) * 0.3, 8, 0.003, 0.0095, 0.0035, 0.001, 0.0015, g)
 	return st.commit()
 
 

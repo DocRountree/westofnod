@@ -18,7 +18,7 @@ uniform ivec2 grid_origin; // the cell of texel (0, 0)
 uniform ivec2 grid_size;   // cells
 uniform float base_h;      // m: heights are stored from this
 uniform vec3 eye;          // the camera, when baked (for the colour's detail)
-uniform int kind = 0;      // 0 grass, 1 fern
+uniform int kind = 0;      // 0 grass, 1 fern, 2 flowers
 uniform bool in_forest = true;
 uniform bool in_prairie = true;
 uniform bool in_swamp = false; // (the reeds: prairie_height their height; they take the prairie's colours)
@@ -26,6 +26,7 @@ uniform bool in_coast = false; // (marram: on the coast and the beaches, in patc
 uniform vec2 forest_height = vec2(0.08, 0.16); // m (grass; ferns: their length)
 uniform vec2 prairie_height = vec2(0.45, 0.85);
 uniform float cover = 1.0; // the share of cells with a clump
+uniform vec3 drift = vec3(0.0); // in drifts (the flowers): x m across, y the share of the ground, z a seed; 0: everywhere
 uniform float clear = 0.2; // m kept clear round a log, stump or trunk, past its radius
 // fallen logs, stumps, trunks and boulders (Population.walk_near()):
 // segments over the ground (ax, az, bx, bz; a trunk a point) and their
@@ -144,6 +145,10 @@ void fragment() {
 		float coastal = max(cw, m.a);
 		float patchy = vnoise(pos / 6.0 + 23.0) * 0.7 + vnoise(pos / 1.9 - 3.0) * 0.3;
 		grows += coastal * inland * smoothstep(0.66 - 0.3 * inland, 0.74 - 0.3 * inland, patchy);
+	}
+	if (drift.x > 0.0) {
+		float dn = vnoise(pos / drift.x + drift.z) * 0.7 + vnoise(pos / (drift.x * 0.3) - drift.z) * 0.3;
+		grows *= smoothstep(1.0 - drift.y, 1.0 - drift.y + 0.12, dn);
 	}
 	float prairie = pw / max(fw + pw, 1e-4); // 0 forest .. 1 prairie
 	if (!in_prairie)

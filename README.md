@@ -116,7 +116,9 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   the forest: dense short grass the ground's own colour, and drifts of knee-high ferns
   (a recursive frond texture), none on the leaf litter or the mud; on the prairie,
   grass about up to head-high (1.5-2.0 m), green to blonde, out to 125 m; across a border the one turns into
-  the other. In the swamp, broad-bladed reeds 1.8-2.3 m tall in clumps here and there,
+  the other. Among the prairie's grass, wildflowers in drifts: black-eyed Susans
+  (golden rays drooping round a dark brown dome) and fleabane (a few small white,
+  now and then pinkish, heads a stem), their heads up among the grass's tips; to 38 m. In the swamp, broad-bladed reeds 1.8-2.3 m tall in clumps here and there,
   standing in the water too. Nothing grows under a log or stump, or in a trunk or boulder
   (`Population.walk_near`). Clumps dissolve in and out (stippled) with distance, by which point their
   colour is exactly the ground's (`ground.gdshaderinc`, shared with the terrain). The
