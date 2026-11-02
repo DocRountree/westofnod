@@ -89,6 +89,7 @@ static var _bark_mats := {} # [level, cover] -> ShaderMaterial
 const COVER := {
 	"tree": [0.11, 0.0, 0.0, 0.0], "sapling": [0.0, 0.0, 0.0, 0.0], "dead": [0.245, 0.0, 0.0, 0.0],
 	"stump": [0.15, 0.92, 1.0, 1.0], "log": [0.245, 0.6, 0.25, 0.4],
+	"fresh_stump": [0.11, 0.0, 0.0, 0.0], # (an axed tree's: its bark as the tree's, its top clean)
 }
 static var _growth := {} # the biome map's parameters (set_growth_map)
 const LICHEN_ANY := ["dead", "log"] ## Their lichen doesn't go by the biome.
@@ -98,10 +99,11 @@ static var _cache := {} # variant -> [mesh, lods, near_multimesh]
 
 static func bark_material(level := 0, kind := "tree") -> ShaderMaterial:
 	var cover: Array = COVER.get(kind, COVER.tree)
-	var key := [level, cover]
+	var key := [level, cover, kind == "fresh_stump"]
 	if not _bark_mats.has(key):
 		var m := ShaderMaterial.new()
 		m.shader = load("res://shaders/render/bark.gdshader")
+		m.set_shader_parameter("fresh_end", kind == "fresh_stump")
 		m.set_shader_parameter("bark_tex", _texture("res://data/population/textures/oak_bark.png"))
 		m.set_shader_parameter("lichen_amount", cover[0])
 		m.set_shader_parameter("moss_amount", cover[1])
@@ -400,6 +402,24 @@ static func build_shadow(variant := 0) -> Mesh:
 ## Simpler versions for further off: branches and clump cards to 40-120 m,
 ## limbs and fewer, bigger clumps to 300 m, the stem and a few big clumps
 ## beyond.
+## The stump an axe leaves (Felling): the stump's shape, but sawn flat
+## across (no splinters), its top fresh, pale wood, no moss or lichen on it
+## yet. [mesh, lods] (its levels of detail as the stump's).
+static var _fresh_stump := []
+
+
+static func fresh_stump() -> Array:
+	if _fresh_stump.is_empty():
+		var b := [bark_material(0, "fresh_stump"), bark_material(1, "fresh_stump"), bark_material(2, "fresh_stump"), bark_material(3, "fresh_stump")]
+		var l := [leaf_material(0), leaf_material(1), leaf_material(2), leaf_material(3)]
+		var tb := grow_stump(VARIANTS[4])
+		tb.splinter = false
+		tb.caps[tb.caps.size() - 1][2] = 0.0 # (sawn flat across)
+		var lods: Array[Mesh] = [tb.lod(b[1], l[1], 0, 2, 0, 1.0), tb.lod(b[2], l[2], 0, 3, 0, 1.0), tb.lod(b[3], l[3], 0, 4, 0, 1.0)]
+		_fresh_stump = [tb.build(b[0], l[0], 12.0), lods]
+	return _fresh_stump
+
+
 static func build_lods(variant := 0) -> Array[Mesh]:
 	return _models(variant)[1]
 

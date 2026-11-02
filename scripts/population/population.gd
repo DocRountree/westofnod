@@ -45,6 +45,7 @@ var _removed := {} # prop uid -> true
 var _centre := Vector2i.MAX
 var _radius := 0.0 # chunks are kept this far out (m)
 var _focus := Vector3.ZERO
+var _notches := {} # prop uid -> Color: an axe's notch in a tree (set_notch; bark.gdshader reads it)
 var _near := {} # prop uid -> MultiMeshInstance3D: what's drawn only close by (sporophytes)
 var _near_at := Vector3.INF # where the player was when _near was last updated
 var _near_walks := -1 # walk_changes then
@@ -506,11 +507,26 @@ static func trunk_nearest(tr: PackedFloat32Array, p: Vector3) -> float:
 	return best_s
 
 
+## A tree's notch, as far as the axe has cut it (Felling): the bark shader's
+## INSTANCE_CUSTOM (bark.gdshader: direction, depth, height, radius, in the
+## tree's own units). Its chunk is rebuilt with it. Not saved: a reload
+## heals it.
+func set_notch(uid: int, notch: Color) -> void:
+	_notches[uid] = notch
+	var ch: _Chunk = _chunks.get(_uid_key(uid))
+	if ch:
+		_build_props(ch)
+
+
+func _uid_key(uid: int) -> Vector2i:
+	return Vector2i(uid >> 43, (uid >> 24) & 0x7FFFF) - Vector2i(UID_OFFSET, UID_OFFSET)
+
+
 ## Takes a prop out of the world for good (uid: from prop_at()).
 func remove_prop(uid: int) -> void:
 	_removed[uid] = true
-	var key := Vector2i(uid >> 43, (uid >> 24) & 0x7FFFF) - Vector2i(UID_OFFSET, UID_OFFSET)
-	var ch: _Chunk = _chunks.get(key)
+	_notches.erase(uid)
+	var ch: _Chunk = _chunks.get(_uid_key(uid))
 	if ch:
 		_build_props(ch)
 
@@ -824,6 +840,28 @@ func _build_props(ch: _Chunk) -> void:
 		# those that cast shadows (none in the biomes it's shadowless in):
 		# all of them (sxf == xf), or drawn without and cast by a copy
 		var sxf := _shadow_casters(kind, xf, at + mid)
+		# any notches an axe has cut (set_notch): each instance's custom data
+		var with_custom := PackedFloat32Array()
+		if not _notches.is_empty():
+			var uids: PackedInt64Array = ch.uids[k]
+			var any := false
+			var custom := PackedFloat32Array()
+			custom.resize(uids.size() * 4)
+			for i in uids.size():
+				if _notches.has(uids[i]):
+					var c: Color = _notches[uids[i]]
+					custom[i * 4] = c.r
+					custom[i * 4 + 1] = c.g
+					custom[i * 4 + 2] = c.b
+					custom[i * 4 + 3] = c.a
+					any = true
+			if any:
+				with_custom.resize(uids.size() * 16)
+				for i in uids.size():
+					for j in 12:
+						with_custom[i * 16 + j] = xf[i * 12 + j]
+					for j in 4:
+						with_custom[i * 16 + 12 + j] = custom[i * 4 + j]
 		for l in n + 1:
 			var begin := 0.0 if l == 0 else kind.lod_distances[l - 1]
 			var end := kind.view_distance if l == n else minf(kind.lod_distances[l], kind.view_distance)
@@ -831,9 +869,10 @@ func _build_props(ch: _Chunk) -> void:
 				continue
 			var mm := MultiMesh.new()
 			mm.transform_format = MultiMesh.TRANSFORM_3D
+			mm.use_custom_data = not with_custom.is_empty()
 			mm.mesh = kind.mesh if l == 0 else kind.lods[l - 1]
 			mm.instance_count = xf.size() / 12
-			mm.buffer = xf
+			mm.buffer = xf if with_custom.is_empty() else with_custom
 			var mi := MultiMeshInstance3D.new()
 			mi.multimesh = mm
 			mi.position = at + mid

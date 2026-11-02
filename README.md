@@ -36,7 +36,7 @@ debug mode directly.
 | F5 | toggle third-person camera |
 | C | climb a tree (next to its trunk: W/S up and down, A/D round it; where a limb leaves the trunk, move its way, or W from just under it, to go out along it; C again on top of a limb stands you on it) or rock too steep to walk (WASD over the rock); Space lets go |
 | E | the knapsack: 10 slots and a hand each (click to pick up and put down, right-click half or one, shift-click to or from the hands); what the hands hold shows in them. `/give <item> [count]` puts items in it (there is nothing to pick up in the world yet) |
-| Left mouse | with the axe in a hand (a new game starts with one in the right): swing it; at a tree's trunk (live, dead or a sapling), enough blows (more the thicker it is) fell it: it falls away from you off a stump and lies there (saved with the game; `scripts/items/felling.gd`) |
+| Left mouse | with the axe in a hand (a new game starts with one in the right): swing it; at a tree's trunk (live, dead or a sapling), each blow cuts a notch deeper and wider on your side of the trunk, and enough (more the thicker it is) fell it: it falls away from you off a sawn stump (flat, its top fresh pale wood, no moss) and lies there (saved with the game; `scripts/items/felling.gd`) |
 | Esc | pause: resume, save, main menu, quit (the mouse is freed) |
 
 ## Data (`tools/dem/bake_galapagos.py` → `data/world/`)

@@ -24,6 +24,17 @@ varying vec2 growth; // how much lichen and moss grow here (growth_at)
 varying float near;   // 1 the tree's up close (lichen, moss patterns), 0 not
 varying vec2 lichen_uv;
 varying vec2 bark_off; // where each tree reads the bark texture from
+// An axe's notch (Felling; Population.set_notch): INSTANCE_CUSTOM = (its
+// direction round the trunk, rad; its depth; its height; the trunk's radius
+// there), in the tree's own units; depth 0 none (and none at all but on a
+// tree being felled). A V cut into the trunk from the side the axe comes
+// from, as wide at the bark as it is deep: there the bark gives way to
+// fresh-cut wood, shaded as the cut's two faces.
+varying flat vec4 notch;
+uniform bool fresh_end = false; // cut ends fresh-sawn (an axed tree's stump: OakTree.fresh_stump), not weathered
+varying vec3 notch_p; // the tree's own space, unoffset
+varying flat vec3 notch_up_n; // world: the upper face's normal (out of the wood)
+varying flat vec3 notch_lo_n; // world: the lower face's
 
 void vertex() {
 	lod_f = lod_vertex(CAMERA_POSITION_WORLD, MODEL_MATRIX, PROJECTION_MATRIX);
@@ -43,6 +54,14 @@ void vertex() {
 	vec2 o = fract(tree.xz * vec2(0.0137, 0.0191) + tree.zx * vec2(0.0071, 0.0113));
 	lichen_uv = vec2(o.x < 0.5 ? UV.x : -UV.x, UV.y * 0.25) + o * vec2(1.0, 7.0);
 	bark_off = fract(tree.xz * vec2(0.0419, 0.0283) + tree.zx * vec2(0.0157, 0.0233)) * vec2(1.0, 5.0);
+	notch = INSTANCE_CUSTOM;
+	notch_p = VERTEX;
+	if (notch.y > 0.0) {
+		vec2 d = vec2(cos(notch.x), sin(notch.x));
+		float k = 0.5; // half the opening / the depth
+		notch_up_n = normalize(mat3(MODEL_MATRIX) * vec3(d.x * k, -1.0, d.y * k));
+		notch_lo_n = normalize(mat3(MODEL_MATRIX) * vec3(d.x * k, 1.0, d.y * k));
+	}
 	VERTEX += wind_local(MODEL_MATRIX, VERTEX, UV2.y, TIME);
 	world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 }
@@ -70,10 +89,14 @@ vec3 end_grain(vec2 p) {
 	float wob = 0.03 * sin(a * 3.0 + 1.7) + 0.02 * sin(a * 7.0);
 	float ring = fract((r + wob) * 16.0);
 	vec3 light = vec3(0.56, 0.47, 0.36), dark = vec3(0.4, 0.31, 0.22);
+	if (fresh_end) { // (pale, warm, no checks yet)
+		light = vec3(0.8, 0.66, 0.46);
+		dark = vec3(0.68, 0.53, 0.34);
+	}
 	vec3 c = mix(light, dark, smoothstep(0.55, 0.9, ring));
 	c *= 0.8 + 0.2 * smoothstep(0.0, 0.25, r); // the heart, darker
 	c = mix(c, vec3(0.23, 0.18, 0.14), smoothstep(0.88, 0.95, r)); // the bark round the rim
-	float crack = smoothstep(0.035, 0.0, abs(fract(a / 6.2832 * 5.0 + 0.3 * r) - 0.5) * r * 2.0) * step(0.15, r);
+	float crack = fresh_end ? 0.0 : smoothstep(0.035, 0.0, abs(fract(a / 6.2832 * 5.0 + 0.3 * r) - 0.5) * r * 2.0) * step(0.15, r);
 	return pow(mix(c, c * 0.35, crack * 0.8), vec3(2.2)); // (to linear)
 }
 
@@ -149,6 +172,24 @@ void fragment() {
 		AO = mix(AO, mix(0.5, 1.0, mh / 0.006), moss);
 		ROUGHNESS = mix(ROUGHNESS, 1.0, moss);
 		SPECULAR = mix(SPECULAR, 0.08, moss);
+	}
+	if (notch.y > 0.0 && UV2.x < 0.5) {
+		// how far in from the plane the cut starts at (the trunk's front),
+		// and how far above or below the cut's middle line
+		vec2 d = vec2(cos(notch.x), sin(notch.x));
+		float q = notch.w - dot(notch_p.xz, d);
+		float dy = notch_p.y - notch.z;
+		float open = notch.y * 0.5 * (1.0 - q / notch.y); // the V's half-height at that depth
+		if (q < notch.y && abs(dy) < open) {
+			float deep = clamp(q / notch.y, 0.0, 1.0);
+			vec3 wood = vec3(0.62, 0.48, 0.3) * (0.9 + 0.2 * lc_noise(notch_p * vec3(40.0, 4.0, 40.0)));
+			wood *= mix(1.0, 0.55, deep * deep);                         // darker toward the bottom of the V
+			wood *= mix(0.6, 1.0, smoothstep(0.0, 0.02, open - abs(dy))); // and at its edges, the bark's
+			ALBEDO = wood * wood;                                        // (to linear, about)
+			NORMAL = normalize((VIEW_MATRIX * vec4(dy > 0.0 ? notch_up_n : notch_lo_n, 0.0)).xyz);
+			ROUGHNESS = 0.8;
+			SPECULAR = 0.3;
+		}
 	}
 	FOG = aerial_fog(world_pos, CAMERA_POSITION_WORLD);
 }
