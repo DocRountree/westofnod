@@ -79,8 +79,8 @@ func biome_index_at(x: float, z: float) -> int:
 func biome_blend_at(x: float, z: float, u: float) -> int:
 	if _biome_size == 0:
 		return -1
-	var jx := (vnoise(x / 90.0, z / 90.0) - 0.5) * 180.0 + (vnoise(x / 23.0 + 5.1, z / 23.0 + 5.1) - 0.5) * 50.0
-	var jz := (vnoise(x / 90.0 + 31.7, z / 90.0 + 31.7) - 0.5) * 180.0 + (vnoise(x / 23.0 - 8.3, z / 23.0 - 8.3) - 0.5) * 50.0
+	var jx := (vnoise(x / 1400.0 + 3.3, z / 1400.0 + 3.3) - 0.5) * 1100.0 + (vnoise(x / 90.0, z / 90.0) - 0.5) * 180.0 + (vnoise(x / 23.0 + 5.1, z / 23.0 + 5.1) - 0.5) * 50.0
+	var jz := (vnoise(x / 1400.0 - 12.9, z / 1400.0 - 12.9) - 0.5) * 1100.0 + (vnoise(x / 90.0 + 31.7, z / 90.0 + 31.7) - 0.5) * 180.0 + (vnoise(x / 23.0 - 8.3, z / 23.0 - 8.3) - 0.5) * 50.0
 	var g := (Vector2(x + jx, z + jz) - origin) / (domain + cell()) * _biome_size - Vector2(0.5, 0.5)
 	var i0 := floori(g.x) - 1
 	var j0 := floori(g.y) - 1
@@ -96,6 +96,18 @@ func biome_blend_at(x: float, z: float, u: float) -> int:
 			if u < acc:
 				return b if b < biome_names.size() else -1
 	return b if b < biome_names.size() else -1
+
+
+## How lush the land is at (x, z) (ground.gdshaderinc lush_at, the same: it
+## steers the trees' density here and the ground's green and the distant
+## canopy there): more on slopes facing away from the equator, less on steep
+## ground, up and down over kilometres. About 0.15..1.8, 1 on the level. (The
+## slope over 30 m: the trees go by the lie of the land, not its bumps.)
+func lush_at(x: float, z: float) -> float:
+	var n := Vector3(height_at(x - 15.0, z) - height_at(x + 15.0, z), 30.0, height_at(x, z - 15.0) - height_at(x, z + 15.0)).normalized()
+	var pole := n.z * signf(z)
+	var l := 1.0 + 2.0 * pole - 2.2 * (1.0 - n.y) + 0.9 * (vnoise(x / 1100.0, z / 1100.0) - 0.5) + 0.5 * (vnoise(x / 330.0 + 7.3, z / 330.0 - 2.1) - 0.5)
+	return clampf(l, 0.15, 1.8)
 
 
 ## The biome's name at (x, z) ("" where none).

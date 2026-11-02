@@ -87,4 +87,9 @@ func peak_clumped() -> float:
 @export var climb := PackedFloat32Array()
 @export var view_distance := 250.0 ## Drawn up to this far (m).
 @export var shadows := true
-@export var shadowless_in := PackedStringArray() ## Biomes where it casts none (the oaks: the swamp).
+@export var shadowless_in := PackedStringArray()
+## Its density goes by how lush the land is (WorldData.lush_at: denser on
+## shaded slopes, sparser on steep ground, in kilometre-wide swells), and it
+## strays a few hundred metres over its biomes' borders (thinning out into
+## the next: scattered trees, copses).
+@export var lush := false ## Biomes where it casts none (the oaks: the swamp).

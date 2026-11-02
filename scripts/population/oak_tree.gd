@@ -420,6 +420,7 @@ static func _kind(v: int) -> String:
 ## Population: how variant v differs as a prop.
 static func variant_props(v: int) -> Dictionary:
 	var p: Dictionary = PROPS[_kind(v)].duplicate()
+	p.lush = true # (the land steers where oaks grow: Population)
 	p.lod_distances = PackedFloat32Array(LOD)
 	p.view_distance = VIEW
 	return p

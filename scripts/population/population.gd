@@ -762,8 +762,19 @@ func _generate(key: Vector2i) -> void:
 				var s := rng.randf_range(kind.scale_range.x, kind.scale_range.y)
 				# (the biomes blended across their borders, as the ground's: a
 				# pick by a hash of the place, so the rng's draws stay as they were)
-				var bi := world.biome_blend_at(x, z, fposmod(sin(x * 12.9898 + z * 78.233) * 43758.5453, 1.0))
-				if keep >= kind.density_in(bi) * kind.clump_at(bi, x, z):
+				var u := fposmod(sin(x * 12.9898 + z * 78.233) * 43758.5453, 1.0)
+				var bi: int
+				var dens := 1.0
+				if kind.lush:
+					# straying over the border: the biome read a few hundred
+					# metres off, at random, so a kind thins out across it
+					var ox := (fposmod(sin(x * 39.346 + z * 11.135) * 24634.634, 1.0) - 0.5) * 700.0
+					var oz := (fposmod(sin(x * 73.156 + z * 52.235) * 51381.457, 1.0) - 0.5) * 700.0
+					bi = world.biome_blend_at(x + ox * u, z + oz * u, u)
+					dens = world.lush_at(x, z)
+				else:
+					bi = world.biome_blend_at(x, z, u)
+				if keep >= kind.density_in(bi) * kind.clump_at(bi, x, z) * dens:
 					continue
 				if kind.min_spacing > 0.0:
 					var crowded := false

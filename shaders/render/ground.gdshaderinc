@@ -195,7 +195,10 @@ Shared ground_shared(vec2 p, float h, vec3 n, vec4 m, float fp) {
 // tongues and islands. Then the sixteen nearest texels blend
 // (biome_texel()).
 vec2 biome_grid(vec2 p) {
-	vec2 jit = (vec2(vnoise(p / 90.0), vnoise(p / 90.0 + 31.7)) - 0.5) * 180.0
+	// (three scales: kilometre tongues and islands, then the smaller wander;
+	// WorldData.biome_blend_at the same)
+	vec2 jit = (vec2(vnoise(p / 1400.0 + 3.3), vnoise(p / 1400.0 - 12.9)) - 0.5) * 1100.0
+			+ (vec2(vnoise(p / 90.0), vnoise(p / 90.0 + 31.7)) - 0.5) * 180.0
 			+ (vec2(vnoise(p / 23.0 + 5.1), vnoise(p / 23.0 - 8.3)) - 0.5) * 50.0;
 	vec2 bsz = vec2(textureSize(biome_tex, 0));
 	return (p + jit - map_origin) / (map_domain + map_cell()) * bsz - 0.5;
@@ -209,6 +212,17 @@ vec4 bspline4(float f) {
 
 const int BIOME_TAPS = 16;
 const int BIOME_SLOTS = 12; // the biomes (11), and none (the sea)
+
+// How lush the land is at p, n its normal (WorldData.lush_at, the same: the
+// trees' density goes by it there, the ground's green and the canopy here):
+// more on slopes facing away from the equator (shaded, damper), less on
+// steep ground, and up and down over kilometres (meadows and copses).
+// About 0.15..1.8, 1 on the level.
+float lush_at(vec2 p, vec3 n) {
+	float pole = n.z * sign(p.y); // (the equator at z = 0: toward the pole is -z north of it)
+	float l = 1.0 + 2.0 * pole - 2.2 * (1.0 - n.y) + 0.9 * (vnoise(p / 1100.0) - 0.5) + 0.5 * (vnoise(p / 330.0 + vec2(7.3, -2.1)) - 0.5);
+	return clamp(l, 0.15, 1.8);
+}
 
 // Biome texel k (0-15) of the four by four round g, and its weight (a cubic
 // B-spline: a border takes about three texels, 200 m, to go over from one

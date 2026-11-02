@@ -205,8 +205,15 @@ scrubby caprock, black basalt and ash, beach and dunes), blending across the
 borders over about 200 m (the sixteen nearest texels of the biome map by a cubic
 B-spline, the borders wandering, so each biome reaches into the next in tongues
 and islands; `biome_ground` lives in `ground.gdshaderinc`, which the grass shares);
-the trees and other props are picked by the same shares
-(`WorldData.biome_blend_at`), so they thin out across a border. The pale
+the borders also wander in kilometre-wide tongues and islands; the trees are
+picked by the same shares (`WorldData.biome_blend_at`), each read a few hundred
+metres off at random, so they thin out across a border into scattered oaks and
+copses. How lush the land is (`lush_at`, in `ground.gdshaderinc` and
+`WorldData`: more on slopes facing away from the equator, less on steep ground,
+swelling and dipping over kilometres) steers the oaks' density and the ground's
+green. Past 600 m, where the trees stop being drawn, their canopy is painted on
+the terrain (crowns and shadow, as much as the trees there would cover), and the
+haze is thicker (6.5 km), so distant land softens and blues. The pale
 grounds (prairie, coast, beaches) dim at night, as the leaves do. Marram,
 half the prairie grass's height and as pale as the sand, grows in patches on
 the coast and beaches: none at the water's edge, thicker and taller up the beach. `/pos`
