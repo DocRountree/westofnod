@@ -14,6 +14,7 @@ const float LICHEN_NEAR = 30.0;
 
 uniform sampler2D lichen_tex : filter_linear_mipmap, repeat_enable;
 uniform float lichen_amount = 0.35;
+uniform float night = 0.0; // 0 day .. 1 night (main.gd): pale lichen glared under the night's wider exposure
 uniform bool lichen_any_biome = false; // the same everywhere (dead wood), not by biome (growth_at)...
 uniform float lichen_swamp = 1.0;      // ...save this much more in the swamp (dead oaks)
 uniform float moss_amount = 0.0;
@@ -88,7 +89,7 @@ float lichen_cover(vec2 uv, vec3 p, float amount, float fade, out vec3 col, out 
 			+ lichen_yellow * (1.0 - leafy - crust - disc);
 	// near a lobe's margin it's crisped, curling up off the bark in
 	// ruffles, and paler (its underside); in the middle flatter, darker
-	col = base * (L.b / 0.75);
+	col = base * (L.b / 0.75) * (1.0 - 0.45 * night);
 	relief = cover * L.g * 0.004; // (m: margins turned up)
 	return cover;
 }

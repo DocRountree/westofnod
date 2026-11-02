@@ -127,6 +127,12 @@ static func _stump_top() -> float:
 	return 0.0
 
 
+## 0 day .. 1 night: the lichen dims at night (main.gd).
+static func set_night(n: float) -> void:
+	for key in _bark_mats:
+		_bark_mats[key].set_shader_parameter("night", n)
+
+
 ## Where lichen and moss grow how much (sparse on the prairie, thick in the
 ## swamp), from the world's biome map (for every bark material, made or to
 ## be made).

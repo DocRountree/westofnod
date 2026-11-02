@@ -509,6 +509,7 @@ func _update_light() -> void:
 	env.tonemap_exposure = lerpf(1.05, 1.9, night)
 	# the prairie's pale ground and grass, a little darker at night
 	terrain_material.set_shader_parameter("night", night)
+	OakTree.set_night(night)
 	for m in ground_cover.materials:
 		m.set_shader_parameter("night", night)
 	var dir := _sun.global_basis.z

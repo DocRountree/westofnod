@@ -119,4 +119,5 @@ void fragment() {
 	// matte where it's rough (dry ground: no sheen, even at a glancing
 	// look), glossy only where it's smooth (standing water)
 	SPECULAR = mix(0.5, 0.03, smoothstep(0.3, 0.8, rough));
+	SPECULAR *= 1.0 - 0.65 * night; // (the swamp's pools: the moon and night sky's glints, under the night's wider exposure, were too bright)
 }
