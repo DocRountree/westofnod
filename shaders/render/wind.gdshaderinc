@@ -3,8 +3,11 @@
 // move as one), slowly, in gusts. weight: 0 on the stout wood, 1 at the
 // twig tips (bark: UV2.y from TreeBuilder; leaf cards: 1).
 
+#include "res://shaders/render/origin.gdshaderinc"
+
 uniform float sway = 0.09; // m at the tips, in a full gust
 
+// (world: the map's position, not the drawn one)
 vec3 wind_sway(vec3 world, float t) {
 	float ph = dot(world.xz, vec2(0.13, 0.09)) + world.y * 0.05;
 	float gust = 0.55 + 0.45 * sin(t * 0.31 + dot(world.xz, vec2(0.011, 0.007)));
@@ -14,6 +17,6 @@ vec3 wind_sway(vec3 world, float t) {
 // The sway as an offset in the model's own space (for VERTEX).
 vec3 wind_local(mat4 model, vec3 local, float weight, float t) {
 	if (weight <= 0.0) return vec3(0.0);
-	vec3 w = wind_sway((model * vec4(local, 1.0)).xyz, t) * weight;
+	vec3 w = wind_sway((model * vec4(local, 1.0)).xyz + world_origin, t) * weight;
 	return inverse(mat3(model)) * w;
 }

@@ -10,6 +10,8 @@
 // Up close only (the tree within LICHEN_NEAR m): further off the lichen is
 // gone and the moss is a plain share, no noise, nothing to shimmer.
 
+#include "res://shaders/render/origin.gdshaderinc"
+
 const float LICHEN_NEAR = 30.0;
 
 uniform sampler2D lichen_tex : filter_linear_mipmap, repeat_enable;
@@ -39,7 +41,7 @@ uniform int swamp_biome_ = -1;
 const vec2 PRAIRIE_GROWTH = vec2(0.5, 0.0); // (lichen, moss) x: on the prairie, lichen very sparse, no moss
 const vec2 SWAMP_GROWTH = vec2(1.8, 1.0);   // in the swamp's damp air, lichen thick
 
-// How much lichen and moss grow at world xz (x lichen_amount, moss_amount).
+// How much lichen and moss grow at the map's xz (x lichen_amount, moss_amount).
 vec2 growth_at(vec2 xz) {
 	if (prairie_biome < 0)
 		return vec2(1.0);

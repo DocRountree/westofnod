@@ -57,11 +57,11 @@ float bayer4(vec2 frag) {
 }
 
 void vertex() {
-	vec2 anchor = MODEL_MATRIX[3].xz; // the cell's corner (the node * the instance)
+	vec2 anchor = MODEL_MATRIX[3].xz + world_origin.xz; // the cell's corner (the node * the instance), on the map
 	ivec2 c = ivec2(round(anchor / cell));
 	ivec2 t = c - grid_origin;
 	vec2 pos = cell_pos(c);
-	float d = distance(CAMERA_POSITION_WORLD.xz, pos);
+	float d = distance(CAMERA_POSITION_WORLD.xz + world_origin.xz, pos);
 	// how much of it shows: the layer's range, the thinning
 	float keep = clamp(pow(thin_from / max(d, 0.01), 1.5), 0.0, 1.0);
 	float vis = keep * (1.0 - smoothstep(fade_out.x, fade_out.y, d));
@@ -100,8 +100,8 @@ void vertex() {
 		vec2 root = rot * UV2 * spread;
 		vec3 w = vec3(pos.x + root.x, h, pos.y + root.y) + v * size + across * spread;
 		w += wind_sway(w, TIME) / max(sway, 1e-3) * grass_sway * size * frac * frac;
-		world_pos = w;
-		VERTEX = (VIEW_MATRIX * vec4(w, 1.0)).xyz;
+		world_pos = w; // (the map's)
+		VERTEX = (VIEW_MATRIX * vec4(w - world_origin, 1.0)).xyz; // (drawn near the origin)
 		vec3 nrm = NORMAL;
 		nrm.xz = rot * nrm.xz;
 		// lit mostly as the ground under it is (and the shadow map read
@@ -144,7 +144,7 @@ void fragment() {
 	ALBEDO = mix(c, root_col, far); // far off, exactly the ground's colour
 	ROUGHNESS = 0.85;
 	SPECULAR = 0.2;
-	FOG = aerial_fog(world_pos, CAMERA_POSITION_WORLD);
+	FOG = aerial_fog(world_pos, CAMERA_POSITION_WORLD + world_origin);
 }
 
 // Lit by hand: wrapped, light through the blades from behind, and a shadow

@@ -207,7 +207,7 @@ float phase(float fi, vec2 d, float k, float depth, vec2 wp) {
 }
 
 void vertex() {
-	vec3 world = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
+	vec3 world = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz + world_origin; // (the map's)
 	x0 = sea_sign * world.xz + sea_offset;
 	xl = sea_sign * VERTEX.xz + local_offset; // (the mesh is only translated)
 	spacing = UV.x;

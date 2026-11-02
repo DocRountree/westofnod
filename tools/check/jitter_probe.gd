@@ -36,7 +36,7 @@ func _process(_delta: float) -> bool:
 		0:
 			count += 1
 			if count >= SETTLE:
-				print("PROBE world ready, player at ", p.global_position)
+				print("PROBE world ready, player at ", p.position)
 				state = 1
 		1:
 			p.rotation.y = TAU * view / VIEWS
@@ -51,7 +51,7 @@ func _process(_delta: float) -> bool:
 		3:
 			var img := root.get_texture().get_image()
 			img.save_png(out_dir.path_join("v%d_%d.png" % [view, grab]))
-			print("PROBE view %d grab %d camera %s player %s" % [view, grab, p.camera.global_position, p.global_position])
+			print("PROBE view %d grab %d camera %s player %s" % [view, grab, Origin.map(p.camera.global_position), p.position])
 			grab += 1
 			if grab >= GRABS:
 				view += 1

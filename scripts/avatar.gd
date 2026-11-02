@@ -196,7 +196,8 @@ func walk(delta: float, speed: float, on_floor: bool) -> void:
 		if not on_floor:
 			foot = hip + Vector3.DOWN * 0.8 + fwd * 0.1
 		elif world:
-			foot.y = maxf(foot.y, world.height_at(foot.x, foot.z) - sink + 0.04)
+			var fm := Origin.map(foot) # (bones are drawn positions; the ground goes by the map's)
+			foot.y = maxf(foot.y, world.height_at(fm.x, fm.z) - sink + 0.04)
 		_solve(leg, foot, fwd)
 		var arm: Dictionary = _limbs[sname + "_arm"]
 		var sh: Vector3 = arm.root.global_position
@@ -204,7 +205,8 @@ func walk(delta: float, speed: float, on_floor: bool) -> void:
 		_solve(arm, sh + Vector3.DOWN * 0.5 - fwd * (s * amp * 0.8 - 0.06) + right * 0.07 * fs, -fwd + Vector3.DOWN * 0.3)
 		arm.hold = Vector3.INF
 		leg.hold = Vector3.INF
-	var up := world.normal_at(global_position.x, global_position.z) if world and on_floor else Vector3.UP
+	var at := Origin.map(global_position)
+	var up := world.normal_at(at.x, at.z) if world and on_floor else Vector3.UP
 	_feet(fwd, up.lerp(Vector3.UP, 0.4))
 
 
@@ -234,7 +236,8 @@ func swim(delta: float, speed: float) -> void:
 	_feet(-t.basis.y, t.basis.z) # pointed toes, trailing
 
 
-## Climbing. surface: the rock point under the body's centre; n: its normal;
+## Climbing. surface: the rock point under the body's centre (on the map, as
+## the holds: Origin); n: its normal;
 ## up_t: up the fall line; moved: how far the body moved over the rock this
 ## frame. Each limb holds a point on the rock surface; in turn (right hand,
 ## left foot, left hand, right foot) one lets go and reaches, in an arc off the
@@ -261,7 +264,7 @@ func climb(surface: Vector3, n: Vector3, up_t: Vector3, moved: Vector3) -> void:
 		# the shoulders, feet below the hips.
 		var rest := surface + (up_t * 0.75 + right * side * 0.3 if is_arm else -up_t * 0.7 + right * side * 0.2)
 		rest = on_rock(rest)
-		var sock: Vector3 = l.root.global_position
+		var sock := Origin.map(l.root.global_position) # (the holds are on the map: they stay put when the origin moves)
 		if l.hold == Vector3.INF or l.hold.distance_to(sock) > reach * 1.05:
 			l.hold = rest # out of reach (or no hold yet): take the rest hold
 		var target: Vector3 = l.hold
@@ -276,16 +279,17 @@ func climb(surface: Vector3, n: Vector3, up_t: Vector3, moved: Vector3) -> void:
 		# elbows down and out, knees out to the side and toward the wall (a
 		# climber faces the rock: knees bend toward it, never back away)
 		var pole := (-up_t * 0.6 + right * side * 0.7 + n * 0.2) if is_arm else (right * side * 0.9 - n * 0.3 - up_t * 0.2)
-		_solve(l, target, pole)
+		_solve(l, Origin.render(target), pole)
 		# never through the rock: if the elbow or knee is in it, bend away more
-		var joint: Vector3 = (l.b as Node3D).global_position
+		var joint := Origin.map((l.b as Node3D).global_position)
 		if _depth(joint) > -0.08:
-			_solve(l, target, pole.lerp(n, 0.8))
+			_solve(l, Origin.render(target), pole.lerp(n, 0.8))
 	_feet(up_t, n)
 
 
 ## The point on the terrain surface nearest p (a few steps along the normal),
-## lifted a little so a hand rests on it rather than in it.
+## lifted a little so a hand rests on it rather than in it. (On the map, as
+## p: not a drawn position.)
 func on_rock(p: Vector3) -> Vector3:
 	if not trunk.is_empty():
 		var f := Population.trunk_frame(trunk, Population.trunk_nearest(trunk, p))
@@ -302,7 +306,8 @@ func on_rock(p: Vector3) -> Vector3:
 	return p + world.normal_at(p.x, p.z) * 0.04
 
 
-## How far p is inside the rock (m, along the surface normal; negative: outside).
+## How far p (on the map) is inside the rock (m, along the surface normal;
+## negative: outside).
 func _depth(p: Vector3) -> float:
 	if not trunk.is_empty():
 		var f := Population.trunk_frame(trunk, Population.trunk_nearest(trunk, p))
@@ -318,7 +323,7 @@ func contact_gaps() -> Dictionary:
 	for name in _limbs:
 		var l: Dictionary = _limbs[name]
 		var b: Node3D = l.b
-		var tip: Vector3 = b.global_position - b.global_basis.z * l.len[1]
+		var tip := Origin.map(b.global_position - b.global_basis.z * l.len[1])
 		var n := world.normal_at(tip.x, tip.z)
 		out[name] = snappedf((tip.y - world.height_at(tip.x, tip.z)) * n.y, 0.01)
 	return out

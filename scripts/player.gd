@@ -4,6 +4,8 @@ extends CharacterBody3D
 ## Minecraft, see _swim()), climb rock too steep to walk or a tree's trunk
 ## (C toggles; see _climb(), _climb_tree()) and an optional fly mode. The figure (Avatar) is animated
 ## procedurally; the third-person camera never goes inside the terrain.
+## Its `position` is where it is on the map (it hangs from Origin.root);
+## global positions (the camera's, the head's) are drawn ones (Origin).
 
 const WALK_SPEED := 4.6
 const SPRINT_SPEED := 7.5
@@ -172,11 +174,11 @@ func set_climbing(on: bool) -> void:
 	_trunk = PackedFloat32Array()
 	avatar.trunk = _trunk
 	if on and population:
-		var chest := global_position + Vector3.UP * 1.2
+		var chest := position + Vector3.UP * 1.2
 		var tr := population.trunk_near(chest, 0.9)
 		var at := chest
 		if tr.is_empty(): # (standing on a limb: the limb under your feet)
-			at = global_position + Vector3.UP * 0.1
+			at = position + Vector3.UP * 0.1
 			tr = population.trunk_near(at, 0.4)
 		if not tr.is_empty():
 			_grip(tr, at)
@@ -187,8 +189,8 @@ func set_climbing(on: bool) -> void:
 			return
 	if on:
 		var fwd := -global_basis.z
-		var p := global_position + fwd * 0.6
-		if world.normal_at(p.x, p.z).y > CLIMBABLE and world.normal_at(global_position.x, global_position.z).y > CLIMBABLE:
+		var p := position + fwd * 0.6
+		if world.normal_at(p.x, p.z).y > CLIMBABLE and world.normal_at(position.x, position.z).y > CLIMBABLE:
 			return # nothing steep here to climb
 		set_flying(false)
 		_was_third_person = third_person
@@ -205,8 +207,8 @@ func _physics_process(delta: float) -> void:
 		return
 	var input := _move_input()
 	var dir := (transform.basis * Vector3(input.x, 0.0, input.y)).normalized()
-	var water := world.water_at(global_position.x, global_position.z) if world else Vector3.ZERO
-	var depth := water.x - global_position.y # how deep the feet are
+	var water := world.water_at(position.x, position.z) if world else Vector3.ZERO
+	var depth := water.x - position.y # how deep the feet are
 	var in_water := depth > 0.6
 	var head_under := water.x > head.global_position.y
 
@@ -230,7 +232,7 @@ func _physics_process(delta: float) -> void:
 	else:
 		swimming = false
 		var speed := SPRINT_SPEED if _held("sprint") else WALK_SPEED
-		if world.biome_index_at(global_position.x, global_position.z) == world.swamp:
+		if world.biome_index_at(position.x, position.z) == world.swamp:
 			speed *= SWAMP_SLOW
 		velocity.y -= GRAVITY * delta
 		if _held("jump") and grounded:
@@ -268,7 +270,7 @@ func _physics_process(delta: float) -> void:
 ## than floor_max_angle can't be walked up and slides you down it. Flying and
 ## swimming only keep you above it. (The physics collider is for the camera.)
 func _move(delta: float, in_water: bool) -> void:
-	var p := global_position + velocity * delta
+	var p := position + velocity * delta
 	if population and not flying:
 		# round the trunks and boulders; logs too high to step onto (measured
 		# from the mud's surface when wading: you step up out of it)
@@ -286,7 +288,7 @@ func _move(delta: float, in_water: bool) -> void:
 	else:
 		# a fallen log or stump under foot (stepped up onto, if no higher than
 		# a step above the ground, or the mud's surface)
-		var deck := population.deck_at(p, global_position.y + sink + Population.STEP_UP) if population else -INF
+		var deck := population.deck_at(p, position.y + sink + Population.STEP_UP) if population else -INF
 		# a swamp swallows you to the knees or hips (deeper here, shallower
 		# there), easing in and out at its edge
 		var want := 0.0
@@ -298,7 +300,7 @@ func _move(delta: float, in_water: bool) -> void:
 			g = deck
 			steep = false
 		var uphill := -Vector2(n.x, n.z).normalized()
-		if steep and g > global_position.y + 0.05:
+		if steep and g > position.y + 0.05:
 			# too steep to walk up: keep only the motion along (or down) it
 			var hv := Vector2(velocity.x, velocity.z)
 			var up := hv.dot(uphill)
@@ -306,7 +308,7 @@ func _move(delta: float, in_water: bool) -> void:
 				hv -= uphill * up
 				velocity.x = hv.x
 				velocity.z = hv.y
-				p = global_position + velocity * delta
+				p = position + velocity * delta
 				g = world.height_at(p.x, p.z) - sink
 				n = world.normal_at(p.x, p.z)
 				steep = n.y < cos(floor_max_angle)
@@ -320,7 +322,7 @@ func _move(delta: float, in_water: bool) -> void:
 				velocity.z += n.z * GRAVITY * delta
 		else:
 			grounded = false
-	global_position = p
+	position = p
 
 
 ## Climbing: hands and feet on the rock, moving over its surface. W/S climb up
@@ -328,7 +330,7 @@ func _move(delta: float, in_water: bool) -> void:
 ## onto ground gentle enough to stand on) the climb ends by itself.
 func _climb(delta: float) -> void:
 	var input := _move_input()
-	var g := Vector2(global_position.x, global_position.z) + _grip_offset
+	var g := Vector2(position.x, position.z) + _grip_offset
 	var n := world.normal_at(g.x, g.y)
 	var up_t := (Vector3.UP - n * n.y).normalized()
 	var right := up_t.cross(n)
@@ -341,12 +343,12 @@ func _climb(delta: float) -> void:
 	right = up_t.cross(n)
 	if _just("jump") or (n.y > CLIMBABLE + 0.05 and input.length() > 0.1):
 		# Let go, or step out onto ground you can stand on.
-		global_position = surface + Vector3.UP * 0.05
+		position = surface + Vector3.UP * 0.05
 		set_climbing(false)
 		return
 	var centre := surface + n * CLIMB_OFFSET
-	global_position = centre - up_t * 1.0
-	_grip_offset = Vector2(surface.x, surface.z) - Vector2(global_position.x, global_position.z)
+	position = centre - up_t * 1.0
+	_grip_offset = Vector2(surface.x, surface.z) - Vector2(position.x, position.z)
 	velocity = Vector3.ZERO
 	avatar.global_basis = Basis(right, up_t, n)
 	avatar.climb(surface, n, up_t, surface - before)
@@ -393,12 +395,12 @@ func _climb_tree(delta: float) -> void:
 	var ground := world.height_at(feet.x, feet.z)
 	if _just("jump") or (on_trunk and input.y > 0.1 and feet.y <= ground + 0.05):
 		# let go (falling, pushed off the bark a little), or down at the foot
-		global_position = Vector3(feet.x, maxf(feet.y, ground), feet.z)
+		position = Vector3(feet.x, maxf(feet.y, ground), feet.z)
 		_trunk = PackedFloat32Array()
 		set_climbing(false)
 		velocity = n * 1.5
 		return
-	global_position = Vector3(feet.x, maxf(feet.y, ground), feet.z)
+	position = Vector3(feet.x, maxf(feet.y, ground), feet.z)
 	velocity = Vector3.ZERO
 	avatar.global_basis = Basis(right, up_t, n)
 	avatar.climb(surface, n, up_t, surface - before)
@@ -464,7 +466,7 @@ func _leave_tree() -> void:
 	var axis: Vector3 = f[0]
 	var n := _trunk_out(f)
 	if not _is_trunk() and n.y > 0.3:
-		global_position = axis + Vector3.UP * ((f[1] as float) + 0.02)
+		position = axis + Vector3.UP * ((f[1] as float) + 0.02)
 		grounded = true
 	velocity = Vector3.ZERO
 
@@ -473,7 +475,8 @@ func _process(_delta: float) -> void:
 	# Keep the camera above the ground (the spring arm keeps it off slopes).
 	if world and third_person:
 		var c := camera.global_position
-		var h := world.height_at(c.x, c.z) + 0.4
+		var m := Origin.map(c) # (drawn: Origin)
+		var h := world.height_at(m.x, m.z) + 0.4
 		if c.y < h:
 			camera.global_position = Vector3(c.x, h, c.z)
 
@@ -499,6 +502,6 @@ func _swim(delta: float, dir: Vector3, depth: float, head_under: bool) -> void:
 			target.y = -SINK_SPEED
 	# Water is thick: velocities ease toward the target (and a dive is braked).
 	velocity = velocity.move_toward(target, 36.0 * delta)
-	var ahead := global_position + Vector3(dir.x, 0.0, dir.z) * 0.6
-	if _held("jump") and depth < 1.6 and world.height_at(ahead.x, ahead.z) > global_position.y:
+	var ahead := position + Vector3(dir.x, 0.0, dir.z) * 0.6
+	if _held("jump") and depth < 1.6 and world.height_at(ahead.x, ahead.z) > position.y:
 		velocity.y = 4.2 # climb out onto the bank

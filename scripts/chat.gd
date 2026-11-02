@@ -243,7 +243,7 @@ func _tp(args: PackedStringArray) -> void:
 		say(_commands.tp[1], Color(1.0, 0.45, 0.4))
 		return
 	p.velocity = Vector3.ZERO
-	p.global_position = target
+	p.position = target
 	say("Teleported to x %.0f  y %.0f  z %.0f  (%s)" % [target.x, target.y, target.z, _where()], Color(0.6, 1.0, 0.6))
 
 
@@ -298,7 +298,7 @@ func _time(args: PackedStringArray) -> void:
 
 func _spawn(_args: PackedStringArray) -> void:
 	main.player.velocity = Vector3.ZERO
-	main.player.global_position = main.world.spawn
+	main.player.position = main.world.spawn
 	say("Back at the spawn point.", Color(0.6, 1.0, 0.6))
 
 
@@ -338,7 +338,7 @@ func _aurora(_args: PackedStringArray) -> void:
 
 
 func _pos(_args: PackedStringArray) -> void:
-	var p: Vector3 = main.player.global_position
+	var p: Vector3 = main.player.position
 	var b: String = main.world.biome_at(p.x, p.z)
 	say("x %.0f  y %.1f  z %.0f  (%s)%s" % [p.x, p.y, p.z, _where(), ("  " + b) if b != "" else ""])
 
@@ -350,7 +350,7 @@ func _pop(_args: PackedStringArray) -> void:
 
 
 func _where() -> String:
-	var p: Vector3 = main.player.global_position
+	var p: Vector3 = main.player.position
 	var lat: float = main.latitude_at(p.z)
 	var lon: float = main.longitude_at(p.x)
 	return "%.1f°%s %.1f°%s" % [absf(lat), "N" if lat >= 0.0 else "S", absf(lon), "E" if lon >= 0.0 else "W"]

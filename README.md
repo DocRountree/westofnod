@@ -72,6 +72,15 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
 
 ## Rendering (`scripts/world/`, `shaders/render/`)
 
+- **Floating origin** (`scripts/world/origin.gd`, `origin.gdshaderinc`): the map is
+  ~280 km across, and a 32-bit float only resolves a few mm tens of km out, so drawn
+  at map coordinates everything shimmered as the view turned. Everything in the world
+  (terrain, sea, trees, grass, the player) hangs from one node, `Origin.root`, moved
+  by -`Origin.offset`, which follows the player in whole 1024 m steps: what's drawn
+  is always within ~1.5 km of the origin. The game works in map coordinates (a world
+  node's `position`); global positions are drawn ones (`Origin.map()` /
+  `Origin.render()`); shaders add the global shader parameter `world_origin` to a
+  drawn position wherever they go by the map (heights, biomes, noise, hashes, wind).
 - **Terrain**: one CDLOD quadtree over the height map; patches morph into the next
   coarser level toward the end of their range, so there are no cracks and no pops.
   Normals and materials are per pixel, from the finest mip a pixel can show.

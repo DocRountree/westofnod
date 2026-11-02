@@ -23,13 +23,13 @@ func _wait(sec: float) -> void:
 func _shot(name: String) -> void:
 	await RenderingServer.frame_post_draw
 	get_viewport().get_texture().get_image().save_png(out_dir.path_join(name + ".png"))
-	print("shot ", name, " at ", main.player.global_position)
+	print("shot ", name, " at ", main.player.position)
 
 
 func _view(pos: Vector3, yaw: float, pitch: float, settle: float = 2.0) -> void:
 	var p: Player = main.player
 	p.flying = true
-	p.global_position = pos
+	p.position = pos
 	p.rotation.y = yaw
 	p.head.rotation.x = pitch
 	p.velocity = Vector3.ZERO
@@ -47,7 +47,7 @@ func _run() -> void:
 	print("world after %d ms" % (Time.get_ticks_msec() - t0))
 	var p: Player = main.player
 	var isl: WorldData = main.world
-	var s := p.global_position
+	var s := p.position
 	await _wait(3.0)
 	if OS.get_cmdline_user_args().has("--sky"):
 		await _sky_shots(s)
@@ -80,12 +80,12 @@ func _run() -> void:
 		var nrm := isl.normal_at(rock.x, rock.z)
 		var base := rock + Vector3(nrm.x, 0, nrm.z).normalized() * 0.8
 		p.flying = false
-		p.global_position = Vector3(base.x, isl.height_at(base.x, base.z) + 0.1, base.z)
+		p.position = Vector3(base.x, isl.height_at(base.x, base.z) + 0.1, base.z)
 		p.rotation.y = atan2(nrm.x, nrm.z) # face the rock
 		p.head.rotation.x = -0.2
 		await _wait(0.5)
 		p.set_climbing(true)
-		print("climbing: ", p.climbing, " at ", p.global_position)
+		print("climbing: ", p.climbing, " at ", p.position)
 		Input.action_press("move_forward")
 		await _wait(3.0)
 		await _shot("01c_climb")
@@ -93,7 +93,7 @@ func _run() -> void:
 		await _wait(1.5)
 		await _shot("01d_climb_side")
 		Input.action_release("move_forward")
-		print("climbed to ", p.global_position, "  hand/foot gaps to the rock (m): ", p.avatar.contact_gaps())
+		print("climbed to ", p.position, "  hand/foot gaps to the rock (m): ", p.avatar.contact_gaps())
 		p.set_climbing(false)
 		p.set_third_person(false)
 	if OS.get_cmdline_user_args().has("--climb"):
@@ -130,13 +130,13 @@ func _run() -> void:
 		await _shot("07_sea")
 		# Swim: fall into the sea, then hold jump.
 		p.flying = false
-		p.global_position = Vector3(best.x, 0.5, best.z)
+		p.position = Vector3(best.x, 0.5, best.z)
 		await _wait(2.0)
-		print("swim: sinking y=%.2f" % p.global_position.y)
+		print("swim: sinking y=%.2f" % p.position.y)
 		Input.action_press("jump")
 		await _wait(1.5)
 		Input.action_release("jump")
-		print("swim: after jump y=%.2f" % p.global_position.y)
+		print("swim: after jump y=%.2f" % p.position.y)
 	get_tree().quit()
 
 
@@ -191,14 +191,14 @@ func _sky_shots(s: Vector3) -> void:
 	await _view(Vector3(x1 - 5.0, 50.0, s.z), -PI * 0.5, 0.0, 1.0) # facing east
 	var day0: int = clk.day
 	main.player.velocity = Vector3.ZERO
-	main.player.global_position.x = x1 + 3.0
+	main.player.position.x = x1 + 3.0
 	await _wait(0.5)
-	print("east wrap: x %.0f (expect near %.0f), day %d -> %d" % [main.player.global_position.x, main.world.origin.x, day0, clk.day])
+	print("east wrap: x %.0f (expect near %.0f), day %d -> %d" % [main.player.position.x, main.world.origin.x, day0, clk.day])
 	var zt: float = main.world.origin.y
 	await _view(Vector3(s.x, 50.0, zt + 5.0), 0.0, 0.0, 1.0) # facing north
 	var t0 := clk.time_of_day
-	main.player.global_position.z = zt - 3.0
+	main.player.position.z = zt - 3.0
 	await _wait(0.5)
 	var f: Vector3 = -main.player.global_basis.z
-	print("pole wrap: pos %s, facing %s (expect +z), time %.1f -> %.1f" % [main.player.global_position, f, t0, clk.time_of_day])
+	print("pole wrap: pos %s, facing %s (expect +z), time %.1f -> %.1f" % [main.player.position, f, t0, clk.time_of_day])
 

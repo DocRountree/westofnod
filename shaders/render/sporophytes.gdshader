@@ -17,7 +17,7 @@ render_mode cull_disabled, world_vertex_coords;
 #include "res://shaders/render/lichen.gdshaderinc"
 
 uniform float near_end = 4.0;   // m from the player
-uniform vec3 player = vec3(0.0); // (main.gd, each frame: OakTree.set_player)
+uniform vec3 player = vec3(0.0); // on the map (main.gd, each frame: OakTree.set_player)
 uniform float stalk_r = 0.00045;  // m
 uniform vec2 capsule_r = vec2(0.0015, 0.003); // m: round, along the stalk (longer that way)
 uniform vec3 stalk_base : source_color = vec3(0.36, 0.1, 0.06);
@@ -29,10 +29,11 @@ varying vec3 world_pos;
 void vertex() {
 	vec3 foot = VERTEX;
 	float grow = 0.0;
-	if (growth_at(MODEL_MATRIX[3].xz).y > 0.0) {
-		float d = distance(foot, player);
+	vec3 tree = MODEL_MATRIX[3].xyz + world_origin; // (on the map)
+	if (growth_at(tree.xz).y > 0.0) {
+		float d = distance(foot + world_origin, player);
 		if (d < near_end) {
-			vec3 obj = CUSTOM1.xyz + vec3(fract(MODEL_MATRIX[3].x * 0.0137), 0.0, fract(MODEL_MATRIX[3].z * 0.0137)) * 61.0;
+			vec3 obj = CUSTOM1.xyz + vec3(fract(tree.x * 0.0137), 0.0, fract(tree.z * 0.0137)) * 61.0;
 			float m = moss_field(obj, normalize(NORMAL).y) * (UV2.x > 0.5 ? moss_end : 1.0);
 			grow = step(0.35 + UV2.y * 0.35, m); // (whole, or not there)
 		}

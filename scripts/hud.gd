@@ -38,7 +38,7 @@ func _ready() -> void:
 func _process(_delta: float) -> void:
 	if player == null:
 		return
-	var p := player.global_position
+	var p := player.position # (on the map)
 	var place := ""
 	var cfg := WorldConfig.current()
 	var clk := GameClock.current()
@@ -54,5 +54,5 @@ func _process(_delta: float) -> void:
 			place.strip_edges(), "god" if god else "survival", "   [fly]" if player.flying else "",
 			("   [%.1fx]" % player.zoom if player.zoom > 1.0 else ""),
 			" · Space×2 fly" if god else "", " · [ ] time" if god else ""]
-	var cam := player.camera.global_position
+	var cam := Origin.map(player.camera.global_position)
 	underwater.visible = player.world != null and cam.y < player.world.water_at(cam.x, cam.z).x

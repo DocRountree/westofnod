@@ -51,6 +51,12 @@ func _ready() -> void:
 	world = WorldData.new().load_world()
 	await _step("Laying out the ground", 0.14)
 
+	# everything in the world hangs from one node, drawn near the origin
+	# (Origin: the floating origin); the sky and the lights stay out of it
+	Origin.root = Node3D.new()
+	Origin.root.name = "World"
+	add_child(Origin.root)
+
 	var terrain_mat := ShaderMaterial.new()
 	terrain_material = terrain_mat
 	terrain_mat.shader = load("res://shaders/render/terrain.gdshader")
@@ -60,7 +66,7 @@ func _ready() -> void:
 		terrain_mat.set_shader_parameter("swamp_biome", world.biome_names.find("swamp"))
 	GroundCover.setup_terrain(terrain_mat) # (the forest's leaf litter)
 	cdlod = Cdlod.new()
-	add_child(cdlod)
+	Origin.root.add_child(cdlod)
 	cdlod.setup(world, [terrain_mat])
 
 	ocean_material = ShaderMaterial.new()
@@ -72,7 +78,7 @@ func _ready() -> void:
 	ocean.material_override = ocean_material
 	ocean.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	ocean.extra_cull_margin = 16.0
-	add_child(ocean)
+	Origin.root.add_child(ocean)
 	var floor_mi := MeshInstance3D.new()
 	var plane := PlaneMesh.new()
 	plane.size = Vector2(400000, 400000)
@@ -82,7 +88,7 @@ func _ready() -> void:
 	floor_mi.material_override = floor_mat
 	floor_mi.position.y = WorldData.OCEAN_FLOOR - 0.5
 	floor_mi.visible = false # only under water (from above it showed as a line on the horizon past the sea's edge)
-	add_child(floor_mi)
+	Origin.root.add_child(floor_mi)
 	_sea_floor = floor_mi
 
 	terrain_mat.set_shader_parameter("sun_direction", _sun.global_basis.z)
@@ -95,11 +101,11 @@ func _ready() -> void:
 	await _step("Growing the trees", 0.18)
 	collider = TerrainCollider.new()
 	collider.world = world
-	add_child(collider)
+	Origin.root.add_child(collider)
 	OakTree.set_growth_map(world) # (no lichen or moss on the prairie)
 	population = Population.new()
 	population.world = world
-	add_child(population)
+	Origin.root.add_child(population)
 	for k in population.props: # props with shader materials take the haze too
 		var mats: Array = [k.material, k.lod_material]
 		for mesh in [k.mesh] + k.lods:
@@ -113,7 +119,7 @@ func _ready() -> void:
 	await _step("Sowing the grass", 0.3)
 	ground_cover = GroundCover.new()
 	ground_cover.population = population
-	add_child(ground_cover)
+	Origin.root.add_child(ground_cover)
 	ground_cover.setup(world)
 	for m in ground_cover.materials:
 		_hazed.append(m)
@@ -121,14 +127,15 @@ func _ready() -> void:
 	player = Player.new()
 	player.world = world
 	player.population = population
-	add_child(player)
+	Origin.root.add_child(player)
 	player.avatar.world = world
-	player.global_position = world.spawn
+	player.position = world.spawn
 	_load_game()
-	_last_x = player.global_position.x
+	Origin.follow(player.position)
+	_last_x = player.position.x
 	aurora.min_latitude = AURORA_LATITUDE
 	_update_position_on_planet()
-	collider.follow(player.global_position)
+	collider.follow(player.position)
 	await _warm_up()
 	player.frozen = false
 	hud = Hud.new()
@@ -206,9 +213,9 @@ func _warm_up() -> void:
 	var t0 := Time.get_ticks_msec()
 	var p := 0.0
 	while Time.get_ticks_msec() - t0 < 120000: # (never stuck for good)
-		var cam := player.camera.global_position
+		var cam := Origin.map(player.camera.global_position)
 		_update_world(cam)
-		var trees := population.load_progress(player.global_position)
+		var trees := population.load_progress(player.position)
 		var grass := ground_cover.is_ready()
 		p = 0.35 + 0.55 * trees + (0.05 if grass else 0.0)
 		var what := "Sowing the grass"
@@ -219,7 +226,7 @@ func _warm_up() -> void:
 			break
 	population.apply_per_frame = Population.APPLY_PER_FRAME
 	for i in 8:
-		_update_world(player.camera.global_position)
+		_update_world(Origin.map(player.camera.global_position))
 		await _step("Almost there", lerpf(p, 1.0, (i + 1) / 8.0))
 
 
@@ -239,7 +246,7 @@ func _load_game() -> void:
 	var pl: Dictionary = d.get("player", {})
 	var pos: Array = pl.get("position", [])
 	if pos.size() == 3:
-		player.global_position = Vector3(pos[0], pos[1], pos[2])
+		player.position = Vector3(pos[0], pos[1], pos[2])
 	player.rotation.y = float(pl.get("yaw", 0.0))
 	player.head.rotation.x = float(pl.get("pitch", 0.0))
 	if pl.get("third_person", false):
@@ -266,7 +273,7 @@ func set_mode(m: String) -> void:
 func save_game() -> void:
 	if Session.debug or player == null:
 		return
-	var p := player.global_position
+	var p := player.position
 	Session.save({
 		"player": {"position": [p.x, p.y, p.z], "yaw": player.rotation.y, "pitch": player.head.rotation.x,
 				"third_person": player.third_person},
@@ -441,7 +448,7 @@ func longitude_at(x: float) -> float:
 
 func _wrap() -> void:
 	var w := world.domain
-	var p := player.global_position
+	var p := player.position
 	# local time follows the player round the planet (the clock keeps local time)
 	_shift_time((p.x - _last_x) / w * 24.0)
 	var x0 := world.origin.x
@@ -467,13 +474,13 @@ func _wrap() -> void:
 		# half a world round: twelve hours on, the same date
 		clock.time_of_day = fposmod(clock.time_of_day + 12.0, 24.0)
 		moved.x = dx
-	if moved != Vector3.ZERO or p != player.global_position:
-		player.global_position = p
+	if moved != Vector3.ZERO or p != player.position:
+		player.position = p
 		if absf(_sea_offset.x) > 3.0 * w or absf(_sea_offset.y) > 3.0 * w:
 			_sea_offset = Vector2.ZERO # keep float precision (the waves jump, once in many laps)
 		ocean_material.set_shader_parameter("sea_sign", _sea_sign)
 		ocean_material.set_shader_parameter("sea_offset", _sea_offset)
-	_last_x = player.global_position.x
+	_last_x = player.position.x
 
 
 func _shift_time(hours: float) -> void:
@@ -485,7 +492,7 @@ func _shift_time(hours: float) -> void:
 
 
 func _update_position_on_planet() -> void:
-	var p := player.global_position
+	var p := player.position
 	var lat := latitude_at(p.z)
 	config.longitude = longitude_at(p.x)
 	if absf(lat - config.latitude) > 0.5:
@@ -550,31 +557,32 @@ func _process(delta: float) -> void:
 	_since_save += delta
 	if _since_save >= AUTOSAVE_SECONDS:
 		save_game()
-	_update_world(player.camera.global_position)
+	_update_world(Origin.map(player.camera.global_position))
 
 
 ## Everything that follows the player and the camera, each frame (and,
 ## loading, behind the loading screen).
 func _update_world(_cam: Vector3) -> void:
 	_wrap()
+	Origin.follow(player.position) # (drawn near the origin: before anything reads the camera)
 	_update_position_on_planet()
 	_update_light()
-	var cam := player.camera.global_position
+	var cam := Origin.map(player.camera.global_position)
 	_magnify()
 	cdlod.update(cam)
-	population.update(player.global_position)
-	OakTree.set_player(player.global_position)
+	population.update(player.position)
+	OakTree.set_player(player.position)
 	ground_cover.update(cam)
 	ocean_material.set_shader_parameter("view_pos", cam)
-	ocean.global_position = Vector3(snappedf(cam.x, 4.0), 0.0, snappedf(cam.z, 4.0))
+	ocean.position = Vector3(snappedf(cam.x, 4.0), 0.0, snappedf(cam.z, 4.0))
 	# the sea's fine detail is computed near noise_origin (see ocean.gdshader), in doubles here
-	var sx: float = _sea_sign.x * ocean.global_position.x + _sea_offset.x
-	var sz: float = _sea_sign.y * ocean.global_position.z + _sea_offset.y
+	var sx: float = _sea_sign.x * ocean.position.x + _sea_offset.x
+	var sz: float = _sea_sign.y * ocean.position.z + _sea_offset.y
 	var nx := snappedf(sx, 1024.0)
 	var nz := snappedf(sz, 1024.0)
 	ocean_material.set_shader_parameter("noise_origin", Vector2(nx, nz))
 	ocean_material.set_shader_parameter("local_offset", Vector2(sx - nx, sz - nz))
-	collider.follow(player.global_position)
+	collider.follow(player.position)
 	var under := cam.y < world.water_at(cam.x, cam.z).x
 	if under != _under:
 		_under = under

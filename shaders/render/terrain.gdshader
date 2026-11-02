@@ -1,7 +1,8 @@
 shader_type spatial;
 render_mode diffuse_burley, specular_schlick_ggx, skip_vertex_transform;
-// (skip_vertex_transform: the vertex goes straight from its world position
-// to view space through the view matrix alone, the same for every patch.
+// (skip_vertex_transform: the vertex goes straight from its position (the
+// map's, less world_origin: drawn near the origin, origin.gdshaderinc) to
+// view space through the view matrix alone, the same for every patch.
 // Otherwise each patch's model matrix is multiplied into the view in 32-bit
 // floats, which rounds differently per patch tens of km out: shared edges
 // land millimetres apart, hairline cracks that show the sky as dotted lines.)
@@ -34,9 +35,9 @@ void vertex() {
 		float hc = terrain_height(wp, max(lod + 1 - SUB, 0));
 		h = morph >= 1.0 ? hc : mix(h, hc, morph); // (exactly the coarser level's where they meet)
 	}
-	VERTEX = (VIEW_MATRIX * vec4(wp.x, h, wp.y, 1.0)).xyz;
+	VERTEX = (VIEW_MATRIX * vec4(wp.x - world_origin.x, h, wp.y - world_origin.z, 1.0)).xyz;
 	NORMAL = mat3(VIEW_MATRIX) * terrain_normal(wp, max(lod - SUB, 0), map_cell() * exp2(float(max(lod - SUB, 0))) * 0.5);
-	world_pos = vec3(wp.x, h, wp.y);
+	world_pos = vec3(wp.x, h, wp.y); // (the map's)
 }
 
 #include "res://shaders/render/ground.gdshaderinc"
@@ -86,7 +87,7 @@ void fragment() {
 	// the prairie's pale ground, a little darker at night (main.gd: night)
 	col *= 1.0 - PRAIRIE_NIGHT_DIM * night * prairie;
 	// the fallen leaves, near
-	float near = 1.0 - smoothstep(litter_fade.x, litter_fade.y, distance(world_pos, CAMERA_POSITION_WORLD));
+	float near = 1.0 - smoothstep(litter_fade.x, litter_fade.y, distance(world_pos, CAMERA_POSITION_WORLD + world_origin));
 	if (litter * near > 0.0) {
 		// each tile of it turned a random quarter turn (the texture fits
 		// itself every way round), so its repeat doesn't show; the
@@ -114,7 +115,7 @@ void fragment() {
 	col *= 0.92 + 0.16 * fine;
 
 	ALBEDO = pow(col, vec3(2.2));
-	FOG = aerial_fog(world_pos, CAMERA_POSITION_WORLD);
+	FOG = aerial_fog(world_pos, CAMERA_POSITION_WORLD + world_origin);
 	ROUGHNESS = rough;
 	// matte where it's rough (dry ground: no sheen, even at a glancing
 	// look), glossy only where it's smooth (standing water)

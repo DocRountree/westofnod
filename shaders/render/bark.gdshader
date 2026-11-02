@@ -30,8 +30,9 @@ void vertex() {
 	if (lod_gone(lod_f)) {
 		VERTEX = vec3(0.0); // (not this level here: no pixels)
 	}
-	obj = VERTEX + vec3(fract(MODEL_MATRIX[3].x * 0.0137), 0.0, fract(MODEL_MATRIX[3].z * 0.0137)) * 61.0;
-	growth = growth_at(MODEL_MATRIX[3].xz);
+	vec3 tree = MODEL_MATRIX[3].xyz + world_origin; // (on the map: the patterns go by it)
+	obj = VERTEX + vec3(fract(tree.x * 0.0137), 0.0, fract(tree.z * 0.0137)) * 61.0;
+	growth = growth_at(tree.xz);
 	// (whole trees, by their distance: a big one's nearest bark may be a
 	// dozen metres nearer than its foot)
 	near = distance(MODEL_MATRIX[3].xyz, CAMERA_POSITION_WORLD) < LICHEN_NEAR + 15.0 ? 1.0 : 0.0;
@@ -39,9 +40,9 @@ void vertex() {
 	// each tree reads it from its own place, and every other one mirrored.
 	// Any shift keeps the seam round the trunk seamless: a trunk is a whole
 	// number of repeats round.)
-	vec2 o = fract(MODEL_MATRIX[3].xz * vec2(0.0137, 0.0191) + MODEL_MATRIX[3].zx * vec2(0.0071, 0.0113));
+	vec2 o = fract(tree.xz * vec2(0.0137, 0.0191) + tree.zx * vec2(0.0071, 0.0113));
 	lichen_uv = vec2(o.x < 0.5 ? UV.x : -UV.x, UV.y * 0.25) + o * vec2(1.0, 7.0);
-	bark_off = fract(MODEL_MATRIX[3].xz * vec2(0.0419, 0.0283) + MODEL_MATRIX[3].zx * vec2(0.0157, 0.0233)) * vec2(1.0, 5.0);
+	bark_off = fract(tree.xz * vec2(0.0419, 0.0283) + tree.zx * vec2(0.0157, 0.0233)) * vec2(1.0, 5.0);
 	VERTEX += wind_local(MODEL_MATRIX, VERTEX, UV2.y, TIME);
 	world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 }

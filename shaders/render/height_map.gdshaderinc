@@ -7,11 +7,13 @@
 // any mip). Mip m's texel j is the mean of 2^m base samples, so its centre sits
 // (2^m - 1) / 2 samples in from sample j * 2^m.
 
+#include "res://shaders/render/origin.gdshaderinc"
+
 uniform sampler2D height_tex : filter_nearest_mipmap, repeat_disable;
 uniform float map_size = 2048.0;     // samples per side
 uniform float map_domain = 8192.0;   // metres per side
 uniform vec2 map_origin = vec2(-4096.0); // world xz of sample (0, 0)
-uniform vec3 view_pos;               // main camera (also during the shadow pass)
+uniform vec3 view_pos;               // main camera, on the map (also during the shadow pass)
 // Magnification (the telescope): detail is chosen as if everything were this
 // many times nearer, so it holds up when magnified.
 uniform float lod_zoom = 1.0;
@@ -169,7 +171,8 @@ const int SUB = 3;
 // Detail").
 const float GRID = 32.0;
 
-// Returns world xz of the (morphed) vertex; lod and morph out.
+// Returns the map's xz of the (morphed) vertex; lod and morph out. (The
+// patch's corner: its drawn position + world_origin, the map's.)
 //
 // Vertices go on one lattice for the whole map, by whole-number index from
 // map_origin, so two patches compute bit-identical positions where they
@@ -180,7 +183,7 @@ const float GRID = 32.0;
 // k * (2 s) and (2 k) * s round the same.
 vec2 cdlod_xz(vec3 vertex, mat4 model, vec4 cd, out int lod, out float morph) {
 	float step = cd.w / GRID; // this level's vertex spacing
-	vec2 k = round((model[3].xz - map_origin) / step) + round(vertex.xz * GRID); // (patch corners are even)
+	vec2 k = round((model[3].xz + world_origin.xz - map_origin) / step) + round(vertex.xz * GRID); // (patch corners are even)
 	vec2 wp = map_origin + k * step;
 	lod = int(cd.x + 0.5);
 	float d = distance(vec3(wp.x, 0.0, wp.y), vec3(view_pos.x, 0.0, view_pos.z));

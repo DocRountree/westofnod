@@ -52,7 +52,7 @@ void vertex() {
 		VERTEX = vec3(0.0); // (not this level here: no pixels)
 	}
 	world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
-	float ph = dot(world_pos, vec3(0.37, 0.21, 0.29));
+	float ph = dot(world_pos + world_origin, vec3(0.37, 0.21, 0.29)); // (the map's: as the wind)
 	VERTEX += NORMAL * sin(TIME * 2.3 + ph) * flutter * UV2.y; // the leaves flutter...
 	VERTEX += wind_local(MODEL_MATRIX, mid, CUSTOM1.r, TIME);  // ...and sway with their twig (as much as it: TreeBuilder.sway)
 	world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
