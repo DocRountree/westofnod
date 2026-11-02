@@ -918,6 +918,8 @@ func _generate(key: Vector2i) -> void:
 				var dc := kind.density_in(bi) * kind.clump_at(bi, x, z)
 				if keep >= dc:
 					continue
+				if kind.not_in_swamp and world.swamp >= 0 and (world.swampiness(x, z) > 0.0 or world.biome_blend_at(x, z, u) == world.swamp):
+					continue # (none in the swamp, nor its muddy edge)
 				if kind.strays:
 					# thinning out up the mountains, gone at the top of its range
 					var top := kind.height_range.y

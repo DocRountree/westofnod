@@ -47,8 +47,7 @@ const VARIANTS := [
 ## How a variant differs as a prop (Population applies these to its kind):
 ## weight is its share of the oaks; the stump and the dead oak are half as
 ## common as each standing tree (the three dead ones together), the three logs together three quarters,
-## each sapling half; the logs lie along the ground (out into a swamp's
-## edge, too: standing on one lifts you out of the mud), can be stood on
+## each sapling half; the logs lie along the ground (none in the swamp), can be stood on
 ## and cast no shadow, the stumps jumped onto; dead oaks stand in the swamp too, as many as all the
 ## standing oaks (live, saplings and dead; not the logs or stumps) on the
 ## prairie, down into its shallows, gathered there in irregular clumps (no
@@ -56,7 +55,7 @@ const VARIANTS := [
 const PROPS := {
 	"tree": {"standing": true, "foot": 0.75, "shadowless_in": ["swamp"]},
 	"stump": {"weight": 0.5, "shadowless_in": ["swamp"], "radius": 0.0, "foot": 0.6, "align_to_ground": 0.3, "sink": 0.12, "scale_range": Vector2(0.8, 1.1)},
-	"log": {"weight": 0.25, "radius": 0.0, "align_to_ground": 0.9, "sink": 0.12, "scale_range": Vector2(0.8, 1.15), "shadows": false},
+	"log": {"weight": 0.25, "not_in_swamp": true, "radius": 0.0, "align_to_ground": 0.9, "sink": 0.12, "scale_range": Vector2(0.8, 1.15), "shadows": false},
 	"dead": {"weight": 0.5 / 3.0, "standing": true, "density_like": {"swamp": "prairie"}, "like_group": "standing", "height_range": Vector2(-0.5, 1150.0), "foot": 0.65,
 		"clump": {"swamp": 1.0}, "clump_size": 34.0, "min_spacing": 7.5, "shadowless_in": ["swamp"]},
 	"sapling": {"weight": 0.5, "standing": true, "radius": 0.1, "foot": 0.08, "scale_range": Vector2(0.75, 1.25), "shadowless_in": ["swamp"]},

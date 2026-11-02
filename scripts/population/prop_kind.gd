@@ -92,3 +92,6 @@ func peak_clumped() -> float:
 ## into the next: scattered trees, copses), and thins out up the mountains
 ## to none at the top of its height_range.
 @export var strays := false
+## None in the swamp (where it is drawn swamp, or its mud reaches), however
+## it strays or blends there (the oaks' logs).
+@export var not_in_swamp := false
