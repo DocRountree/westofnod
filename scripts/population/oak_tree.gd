@@ -349,6 +349,21 @@ static var _shadow: Mesh
 static var _sapling_shadow: Mesh
 
 
+## Whether variant v can be felled (an axe: Felling): the standing ones.
+static func choppable(v: int) -> bool:
+	return _kind(v) in ["tree", "dead", "sapling"]
+
+
+## The trunk's radius at the foot (m, at scale 1) of a standing variant.
+static func trunk_radius(v: int) -> float:
+	var P: Dictionary = VARIANTS[posmod(v, VARIANTS.size())]
+	if P.has("trunk_r"):
+		return P.trunk_r
+	if P.has("like"):
+		return VARIANTS[P.like].get("trunk_r", 0.4)
+	return 0.4
+
+
 static func _kind(v: int) -> String:
 	return VARIANTS[posmod(v, VARIANTS.size())].get("kind", "tree")
 

@@ -13,6 +13,7 @@ var hud: Hud
 var chat: Chat
 var inventory := Inventory.new() ## What the player carries (the knapsack and the hands).
 var knapsack: Knapsack
+var felling: Felling ## The axe: felling trees, and the trees felled.
 var env: Environment
 var ocean: MeshInstance3D
 var ocean_material: ShaderMaterial
@@ -133,6 +134,9 @@ func _ready() -> void:
 	player.avatar.world = world
 	player.position = world.spawn
 	inventory.changed.connect(func(): player.set_held(inventory.left, inventory.right))
+	felling = Felling.new()
+	felling.main = self
+	add_child(felling)
 	_load_game()
 	Origin.follow(player.position)
 	_last_x = player.position.x
@@ -243,13 +247,15 @@ func _warm_up() -> void:
 func _load_game() -> void:
 	var d := Session.data
 	if Session.debug:
+		inventory.set_at(Inventory.RIGHT, {"id": "axe", "count": 1})
 		return
 	mode = d.get("mode", "survival")
 	if not mode in Session.MODES:
 		mode = "survival"
 	commands_allowed = bool(d.get("commands", false))
 	if not d.has("player"):
-		return # (a new game)
+		inventory.set_at(Inventory.RIGHT, {"id": "axe", "count": 1}) # (a new game: an axe to start with)
+		return
 	var pl: Dictionary = d.get("player", {})
 	var pos: Array = pl.get("position", [])
 	if pos.size() == 3:
@@ -259,7 +265,11 @@ func _load_game() -> void:
 	if pl.get("third_person", false):
 		player.set_third_person(true)
 	clock.from_dict(d.get("clock", {}))
-	inventory.from_dict(d.get("inventory", {}))
+	if d.has("inventory"):
+		inventory.from_dict(d.inventory)
+	else: # (saved before there were items: the axe a new game starts with)
+		inventory.set_at(Inventory.RIGHT, {"id": "axe", "count": 1})
+	felling.from_list(d.get("felled", []))
 	for uid in d.get("removed", []):
 		population._removed[int(uid)] = true
 	_played = float(d.get("play_seconds", 0.0))
@@ -287,6 +297,7 @@ func save_game() -> void:
 				"third_person": player.third_person},
 		"clock": clock.to_dict(),
 		"inventory": inventory.to_dict(),
+		"felled": felling.to_list(),
 		"removed": population._removed.keys(),
 		"play_seconds": _played,
 		"mode": mode,

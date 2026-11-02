@@ -515,6 +515,64 @@ func remove_prop(uid: int) -> void:
 		_build_props(ch)
 
 
+## The standing tree an axe swung from eye (on the map) toward fwd would
+## strike: its trunk within reach (m, from the trunk's surface), and in
+## front, within 40 degrees of fwd across the ground. {uid, kind, variant,
+## transform (on the map), radius (the trunk's, scaled)} or {} for none.
+func choppable_near(eye: Vector3, fwd: Vector3, reach: float) -> Dictionary:
+	var best := {}
+	var best_score := INF
+	var f := Vector2(fwd.x, fwd.z).normalized()
+	var c := _key(eye)
+	for dz in range(-1, 2):
+		for dx in range(-1, 2):
+			var ch: _Chunk = _chunks.get(c + Vector2i(dx, dz))
+			if ch == null:
+				continue
+			var base := Vector3(ch.key.x * CHUNK, 0.0, ch.key.y * CHUNK)
+			for k in ch.xforms.size():
+				var kind := props[k]
+				var v := int(kind.get_meta("variant", 0))
+				if kind.mesh_script == null or not kind.mesh_script.has_method("choppable") or not kind.mesh_script.choppable(v):
+					continue
+				var xf: PackedFloat32Array = ch.xforms[k]
+				var uids: PackedInt64Array = ch.uids[k]
+				for i in uids.size():
+					var j := i * 12
+					var at := base + Vector3(xf[j + 3], xf[j + 7], xf[j + 11])
+					var to := Vector2(at.x - eye.x, at.z - eye.z)
+					var s := Vector3(xf[j], xf[j + 4], xf[j + 8]).length()
+					var r: float = kind.mesh_script.trunk_radius(v) * s
+					var gap := to.length() - r
+					if gap > reach or eye.y < at.y - 0.5 or eye.y > at.y + 4.0 or _removed.has(uids[i]):
+						continue
+					var cosine := f.dot(to.normalized()) if to.length() > 0.01 else 1.0
+					if cosine < cos(deg_to_rad(40.0)) and gap > 0.25:
+						continue
+					var score := gap + (1.0 - cosine)
+					if score < best_score:
+						best_score = score
+						var b := Basis(Vector3(xf[j], xf[j + 4], xf[j + 8]), Vector3(xf[j + 1], xf[j + 5], xf[j + 9]), Vector3(xf[j + 2], xf[j + 6], xf[j + 10]))
+						best = {"uid": uids[i], "kind": kind, "variant": v, "transform": Transform3D(b, at), "radius": r}
+	return best
+
+
+## The prop kind made from mesh_script's variant v (null if none).
+func kind_of(mesh_script: Script, v: int) -> PropKind:
+	for k in props:
+		if k.mesh_script == mesh_script and int(k.get_meta("variant", -1)) == v:
+			return k
+	return null
+
+
+## The prop kind with this id (null if none).
+func kind_by_id(id: StringName) -> PropKind:
+	for k in props:
+		if k.id == id:
+			return k
+	return null
+
+
 ## The nearest prop to p within r: {uid, kind, position} (empty if none).
 func prop_at(p: Vector3, r: float) -> Dictionary:
 	var best := {}
