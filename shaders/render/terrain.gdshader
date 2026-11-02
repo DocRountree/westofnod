@@ -144,7 +144,8 @@ void fragment() {
 	// once a pixel is wider than a crown
 	float far_trees = smoothstep(520.0, 640.0, distance(world_pos, CAMERA_POSITION_WORLD + world_origin));
 	if (far_trees > 0.0) {
-		float cover = (bw[0] * 0.46 + bw[5] * 0.13 + bw[2] * 0.03) * lush * (1.0 - rocky) * (1.0 - m.a) * step(0.4, h);
+		float cover = (bw[0] * 0.46 + bw[5] * 0.04 + bw[2] * 0.03) * lush * (1.0 - rocky) * (1.0 - m.a) * step(0.4, h)
+				* (1.0 - smoothstep(575.0, 1150.0, h)); // (the oaks thinning up the mountains: oak.tres, Population)
 		float crowns = vnoise(p / 5.0) * 0.55 + vnoise(p / 13.0 + 4.1) * 0.45;
 		crowns = mix(crowns, 0.5, smoothstep(2.0, 8.0, fp));
 		vec3 canopy = mix(vec3(0.05, 0.07, 0.035), vec3(0.17, 0.25, 0.09), smoothstep(0.3, 0.7, crowns));

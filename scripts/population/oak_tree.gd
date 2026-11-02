@@ -57,7 +57,7 @@ const PROPS := {
 	"tree": {"standing": true, "foot": 0.75, "shadowless_in": ["swamp"]},
 	"stump": {"weight": 0.5, "shadowless_in": ["swamp"], "radius": 0.0, "foot": 0.6, "align_to_ground": 0.3, "sink": 0.12, "scale_range": Vector2(0.8, 1.1)},
 	"log": {"weight": 0.25, "radius": 0.0, "align_to_ground": 0.9, "sink": 0.12, "scale_range": Vector2(0.8, 1.15), "shadows": false},
-	"dead": {"weight": 0.5 / 3.0, "standing": true, "density_like": {"swamp": "prairie"}, "like_group": "standing", "height_range": Vector2(-0.5, 1900.0), "foot": 0.65,
+	"dead": {"weight": 0.5 / 3.0, "standing": true, "density_like": {"swamp": "prairie"}, "like_group": "standing", "height_range": Vector2(-0.5, 1150.0), "foot": 0.65,
 		"clump": {"swamp": 1.0}, "clump_size": 34.0, "min_spacing": 7.5, "shadowless_in": ["swamp"]},
 	"sapling": {"weight": 0.5, "standing": true, "radius": 0.1, "foot": 0.08, "scale_range": Vector2(0.75, 1.25), "shadowless_in": ["swamp"]},
 }
@@ -141,7 +141,7 @@ static func sporophyte_material(kind: String) -> ShaderMaterial:
 	return _bark_mats[key]
 
 
-const SPOROPHYTES := 3000.0 ## a m², on what faces up (fewer down the sides); shown where the moss is thick
+const SPOROPHYTES := 4500.0 ## a m², on what faces up (fewer down the sides); shown where the moss is thick
 const SPOROPHYTES_MOST := 40000
 
 

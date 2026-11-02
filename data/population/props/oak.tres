@@ -16,7 +16,7 @@ view_distance = 600.0
 density = {
 "forest": 22.09,
 "prairie": 0.986,
-"taiga": 4.91
+"taiga": 1.4
 }
-height_range = Vector2(2, 1900)
+height_range = Vector2(2, 1150)
 min_normal_y = 0.8

@@ -23,9 +23,9 @@ uniform float near_end = 4.0;   // m from the player
 uniform vec3 player = vec3(0.0); // on the map (main.gd, each frame: OakTree.set_player)
 uniform float stalk_r = 0.00045;  // m
 uniform vec2 capsule_r = vec2(0.0015, 0.003); // m: round, along the stalk (longer that way)
-uniform vec3 stalk_base : source_color = vec3(0.36, 0.1, 0.06);
-uniform vec3 stalk_top : source_color = vec3(0.72, 0.3, 0.12);
-uniform vec3 capsule : source_color = vec3(0.27, 0.12, 0.3);
+uniform vec3 stalk_base : source_color = vec3(0.33, 0.17, 0.12);
+uniform vec3 stalk_top : source_color = vec3(0.58, 0.37, 0.24);
+uniform vec3 capsule : source_color = vec3(0.26, 0.19, 0.27);
 
 varying vec3 world_pos;
 
@@ -47,8 +47,10 @@ void vertex() {
 			vec2 muv = cut_end ? obj.xz / 0.3 : COLOR.rg * 2.0 + bark_off;
 			vec3 mc;
 			float mh;
-			float cover = moss_cover(obj, up, 1.0, textureLod(moss_tex, muv, 0.0), mc, mh) * (cut_end ? moss_end : 1.0);
-			grow = step(0.5, cover) * step(0.35 + rank * 0.35, m); // (whole, or not there)
+			// (the moss's texture blurred to its tufts, a couple of cm: read
+			// sharp, its odd tall shoot stood up out of bare bark)
+			float cover = moss_cover(obj, up, 1.0, textureLod(moss_tex, muv, 4.0), mc, mh) * (cut_end ? moss_end : 1.0);
+			grow = step(0.6, cover) * step(0.55 + rank * 0.35, m); // (whole, or not there; only where it's thick)
 		}
 	}
 	if (grow <= 0.0) {
