@@ -498,12 +498,13 @@ static func cut_meshes(variant := 0) -> Array:
 ## A felled tree's own copy of a cut material: cut off below h (its own
 ## height), the cut face's rings to radius r. Each felled tree has its own
 ## (a handful in the world).
-static func felled_material(mat: ShaderMaterial, h: float, r: float) -> ShaderMaterial:
-	var key := ["felled", mat, snappedf(h, 0.001), snappedf(r, 0.001)]
+static func felled_material(mat: ShaderMaterial, h: float, r: float, stripes := Vector2(1.0, 0.0)) -> ShaderMaterial:
+	var key := ["felled", mat, snappedf(h, 0.001), snappedf(r, 0.001), stripes.snapped(Vector2(0.001, 0.001))]
 	if not _bark_mats.has(key):
 		var c := mat.duplicate() as ShaderMaterial
 		c.set_shader_parameter("cut_below", h)
 		c.set_shader_parameter("cut_r", r)
+		c.set_shader_parameter("cut_stripes", stripes)
 		_bark_mats[key] = c # (told the night and the biomes with the rest)
 	return _bark_mats[key]
 

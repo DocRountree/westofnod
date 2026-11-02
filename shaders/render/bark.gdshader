@@ -38,6 +38,7 @@ varying flat vec4 notch;
 // uniforms: instance uniforms on every tree's node ran out of room.)
 uniform float cut_below = -1000.0;
 uniform float cut_r = 0.5; // the trunk's radius at the cut (its own units: the rings' scale)
+uniform vec2 cut_stripes = vec2(1.0, 0.0); // the way the axe's strokes follow one another across it (its own xz)
 // The cut variant (OakTree.cut_meshes: trees being felled, and felled;
 // both faces drawn): the bark cut away (the notch's wedge, the trunk below
 // the cut) isn't drawn, and the inside seen through the gap is drawn as the
@@ -139,12 +140,11 @@ void fragment() {
 		float q = notch.w - dot(notch_p.xz, d);
 		in_notch = q < notch.y && abs(notch_p.y - notch.z) < 0.5 * (notch.y - q);
 	}
-	if (FRONT_FACING) {
-		if (in_notch || notch_p.y < cut_below)
-			discard; // (cut away)
-	} else {
-		// inside, seen through the gap: where the line of sight meets the
-		// cut wood
+	// the bark in the notch's mouth or below the cut is cut away: there (and
+	// on the inside, seen through the gap) the line of sight goes on to
+	// where it meets the cut wood. (The mouth's own bark does it: the trunk
+	// is open at its foot, so behind the notch there may be no inside to.)
+	if (!FRONT_FACING || in_notch || notch_p.y < cut_below) {
 		vec3 o = cam_obj;
 		vec3 dir = normalize(notch_p - cam_obj);
 		float best = 1e9;
@@ -166,10 +166,12 @@ void fragment() {
 				float t = (c - dot(n, o)) / den;
 				vec3 p = o + dir * t;
 				float q = R - dot(p.xz, d);
-				if (t > 0.0 && t < best && q >= 0.0 && q <= D && length(p.xz) <= R) {
+				vec3 out_n = normalize(vec3(0.5 * d.x, -sg, 0.5 * d.y)); // (out of the wood, into the cut)
+				// (only met going into the wood: a face seen from its open side)
+				if (t > 0.0 && t < best && dot(dir, out_n) < 0.0 && q >= 0.0 && q <= D && length(p.xz) <= R * 1.35) { // (out to the roots' lobes)
 					best = t;
 					hit = p;
-					hn = normalize(vec3(0.5 * d.x, -sg, 0.5 * d.y));
+					hn = out_n;
 					rr = R;
 					dark = q / D;
 				}
@@ -178,11 +180,12 @@ void fragment() {
 		if (cut_below > -999.0 && abs(dir.y) > 1e-5) {
 			float t = (cut_below - o.y) / dir.y;
 			vec3 p = o + dir * t;
-			if (t > 0.0 && t < best && length(p.xz) < cut_r * 1.6) {
+			if (t > 0.0 && t < best && dir.y > 0.0 && length(p.xz) < cut_r * 1.6) {
 				best = t;
 				hit = p;
 				// chopped in strokes, as the stump's top (along x)
-				float band = p.x * 7.0 + 0.35 * sin(p.z * 4.6 + 1.1);
+				vec2 ps = vec2(dot(p.xz, cut_stripes), dot(p.xz, vec2(-cut_stripes.y, cut_stripes.x)));
+				float band = ps.x * 7.0 + 0.35 * sin(ps.y * 4.6 + 1.1);
 				vec2 sl = (vec2(lc_hash(vec3(floor(band), 17.0, 3.0)), lc_hash(vec3(floor(band), 17.0, 7.0))) - 0.5) * vec2(0.3, 0.45);
 				hn = normalize(vec3(sl.x, -1.0, sl.y));
 				rr = cut_r * 1.3; // (the roots' lobes reach past the mean: the rim's dark only past them)
@@ -190,13 +193,13 @@ void fragment() {
 			}
 		}
 		if (best > 1e8)
-			discard;
+			discard; // (cut away, and nothing cut behind it: through)
 		mat4 M = mat4(mm0, mm1, mm2, mm3);
 		vec4 w = M * vec4(hit, 1.0);
 		vec4 clip = PROJECTION_MATRIX * (VIEW_MATRIX * w);
 		DEPTH = clip.z / clip.w;
 		vec3 wood = end_grain(hit.xz / rr, true) * (0.9 + 0.2 * lc_noise(hit * vec3(40.0, 4.0, 40.0)));
-		ALBEDO = wood * mix(1.0, 0.45, dark * dark);
+		ALBEDO = wood * mix(1.0, 0.75, dark * dark); // (a little darker deep in the cut)
 		NORMAL = normalize((VIEW_MATRIX * vec4(normalize(mat3(M) * hn), 0.0)).xyz);
 		AO = 1.0;
 		ROUGHNESS = 0.8;
@@ -312,7 +315,7 @@ void fragment() {
 			float face_q = notch.y * (1.0 - abs(dy) / (notch.y * 0.5));
 			vec2 on_face = notch_p.xz - d * max(face_q - q, 0.0);
 			vec3 wood = end_grain(on_face / notch.w, true) * (0.9 + 0.2 * lc_noise(notch_p * vec3(40.0, 4.0, 40.0)));
-			wood *= mix(1.0, 0.45, deep * deep);                          // darker toward the bottom of the V
+			wood *= mix(1.0, 0.75, deep * deep);                          // darker toward the bottom of the V
 			wood *= mix(0.45, 1.0, smoothstep(0.0, 0.02, open - abs(dy))); // and at its edges, the bark's
 			ALBEDO = wood;
 			NORMAL = normalize((VIEW_MATRIX * vec4(dy > 0.0 ? notch_up_n : notch_lo_n, 0.0)).xyz);
