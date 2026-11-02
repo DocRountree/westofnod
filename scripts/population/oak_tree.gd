@@ -137,15 +137,56 @@ static func sporophyte_material(kind: String) -> ShaderMaterial:
 	return _bark_mats[key]
 
 
-const SPOROPHYTES := 1500.0 ## a m², on what faces up (fewer down the sides); shown where the moss is thick
-const SPOROPHYTES_MOST := 6000
+const SPOROPHYTES := 3000.0 ## a m², on what faces up (fewer down the sides); shown where the moss is thick
+const SPOROPHYTES_MOST := 8000
+
+
+## Where the player is (main.gd, each frame): the sporophytes stand only
+## within a couple of metres of them.
+static func set_player(pos: Vector3) -> void:
+	for key in _bark_mats:
+		if key[0] is String:
+			_bark_mats[key].set_shader_parameter("player", pos)
+
+
+## One sporophyte's corners (UV, as sporophytes.gdshader reads them): the
+## stalk, three sides, rings at its foot, middle and top; the capsule, a
+## ring of five round its middle between two poles. And its triangles.
+static var _spo_uv := PackedVector2Array()
+static var _spo_idx := PackedInt32Array()
+
+
+static func _sporophyte_template() -> void:
+	if not _spo_uv.is_empty():
+		return
+	const SIDES := 3
+	for ring in 3:
+		for k in SIDES:
+			_spo_uv.append(Vector2(float(k) / SIDES, ring * 0.5))
+	for ring in 2:
+		for k in SIDES:
+			var a := ring * SIDES + k
+			var b := ring * SIDES + (k + 1) % SIDES
+			_spo_idx.append_array([a, b, b + SIDES, a, b + SIDES, a + SIDES])
+	const ROUND := 5
+	var bottom := _spo_uv.size()
+	_spo_uv.append(Vector2(0.0, 2.0))
+	for k in ROUND:
+		_spo_uv.append(Vector2(float(k) / ROUND, 2.5))
+	_spo_uv.append(Vector2(0.0, 3.0))
+	var top := bottom + ROUND + 1
+	for k in ROUND:
+		var a := bottom + 1 + k
+		var b := bottom + 1 + (k + 1) % ROUND
+		_spo_idx.append_array([bottom, b, a, top, a, b])
 
 
 ## The moss's sporophytes, on the bark of mesh (its first surface) as a
-## surface of their own: stalks 1.2-2.8 cm, leaning a little every way off
-## the upright, all over what faces up or sideways (the shader shows those
-## where the moss is), each a ribbon's four corners at its foot.
+## surface of their own: stalks 1.5-3.5 cm, standing straight up, all over
+## what faces up or sideways (the shader shows those where the moss is),
+## every corner at its foot (the shader builds the shape).
 static func sporophytes(mesh: ArrayMesh, mat: Material, seed: int) -> void:
+	_sporophyte_template()
 	var a := mesh.surface_get_arrays(0)
 	var verts: PackedVector3Array = a[Mesh.ARRAY_VERTEX]
 	var normals: PackedVector3Array = a[Mesh.ARRAY_NORMAL]
@@ -153,10 +194,14 @@ static func sporophytes(mesh: ArrayMesh, mat: Material, seed: int) -> void:
 	var idx: PackedInt32Array = a[Mesh.ARRAY_INDEX]
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed * 31 + 7
-	var st := SurfaceTool.new()
-	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	st.set_custom_format(0, SurfaceTool.CUSTOM_RGBA_FLOAT)
-	st.set_custom_format(1, SurfaceTool.CUSTOM_RGBA_FLOAT)
+	var o_v := PackedVector3Array()
+	var o_n := PackedVector3Array()
+	var o_uv := PackedVector2Array()
+	var o_uv2 := PackedVector2Array()
+	var o_c0 := PackedFloat32Array()
+	var o_c1 := PackedFloat32Array()
+	var o_i := PackedInt32Array()
+	var nv := _spo_uv.size()
 	var count := 0
 	for i in range(0, idx.size(), 3):
 		var p0 := verts[idx[i]]
@@ -177,25 +222,33 @@ static func sporophytes(mesh: ArrayMesh, mat: Material, seed: int) -> void:
 				r1 = 1.0 - r1
 				r2 = 1.0 - r2
 			var foot := p0 + e1 * r1 + e2 * r2
-			var lean := Vector3(rng.randf_range(-1, 1), rng.randf_range(-1, 1), rng.randf_range(-1, 1)) * 0.35
-			var stalk := (Vector3.UP + n * 0.6 + lean).normalized() * rng.randf_range(0.012, 0.028)
-			var custom0 := Color(stalk.x, stalk.y, stalk.z, rng.randf() * TAU)
-			var custom1 := Color(foot.x, foot.y, foot.z, 0.0)
+			var stalk := (Vector3.UP + Vector3(rng.randf_range(-1, 1), 0.0, rng.randf_range(-1, 1)) * 0.06).normalized() * rng.randf_range(0.015, 0.035)
+			var phase := rng.randf() * TAU
 			var rank := rng.randf()
-			for c in [Vector2(-1, 0), Vector2(1, 0), Vector2(1, 1), Vector2(-1, 1)]:
-				st.set_uv(c)
-				st.set_uv2(Vector2(end, rank))
-				st.set_normal(n)
-				st.set_custom(0, custom0)
-				st.set_custom(1, custom1)
-				st.add_vertex(foot)
-			var b := count * 4
-			for j in [b, b + 1, b + 2, b, b + 2, b + 3]:
-				st.add_index(j)
+			var base := o_v.size()
+			for uv in _spo_uv:
+				o_v.append(foot)
+				o_n.append(n)
+				o_uv.append(uv)
+				o_uv2.append(Vector2(end, rank))
+				o_c0.append_array([stalk.x, stalk.y, stalk.z, phase])
+				o_c1.append_array([foot.x, foot.y, foot.z, 0.0])
+			for j in _spo_idx:
+				o_i.append(base + j)
 			count += 1
 	if count == 0:
 		return
-	st.commit(mesh)
+	var arr := []
+	arr.resize(Mesh.ARRAY_MAX)
+	arr[Mesh.ARRAY_VERTEX] = o_v
+	arr[Mesh.ARRAY_NORMAL] = o_n
+	arr[Mesh.ARRAY_TEX_UV] = o_uv
+	arr[Mesh.ARRAY_TEX_UV2] = o_uv2
+	arr[Mesh.ARRAY_CUSTOM0] = o_c0
+	arr[Mesh.ARRAY_CUSTOM1] = o_c1
+	arr[Mesh.ARRAY_INDEX] = o_i
+	var fmt := (Mesh.ARRAY_CUSTOM_RGBA_FLOAT << Mesh.ARRAY_FORMAT_CUSTOM0_SHIFT) | (Mesh.ARRAY_CUSTOM_RGBA_FLOAT << Mesh.ARRAY_FORMAT_CUSTOM1_SHIFT)
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arr, [], {}, fmt)
 	mesh.surface_set_material(mesh.get_surface_count() - 1, mat)
 
 

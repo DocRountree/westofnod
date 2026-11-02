@@ -563,6 +563,7 @@ func _update_world(_cam: Vector3) -> void:
 	_magnify()
 	cdlod.update(cam)
 	population.update(player.global_position)
+	OakTree.set_player(player.global_position)
 	ground_cover.update(cam)
 	ocean_material.set_shader_parameter("view_pos", cam)
 	ocean.global_position = Vector3(snappedf(cam.x, 4.0), 0.0, snappedf(cam.z, 4.0))
