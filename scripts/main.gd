@@ -247,6 +247,11 @@ func _build_environment() -> void:
 	_sun.directional_shadow_split_1 = 0.05
 	_sun.directional_shadow_split_2 = 0.15
 	_sun.directional_shadow_split_3 = 0.4
+	# Shadows lighter (they darken the ground under the trees about two
+	# thirds as much as before: skylight fills them in) and softer-edged (the
+	# filter's taps spread wider: the same cost).
+	_sun.shadow_opacity = 0.7
+	_sun.shadow_blur = 2.2
 	add_child(_sun)
 	var moonlight := DirectionalLight3D.new()
 	moonlight.light_color = Color(0.75, 0.83, 1.0)

@@ -69,19 +69,30 @@ const TIP_R := 0.006 ## m, the thinnest twig
 const LOD := [40.0, 120.0, 300.0]
 const VIEW := 600.0
 
-static var _bark_mats := {} # level -> ShaderMaterial
+static var _bark_mats := {} # [level, cover] -> ShaderMaterial
+
+## How much lichen (its share of the bark) and moss (lichen.gdshaderinc)
+## each kind carries: the logs and stumps, lying in the damp, mossy too.
+const COVER := {
+	"tree": [0.35, 0.0], "sapling": [0.2, 0.0], "dead": [0.5, 0.0],
+	"stump": [0.45, 0.7], "log": [0.45, 0.76],
+}
 static var _leaf_mats := {}
 static var _cache := {} # variant -> [mesh, lods]
 
 
-static func bark_material(level := 0) -> ShaderMaterial:
-	if not _bark_mats.has(level):
+static func bark_material(level := 0, kind := "tree") -> ShaderMaterial:
+	var cover: Array = COVER.get(kind, COVER.tree)
+	var key := [level, cover]
+	if not _bark_mats.has(key):
 		var m := ShaderMaterial.new()
 		m.shader = load("res://shaders/render/bark.gdshader")
 		m.set_shader_parameter("bark_tex", _texture("res://data/population/textures/oak_bark.png"))
+		m.set_shader_parameter("lichen_amount", cover[0])
+		m.set_shader_parameter("moss_amount", cover[1])
 		_lod_span(m, level)
-		_bark_mats[level] = m
-	return _bark_mats[level]
+		_bark_mats[key] = m
+	return _bark_mats[key]
 
 
 static func leaf_material(level := 0) -> ShaderMaterial:
@@ -123,10 +134,10 @@ static func _lod_span(m: ShaderMaterial, level: int) -> void:
 ## Off: every level drawn wherever it is (e.g. to look at one level alone).
 static func set_lod_fade(on: bool) -> void:
 	for mats in [_bark_mats, _leaf_mats]:
-		for level in mats:
-			var r: Vector3 = mats[level].get_shader_parameter("lod_range")
+		for key in mats:
+			var r: Vector3 = mats[key].get_shader_parameter("lod_range")
 			r.z = Population.LOD_FADE if on else 0.0
-			mats[level].set_shader_parameter("lod_range", r)
+			mats[key].set_shader_parameter("lod_range", r)
 
 
 static var _shadow: Mesh
@@ -176,7 +187,8 @@ static func build_lods(variant := 0) -> Array[Mesh]:
 static func _models(variant: int) -> Array:
 	variant = posmod(variant, VARIANTS.size())
 	if not _cache.has(variant):
-		var b := [bark_material(0), bark_material(1), bark_material(2), bark_material(3)]
+		var k := _kind(variant)
+		var b := [bark_material(0, k), bark_material(1, k), bark_material(2, k), bark_material(3, k)]
 		var l := [leaf_material(0), leaf_material(1), leaf_material(2), leaf_material(3)]
 		var tb: TreeBuilder
 		var lods: Array[Mesh]

@@ -6,10 +6,12 @@ shader_type spatial;
 // Far off (detail_far) the texture and the bumps are dropped for the
 // bark's average colour, dissolving (stippled) between the two. The thin
 // outer wood sways in the wind with its leaves (wind.gdshaderinc).
+// Over it lichen and, on stumps and logs, moss (lichen.gdshaderinc).
 
 #include "res://shaders/render/aerial.gdshaderinc"
 #include "res://shaders/render/lod_fade.gdshaderinc"
 #include "res://shaders/render/wind.gdshaderinc"
+#include "res://shaders/render/lichen.gdshaderinc"
 
 uniform sampler2D bark_tex : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
 uniform float bump = 0.012; // m of relief at full height
@@ -17,12 +19,14 @@ uniform float shadow_strength = 0.6;
 uniform vec2 detail_far = vec2(60.0, 90.0); // m: the texture fades out between these
 
 varying vec3 world_pos;
+varying vec3 obj; // the tree's own space, offset per tree (the lichen's and moss's patterns)
 
 void vertex() {
 	lod_f = lod_vertex(CAMERA_POSITION_WORLD, MODEL_MATRIX, PROJECTION_MATRIX);
 	if (lod_gone(lod_f)) {
 		VERTEX = vec3(0.0); // (not this level here: no pixels)
 	}
+	obj = VERTEX + fract(MODEL_MATRIX[3].xyz * 0.0137) * 61.0;
 	VERTEX += wind_local(MODEL_MATRIX, VERTEX, UV2.y, TIME);
 	world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 }
@@ -46,6 +50,7 @@ void fragment() {
 	if (lod_hidden(FRAGCOORD.xy, lod_f)) discard;
 	if (UV2.x > 0.5) {
 		ALBEDO = end_grain(UV) * COLOR.rgb;
+		AO = 1.0;
 		ROUGHNESS = 0.9;
 		SPECULAR = 0.2;
 	} else if (smoothstep(detail_far.x, detail_far.y, distance(world_pos, CAMERA_POSITION_WORLD)) > bayer4(FRAGCOORD.xy + 1.0)) {
@@ -68,6 +73,27 @@ void fragment() {
 		AO_LIGHT_AFFECT = 0.25;
 		ROUGHNESS = 0.92;
 		SPECULAR = 0.25;
+	}
+	// lichen, then moss over it (not on the end grain's face, save moss on
+	// a stump's top)
+	float d = distance(world_pos, CAMERA_POSITION_WORLD);
+	float far = smoothstep(detail_far.x * 0.5, detail_far.x, d);
+	float up = (INV_VIEW_MATRIX * vec4(NORMAL, 0.0)).y;
+	float rim;
+	float lichen = UV2.x > 0.5 ? 0.0 : lichen_cover(obj, far, rim);
+	if (lichen > 0.0) {
+		vec3 lc = mix(lichen_color, lichen_rim, rim) * mix(0.85, 1.0, AO);
+		ALBEDO = mix(ALBEDO, lc, lichen);
+		AO = mix(AO, 1.0, lichen * 0.7);
+		ROUGHNESS = mix(ROUGHNESS, 0.8, lichen);
+	}
+	float ml;
+	float moss = moss_cover(obj, up, far, ml) * (UV2.x > 0.5 ? 0.5 : 1.0);
+	if (moss > 0.0) {
+		ALBEDO = mix(ALBEDO, mix(moss_color, moss_light, ml), moss);
+		AO = mix(AO, mix(0.7, 1.0, ml), moss);
+		ROUGHNESS = mix(ROUGHNESS, 1.0, moss);
+		SPECULAR = mix(SPECULAR, 0.1, moss);
 	}
 	FOG = aerial_fog(world_pos, CAMERA_POSITION_WORLD);
 }
