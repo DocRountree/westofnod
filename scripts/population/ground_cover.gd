@@ -47,7 +47,7 @@ const LAYERS := [
 			"fade_out": Vector2(55.0, 72.0), "thin_from": 40.0}},
 	{"cell": 1.6, "cells": 12, "tiles": 7, "cattails": 4, "radius": 0.35,
 		"u": {"kind": 0, "seed": 6, "in_forest": false, "in_prairie": false, "in_swamp": true, "cover": 0.45,
-			"prairie_height": Vector2(1.9, 2.4), "prairie_green": Vector3(0.24, 0.33, 0.13), "prairie_blonde": Vector3(0.45, 0.42, 0.26),
+			"prairie_height": Vector2(1.7, 2.2), "prairie_green": Vector3(0.24, 0.33, 0.13), "prairie_blonde": Vector3(0.45, 0.42, 0.26),
 			"fade_out": Vector2(50.0, 66.0), "thin_from": 40.0}},
 	{"cell": 0.5, "cells": 24, "tiles": 9, "fronds": 8,
 		"u": {"kind": 1, "seed": 4, "in_prairie": false, "forest_height": Vector2(0.25, 0.45),
@@ -329,8 +329,8 @@ static func cattail_mesh(stalks: int, radius: float, seed: int) -> ArrayMesh:
 		# the stalk, to the head
 		strip.call(root, [Vector3.ZERO, head0 * 0.5, head0], [0.006, 0.005, 0.005], side, n, rng.randf_range(0.85, 1.1), 0.0)
 		# the head: a cylinder, rounded at both ends, ~2.4 cm across (in
-		# clump heights: the clumps are about 2.15 m)
-		_capsule(st, base, root, head0, head1, 0.012 / 2.15, rng.randf_range(0.85, 1.1))
+		# clump heights: the clumps are about 1.95 m)
+		_capsule(st, base, root, head0, head1, 0.012 / 1.95, rng.randf_range(0.85, 1.1))
 		# the spike above it
 		strip.call(root, [head1, top], [0.003, 0.0015], side, n, 1.0, 0.0)
 		# leaves: long, flat, arching a little
