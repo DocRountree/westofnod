@@ -547,8 +547,8 @@ func _generate(key: Vector2i) -> void:
 				var keep := rng.randf() * peak
 				var turn := rng.randf() * TAU
 				var s := rng.randf_range(kind.scale_range.x, kind.scale_range.y)
-				var b := world.biome_index_at(x, z)
-				if keep >= kind.density_in(b) * kind.clump_at(b, x, z):
+				var bi := world.biome_index_at(x, z)
+				if keep >= kind.density_in(bi) * kind.clump_at(bi, x, z):
 					continue
 				if kind.min_spacing > 0.0:
 					var crowded := false
