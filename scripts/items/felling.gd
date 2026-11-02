@@ -364,17 +364,23 @@ static func _felled_meshes(kind: PropKind, variant: int) -> Array:
 
 
 ## A felled tree's foot: not drawn below the cut (that stays in the stump),
-## closed there by the cut face (bark.gdshader, BARK_CUT: cut_below, cut_r).
+## closed there by the cut face (bark.gdshader, BARK_CUT: cut_below, cut_r;
+## OakTree.felled_material).
 func _cut_base(node: Node3D, kind: PropKind, variant: int, xf: Transform3D, cut: float) -> void:
 	var s := xf.basis.get_scale().y
 	var h := cut / s
 	var r := 0.5
 	if kind.mesh_script.has_method("trunk_radius_at"):
 		r = kind.mesh_script.trunk_radius_at(variant, h) # (the rings' scale)
+	# (its own copy of each level's cut bark, set to its cut)
 	for c2 in node.get_children():
-		if c2 is GeometryInstance3D:
-			(c2 as GeometryInstance3D).set_instance_shader_parameter("cut_below", h)
-			(c2 as GeometryInstance3D).set_instance_shader_parameter("cut_r", r)
+		var mi := c2 as MeshInstance3D
+		if mi == null or mi.mesh == null:
+			continue
+		for si in mi.mesh.get_surface_count():
+			var mat := mi.mesh.surface_get_material(si) as ShaderMaterial
+			if mat and mat.shader == OakTree._cut_shader:
+				mi.set_surface_override_material(si, OakTree.felled_material(mat, h, r))
 
 
 ## Meshes drawn as the population draws a kind: every level of detail, each

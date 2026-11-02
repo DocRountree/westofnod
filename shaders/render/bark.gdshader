@@ -31,11 +31,13 @@ varying vec2 bark_off; // where each tree reads the bark texture from
 // from, as wide at the bark as it is deep: there the bark gives way to
 // fresh-cut wood, shaded as the cut's two faces.
 varying flat vec4 notch;
-// a felled tree (Felling): the trunk below the cut (its own height) is in
-// the stump, not drawn; the cut end is a disc of its own (OakTree.cut_disc)
-instance uniform float cut_below = -1000.0;
-instance uniform float cut_r = 0.5; // the trunk's radius at the cut (its own units: the rings' scale)
 #ifdef BARK_CUT
+// a felled tree (Felling: its own copy of the material,
+// OakTree.felled_material): the trunk below the cut (its own height) is in
+// the stump, not drawn; the cut face is drawn as the notch's are. (Plain
+// uniforms: instance uniforms on every tree's node ran out of room.)
+uniform float cut_below = -1000.0;
+uniform float cut_r = 0.5; // the trunk's radius at the cut (its own units: the rings' scale)
 // The cut variant (OakTree.cut_meshes: trees being felled, and felled;
 // both faces drawn): the bark cut away (the notch's wedge, the trunk below
 // the cut) isn't drawn, and the inside seen through the gap is drawn as the
@@ -202,8 +204,6 @@ void fragment() {
 		FOG = aerial_fog(w.xyz, CAMERA_POSITION_WORLD);
 		cut_face = true;
 	}
-#else
-	if (notch_p.y < cut_below && UV2.x < 0.5) discard;
 #endif
 	if (!cut_face) {
 	vec3 geo_n = NORMAL; // (before the bark's bumps: lichen and moss cover them)
