@@ -89,7 +89,8 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   powdery yellow-green crust: `data/population/textures/lichen.png`, drawn lobe by lobe
   by `tools/trees/bake_lichen.py`, each tree reading it from its own place, in drifts,
   within 30 m only), and the stumps and logs moss (a stump's top almost covered and
-  spilling over, patches up from the ground); neither on the prairie, none on saplings
+  spilling over, patches up from the ground); on the prairie only a little lichen,
+  in the swamp the most; none on saplings
   (`lichen.gdshaderinc`).
 - **Grass and ferns** (`scripts/population/ground_cover.gd`, `ground_cover.gdshader`):
   grids of cells follow the camera in tiles. When a grid moves, a SubViewport works out

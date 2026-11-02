@@ -25,19 +25,24 @@ uniform vec3 lichen_disc : source_color = vec3(0.3, 0.18, 0.12);    // the crust
 uniform vec3 lichen_yellow : source_color = vec3(0.52, 0.56, 0.3);  // powdery crust
 uniform vec3 moss_color : source_color = vec3(0.12, 0.2, 0.08);
 uniform vec3 moss_light : source_color = vec3(0.22, 0.32, 0.13);
-// Where they grow: not on the prairie (its dry, open air). Set by main.gd.
+// How much grows where: very little lichen and no moss on the prairie (its
+// dry, open air), the most lichen in the swamp. Set by main.gd.
 uniform sampler2D growth_biomes : filter_nearest, repeat_disable;
 uniform vec2 growth_origin = vec2(-4096.0);
 uniform float growth_domain = 8192.0;
 uniform int prairie_biome = -1;
+uniform int swamp_biome_ = -1;
+const vec2 PRAIRIE_GROWTH = vec2(0.5, 0.0); // (lichen, moss) x: on the prairie, lichen very sparse, no moss
+const vec2 SWAMP_GROWTH = vec2(1.8, 1.0);   // in the swamp's damp air, lichen thick
 
-// 1 where lichen and moss grow at world xz, 0 on the prairie.
-float growth_at(vec2 xz) {
+// How much lichen and moss grow at world xz (x lichen_amount, moss_amount).
+vec2 growth_at(vec2 xz) {
 	if (prairie_biome < 0)
-		return 1.0;
+		return vec2(1.0);
 	ivec2 n = textureSize(growth_biomes, 0);
 	ivec2 c = clamp(ivec2((xz - growth_origin) / growth_domain * vec2(n)), ivec2(0), n - 1);
-	return int(texelFetch(growth_biomes, c, 0).r * 255.0 + 0.5) == prairie_biome ? 0.0 : 1.0;
+	int b = int(texelFetch(growth_biomes, c, 0).r * 255.0 + 0.5);
+	return b == prairie_biome ? PRAIRIE_GROWTH : (b == swamp_biome_ ? SWAMP_GROWTH : vec2(1.0));
 }
 
 float lc_hash(vec3 p) {
@@ -58,14 +63,14 @@ float lc_noise(vec3 p) {
 // Lichen's share of the bark at uv (the bark texture's) and p (the tree's
 // own space), its colour there and how far it stands off the bark (m).
 // `fade`: 1 up close, to 0 at LICHEN_NEAR.
-float lichen_cover(vec2 uv, vec3 p, float fade, out vec3 col, out float relief) {
+float lichen_cover(vec2 uv, vec3 p, float amount, float fade, out vec3 col, out float relief) {
 	col = lichen_color;
 	relief = 0.0;
 	// how much lichen here: lichen_amount, more in some places, less in
 	// others; shown as the rosettes and patches rarer than that, whole
 	// (lichen.png's R: 0.52 + 0.48 x rarity), the big ones only where
 	// there's most
-	float dens = lichen_amount * 4.5 * smoothstep(0.15, 0.8, lc_noise(p * 1.1));
+	float dens = amount * 4.5 * smoothstep(0.15, 0.8, lc_noise(p * 1.1));
 	if (dens * fade <= 0.0)
 		return 0.0;
 	vec4 L = texture(lichen_tex, uv);

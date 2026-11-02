@@ -20,7 +20,7 @@ uniform vec2 detail_far = vec2(60.0, 90.0); // m: the texture fades out between 
 
 varying vec3 world_pos;
 varying vec3 obj; // the tree's own space, offset per tree across (the lichen's and moss's patterns)
-varying float growth; // 0 on the prairie: no lichen or moss
+varying vec2 growth; // how much lichen and moss grow here (growth_at)
 varying float near;   // 1 the tree's up close (lichen, moss patterns), 0 not
 varying vec2 lichen_uv;
 
@@ -95,7 +95,7 @@ void fragment() {
 	float up = (INV_VIEW_MATRIX * vec4(NORMAL, 0.0)).y;
 	vec3 lc;
 	float lh;
-	float lichen = UV2.x > 0.5 || growth <= 0.0 || lichen_amount <= 0.0 || fade <= 0.0 ? 0.0 : lichen_cover(lichen_uv, obj, fade, lc, lh);
+	float lichen = UV2.x > 0.5 || growth.x * lichen_amount <= 0.0 || fade <= 0.0 ? 0.0 : lichen_cover(lichen_uv, obj, lichen_amount * growth.x, fade, lc, lh);
 	if (lichen > 0.0) {
 		// it lies over the bark's furrows, its lobes domed (bumps from
 		// their height, as the bark's)
@@ -111,7 +111,7 @@ void fragment() {
 	}
 	float ml;
 	float moss = 0.0;
-	if (growth > 0.0 && moss_amount > 0.0) {
+	if (growth.y > 0.0 && moss_amount > 0.0) {
 		float fuzz = near > 0.0 ? texture(bark_tex, (UV2.x > 0.5 ? obj.xz * 1.7 : UV) * 2.3).a : 0.5; // (the bark's relief, finer)
 		moss = moss_cover(obj, up, near, fuzz, ml) * (UV2.x > 0.5 ? moss_end : 1.0);
 	}

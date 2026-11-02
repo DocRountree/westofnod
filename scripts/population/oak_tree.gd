@@ -75,8 +75,9 @@ static var _bark_mats := {} # [level, cover] -> ShaderMaterial
 ## the ground, and moss on a cut end's face (lichen.gdshaderinc) each kind
 ## carries: none on saplings; the stumps mossiest (their tops almost
 ## covered and spilling over here and there, patches up from the ground),
-## the logs some on top. None on the prairie (main.gd tells the
-## materials where it is: set_growth_map).
+## the logs some on top. On the prairie very little lichen and no moss, in
+## the swamp the most lichen (lichen.gdshaderinc growth_at; main.gd tells
+## the materials where they are: set_growth_map).
 const COVER := {
 	"tree": [0.11, 0.0, 0.0, 0.0], "sapling": [0.0, 0.0, 0.0, 0.0], "dead": [0.17, 0.0, 0.0, 0.0],
 	"stump": [0.15, 0.92, 1.0, 1.0], "log": [0.14, 0.6, 0.25, 0.4],
@@ -115,13 +116,15 @@ static func _stump_top() -> float:
 	return 0.0
 
 
-## Where lichen and moss grow: everywhere but the prairie, from the world's
-## biome map (for every bark material, made or to be made).
+## Where lichen and moss grow how much (sparse on the prairie, thick in the
+## swamp), from the world's biome map (for every bark material, made or to
+## be made).
 static func set_growth_map(world: WorldData) -> void:
 	if world.biome_tex == null:
 		return
 	_growth = {"growth_biomes": world.biome_tex, "growth_origin": world.origin,
-			"growth_domain": world.domain, "prairie_biome": world.biome_names.find("prairie")}
+			"growth_domain": world.domain, "prairie_biome": world.biome_names.find("prairie"),
+			"swamp_biome_": world.biome_names.find("swamp")}
 	for key in _bark_mats:
 		for p in _growth:
 			_bark_mats[key].set_shader_parameter(p, _growth[p])
