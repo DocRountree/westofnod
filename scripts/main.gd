@@ -347,6 +347,12 @@ func _build_environment() -> void:
 	var moonlight := DirectionalLight3D.new()
 	moonlight.light_color = Color(0.75, 0.83, 1.0)
 	moonlight.light_energy = 0.0
+	# faint moon shadows (only drawn while the moon is up at night: the
+	# light is hidden otherwise)
+	moonlight.shadow_enabled = true
+	moonlight.shadow_opacity = 0.55
+	moonlight.shadow_blur = 2.5
+	moonlight.directional_shadow_max_distance = 150.0
 	add_child(moonlight)
 	var starfield := Starfield.new()
 	starfield.catalog = load("res://data/bright_stars.tres")
