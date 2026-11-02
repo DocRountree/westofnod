@@ -69,6 +69,7 @@ const PIPE_EXPONENT := 2.4 ## (2: da Vinci's rule; measured trees run 2-3)
 
 
 func compute_radii(trunk_r: float, tip_r: float) -> void:
+	tip_radius = tip_r
 	var w := PackedFloat32Array()
 	w.resize(pos.size())
 	for s in sprigs:
@@ -107,6 +108,7 @@ func compute_radii(trunk_r: float, tip_r: float) -> void:
 const SWAY_RAMP := 1.4 ## m along a branch over which it comes into its own sway (slowly at first: squared)
 
 var sway := PackedFloat32Array() ## per node, 0 the stout wood .. 1 the twigs
+var tip_radius := 0.006 ## m: what an open branch tapers to at its tip (compute_radii's tip_r)
 var _carried := {} # a branch's end node -> [the direction on through it, the level of the branch carrying it on]
 var _carrier := {} # branch index -> true: it carries its parent on
 
@@ -122,6 +124,9 @@ func fit_radii() -> void:
 		var b := branches[i]
 		if not caps[i][1]:
 			ends[b[b.size() - 1]] = (pos[b[b.size() - 1]] - pos[b[b.size() - 2]]).normalized()
+	var starts := {} # nodes branches leave from
+	for b in branches:
+		starts[b[0]] = true
 	var order := range(branches.size())
 	order.sort_custom(func(a: int, c: int) -> bool: return level[branches[a][1]] < level[branches[c][1]])
 	for i in order:
@@ -136,6 +141,23 @@ func fit_radii() -> void:
 			for j in range(1, b.size()):
 				most = minf(radius[b[j]], most)
 				radius[b[j]] = most
+		# an open end: narrowing evenly all the way out, to the finest twig's
+		# radius at the tip, or, carried on by another, to under half (that
+		# one narrows on from there); the pipe model alone keeps a twig
+		# nearly as thick to its end, then shuts it in a step. What grows off
+		# it near its end is thinner still. (Not the stem: carried on by the
+		# leader's top limb, it narrows by the pipe model.)
+		var last := b[b.size() - 1]
+		if not caps[i][1] and level[b[1]] > 0 and b.size() > 2:
+			var length := 0.0
+			for j in range(2, b.size()):
+				length += pos[b[j]].distance_to(pos[b[j - 1]])
+			var r1 := radius[b[1]]
+			var tip_end := maxf(r1 * 0.45, tip_radius) if starts.has(last) else tip_radius
+			var s := 0.0
+			for j in range(2, b.size()):
+				s += pos[b[j]].distance_to(pos[b[j - 1]])
+				radius[b[j]] = minf(radius[b[j]], lerpf(r1, tip_end, s / maxf(length, 1e-3)))
 		var w0 := sway[b[0]] if joined else 0.0 # (rooted: still at the ground)
 		var along := 0.0
 		for j in range(1, b.size()):
