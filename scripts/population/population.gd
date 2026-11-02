@@ -45,6 +45,7 @@ var _removed := {} # prop uid -> true
 var _centre := Vector2i.MAX
 var _radius := 0.0 # chunks are kept this far out (m)
 var _focus := Vector3.ZERO
+var _fallen := {} # chunk key -> [walk, trunks]: felled trees' (add_fallen), added to the chunk's own whenever it's (re)built
 var _notches := {} # prop uid -> Color: an axe's notch in a tree (set_notch; bark.gdshader reads it)
 var _near := {} # prop uid -> MultiMeshInstance3D: what's drawn only close by (sporophytes)
 var _near_at := Vector3.INF # where the player was when _near was last updated
@@ -507,6 +508,39 @@ static func trunk_nearest(tr: PackedFloat32Array, p: Vector3) -> float:
 	return best_s
 
 
+## A felled tree, to stand on and climb as the logs and trees are (Felling):
+## walk, segments over the ground as PropKind.walk's in the world (8 floats
+## each); trunks, its climbable lines as PropKind.climb's in the world (x, y,
+## z, radius a node). Kept with the chunk its first point is in.
+func add_fallen(walk: PackedFloat32Array, trunks: Array[PackedFloat32Array]) -> void:
+	if trunks.is_empty() and walk.is_empty():
+		return
+	var at := Vector3(trunks[0][0], 0.0, trunks[0][2]) if not trunks.is_empty() else Vector3(walk[0], 0.0, walk[2])
+	var key := _key(at)
+	if not _fallen.has(key):
+		_fallen[key] = [PackedFloat32Array(), [] as Array[PackedFloat32Array]]
+	var f: Array = _fallen[key]
+	var fw: PackedFloat32Array = f[0]
+	fw.append_array(walk)
+	f[0] = fw # (packed arrays are values: put it back)
+	(f[1] as Array).append_array(trunks)
+	var ch: _Chunk = _chunks.get(key)
+	if ch:
+		var w := ch.walk
+		w.append_array(walk)
+		ch.walk = w
+		ch.trunks.append_array(trunks)
+		walk_changes += 1
+
+
+func _merge_fallen(ch: _Chunk) -> void:
+	if _fallen.has(ch.key):
+		var w := ch.walk
+		w.append_array(_fallen[ch.key][0])
+		ch.walk = w
+		ch.trunks.append_array(_fallen[ch.key][1])
+
+
 ## A tree's notch, as far as the axe has cut it (Felling): the bark shader's
 ## INSTANCE_CUSTOM (bark.gdshader: direction, depth, height, radius, in the
 ## tree's own units). Its chunk is rebuilt with it. Not saved: a reload
@@ -805,6 +839,7 @@ func _apply(ch: _Chunk) -> void:
 	if _chunks.has(ch.key):
 		return
 	_chunks[ch.key] = ch
+	_merge_fallen(ch)
 	_build_props(ch)
 	if not ch.walk.is_empty():
 		walk_changes += 1
@@ -1001,6 +1036,7 @@ func _drop_removed(ch: _Chunk) -> void:
 	ch.obstacles = obstacles
 	ch.walk = walk
 	ch.trunks = trunks
+	_merge_fallen(ch)
 	walk_changes += 1
 
 

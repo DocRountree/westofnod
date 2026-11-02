@@ -20,8 +20,10 @@ extends Node
 ## The fallen trees and their stumps are saved with the game (to_list,
 ## from_list: main.gd), as nodes under Origin.root (their positions the
 ## map's), each drawn with its kind's levels of detail as the population
-## draws them (the shaders pick the level by distance). They can't be stood
-## on or climbed.
+## draws them (the shaders pick the level by distance). A felled tree can
+## be stood on and climbed as a log and a standing tree are: its trunk and
+## limbs as they lie (Population.add_fallen: its climbable lines, and the
+## segments between their nodes to stand on).
 
 const REACH := 1.3 ## m from the trunk's surface
 const SWING := 0.6 ## s, a swing
@@ -258,6 +260,8 @@ func _fell(kind: PropKind, variant: int, xf: Transform3D, radius: float, away: V
 	if stump_scale > 0.0:
 		var sn := _model([OakTree.fresh_stump()[0]] + OakTree.fresh_stump()[1])
 		sn.transform = Transform3D(_stump_basis(away, stump_scale), xf.origin)
+		_solid_stump(xf.origin, cut, stump_scale)
+	_solid(kind, Transform3D(Basis(axis, angle) * xf.basis, end), cut)
 	entry.falling = {"node": node, "axis": axis, "angle": angle, "t": 0.0, "cut": cut, "end": end,
 			"time": FALL_TIME * sqrt(maxf(height, 1.0) / 15.0), "pivot": pivot, "basis": xf.basis}
 	return entry
@@ -291,6 +295,52 @@ func _notch(tree: Dictionary, toward: Vector3, done: float) -> void:
 	var r: float = float(tree.radius) / s * 1.05 # (a little over: the bark's ridges)
 	var depth := r * 1.1 * done # (over half way through, by the last blow)
 	main.population.set_notch(tree.uid, Color(atan2(to.z, to.x), depth, _cut(float(tree.radius)) / s, r))
+
+
+## A felled tree, lying at t (on the map), to stand on and climb: its kind's
+## climbable lines (the trunk from the cut up, the limbs) as they lie, and
+## between each line's nodes a segment to stand on (the limbs' marked, as a
+## standing tree's are: never posts, no grass kept off).
+func _solid(kind: PropKind, t: Transform3D, cut: float) -> void:
+	var c := kind.climb
+	if c.is_empty():
+		return
+	var s := t.basis.get_scale().y
+	var h := cut / s # (the tree's own units)
+	var walk := PackedFloat32Array()
+	var trunks: Array[PackedFloat32Array] = []
+	var k := 0
+	var first := true
+	while k < c.size():
+		var n := int(c[k])
+		k += 1
+		var pts: Array[Vector4] = [] # (x, y, z, radius: the tree's own)
+		for m in n:
+			pts.append(Vector4(c[k], c[k + 1], c[k + 2], c[k + 3]))
+			k += 4
+		if first:
+			# the trunk from the cut up (below it is the stump's)
+			while pts.size() >= 2 and pts[1].y <= h:
+				pts.pop_front()
+			if pts.size() >= 2 and pts[0].y < h:
+				var u := (h - pts[0].y) / maxf(pts[1].y - pts[0].y, 1e-4)
+				pts[0] = pts[0].lerp(pts[1], u)
+		var line := PackedFloat32Array()
+		for q in pts:
+			var p := t * Vector3(q.x, q.y, q.z)
+			line.append_array([p.x, p.y, p.z, q.w * s])
+		if line.size() >= 8:
+			trunks.append(line)
+			for i in range(4, line.size(), 4):
+				var r0 := line[i - 1] if first else -line[i - 1]
+				walk.append_array([line[i - 4], line[i - 3], line[i - 2], line[i], line[i + 1], line[i + 2], r0, line[i + 3]])
+		first = false
+	main.population.add_fallen(walk, trunks)
+
+
+## The stump left, to stand on as the stumps are: a post to its top.
+func _solid_stump(at: Vector3, top: float, s: float) -> void:
+	main.population.add_fallen(PackedFloat32Array([at.x, at.y, at.z, at.x, at.y + top, at.z, 0.5 * s, 0.5 * s]), [] as Array[PackedFloat32Array])
 
 
 ## A felled tree's foot: not drawn below the cut (that stays in the stump),
@@ -358,8 +408,10 @@ func from_list(list: Array) -> void:
 		var node := _model([kind.mesh] + kind.lods)
 		node.transform = Transform3D(Basis(Vector3.UP.cross(dir).normalized(), float(e.get("angle", PI * 0.5))) * basis, pivot)
 		_cut_base(node, kind, int(kind.get_meta("variant", 0)), Transform3D(basis, origin), float(e.get("cut", 0.0)))
+		_solid(kind, node.transform, float(e.get("cut", 0.0)))
 		var s := float(e.get("stump_scale", 0.0))
 		if s > 0.0:
 			var sn := _model([OakTree.fresh_stump()[0]] + OakTree.fresh_stump()[1])
 			sn.transform = Transform3D(_stump_basis(dir, s), origin)
+			_solid_stump(origin, float(e.get("cut", 0.0)), s)
 		_lying.append(e)
