@@ -52,7 +52,7 @@ extends SpawnRule
 ## None closer than this (m) to another of its kind (in the same chunk).
 @export var min_spacing := 0.0
 
-const CLUMP_MAX := 5.5 ## The most a clump packs them in (x the density).
+const CLUMP_MAX := 9.0 ## The most a clump packs them in (x the density).
 var _clump_by_biome := PackedFloat32Array()
 
 
