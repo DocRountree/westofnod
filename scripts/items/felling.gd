@@ -40,6 +40,7 @@ const EDGE := 0.135 ## m from the handle to the blade's edge
 var main: Node
 var _swing := -1.0 # 0..1 through a swing; < 0 none
 var _struck := false
+var _repeat := false # the button held since a swing began: swing again (_keep_swinging)
 var _blows := {} # tree uid -> blows so far
 var _aim := Vector3.INF # the swing's mark (on the map): the notch's middle; INF none
 var _falling: Array = [] # {node, axis, angle, t, time, pivot, basis}
@@ -51,12 +52,32 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if Input.mouse_mode != Input.MOUSE_MODE_CAPTURED or main.player.typing or main.player.frozen:
 		return
-	if _axe_hand() < 0 or _swing >= 0.0 or main.player.climbing:
+	if _axe_hand() < 0 or main.player.climbing:
 		return
+	_repeat = true # (held down: swings again and again until the tree is down)
+	if _swing < 0.0:
+		_start_swing()
+	get_viewport().set_input_as_handled()
+
+
+func _start_swing() -> void:
 	_swing = 0.0
 	_struck = false
 	_aim = _mark()
-	get_viewport().set_input_as_handled()
+
+
+## Held down: another swing as one ends, as long as
+## the tree being chopped still stands (once it's down, let go and click again).
+func _keep_swinging() -> void:
+	if not _repeat:
+		return
+	var p: Player = main.player
+	if not Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT) or Input.mouse_mode != Input.MOUSE_MODE_CAPTURED \
+			or p.typing or p.frozen or p.climbing or _axe_hand() < 0:
+		_repeat = false
+		return
+	if _swing < 0.0:
+		_start_swing()
 
 
 ## Where a swing now would strike (on the map): the middle of the notch on
@@ -98,6 +119,7 @@ func _axe_hand() -> int:
 
 
 func _process(delta: float) -> void:
+	_keep_swinging()
 	_animate_swing(delta)
 	for f in _falling.duplicate():
 		f.t = minf(f.t + delta, f.time)
@@ -230,6 +252,7 @@ func _strike() -> void:
 		_notch(tree, _notch_side(), float(n) / need)
 		return
 	_blows.erase(tree.uid)
+	_repeat = false # (down: no more swings till the button's pressed again)
 	main.population.remove_prop(tree.uid)
 	var xf: Transform3D = tree.transform
 	var away := _notch_side() # (falling toward the notch, as a tree does: square to the view)
