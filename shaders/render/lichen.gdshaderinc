@@ -12,7 +12,7 @@
 uniform float lichen_amount = 0.35;
 uniform float moss_amount = 0.0;
 uniform float moss_low = 0.0;    // moss up the sides from the ground (the stumps)
-uniform vec3 lichen_color : source_color = vec3(0.46, 0.52, 0.45);  // leafy, sage
+uniform vec3 lichen_color : source_color = vec3(0.47, 0.54, 0.43);  // leafy, sage
 uniform vec3 lichen_crust : source_color = vec3(0.55, 0.56, 0.52);  // crusts, pale grey
 uniform vec3 lichen_yellow : source_color = vec3(0.5, 0.53, 0.32);
 uniform vec3 moss_color : source_color = vec3(0.12, 0.2, 0.08);
@@ -51,30 +51,49 @@ float lc_noise(vec3 p) {
 			mix(lc_hash(i + vec3(0, 1, 1)), lc_hash(i + vec3(1, 1, 1)), f.x), f.y), f.z);
 }
 
-// Lichen's share of the bark at p, 0..1, and its colour there. Leafy
-// (foliose) lobes, sage to grey-green with paler, upturned rims and darker
-// gaps; pale grey crusts; now and then a yellow-green crust. Shapes from
-// warped noise, so no two patches alike.
-float lichen_cover(vec3 p, float far, out vec3 col) {
+// Lichen's share of the bark at p, 0..1, and its colour there. Mostly
+// leafy (foliose) rosettes: a patch of crowded lobes with scalloped, rounded
+// ends, split by narrow dark gaps, pale along their raised edges; sometimes
+// pale grey crust, cracked into plates, dotted with small cups (rimmed,
+// darker inside); now and then yellow-green. Gathered in drifts.
+float lichen_cover(vec3 p, float far, out vec3 col, out float relief) {
 	col = lichen_color;
-	float drift = smoothstep(0.85 - lichen_amount, 1.1 - lichen_amount, lc_noise(p * 1.3));
+	relief = 0.0;
+	float drift = smoothstep(0.88 - lichen_amount, 1.08 - lichen_amount, lc_noise(p * 1.3));
 	if (drift <= 0.0)
 		return 0.0;
 	float kind = lc_noise(p * 2.1 + 7.0);
-	vec3 base = mix(lichen_crust, lichen_color, smoothstep(0.35, 0.55, kind));
-	base = mix(base, lichen_yellow, smoothstep(0.8, 0.88, kind) * 0.8);
+	float crust = 1.0 - smoothstep(0.3, 0.36, kind);
+	vec3 base = mix(lichen_color, lichen_crust, crust);
+	base = mix(base, lichen_yellow, smoothstep(0.8, 0.86, kind) * 0.7);
 	if (far >= 1.0) {
 		col = base;
-		return drift * 0.04; // (a faint share of their colour: the patches' average)
+		return drift * 0.04; // (a trace of their colour: far off they all but vanish)
 	}
-	vec3 q = p * 11.0; // patches a few cm across
-	q += (lc_noise(q * 0.6) - 0.5) * vec3(1.7, -1.3, 1.1);
-	float f1 = lc_noise(q);
-	float f = f1 * 0.65 + lc_noise(q * 2.7) * 0.35;
-	float t = 0.68 - drift * 0.08;
-	float cover = smoothstep(t, t + 0.015, f);
-	float rim = 1.0 - smoothstep(t + 0.01, t + 0.05, f);
-	col = base * mix(0.8, 1.0, f1) * mix(1.0, 1.15, rim);
+	vec3 q = p * 8.0;
+	q += (lc_noise(q * 0.4) - 0.5) * vec3(1.9, -1.4, 1.2);
+	float lobes = lc_noise(q * 2.6);  // lobe-sized
+	float fine = lc_noise(q * 6.0);   // the scallops of their ends
+	float patch = lc_noise(q * 0.55) * 0.52 + lobes * 0.28 + fine * 0.2;
+	float t = 0.69 - drift * 0.06;
+	float inside = patch - t;
+	float cover = smoothstep(0.0, 0.012, inside);
+	// leafy: the gaps between lobes (where `lobes` crosses the middle),
+	// opening toward the rosette's rim; crust: thin cracks between plates
+	float ridge = abs(lobes - 0.5);
+	float gap_w = mix(0.045 + 0.06 * smoothstep(0.08, 0.0, inside), 0.012, crust);
+	float gap = 1.0 - smoothstep(gap_w, gap_w + 0.01, ridge);
+	cover *= 1.0 - gap * (1.0 - crust);
+	// raised edges, paler: along the rim and beside the gaps
+	float edge = 1.0 - smoothstep(0.0, 0.035, min(inside, (ridge - gap_w) * 0.8));
+	col = base * mix(0.88, 1.0, fine) * mix(1.0, 1.25, edge * (1.0 - crust))
+			* mix(1.0, 0.88, smoothstep(gap_w, gap_w + 0.2, ridge) * (1.0 - crust)); // (each lobe a little darker down its middle)
+	col = mix(col, base * 0.55, gap * crust); // the crust's cracks
+	// the crust's cups: a pale rim round a darker, browner middle
+	float cup = smoothstep(0.76, 0.79, fine) * crust;
+	col = mix(col, mix(base * 1.15, base * vec3(0.55, 0.45, 0.38), smoothstep(0.81, 0.84, fine)), cup);
+	// how far it stands off the bark (m): lobes domed, crust flat
+	relief = cover * mix(smoothstep(gap_w, gap_w + 0.1, ridge) * smoothstep(0.0, 0.05, inside) * 0.004, 0.0008, crust) * (1.0 - far);
 	col = mix(col, base, far);
 	return mix(cover, drift * 0.04, far);
 }

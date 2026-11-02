@@ -76,8 +76,8 @@ static var _bark_mats := {} # [level, cover] -> ShaderMaterial
 ## mossiest, the logs some on top. None on the prairie (main.gd tells the
 ## materials where it is: set_growth_map).
 const COVER := {
-	"tree": [0.35, 0.0, 0.0], "sapling": [0.2, 0.0, 0.0], "dead": [0.5, 0.0, 0.0],
-	"stump": [0.45, 0.85, 1.0], "log": [0.4, 0.6, 0.25],
+	"tree": [0.22, 0.0, 0.0], "sapling": [0.12, 0.0, 0.0], "dead": [0.32, 0.0, 0.0],
+	"stump": [0.28, 0.85, 1.0], "log": [0.26, 0.6, 0.25],
 }
 static var _growth := {} # the biome map's parameters (set_growth_map)
 static var _leaf_mats := {}

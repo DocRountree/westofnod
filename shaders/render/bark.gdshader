@@ -50,6 +50,7 @@ vec3 end_grain(vec2 p) {
 
 void fragment() {
 	if (lod_hidden(FRAGCOORD.xy, lod_f)) discard;
+	vec3 geo_n = NORMAL; // (before the bark's bumps: lichen and moss cover them)
 	if (UV2.x > 0.5) {
 		ALBEDO = end_grain(UV) * COLOR.rgb;
 		AO = 1.0;
@@ -82,9 +83,16 @@ void fragment() {
 	float far = smoothstep(12.0, 30.0, d);
 	float up = (INV_VIEW_MATRIX * vec4(NORMAL, 0.0)).y;
 	vec3 lc;
-	float lichen = UV2.x > 0.5 || growth <= 0.0 || lichen_amount <= 0.0 ? 0.0 : lichen_cover(obj, far, lc);
+	float lh;
+	float lichen = UV2.x > 0.5 || growth <= 0.0 || lichen_amount <= 0.0 ? 0.0 : lichen_cover(obj, far, lc, lh);
 	if (lichen > 0.0) {
-		lc *= mix(0.85, 1.0, AO);
+		// it lies over the bark's furrows, its lobes domed (bumps from
+		// their height, as the bark's)
+		vec3 n = normalize(mix(NORMAL, geo_n, lichen * 0.85));
+		vec3 dpdx = dFdx(VERTEX), dpdy = dFdy(VERTEX);
+		vec3 r1 = cross(dpdy, n), r2 = cross(n, dpdx);
+		float det = dot(dpdx, r1);
+		NORMAL = normalize(abs(det) * n - sign(det) * (dFdx(lh) * r1 + dFdy(lh) * r2));
 		ALBEDO = mix(ALBEDO, lc, lichen);
 		AO = mix(AO, 1.0, lichen * 0.7);
 		ROUGHNESS = mix(ROUGHNESS, 0.8, lichen);
@@ -93,6 +101,7 @@ void fragment() {
 	float moss = growth <= 0.0 ? 0.0 : moss_cover(obj, up, far, ml) * (UV2.x > 0.5 ? 0.5 : 1.0);
 	if (moss > 0.0) {
 		ALBEDO = mix(ALBEDO, mix(moss_color, moss_light, ml), moss);
+		NORMAL = normalize(mix(NORMAL, geo_n, moss * 0.7));
 		AO = mix(AO, mix(0.7, 1.0, ml), moss);
 		ROUGHNESS = mix(ROUGHNESS, 1.0, moss);
 		SPECULAR = mix(SPECULAR, 0.1, moss);

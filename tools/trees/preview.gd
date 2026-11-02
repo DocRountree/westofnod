@@ -1,6 +1,6 @@
 extends SceneTree
 ## Renders the oak variants in a row on a plain, for looking at the models.
-## xvfb-run godot --path . --resolution 1600x900 --script res://tools/trees/preview.gd -- <out_dir> [lod] [side | close | leaves | dead | snag | saplings]
+## xvfb-run godot --path . --resolution 1600x900 --script res://tools/trees/preview.gd -- <out_dir> [lod] [side | close | bark | leaves | dead | snag | saplings]
 
 var out := "user://"
 
@@ -79,6 +79,9 @@ func _init() -> void:
 	elif args.has("side"):
 		cam.look_at_from_position(Vector3(-27.5, 8, 30), Vector3(-27.5, 7, 0))
 		cam.fov = 60
+	elif args.has("bark"): # an arm's length from a dead oak's trunk (the lichen)
+		cam.look_at_from_position(Vector3(62 + 0.3, 1.5, 1.2), Vector3(62, 1.3, 0))
+		cam.fov = 55
 	elif args.has("close"):
 		cam.look_at_from_position(Vector3(-55 + 4.0, 1.7, 6.0), Vector3(-55, 5.0, 0))
 		cam.fov = 65
