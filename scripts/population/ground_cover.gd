@@ -23,7 +23,7 @@ extends Node3D
 ##   to blonde);
 ## - grass, middle (15-52 m): bigger, fewer clumps of the same;
 ## - grass, far (42-125 m): the prairie's only;
-## - reeds: the swamp's, 2-2.5 m, broad-bladed, in clumps here and there
+## - reeds: the swamp's, 1.8-2.3 m, broad-bladed, in clumps here and there
 ##   (sparse patches, in the water too); to 72 m;
 ## - cattails among them: stalks with brown heads, a few leaves; to 66 m;
 ## - ferns: the forest's, in drifts, knee-high; to 45 m.
@@ -42,7 +42,7 @@ const LAYERS := [
 		"u": {"kind": 0, "seed": 3, "in_forest": false, "prairie_height": Vector2(1.5, 2.0),
 			"fade_in": Vector2(42.0, 52.0), "fade_out": Vector2(100.0, 125.0), "thin_from": 80.0}},
 	{"cell": 1.0, "cells": 16, "tiles": 9, "blades": 11, "segs": 4, "radius": 0.4, "width": 0.075,
-		"u": {"kind": 0, "seed": 5, "in_forest": false, "in_prairie": false, "in_swamp": true, "prairie_height": Vector2(2.0, 2.5),
+		"u": {"kind": 0, "seed": 5, "in_forest": false, "in_prairie": false, "in_swamp": true, "prairie_height": Vector2(1.8, 2.3),
 			"prairie_green": Vector3(0.22, 0.33, 0.12), "prairie_blonde": Vector3(0.5, 0.45, 0.28),
 			"fade_out": Vector2(55.0, 72.0), "thin_from": 40.0}},
 	{"cell": 1.6, "cells": 12, "tiles": 7, "cattails": 4, "radius": 0.35,

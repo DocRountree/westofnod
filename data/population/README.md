@@ -27,13 +27,14 @@ picking up; removals are kept for the session), `push_out(pos, r)`,
 
 ## Oak
 
-`props/oak.tres`: the English oak, eleven models (`variants = 11`, grown by
+`props/oak.tres`: the English oak, thirteen models (`variants = 13`, grown by
 `scripts/population/oak_tree.gd` on `TreeBuilder` when the game loads):
 four standing oaks (open-grown, young, leaning, forest-grown), two
-saplings, a broken stump, a dead standing oak and three fallen logs (one
+saplings, a broken stump, three dead standing oaks (after the open-grown,
+the young and the forest-grown) and three fallen logs (one
 like the old, a long slender one, a short heavy one). Shares
-(`OakTree.PROPS`): stump, dead oak and each sapling half as common as each
-standing tree, the three logs together three quarters; the logs snapped at
+(`OakTree.PROPS`): stump, the dead oaks together and each sapling half as
+common as each standing tree, the three logs together three quarters; the logs snapped at
 both ends, cast no shadow, can be stood on (lifting you out of a swamp's mud), the stumps jumped onto (`walk`: the player steps up 0.7
 m, higher is a wall until jumped onto); dead oaks also stand in
 the swamp, as many as all the standing oaks (live, saplings, dead; not

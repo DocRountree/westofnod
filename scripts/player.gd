@@ -40,6 +40,7 @@ var _grip_offset := Vector2.ZERO # rock point under the hands, relative to the o
 var _trunk := PackedFloat32Array() # the trunk or limb being climbed (Population climbs_near; empty: rock)
 var _trunk_s := 0.0 # how far along its axis the body is (m)
 var _trunk_n := Vector3.RIGHT # which way out from its axis the body is (world)
+var _switched := 0 # ms of the last change of trunk or limb (they don't chain)
 var _cs: CollisionShape3D
 var flying := false
 var can_fly := true ## Double-tapping Space flies (debug mode only: Session).
@@ -386,6 +387,7 @@ func _climb_tree(delta: float) -> void:
 			var tr: PackedFloat32Array = o[0]
 			if tr != _trunk:
 				_grip(tr, surface + n * 0.3)
+				_switched = Time.get_ticks_msec()
 				return
 	var feet := surface + n * CLIMB_OFFSET - up_t * 1.0
 	var ground := world.height_at(feet.x, feet.z)
@@ -418,9 +420,13 @@ func _grip(tr: PackedFloat32Array, p: Vector3) -> void:
 	_trunk_n = _trunk_out(f)
 
 
-## Onto a limb leaving the trunk (or another limb) by the hands: one that
-## heads the way you're moving, or, just under it, pressing W.
+## From the trunk onto a limb leaving it by the hands: one that heads the
+## way you're moving, or, just under it, pressing W. (Only from the trunk,
+## and not again for a moment: from limb to limb to limb it skipped you up
+## the tree in a blink.)
 func _switch_line(surface: Vector3, n: Vector3, move: Vector3, input: Vector2) -> bool:
+	if not _is_trunk() or Time.get_ticks_msec() - _switched < 600:
+		return false
 	var hands := surface + (Population.trunk_frame(_trunk, _trunk_s)[2] as Vector3) * 0.6
 	for o in population.climbs_near(hands, 0.5):
 		var tr: PackedFloat32Array = o[0]
@@ -432,7 +438,11 @@ func _switch_line(surface: Vector3, n: Vector3, move: Vector3, input: Vector2) -
 		var t: Vector3 = Population.trunk_frame(tr, s)[2]
 		var under := input.y < -0.1 and t.dot(n) > 0.3 # (it leaves on your side, above)
 		if move.dot(t) > 0.7 or under:
+			var f := Population.trunk_frame(tr, Population.trunk_nearest(tr, surface))
+			if surface.distance_to(f[0]) - (f[1] as float) > 0.6:
+				continue # (its bark not within reach of where you are)
 			_grip(tr, surface)
+			_switched = Time.get_ticks_msec()
 			return true
 	return false
 

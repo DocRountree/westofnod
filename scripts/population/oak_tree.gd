@@ -1,9 +1,9 @@
 class_name OakTree
 ## The English oak (Quercus robur): four hand-set standing trees, a stump,
-## a dead standing tree, three fallen logs and two saplings (variants 0-10), grown into a
+## three dead standing trees, three fallen logs and two saplings (variants 0-12), grown into a
 ## TreeBuilder skeleton and dressed with data/population/textures/oak_*.png
 ## (tools/trees/bake_oak_textures.py). The prop (data/population/props/
-## oak.tres) has variants = 11 and this as its mesh_script.
+## oak.tres) has variants = 13 and this as its mesh_script.
 ##
 ## What makes it read as an oak: a short, stout trunk with flared roots that
 ## runs on into the crown, giving off a few heavy limbs one after another; limbs that spread wide, nearly level,
@@ -38,11 +38,15 @@ const VARIANTS := [
 	# saplings, 3-4 m: a whip with a small crown, and a bushier one forking low
 	{"kind": "sapling", "trunk_h": 0.9, "leader_h": 2.0, "trunk_r": 0.045, "limbs": 4, "limb_angle": 40.0, "limb_len": 1.5, "branch_len": 0.8, "twig_len": 0.5, "lean": 0.0, "droop": 0.0, "seed": 83, "crown": [1.3, 3.8, 0.9]},
 	{"kind": "sapling", "trunk_h": 0.4, "leader_h": 1.6, "trunk_r": 0.05, "limbs": 5, "limb_angle": 52.0, "limb_len": 1.6, "branch_len": 0.8, "twig_len": 0.5, "lean": 4.0, "droop": 0.0, "seed": 89, "crown": [1.6, 3.2, 0.5]},
+	# two more dead oaks: a young one, slender, its few limbs steep; and a
+	# forest-grown one, a tall clean bole, a small broken crown, leaning
+	{"kind": "dead", "like": 1, "seed": 97, "limb_angle": 34.0, "limb_len": 4.6, "branch_len": 2.2, "crown": [4.2, 13.0, 3.5]},
+	{"kind": "dead", "like": 3, "seed": 103, "lean": 6.0, "limb_angle": 46.0, "limb_len": 4.8, "branch_len": 2.4, "crown": [4.6, 17.5, 7.5]},
 ]
 
 ## How a variant differs as a prop (Population applies these to its kind):
 ## weight is its share of the oaks; the stump and the dead oak are half as
-## common as each standing tree, the three logs together three quarters,
+## common as each standing tree (the three dead ones together), the three logs together three quarters,
 ## each sapling half; the logs lie along the ground (out into a swamp's
 ## edge, too: standing on one lifts you out of the mud), can be stood on
 ## and cast no shadow, the stumps jumped onto; dead oaks stand in the swamp too, as many as all the
@@ -53,7 +57,7 @@ const PROPS := {
 	"tree": {"standing": true, "foot": 0.75},
 	"stump": {"weight": 0.5, "radius": 0.0, "foot": 0.6, "align_to_ground": 0.3, "sink": 0.12, "scale_range": Vector2(0.8, 1.1)},
 	"log": {"weight": 0.25, "radius": 0.0, "align_to_ground": 0.9, "sink": 0.12, "scale_range": Vector2(0.8, 1.15), "shadows": false},
-	"dead": {"weight": 0.5, "standing": true, "density_like": {"swamp": "prairie"}, "like_group": "standing", "height_range": Vector2(-0.5, 1900.0), "foot": 0.65,
+	"dead": {"weight": 0.5 / 3.0, "standing": true, "density_like": {"swamp": "prairie"}, "like_group": "standing", "height_range": Vector2(-0.5, 1900.0), "foot": 0.65,
 		"clump": {"swamp": 1.0}, "clump_size": 34.0, "min_spacing": 4.5},
 	"sapling": {"weight": 0.5, "standing": true, "radius": 0.1, "foot": 0.08, "scale_range": Vector2(0.75, 1.25)},
 }
@@ -75,16 +79,19 @@ static var _bark_mats := {} # [level, cover] -> ShaderMaterial
 
 ## How much lichen (its share of the bark), moss, moss up the sides from
 ## the ground, and moss on a cut end's face (lichen.gdshaderinc) each kind
-## carries: none on saplings; the stumps mossiest (their tops almost
+## carries: none on saplings; dead oaks and logs the same everywhere (not
+## by biome: LICHEN_ANY), as much as a dead oak in a swamp would otherwise
+## have, less 20%; the stumps mossiest (their tops almost
 ## covered and spilling over here and there, patches up from the ground),
 ## the logs some on top. On the prairie very little lichen and no moss, in
 ## the swamp the most lichen (lichen.gdshaderinc growth_at; main.gd tells
 ## the materials where they are: set_growth_map).
 const COVER := {
-	"tree": [0.11, 0.0, 0.0, 0.0], "sapling": [0.0, 0.0, 0.0, 0.0], "dead": [0.17, 0.0, 0.0, 0.0],
-	"stump": [0.15, 0.92, 1.0, 1.0], "log": [0.14, 0.6, 0.25, 0.4],
+	"tree": [0.11, 0.0, 0.0, 0.0], "sapling": [0.0, 0.0, 0.0, 0.0], "dead": [0.245, 0.0, 0.0, 0.0],
+	"stump": [0.15, 0.92, 1.0, 1.0], "log": [0.245, 0.6, 0.25, 0.4],
 }
 static var _growth := {} # the biome map's parameters (set_growth_map)
+const LICHEN_ANY := ["dead", "log"] ## Their lichen doesn't go by the biome.
 static var _leaf_mats := {}
 static var _cache := {} # variant -> [mesh, lods]
 
@@ -99,6 +106,7 @@ static func bark_material(level := 0, kind := "tree") -> ShaderMaterial:
 		m.set_shader_parameter("lichen_amount", cover[0])
 		m.set_shader_parameter("moss_amount", cover[1])
 		m.set_shader_parameter("moss_low", cover[2])
+		m.set_shader_parameter("lichen_any_biome", kind in LICHEN_ANY)
 		m.set_shader_parameter("moss_end", cover[3])
 		m.set_shader_parameter("lichen_tex", _texture("res://data/population/textures/lichen.png"))
 		if kind == "stump":
