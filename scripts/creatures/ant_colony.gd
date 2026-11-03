@@ -23,10 +23,15 @@ extends MultiMeshInstance3D
 ## the legs a dark reddish black.
 
 const MM := 0.002 ## m drawn per model mm (twice life size)
-const BODY_H := 1.5 ## mm the thorax's middle stands over the ground
-const SPEED := 0.06 ## m/s, walking (an ant's 3 cm/s, twice life size)
-const REACH := 4.6 ## mm from its thorax's middle to its mouth
-const APART := 9.0 ## mm they keep between them
+const BODY_H := 1.5 ## mm an ant's thorax's middle stands over the ground
+
+# (another kind of crawler made the same way sets these: Beetles)
+var body_h := BODY_H ## mm its thorax's middle stands over the ground
+var top_speed := 0.06 ## m/s, walking (an ant's 3 cm/s, twice life size)
+var reach := 4.6 ## mm from its thorax's middle to its mouth
+var apart := 9.0 ## mm they keep between them
+var shader: Shader = preload("res://shaders/render/ant.gdshader")
+var colors := {} ## the shader's colours, its own (else an ant's)
 
 var height: Callable ## (x, z) -> the ground's y; none: 0
 var pos := PackedVector3Array()
@@ -45,8 +50,7 @@ var rng := RandomNumberGenerator.new()
 var _t := 0.0
 
 # the rest pose's joints (m), for the shader
-static var _mesh: ArrayMesh
-static var _pivots := {}
+static var _built := {} # script path -> [mesh, pivots]
 
 
 ## n ants round c (within r), wandering.
@@ -55,12 +59,18 @@ func setup(n: int, c: Vector3, r: float) -> void:
 	multimesh = MultiMesh.new()
 	multimesh.transform_format = MultiMesh.TRANSFORM_3D
 	multimesh.use_custom_data = true
-	multimesh.mesh = build_mesh()
+	var path: String = get_script().resource_path
+	if not _built.has(path):
+		_built[path] = _build_mesh()
+	multimesh.mesh = _built[path][0]
 	multimesh.instance_count = n
 	var m := ShaderMaterial.new()
-	m.shader = preload("res://shaders/render/ant.gdshader")
-	for k in _pivots:
-		m.set_shader_parameter(k, _pivots[k])
+	m.shader = shader
+	var pivots: Dictionary = _built[path][1]
+	for k in pivots:
+		m.set_shader_parameter(k, pivots[k])
+	for k in colors:
+		m.set_shader_parameter(k, colors[k])
 	material_override = m
 	cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 	pos.resize(n)
@@ -108,7 +118,7 @@ func _process(dt: float) -> void:
 	_t += dt
 	var n := pos.size()
 	# who's near whom (a grid of cells APART across): to keep apart
-	var cell := APART * MM
+	var cell := apart * MM
 	var grid := {}
 	for i in n:
 		var k := Vector2i(floori(pos[i].x / cell), floori(pos[i].z / cell))
@@ -128,7 +138,7 @@ func _process(dt: float) -> void:
 			var a := atan2(-to.x, -to.z) + wiggle
 			var turn := wrapf(a - yaw[i], -PI, PI)
 			yaw[i] += clampf(turn, -6.0 * dt, 6.0 * dt)
-			want = minf(SPEED * (0.75 + 0.5 * seed[i]), d * 5.0) * clampf(1.0 - absf(turn) / 1.3, 0.0, 1.0)
+			want = minf(top_speed * (0.75 + 0.5 * seed[i]), d * 5.0) * clampf(1.0 - absf(turn) / 1.3, 0.0, 1.0)
 		else:
 			want = 0.0
 			if task[i] == 1: # (at the food: facing it)
@@ -150,12 +160,12 @@ func _process(dt: float) -> void:
 					off.y = 0.0
 					var l := off.length()
 					if l < cell and l > 1e-6:
-						p += off / l * (cell - l) * minf(dt * 6.0, 0.5) * crowd
+						p += off / l * minf((cell - l) * minf(dt * 6.0, 0.5), top_speed * 0.4 * dt) * crowd # (never faster than they walk: a band going the same way shoved itself back)
 		p.y = height.call(p.x, p.z) if height.is_valid() else 0.0
 		pos[i] = p
-		var at := Transform3D(Basis(Vector3.UP, yaw[i]), p + Vector3.UP * BODY_H * MM)
+		var at := Transform3D(Basis(Vector3.UP, yaw[i]), p + Vector3.UP * body_h * MM)
 		multimesh.set_instance_transform(i, at)
-		multimesh.set_instance_custom_data(i, Color(clampf(speed[i] / SPEED, 0.0, 1.0), feed_k[i], seed[i], 0.0))
+		multimesh.set_instance_custom_data(i, Color(clampf(speed[i] / top_speed, 0.0, 1.0), feed_k[i], seed[i], 0.0))
 
 
 ## Where ant i's making for, as it's doing.
@@ -174,7 +184,7 @@ func _think(i: int, dt: float) -> void:
 				wait[i] = rng.randf_range(2.0, 6.0)
 		return
 	# feeding: at its place round the food, its mouth on it
-	var at := food[i] + Vector3(cos(slot[i]), 0.0, sin(slot[i])) * REACH * MM
+	var at := food[i] + Vector3(cos(slot[i]), 0.0, sin(slot[i])) * reach * MM
 	target[i] = at
 	var there := Vector2(pos[i].x - at.x, pos[i].z - at.z).length() < 0.003
 	feed_k[i] = move_toward(feed_k[i], 1.0 if there and speed[i] < 0.015 else 0.0, dt * 2.0)
@@ -221,11 +231,9 @@ const GASTER := [[1.0, 1.0, 0.95, 0.12], [1.1, 1.3, 1.15, 0.02], [1.0, 1.25, 1.1
 
 
 ## The ant at rest, standing (in metres): every part tagged for the shader
-## (CUSTOM0: its part, its segment, along it, banded); its joints noted
-## (_pivots: the shader's uniforms).
-static func build_mesh() -> ArrayMesh:
-	if _mesh:
-		return _mesh
+## (CUSTOM0: its part, its segment, along it, banded); its joints noted (the
+## shader's uniforms): [mesh, pivots]. (Another crawler: its own.)
+func _build_mesh() -> Array:
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	st.set_custom_format(0, SurfaceTool.CUSTOM_RGBA_FLOAT)
@@ -315,15 +323,14 @@ static func build_mesh() -> ArrayMesh:
 		hips.append(hip0 * MM)
 		knees.append(knee * MM)
 		dirs.append(out)
-	_pivots = {
+	var pivots := {
 		"hips": PackedVector3Array(hips), "knees": PackedVector3Array(knees), "leg_dirs": PackedVector3Array(dirs),
 		"sockets": PackedVector3Array(sockets.map(func(v): return v * MM)), "elbows": PackedVector3Array(elbows.map(func(v): return v * MM)),
 		"mand_pivots": PackedVector3Array(mands.map(func(v): return v * MM)), "neck": (HEAD_AT + Vector3(0.0, -0.1, 0.1)) * MM,
 		"petiole": GASTER_AT * MM,
 	}
 	st.generate_tangents()
-	_mesh = st.commit()
-	return _mesh
+	return [st.commit(), pivots]
 
 
 ## A primitive's arrays (a unit sphere or cylinder) into st, placed by xf

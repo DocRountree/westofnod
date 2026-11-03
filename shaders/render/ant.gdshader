@@ -1,6 +1,7 @@
 shader_type spatial;
 
-// Ants (AntColony): every ant one instance of one mesh, posed here, in the
+// Ants (AntColony), and beetles (Beetles: the same parts, their own shapes
+// and colours): every ant one instance of one mesh, posed here, in the
 // vertex shader, from the clock and its own few numbers (INSTANCE_CUSTOM:
 // x how fast it walks, 0..1; y how far into feeding, 0..1; z its own
 // random 0..1, its gait's and its twitches' phase), so a colony costs a
@@ -8,7 +9,7 @@ shader_type spatial;
 //
 // The mesh (AntColony.build_mesh) standing at rest, in metres, the thorax's
 // middle at the origin, facing -z; CUSTOM0.x which part a vertex is of (0
-// the body; 1 the head, 2/3 its mandibles, 4/5 its antennae's scapes, 6/7
+// the body, 16 a shell over it (metallic: a beetle's); 1 the head, 2/3 its mandibles, 4/5 its antennae's scapes, 6/7
 // their funiculi, 15 its eyes; 8-13 the legs, 14 the gaster), .y a leg's
 // segment (0 coxa, 1 femur, 2 tibia, 3 tarsus), .z along an ellipsoid
 // (-0.5 front .. 0.5 behind: the gaster's bands), .w 1 where it's banded.
@@ -33,6 +34,11 @@ uniform float stride_hz = 7.0; // steps a second (of each set) at full speed
 uniform vec3 black : source_color = vec3(0.045, 0.038, 0.034);
 uniform vec3 leg_color : source_color = vec3(0.1, 0.055, 0.04);
 uniform vec3 band_color : source_color = vec3(0.36, 0.28, 0.16);
+// a shell (part 16: a beetle's pronotum and wing cases), metallic, its
+// colour going from shell_a facing you to shell_b at a glance (iridescent)
+uniform vec3 shell_a : source_color = vec3(0.1, 0.45, 0.4);
+uniform vec3 shell_b : source_color = vec3(0.75, 0.32, 0.1);
+uniform float sweep = 1.0; // how much the antennae sweep and drum (an ant's 1)
 
 varying flat int part;
 varying float band_z;
@@ -89,10 +95,10 @@ void vertex() {
 		float side = s == 1 ? 1.0 : -1.0;
 		float ph = t * 9.5 + (s == 1 ? PI : 0.0);
 		float twitch = 0.12 * sin(t * 3.1 + seed * 20.0 + float(s) * 2.3) + 0.08 * sin(t * 7.3 + float(s));
-		float yaw = 0.3 * walk * sin(ph) + twitch * (1.0 - walk);
-		float pitch = -walk * (0.15 + 0.2 * max(sin(ph + 1.2), 0.0)) - 0.35 * feed + twitch * 0.6;
+		float yaw = 0.3 * sweep * walk * sin(ph) + twitch * (1.0 - walk);
+		float pitch = -sweep * walk * (0.15 + 0.2 * max(sin(ph + 1.2), 0.0)) - 0.35 * feed + twitch * 0.6;
 		if (part >= 6) // (dabbing, drumming)
-			turn(v, n, elbows[s], vec3(1.0, 0.0, 0.0), -0.4 * feed * (0.5 + 0.5 * sin(t * 34.0 + float(s) * 1.7)) - 0.15 * walk * max(sin(ph + 2.0), 0.0));
+			turn(v, n, elbows[s], vec3(1.0, 0.0, 0.0), -0.4 * sweep * feed * (0.5 + 0.5 * sin(t * 34.0 + float(s) * 1.7)) - 0.15 * walk * max(sin(ph + 2.0), 0.0));
 		turn(v, n, sockets[s], vec3(1.0, 0.0, 0.0), pitch);
 		turn(v, n, sockets[s], up, yaw * side);
 	}
@@ -130,7 +136,15 @@ void fragment() {
 	}
 	if (banded > 0.5) // (the gaster's segments edged with their fine golden hairs)
 		c = mix(c, band_color, smoothstep(0.33, 0.37, band_z));
+	float metal = 0.0;
+	if (part == 16) {
+		float glance = 1.0 - clamp(dot(NORMAL, VIEW), 0.0, 1.0);
+		c = mix(shell_a, shell_b, smoothstep(0.15, 0.85, glance));
+		gloss = 0.9;
+		metal = 0.75;
+	}
 	ALBEDO = c;
+	METALLIC = metal;
 	ROUGHNESS = mix(0.7, 0.18, gloss);
 	SPECULAR = mix(0.4, 0.7, gloss);
 }

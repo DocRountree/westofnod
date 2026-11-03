@@ -163,6 +163,11 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   colony is one draw call; the CPU only moves them along (wandering, or to food and
   feeding, keeping apart). `tools/creatures/ant_demo.tscn` (keys: 1 wander, 2 feed on
   the crumbs, 3 half and half, + / - more or fewer).
+- `scripts/creatures/beetles.gd`: beetles (`Beetles`, dogbane leaf beetles at twice life
+  size: metallic green, glinting copper at a glance), not yet in the game: made and moved as
+  the ants are (one mesh, the same shader, the same CPU side, its own shape, colours and
+  pace), walking and eating at a leaf. `tools/creatures/beetle_demo.tscn` (keys: 1 walk
+  about, 2 eat at the leaves, 3 half and half, + / - more or fewer).
 - `scripts/creatures/wasp.gd`: a paper wasp (`Wasp`, drawn at twice life size), not yet in the game: its model
   built from parts, posed by hand every frame, its animations methods (seek food, feed
   on a flower, catch and eat a caterpillar, land and walk about and settle, sting).
