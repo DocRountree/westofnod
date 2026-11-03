@@ -89,3 +89,28 @@ static func variant_props(variant: int) -> Dictionary:
 
 static func near_multimesh(_variant := 0) -> Array:
 	return [] # (no sporophytes yet)
+
+
+static func choppable(variant: int) -> bool:
+	return species().choppable(variant)
+
+
+static func trunk_radius(variant: int) -> float:
+	return species().trunk_radius(variant)
+
+
+static func trunk_radius_at(variant: int, h: float) -> float:
+	return species().section_at(variant, h)[0]
+
+
+static func trunk_outline_at(variant: int, h: float) -> PackedVector2Array:
+	return species().section_at(variant, h)[1]
+
+
+static func cut_meshes(variant := 0) -> Array:
+	return species().cut_meshes(variant)
+
+
+## What fruit variant v bears (Foraging): an item id, "" none.
+static func fruit_of(variant: int) -> String:
+	return species().fruit_of(variant)

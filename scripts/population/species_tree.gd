@@ -48,6 +48,7 @@ var shadow := [7.5, 4.0, 14.0, 0.45] ## the shadow stand-in: crown radius, botto
 ## As a prop, what differs from the oak's (OakTree.PROPS): kind ("all" for
 ## every kind) -> PropKind settings (variant_props).
 var props := {}
+var fruit := "" ## The item its grown trees bear (Items: "pawpaw", ...), "" none.
 
 var _cache := {} # variant -> [mesh, lods]
 var _shadows := {}
@@ -225,6 +226,87 @@ func _climb_lines(v: int) -> Array[PackedFloat32Array]:
 				lines.append(line)
 	_climb_cache[v] = lines
 	return lines
+
+
+# ---- felling and picking -------------------------------------------------------
+
+## Whether variant v can be felled (an axe: Felling): the standing ones.
+func choppable(v: int) -> bool:
+	return kind_of(v) in ["tree", "dead", "sapling"]
+
+
+## A standing variant's trunk radius at its foot (m, at scale 1).
+func trunk_radius(v: int) -> float:
+	var P: Dictionary = variants[posmod(v, variants.size())]
+	if P.has("trunk_r"):
+		return P.trunk_r
+	if P.has("like"):
+		return variants[P.like].get("trunk_r", 0.3)
+	return 0.3
+
+
+## What fruit variant v bears (an item id, Items), "" none: a standing,
+## grown tree's, if the species bears any (fruit).
+func fruit_of(v: int) -> String:
+	return fruit if kind_of(v) == "tree" else ""
+
+
+var _sections := {}
+
+
+## [mean radius, outline] of the trunk across y = h (as OakTree._section_at).
+func section_at(v: int, h: float) -> Array:
+	var key := [posmod(v, variants.size()), snappedf(h, 0.01)]
+	if not _sections.has(key):
+		var arrays := build(v).surface_get_arrays(0)
+		var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		var idx: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+		var mid := Vector2.ZERO
+		var near: Array[Vector2] = []
+		var reach := trunk_radius(v) * 2.5
+		for i in range(0, idx.size(), 3):
+			for e in 3:
+				var a := verts[idx[i + e]]
+				var b := verts[idx[i + (e + 1) % 3]]
+				if (a.y - h) * (b.y - h) < 0.0:
+					var p := a.lerp(b, (h - a.y) / (b.y - a.y))
+					if Vector2(p.x, p.z).length() < reach:
+						near.append(Vector2(p.x, p.z))
+						mid += Vector2(p.x, p.z)
+		var r := trunk_radius(v)
+		var outline := PackedVector2Array()
+		if near.size() > 4:
+			mid /= near.size()
+			r = 0.0
+			for q in near:
+				r += q.distance_to(mid)
+			r /= near.size()
+			near.sort_custom(func(a: Vector2, b: Vector2) -> bool: return (a - mid).angle() < (b - mid).angle())
+			outline.append(mid)
+			for q in near:
+				outline.append(q)
+		_sections[key] = [r, outline]
+	return _sections[key]
+
+
+var _cut_meshes := {}
+
+
+## The cut variant of v's meshes ([mesh, lods]), as OakTree.cut_meshes: the
+## bark compiled with BARK_CUT (a notch a real hollow, a felled foot a cut face).
+func cut_meshes(v: int) -> Array:
+	v = posmod(v, variants.size())
+	if not _cut_meshes.has(v):
+		var out := []
+		for m: Mesh in [build(v)] + build_lods(v):
+			var c := m.duplicate() as ArrayMesh
+			for si in c.get_surface_count():
+				var mat := c.surface_get_material(si) as ShaderMaterial
+				if mat and mat.shader and mat.shader.resource_path == "res://shaders/render/bark.gdshader":
+					c.surface_set_material(si, OakTree.cut_material(mat))
+			out.append(c)
+		_cut_meshes[v] = [out[0], out.slice(1)]
+	return _cut_meshes[v]
 
 
 # ---- skeletons --------------------------------------------------------------

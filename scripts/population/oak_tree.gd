@@ -536,6 +536,16 @@ static func felled_material(mat: ShaderMaterial, h: float, r: float, stripes := 
 	return _bark_mats[key]
 
 
+## The cut variant of a bark material (BARK_CUT): for another species'
+## cut meshes too (SpeciesTree.cut_meshes).
+static func cut_material(mat: ShaderMaterial) -> ShaderMaterial:
+	if _cut_shader == null:
+		var src: Shader = load("res://shaders/render/bark.gdshader")
+		_cut_shader = Shader.new()
+		_cut_shader.code = src.code.replace("shader_type spatial;", "shader_type spatial;\nrender_mode cull_disabled;\n#define BARK_CUT")
+	return _cut_material(mat)
+
+
 static func _cut_material(mat: ShaderMaterial) -> ShaderMaterial:
 	var key := ["cut", mat]
 	if not _bark_mats.has(key):

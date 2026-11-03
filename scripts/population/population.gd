@@ -751,6 +751,48 @@ func choppable_near(eye: Vector3, fwd: Vector3, reach: float) -> Dictionary:
 	return best
 
 
+## The fruiting tree (a kind whose mesh_script's fruit_of(variant) names an
+## item: a pawpaw's) within reach of eye (its crown: reach m out from the
+## trunk), in front (fwd); as choppable_near's, plus "fruit" (the item id),
+## or {} for none.
+func fruit_near(eye: Vector3, fwd: Vector3, reach: float) -> Dictionary:
+	var best := {}
+	var best_score := INF
+	var f := Vector2(fwd.x, fwd.z).normalized()
+	var c := _key(eye)
+	for dz in range(-1, 2):
+		for dx in range(-1, 2):
+			var ch: _Chunk = _chunks.get(c + Vector2i(dx, dz))
+			if ch == null:
+				continue
+			var base := Vector3(ch.key.x * CHUNK, 0.0, ch.key.y * CHUNK)
+			for k in ch.xforms.size():
+				var kind := props[k]
+				var v := int(kind.get_meta("variant", 0))
+				if kind.mesh_script == null or not kind.mesh_script.has_method("fruit_of"):
+					continue
+				var fruit: String = kind.mesh_script.fruit_of(v)
+				if fruit == "":
+					continue
+				var xf: PackedFloat32Array = ch.xforms[k]
+				var uids: PackedInt64Array = ch.uids[k]
+				for i in uids.size():
+					var j := i * 12
+					var at := base + Vector3(xf[j + 3], xf[j + 7], xf[j + 11])
+					var to := Vector2(at.x - eye.x, at.z - eye.z)
+					var gap := to.length()
+					if gap > reach or eye.y < at.y - 1.0 or eye.y > at.y + 6.0 or _removed.has(uids[i]):
+						continue
+					var cosine := f.dot(to.normalized()) if gap > 0.01 else 1.0
+					if cosine < cos(deg_to_rad(60.0)) and gap > 1.0:
+						continue
+					var score := gap + 2.0 * (1.0 - cosine)
+					if score < best_score:
+						best_score = score
+						best = {"uid": uids[i], "kind": kind, "variant": v, "fruit": fruit}
+	return best
+
+
 ## The prop kind made from mesh_script's variant v (null if none).
 func kind_of(mesh_script: Script, v: int) -> PropKind:
 	for k in props:

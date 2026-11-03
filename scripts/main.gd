@@ -14,6 +14,7 @@ var chat: Chat
 var inventory := Inventory.new() ## What the player carries (the knapsack and the hands).
 var knapsack: Knapsack
 var felling: Felling ## The axe: felling trees, and the trees felled.
+var foraging: Foraging ## Picking fruit (F), and which trees were picked when.
 var env: Environment
 var ocean: MeshInstance3D
 var ocean_material: ShaderMaterial
@@ -138,6 +139,9 @@ func _ready() -> void:
 	felling = Felling.new()
 	felling.main = self
 	add_child(felling)
+	foraging = Foraging.new()
+	foraging.main = self
+	add_child(foraging)
 	_load_game()
 	Origin.follow(player.position)
 	_last_x = player.position.x
@@ -271,6 +275,7 @@ func _load_game() -> void:
 	else: # (saved before there were items: the axe a new game starts with)
 		inventory.set_at(Inventory.RIGHT, {"id": "axe", "count": 1})
 	felling.from_list(d.get("felled", []))
+	foraging.from_dict(d.get("picked", {}))
 	for uid in d.get("removed", []):
 		population._removed[int(uid)] = true
 	_played = float(d.get("play_seconds", 0.0))
@@ -299,6 +304,7 @@ func save_game() -> void:
 		"clock": clock.to_dict(),
 		"inventory": inventory.to_dict(),
 		"felled": felling.to_list(),
+		"picked": foraging.to_dict(),
 		"removed": population._removed.keys(),
 		"play_seconds": _played,
 		"mode": mode,
