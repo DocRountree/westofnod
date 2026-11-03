@@ -11,6 +11,7 @@ render_mode unshaded, blend_add, depth_draw_never, cull_disabled, fog_disabled, 
 // COLOR.rgb = colour; INSTANCE_CUSTOM = (brightness, kind, size px, 0).
 
 uniform float visibility = 0.0;        // 0 by day, 1 once the sun is well below the horizon
+uniform float deep_sky = 1.0;          // the deep-sky glows': 0 until the last of twilight fades (Atmosphere.deep_sky_amount)
 uniform float pixel_angle = 0.0012;    // radians per screen pixel
 uniform float wobble_px = 0.12;        // seeing at the zenith, in pixels
 // Light gathered through a telescope (West of Nod: magnification squared):
@@ -42,7 +43,7 @@ void vertex() {
 	// cluster's glow fades as it resolves into its stars (INSTANCE_CUSTOM.a).
 	float glow = min(pow(gain, 0.45), 2.0) * mix(1.0, clamp(1.5 / sqrt(gain), 0.1, 1.0), INSTANCE_CUSTOM.a);
 	float b = kind == 2 ? INSTANCE_CUSTOM.r * glow : min(INSTANCE_CUSTOM.r * gain, 6.0);
-	colour = COLOR.rgb * b * visibility * step(0.0, dir.y);   // hidden only below the horizon
+	colour = COLOR.rgb * b * visibility * (kind == 2 ? deep_sky : 1.0) * step(0.0, dir.y);   // hidden only below the horizon
 	quad = VERTEX.xy;
 }
 

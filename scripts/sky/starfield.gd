@@ -82,13 +82,15 @@ func _build() -> void:
 	custom_aabb = mm.custom_aabb
 
 
-## Place the sky: basis maps equatorial coordinates into the world; visibility 0..1.
-func update_sky(equatorial_to_world: Basis, visibility: float) -> void:
+## Place the sky: basis maps equatorial coordinates into the world; visibility 0..1;
+## deep_sky 0..1, the deep-sky glows' own (they need full darkness).
+func update_sky(equatorial_to_world: Basis, visibility: float, deep_sky := 1.0) -> void:
 	var cam := get_viewport().get_camera_3d() if is_inside_tree() else null
 	if cam:
 		global_transform = Transform3D(equatorial_to_world, cam.global_position)
 		var mat := material_override as ShaderMaterial
 		mat.set_shader_parameter("visibility", visibility)
+		mat.set_shader_parameter("deep_sky", deep_sky)
 		mat.set_shader_parameter("pixel_angle", deg_to_rad(cam.fov) / maxf(get_viewport().get_visible_rect().size.y, 1.0))
 		# magnification (from the field of view) squared: a telescope's light grasp
 		var zoom := tan(deg_to_rad(75.0) * 0.5) / tan(deg_to_rad(cam.fov) * 0.5)

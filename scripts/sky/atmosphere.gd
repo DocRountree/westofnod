@@ -181,6 +181,14 @@ func night_amount() -> float:
 	return smoothstep(0.02, -0.16, sun_direction().y)
 
 
+## 0..1: how dark it is for the faint, spread-out glows (the Messier
+## objects): they come out only as the last of twilight goes, the sun 12 to
+## 18 degrees down (nautical twilight's end to astronomical's), well after
+## the stars.
+func deep_sky_amount() -> float:
+	return smoothstep(-0.2079, -0.309, sun_direction().y)
+
+
 func _update_sun() -> void:
 	var dir := sun_direction()
 	if _material:
@@ -208,7 +216,7 @@ func _update_sun() -> void:
 	var day_ := smoothstep(-0.16, 0.1, dir.y)   # (still lit for a while after sunset)
 	haze_now = haze_dusk_color.lerp(haze_color, smoothstep(0.0, 0.3, dir.y)) * lerpf(0.03, 1.0, day_)
 	if starfield:   # stars come out from civil twilight (sun 0-10 degrees below the horizon)
-		starfield.update_sky(equatorial_to_world(), night)
+		starfield.update_sky(equatorial_to_world(), night, deep_sky_amount())
 	if planets:   # they wander from day to day, relative to the fixed sun
 		planets.update_sky(Astronomy.planet_positions(WorldConfig.current(), day(), time_of_day()),
 				equatorial_to_world(), night)
