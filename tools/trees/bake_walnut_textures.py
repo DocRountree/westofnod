@@ -6,8 +6,8 @@ the oak's (bake_oak_textures.py; TreeBuilder reads them the same):
   four big pinnately compound leaves, each a rachis 30-45 cm long carrying
   11-19 leaflets in nearly opposite pairs, lance-shaped, 6-11 cm, finely
   toothed, the middle ones the longest, the terminal leaflet often missing
-  (as on Juglans nigra); now and then a pair of green walnuts, 4-5 cm,
-  round, in their husks, at the twig's tip. Tiles 4-7 are clumps (1.6 m
+  (as on Juglans nigra); no walnuts (Foraging hangs real ones: the item
+  "walnut"). Tiles 4-7 are clumps (1.6 m
   across: many leaves at the sprigs' scale). Transparent pixels carry the
   colour of the nearest leaf.
 - walnut_bark.png: tileable, 0.6 m square: dark brown to nearly black,
@@ -25,7 +25,7 @@ from PIL import Image
 
 sys.path.insert(0, os.path.dirname(__file__))
 from bake_oak_textures import OUT, TILE, SS, bleed, draw_line, periodic_noise  # noqa: E402
-from bake_small_tree_textures import draw_simple, blob  # noqa: E402
+from bake_small_tree_textures import draw_simple  # noqa: E402
 
 rng = np.random.default_rng(53)
 
@@ -82,16 +82,6 @@ def compound_leaf(rgba, cover, x, y, ang, length, size):
         draw_simple(rgba, cover, lx, ly, la, ll, 0.15, 0.38, 22, 0.05, jit(colour, 0.05), VEIN)
 
 
-def walnuts(rgba, cover, x, y, ang, size):
-    """A pair (or three) of green walnuts in their husks, on a short stalk."""
-    n = int(rng.integers(2, 4))
-    for k in range(n):
-        b = ang + (k - (n - 1) / 2) * 0.9 + rng.uniform(-0.2, 0.2)
-        r = rng.uniform(0.02, 0.025) * size
-        cx, cy = x + math.cos(b) * r * 1.1, y + math.sin(b) * r * 1.1
-        blob(rgba, cover, cx, cy, r, r * 0.95, b, jit([0.46, 0.52, 0.2], 0.05), 0.2, None)
-
-
 def sprig(rgba, cover, ox, oy, size, ang0):
     """size: px per metre. A stout twig, its leaves crowded at its end."""
     L = rng.uniform(0.12, 0.16) * size
@@ -106,8 +96,6 @@ def sprig(rgba, cover, ox, oy, size, ang0):
         # (the upright ones shorter: the tile's top quarter is cropped off)
         up = abs(math.cos(b - ang0))
         compound_leaf(rgba, cover, end[0], end[1], b, rng.uniform(0.32, 0.45) * size * (1.0 - 0.15 * up), size)
-    if rng.uniform() < 0.5:
-        walnuts(rgba, cover, end[0], end[1], a + math.pi * rng.uniform(0.6, 1.4), size)
 
 
 def clump(tile, cover, S, size):
@@ -117,8 +105,6 @@ def clump(tile, cover, S, size):
         x, y = S * (0.5 + math.cos(a) * r), S * (0.5 + math.sin(a) * r)
         for j in range(int(rng.integers(2, 4))):
             compound_leaf(tile, cover, x, y, rng.uniform(0, 2 * math.pi), rng.uniform(0.28, 0.4) * size, size)
-        if rng.uniform() < 0.1:
-            walnuts(tile, cover, x, y, rng.uniform(0, 2 * math.pi), size)
 
 
 def leaves(sprig_m=0.8, clump_m=1.6):

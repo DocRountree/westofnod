@@ -12,8 +12,10 @@ class_name WalnutTree
 ## comes through it); stout twigs, few of them; big pinnately compound leaves,
 ## 30-60 cm, of 11-19 narrow, finely toothed leaflets, crowded toward the
 ## twigs' ends (so the foliage is in tufts, the inner crown bare); round green
-## walnuts in their husks; bark dark brown to nearly black, deeply furrowed,
-## the narrow ridges interlacing in diamonds.
+## walnuts in their husks under the twigs (the item "walnut": Foraging hangs
+## them on the grown trees, picked one by one as the pawpaw's); bark dark
+## brown to nearly black, deeply furrowed, the narrow ridges interlacing in
+## diamonds.
 
 const VARIANTS := [
 	# open-grown: a short, stout trunk, a few big limbs, a broad open dome
@@ -37,6 +39,7 @@ const VARIANTS := [
 ]
 
 const SETTINGS := {
+	"fruit": "walnut", # (Foraging: picked from the grown trees, a click with a hand empty)
 	"seg": [0.55, 0.7, 0.5, 0.4], # (long, stout shoots: few nodes)
 	"crook": [0.03, 0.12, 0.2, 0.24],
 	"up": [0.0, 0.015, 0.05, 0.07], # (limbs ascending, then spreading)
@@ -115,11 +118,12 @@ static func cut_meshes(variant := 0) -> Array:
 	return species().cut_meshes(variant)
 
 
-## What fruit variant v bears (Foraging): none yet (no walnut item; the
-## green nuts are painted on its leaf cards).
+## What fruit variant v bears (Foraging): an item id, "" none (the grown
+## trees: walnuts).
 static func fruit_of(variant: int) -> String:
 	return species().fruit_of(variant)
 
 
+## Where variant v's walnuts hang (Foraging), its own space.
 static func fruit_spots(variant: int) -> PackedVector3Array:
 	return species().fruit_spots(variant)

@@ -154,8 +154,9 @@ maple` (or `sycamore`; `pair`, `pair2` for the standing trees nearer).
   a small crown), a few stout alternate limbs ascending then spreading into
   an open, uneven, rather thin crown; stout twigs; big pinnately compound
   leaves of 11-19 narrow, finely toothed leaflets, crowded toward the twigs'
-  ends; round green walnuts in their husks (painted on the cards: no walnut
-  item yet); dark, nearly black bark, deeply furrowed, its narrow ridges
+  ends; round green walnuts in their husks, hanging under the twigs of the
+  grown trees (the item `walnut`, picked as the pawpaw's once it's in the
+  game: `fruit_spots`, Foraging); dark, nearly black bark, deeply furrowed, its narrow ridges
   interlacing in diamonds. Its textures: `python3
   tools/trees/bake_walnut_textures.py` (`walnut_leaves.png`,
   `walnut_bark.png`); `preview.gd ... walnut`.

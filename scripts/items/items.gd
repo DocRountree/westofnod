@@ -1,8 +1,8 @@
 class_name Items
 ## What can be carried: each kind of item, by id. The axe fells trees
 ## (Felling); the rest, for now, are only things to carry (/give in the chat;
-## the pawpaw picked from its trees, the flowers and cattails where they grow:
-## Foraging).
+## the pawpaw, crabapple and walnut picked from their trees, the flowers
+## and cattails where they grow: Foraging).
 ##
 ## Each: name, stack (how many fit in one slot or hand), and how it looks held
 ## (a primitive: shape, size in m, colour).
@@ -13,9 +13,10 @@ const KINDS := {
 	"stone": {"name": "Stone", "stack": 16, "shape": "sphere", "size": Vector3(0.09, 0.07, 0.08), "color": Color(0.5, 0.49, 0.46)},
 	"acorn": {"name": "Acorn", "stack": 32, "shape": "sphere", "size": Vector3(0.018, 0.026, 0.018), "color": Color(0.55, 0.38, 0.16)},
 	"oak_leaf": {"name": "Oak leaf", "stack": 64, "shape": "box", "size": Vector3(0.07, 0.003, 0.11), "color": Color(0.3, 0.42, 0.14)},
-	# fruit (PawpawTree, CrabappleTree: their trees bear them)
+	# fruit (PawpawTree, CrabappleTree, WalnutTree: their trees bear them)
 	"pawpaw": {"name": "Pawpaw", "stack": 1, "shape": "pawpaw", "size": Vector3(0.055, 0.11, 0.05), "color": Color(0.55, 0.62, 0.24)},
 	"crabapple": {"name": "Crabapple", "stack": 32, "shape": "crabapple", "size": Vector3(0.026, 0.024, 0.026), "color": Color(0.72, 0.16, 0.1)},
+	"walnut": {"name": "Black walnut", "stack": 16, "shape": "walnut", "size": Vector3(0.046, 0.044, 0.046), "color": Color(0.43, 0.5, 0.18)}, # (in its green husk, as picked)
 	# flowers and cattails (GroundCover: picked where they grow, Foraging):
 	# a stem, its head(s) the petals' colour round the disc's
 	"susan": {"name": "Black-eyed Susan", "stack": 16, "shape": "flower", "size": Vector3(0.068, 0.5, 1.0), "color": Color(0.96, 0.7, 0.06), "disc": Color(0.17, 0.08, 0.04), "heads": 1},
@@ -51,7 +52,7 @@ static func model(id: String) -> Node3D:
 	var k: Dictionary = KINDS.get(id, {"shape": "box", "size": Vector3.ONE * 0.05, "color": Color.MAGENTA})
 	if k.shape == "axe":
 		return _axe()
-	if k.shape in ["pawpaw", "crabapple"]:
+	if k.shape in ["pawpaw", "crabapple", "walnut"]:
 		return _fruit(k)
 	if k.shape == "flower":
 		return _flower(k)
@@ -190,12 +191,27 @@ static func _pot(k: Dictionary) -> Node3D:
 
 
 ## A fruit: its body (a pawpaw's long, a little lopsided, green going
-## yellow; a crabapple's a small round apple, red), and its stalk.
+## yellow; a crabapple's a small round apple, red; a walnut's a round green
+## husk, dull, freckled with paler spots, on a short, stout stalk), and its
+## stalk.
 static func _fruit(k: Dictionary) -> Node3D:
 	var root := Node3D.new()
 	var body := _part(SphereMesh.new(), k.size, k.color)
-	(body.material_override as StandardMaterial3D).roughness = 0.45 if k.shape == "crabapple" else 0.6
+	(body.material_override as StandardMaterial3D).roughness = 0.45 if k.shape == "crabapple" else (0.8 if k.shape == "walnut" else 0.6)
 	root.add_child(body)
+	if k.shape == "walnut":
+		# the husk's freckles: a few small pale spots round it
+		for i in 7:
+			var a := TAU * i / 7.0 + 0.4
+			var y := 0.35 * sin(i * 2.3)
+			var dir := Vector3(cos(a) * sqrt(1.0 - y * y), y, sin(a) * sqrt(1.0 - y * y))
+			var dot := _part(SphereMesh.new(), Vector3.ONE * 0.006, (k.color as Color).lightened(0.35))
+			dot.position = dir * (k.size as Vector3) * 0.48
+			root.add_child(dot)
+		var stem := _part(CylinderMesh.new(), Vector3(0.005, 0.02, 0.005), Color(0.33, 0.3, 0.16))
+		stem.position.y = k.size.y * 0.5 + 0.008
+		root.add_child(stem)
+		return root
 	if k.shape == "pawpaw":
 		# lopsided: a second, smaller lobe to one side, and the dark scar at the stalk end
 		var lobe := _part(SphereMesh.new(), k.size * Vector3(0.85, 0.7, 0.85), Color(0.6, 0.64, 0.26))

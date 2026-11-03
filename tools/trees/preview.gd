@@ -80,6 +80,13 @@ func _init() -> void:
 		var casts: bool = shadow == null and S.variant_props(v).get("shadows", true)
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if casts else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		root3.add_child(mi)
+		# its fruit, if it bears any (as Foraging hangs them: every spot)
+		if S.has_method("fruit_of") and S.fruit_of(v) != "":
+			var spots: PackedVector3Array = S.fruit_spots(v)
+			for i in mini(spots.size(), Foraging.MOST):
+				var f := Items.model(S.fruit_of(v))
+				f.position = mi.position + spots[i]
+				root3.add_child(f)
 		var near: Array = S.near_multimesh(v)
 		if not near.is_empty():
 			var smi := MultiMeshInstance3D.new()
