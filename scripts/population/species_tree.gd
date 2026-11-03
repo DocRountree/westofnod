@@ -55,6 +55,7 @@ var far_bark := Color(0, 0, 0, 0)
 ## climbed (and stood on).
 var climb_limb_r := 0.05
 var fruit := "" ## The item its grown trees bear (Items: "pawpaw", ...), "" none.
+var lichen := true ## Lichen on its bark (false: none on any of its kinds; their moss as ever).
 
 var _cache := {} # variant -> [mesh, lods]
 var _shadows := {}
@@ -85,6 +86,8 @@ func bark_material(level: int, kind: String) -> ShaderMaterial:
 		m.set_shader_parameter("bark_tex", OakTree._texture(bark_tex))
 		if far_bark.a > 0.0:
 			m.set_shader_parameter("far_color", Vector3(far_bark.r, far_bark.g, far_bark.b))
+		if not lichen:
+			m.set_shader_parameter("lichen_amount", 0.0) # (and so its cut and felled copies)
 		_bark_mats[key] = m
 		OakTree._bark_mats[[name, level, kind]] = m # (told the night, the biomes, the levels' fade with the oak's)
 	return _bark_mats[key]

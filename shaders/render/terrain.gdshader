@@ -155,7 +155,7 @@ void fragment() {
 	// a crown
 	float far_trees = smoothstep(520.0, 640.0, distance(world_pos, CAMERA_POSITION_WORLD + world_origin));
 	if (far_trees > 0.0) {
-		float broad = (forest * 0.57 + prairie * 0.055 + swamp * 0.1) * (1.0 - smoothstep(575.0, 1150.0, h)); // (the broadleaves thinning up the mountains: their .tres, Population)
+		float broad = (forest * 0.57 + prairie * 0.055 + swamp * 0.05) * (1.0 - smoothstep(575.0, 1150.0, h)); // (the broadleaves thinning up the mountains: their .tres, Population)
 		float conifer = taiga * 0.38 * (1.0 - smoothstep(675.0, 1350.0, h)); // (the conifers: lodgepole.tres, bald_cypress.tres)
 		float cover = (broad + conifer) * (1.0 - rocky) * (1.0 - m.a) * step(0.4, h);
 		float crowns = vnoise(p / 5.0) * 0.55 + vnoise(p / 13.0 + 4.1) * 0.45;

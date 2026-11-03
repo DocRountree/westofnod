@@ -14,7 +14,7 @@ sink = 0.25
 radius = 0.55
 view_distance = 600.0
 density = {
-"swamp": 10.0
+"swamp": 5.0
 }
 height_range = Vector2(0.5, 1150)
 min_normal_y = 0.8

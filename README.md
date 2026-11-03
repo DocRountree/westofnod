@@ -100,7 +100,8 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
 - **Trees**: English oaks, sugar maples, black walnuts and crabapples in the
   forest (a few of each on the prairie), pawpaws in its understory (only there), lodgepole pines and bald
   cypresses thick in the taiga (a few in the forest), sycamores in the swamp
-  (the living more at its edges, the dead in its middle); every one choppable
+  (sparse; the living more at its edges, the dead in its middle; no lichen on
+  them); every one choppable
   (`data/population/README.md`), streamed by `Population`.
   Their bark carries lichen (leafy rosettes, cracked crust with fruiting discs, a
   powdery yellow-green crust: `data/population/textures/lichen.png`, drawn lobe by lobe

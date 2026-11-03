@@ -148,7 +148,8 @@ maple` (or `sycamore`; `pair`, `pair2` for the standing trees nearer).
   (`irregular`); bark peeling into a cream, grey-green and tan patchwork,
   white up the limbs, the old foot dark and scaly (`TreeBuilder.tint_low`);
   big, broad, shallowly lobed, coarsely toothed leaves one by one on stout
-  stalks, now and then a seed ball on its thread.
+  stalks, now and then a seed ball on its thread; no lichen on its bark
+  (`SpeciesTree.lichen`: false; its logs and stumps still mossy).
 - Black walnut (`walnut_tree.gd`, *Juglans nigra*), in the game:
   `props/walnut.tres`: a tall, straight trunk (in a stand a long clean bole under
   a small crown), a few stout alternate limbs ascending then spreading into
@@ -180,7 +181,7 @@ per hectare, shared among their variants as the oak's):
   as thick as the oaks in the forest), thinning out up the mountains to
   none past 1350 m; the forest 0.6 and 0.4; none on the prairie or in the
   swamp.
-- `sycamore.tres`: the swamp's only, 10 (not straying out of it): the
+- `sycamore.tres`: the swamp's only, 5 (sparse; not straying out of it): the
   living and saplings more at its edges, fewer in its middle (x1.8 to
   x0.35), the dead the other way (x0.3 to x3: `PropKind.swamp_depth`, by
   `WorldData.swamp_depth`, the swamp's share on rings 300 and 700 m round).
