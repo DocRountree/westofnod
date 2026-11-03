@@ -149,8 +149,18 @@ maple` (or `sycamore`; `pair`, `pair2` for the standing trees nearer).
   white up the limbs, the old foot dark and scaly (`TreeBuilder.tint_low`);
   big, broad, shallowly lobed, coarsely toothed leaves one by one on stout
   stalks, now and then a seed ball on its thread.
+- Black walnut (`walnut_tree.gd`, *Juglans nigra*), not yet in the game (no
+  prop `.tres`): a tall, straight trunk (in a stand a long clean bole under
+  a small crown), a few stout alternate limbs ascending then spreading into
+  an open, uneven, rather thin crown; stout twigs; big pinnately compound
+  leaves of 11-19 narrow, finely toothed leaflets, crowded toward the twigs'
+  ends; round green walnuts in their husks (painted on the cards: no walnut
+  item yet); dark, nearly black bark, deeply furrowed, its narrow ridges
+  interlacing in diamonds. Its textures: `python3
+  tools/trees/bake_walnut_textures.py` (`walnut_leaves.png`,
+  `walnut_bark.png`); `preview.gd ... walnut`.
 
-All in the game (`props/*.tres`), choppable as the oak (their cut
+All but the walnut in the game (`props/*.tres`), choppable as the oak (their cut
 variants), with the oak's far-off cards (`ImpostorBaker`); not yet the
 moss's sporophytes on their logs and stumps. Where they grow (whole kinds,
 per hectare, shared among their variants as the oak's):

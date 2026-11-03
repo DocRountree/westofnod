@@ -2,8 +2,8 @@ extends SceneTree
 ## Renders a species' variants in a row on a plain, for looking at the
 ## models (the oak's; or with maple, sycamore, lodgepole, cypress, pawpaw or
 ## crabapple, theirs: MapleTree, SycamoreTree, LodgepolePine, BaldCypress,
-## PawpawTree, CrabappleTree, not yet in the game).
-## xvfb-run godot --path . --resolution 1600x900 --script res://tools/trees/preview.gd -- <out_dir> [maple | sycamore | lodgepole | cypress | pawpaw | crabapple] [lod] [side | pair | pair2 | close | bark | leaves | dead | snag | saplings]
+## PawpawTree, CrabappleTree; or walnut, WalnutTree, not yet in the game).
+## xvfb-run godot --path . --resolution 1600x900 --script res://tools/trees/preview.gd -- <out_dir> [maple | sycamore | lodgepole | cypress | pawpaw | crabapple | walnut] [lod] [side | pair | pair2 | close | bark | leaves | dead | snag | saplings]
 
 var out := "user://"
 var _name := "oaks"
@@ -34,6 +34,9 @@ func _init() -> void:
 	elif args.has("crabapple"):
 		S = CrabappleTree
 		species = "crabapples"
+	elif args.has("walnut"):
+		S = WalnutTree
+		species = "walnuts"
 	_name = species
 	var root3 := Node3D.new()
 	get_root().add_child(root3)
