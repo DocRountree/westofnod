@@ -111,6 +111,7 @@ const LAYERS := [
 			"fade_out": Vector2(32.0, 45.0), "thin_from": 16.0}},
 ]
 const MAX_LOGS := 256 ## logs, stumps, trunks and boulders the grass is kept out of, nearest first (ground_cover_bake.gdshader: logs[])
+const MAX_GONE := 64 ## clumps picked a layer hides (ground_cover_bake.gdshader: gone[]), the nearest
 const REBAKE := 5.0 ## m the camera moves before a layer's grid is worked out again
 const BAKE_KEYS := ["kind", "seed", "in_forest", "in_prairie", "in_swamp", "swamp_clumped", "in_coast", "forest_height", "prairie_height", "cover", "drift"]
 const DRAW_KEYS := ["kind", "seed", "fade_in", "fade_out", "thin_from", "prairie_green", "prairie_blonde", "patch_tints",
@@ -210,7 +211,8 @@ func setup(w: WorldData) -> void:
 				need |= 1 << b
 		_layers.append({"need": need, "beach": L.u.get("in_coast", false), "live": {},
 				"L": L, "mm": mm, "size": L.cell * L.cells, "tiles": {}, "centre": Vector2i.MAX,
-				"material": m, "vps": vps, "bakes": bakes, "shown": -1, "baking": false, "want": Vector2i.MAX, "cam": Vector3.ZERO, "baked": Vector3.INF, "walks": -1})
+				"material": m, "vps": vps, "bakes": bakes, "shown": -1, "baking": false, "want": Vector2i.MAX, "cam": Vector3.ZERO, "baked": Vector3.INF, "walks": -1,
+				"item": item_of(L), "gone": [], "img": null})
 
 
 ## The terrain's leaf litter and pine needle textures (it's the terrain's material).
@@ -360,6 +362,11 @@ func _bake(layer: Dictionary) -> void:
 		rs.resize(MAX_LOGS)
 		bm.set_shader_parameter("logs", xs)
 		bm.set_shader_parameter("log_r", rs)
+		# the clumps picked (Foraging), nearest first: gone till they grow again
+		var gone := _gone_near(layer, cam)
+		bm.set_shader_parameter("gone_count", gone.size())
+		gone.resize(MAX_GONE)
+		bm.set_shader_parameter("gone", gone)
 		layer.vps[k].render_target_update_mode = SubViewport.UPDATE_ONCE
 		await RenderingServer.frame_post_draw
 		var m: ShaderMaterial = layer.material
@@ -368,9 +375,129 @@ func _bake(layer: Dictionary) -> void:
 		m.set_shader_parameter("grid_size", layer.bakes[k].get_shader_parameter("grid_size"))
 		m.set_shader_parameter("base_h", base_h)
 		layer.shown = k
+		layer.img = null # (read back again when next picked from: pick_near)
 		if layer.want == origin and layer.cam == cam:
 			break
 	layer.baking = false
+
+
+## The item a layer's clumps are picked as (Foraging): its flowers', or a
+## cattail; "" if they can't be.
+static func item_of(L: Dictionary) -> String:
+	if L.has("flowers"):
+		return L.flowers
+	if L.has("cattails"):
+		return "cattail"
+	return ""
+
+
+## The clumps picked, which aren't to be drawn: item id -> the cells
+## (Vector2i, of that item's layer). Each layer worked out again.
+func set_gone(picked: Dictionary) -> void:
+	for layer in _layers:
+		var cells: Array = picked.get(layer.item, [])
+		if cells != layer.gone:
+			layer.gone = cells.duplicate()
+			layer.baked = Vector3.INF # (worked out again at the next update)
+
+
+## The layer's picked cells nearest cam, at most MAX_GONE.
+func _gone_near(layer: Dictionary, cam: Vector3) -> PackedVector2Array:
+	var cells: Array = layer.gone
+	var out := PackedVector2Array()
+	if cells.is_empty():
+		return out
+	var cell: float = layer.L.cell
+	var c := Vector2(cam.x, cam.z) / cell
+	var sorted := cells.duplicate()
+	if sorted.size() > MAX_GONE:
+		sorted.sort_custom(func(a: Vector2i, b: Vector2i) -> bool: return c.distance_squared_to(Vector2(a)) < c.distance_squared_to(Vector2(b)))
+		sorted.resize(MAX_GONE)
+	for g: Vector2i in sorted:
+		out.append(Vector2(g))
+	return out
+
+
+## The clump (a flower's, a cattail's) the view from eye along fwd meets
+## within reach, the nearest: {item, cell, at} (the cell its layer's, at
+## its foot, on the map), or {} none. Reads what grows where back from the
+## layer's grid (once a bake: a small texture).
+func pick_near(eye: Vector3, fwd: Vector3, reach: float) -> Dictionary:
+	var best := {}
+	var best_t := INF
+	for layer in _layers:
+		if layer.item == "" or layer.shown < 0:
+			continue
+		var L: Dictionary = layer.L
+		var k: int = layer.shown
+		var bm: ShaderMaterial = layer.bakes[k]
+		if layer.img == null:
+			layer.img = layer.vps[k].get_texture().get_image()
+		var img: Image = layer.img
+		var origin: Vector2i = bm.get_shader_parameter("grid_origin")
+		var base_h: float = bm.get_shader_parameter("base_h")
+		var cell: float = L.cell
+		var seed: int = L.u.seed
+		var r: float = L.get("radius", 0.25) + 0.12
+		var lo := Vector2i(floori((eye.x - reach) / cell) - 1, floori((eye.z - reach) / cell) - 1)
+		var hi := Vector2i(floori((eye.x + reach) / cell) + 1, floori((eye.z + reach) / cell) + 1)
+		for cz in range(lo.y, hi.y + 1):
+			for cx in range(lo.x, hi.x + 1):
+				var c := Vector2i(cx, cz)
+				var t := c - origin
+				if t.x < 0 or t.y < 0 or t.x * 2 >= img.get_width() or t.y >= img.get_height():
+					continue
+				var px := img.get_pixel(t.x * 2, t.y)
+				var size := roundf(px.b * 255.0) / 255.0 * SIZE_MAX
+				if size <= 0.0:
+					continue
+				var ground := (roundf(px.r * 255.0) * 256.0 + roundf(px.g * 255.0)) / 64.0 - 512.0 + base_h
+				var at := Vector2(c) * cell + Vector2(_h2(c, 1, seed), _h2(c, 2, seed)) * cell
+				# the view's nearest to the clump's upright, from its foot to its top
+				var foot := Vector3(at.x, ground, at.y)
+				var q := _ray_to_upright(eye, fwd, foot, size)
+				if q.x < 0.0 or q.x > reach + 0.5 or q.y > r or q.x >= best_t:
+					continue
+				best_t = q.x
+				best = {"item": layer.item, "cell": c, "at": foot}
+	return best
+
+
+## How far along the ray (eye, unit fwd) it comes nearest the upright from
+## foot, tall h, and how near: Vector2(along, apart).
+static func _ray_to_upright(eye: Vector3, fwd: Vector3, foot: Vector3, h: float) -> Vector2:
+	var best := Vector2(-1.0, INF)
+	for i in 9:
+		var p := foot + Vector3.UP * h * (0.2 + 0.8 * i / 8.0)
+		var t := (p - eye).dot(fwd)
+		if t < 0.0:
+			continue
+		var d := (eye + fwd * t).distance_to(p)
+		if d < best.y:
+			best = Vector2(t, d)
+	return best
+
+
+const SIZE_MAX := 3.2 ## m (ground_cover.gdshaderinc: SIZE_MAX)
+
+
+## ground_cover.gdshaderinc's h2(), on the CPU (its 32-bit unsigned sums).
+static func _h2(c: Vector2i, k: int, seed: int) -> float:
+	var d := c * 3 + Vector2i(seed * 7919 + k * 131, k * 977 - seed)
+	return _gc_hash(d)
+
+
+static func _mul32(a: int, b: int) -> int:
+	a &= 0xFFFFFFFF
+	b &= 0xFFFFFFFF
+	return (a * (b & 0xFFFF) + (((a * (b >> 16)) & 0xFFFF) << 16)) & 0xFFFFFFFF
+
+
+static func _gc_hash(c: Vector2i) -> float:
+	var v := _mul32(c.x, 1597334677) ^ _mul32(c.y, 3812015801)
+	v = (_mul32(v, 747796405) + 2891336453) & 0xFFFFFFFF
+	v = _mul32((v >> ((v >> 28) + 4)) ^ v, 277803737)
+	return float((v >> 22) ^ v) / 4294967295.0
 
 
 ## A box round a tile: its ground's lowest to highest, and the tallest grass.

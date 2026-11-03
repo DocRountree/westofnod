@@ -35,6 +35,16 @@ uniform float clear = 0.2; // m kept clear round a log, stump or trunk, past its
 uniform vec4 logs[256];
 uniform float log_r[256];
 uniform int log_count = 0;
+// the clumps picked (Foraging: GroundCover.set_gone), by cell: not there
+uniform vec2 gone[64];
+uniform int gone_count = 0;
+
+bool picked(ivec2 c) {
+	for (int i = 0; i < gone_count; i++)
+		if (ivec2(round(gone[i])) == c)
+			return true;
+	return false;
+}
 
 // Under (or through) a log or stump, or in a trunk.
 bool under_log(vec2 p) {
@@ -164,7 +174,7 @@ void fragment() {
 	if (!in_forest && !in_prairie)
 		prairie = 1.0;
 	float size = 0.0;
-	if (h2(c, 5) < grows && h2(c, 4) < cover && !under_log(pos)) {
+	if (h2(c, 5) < grows && h2(c, 4) < cover && !under_log(pos) && !picked(c)) {
 		// not on rock, sand, mud or the shore; nothing on the forest's litter
 		float bare = max(max(rocky, in_coast ? 0.0 : m.a), mud * 3.0) + (in_swamp ? 0.0 : 1.0 - smoothstep(0.3, 1.2, h)); // (reeds stand in water; marram on sand)
 		float here = mix(smoothstep(0.3, 0.05, litter / max(fw, 1e-4)), 1.0, prairie);
