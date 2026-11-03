@@ -124,7 +124,10 @@ maple` (or `sycamore`; `pair`, `pair2` for the standing trees nearer).
   Their textures: `python3 tools/trees/bake_conifer_textures.py`
   (`lodgepole_needles.png`, `lodgepole_bark.png`, `cypress_needles.png`,
   `cypress_bark.png`); `preview.gd ... lodgepole` / `cypress`.
-- Pawpaw (`pawpaw_tree.gd`, *Asimina triloba*): a small understory tree,
+- Pawpaw (`pawpaw_tree.gd`, *Asimina triloba*), in the game: `props/pawpaw.tres`,
+  the forest's understory (8 a hectare, all its variants; the standing ones,
+  saplings and dead gathered in thickets, `clump`; drawn to 300 m; not yet
+  for the axe): a small understory tree,
   4-9 m, often a clump of stems from one root (`forks`); a slender trunk,
   level, slightly drooping branches, a narrowish crown; huge (15-30 cm),
   smooth-edged, obovate leaves hanging in ranks from the twigs; clusters of

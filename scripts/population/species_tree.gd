@@ -45,6 +45,9 @@ var tint_heights := Vector2.ZERO ## (shares of the stem's height, bole and leade
 var dead_tint := Color(0.74, 0.72, 0.68)
 var log_tint := Color(0.78, 0.82, 0.7)
 var shadow := [7.5, 4.0, 14.0, 0.45] ## the shadow stand-in: crown radius, bottom, top, stalk radius
+## As a prop, what differs from the oak's (OakTree.PROPS): kind ("all" for
+## every kind) -> PropKind settings (variant_props).
+var props := {}
 
 var _cache := {} # variant -> [mesh, lods]
 var _shadows := {}
@@ -139,12 +142,18 @@ func build_shadow(v: int) -> Mesh:
 
 
 ## As a prop: the oak's settings for the kind (OakTree.PROPS: its share,
-## shadows, footing, the logs out of the swamp, ...).
+## shadows, footing, the logs out of the swamp, ...), then the species' own
+## (props).
 func variant_props(v: int) -> Dictionary:
 	var p: Dictionary = OakTree.PROPS[kind_of(v)].duplicate()
 	p.strays = true
 	p.lod_distances = PackedFloat32Array(OakTree.LOD)
 	p.view_distance = OakTree.VIEW
+	# the species' own: for every kind ("all"), then for this kind
+	for k in ["all", kind_of(v)]:
+		var o: Dictionary = props.get(k, {})
+		for key in o:
+			p[key] = o[key]
 	return p
 
 

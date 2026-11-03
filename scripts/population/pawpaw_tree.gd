@@ -50,6 +50,17 @@ const SETTINGS := {
 	"dead_tint": Color(0.82, 0.8, 0.76),
 	"log_tint": Color(0.8, 0.82, 0.72),
 	"shadow": [2.6, 1.6, 7.6, 0.1],
+	# as a prop (data/population/props/pawpaw.tres: in the forest's
+	# understory): drawn to 300 m (small trees); the standing ones, saplings
+	# and dead gathered in thickets (clonal patches, from one root); their
+	# trunks slender (a small foot, a small solid trunk)
+	"props": {
+		"all": {"view_distance": 300.0, "radius": 0.0},
+		"tree": {"foot": 0.12, "radius": 0.14, "clump": {"forest": 1.0}, "clump_size": 16.0},
+		"sapling": {"foot": 0.03, "radius": 0.0, "clump": {"forest": 1.0}, "clump_size": 16.0},
+		"dead": {"foot": 0.12, "radius": 0.14, "clump": {"forest": 1.0}, "clump_size": 16.0, "min_spacing": 0.0},
+		"stump": {"foot": 0.12},
+	},
 }
 
 static var _species: SpeciesTree
