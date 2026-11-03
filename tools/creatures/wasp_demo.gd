@@ -6,11 +6,15 @@ extends Node3D
 ## caterpillar (R puts a fresh one back on its leaf)   4 land on the plank
 ## (walk about, settle)   5 sting the red ball   Space slow motion
 ## Mouse: drag to turn round it, wheel to come nearer or go off; the camera
-## follows the wasp (F: or not).
+## follows the wasp (F: or not). For the scale, things from the game: the
+## player's figure with its axe, and on the plank a pawpaw, a black-eyed
+## Susan, a yampah and a cattail.
 
 var wasp: Wasp
 var cam: Camera3D
 var prey: Node3D
+var avatar: Avatar
+var _axe_held := false
 var _yaw := 0.6
 var _pitch := -0.35
 var _dist := 0.12
@@ -76,6 +80,7 @@ func _ready() -> void:
 	ball.material_override = _mat(Color(0.7, 0.12, 0.1))
 	add_child(ball)
 	_new_prey()
+	_scale_things()
 	wasp = Wasp.new()
 	add_child(wasp)
 	wasp.place(Vector3(0.0, 0.3, 0.0))
@@ -90,6 +95,27 @@ func _ready() -> void:
 	_label.text = "1 seek food   2 feed on the flower   3 catch the caterpillar (R: a new one)   4 land on the plank   5 sting the ball\nSpace slow motion   F follow on/off   drag: turn round   wheel: nearer / further"
 	add_child(_label)
 	wasp.seek_food(Vector3.ZERO, 0.6)
+
+
+## Things from the game, for the scale: the player's figure (Avatar,
+## about 1.8 m) beside the plank, the axe in its hand; and on the plank a
+## pawpaw, a black-eyed Susan, a yampah and a cattail, as they're carried
+## (Items).
+func _scale_things() -> void:
+	avatar = Avatar.new()
+	add_child(avatar)
+	avatar.position = Vector3(0.75, 0.0, 0.55)
+	avatar.rotation.y = deg_to_rad(60.0) # (facing the plank)
+	var on := PLANK + Vector3(0.0, 0.01, 0.0)
+	var lay := [["pawpaw", Vector3(0.09, 0.028, -0.02), Vector3(0.0, 0.3, PI * 0.5)],
+			["susan", Vector3(-0.02, 0.006, 0.025), Vector3(0.0, 0.2, PI * 0.5)],
+			["yampah", Vector3(-0.05, 0.006, -0.03), Vector3(0.0, -0.25, PI * 0.5)],
+			["cattail", Vector3(0.04, 0.014, 0.035), Vector3(0.0, 0.1, PI * 0.5)]]
+	for t in lay:
+		var m := Items.model(t[0])
+		m.position = on + t[1]
+		m.rotation = t[2]
+		add_child(m)
 
 
 func _new_prey() -> void:
@@ -133,6 +159,10 @@ func _unhandled_input(e: InputEvent) -> void:
 
 
 func _process(dt: float) -> void:
+	avatar.walk(dt, 0.0, true) # (standing)
+	if not _axe_held and avatar.grip("r"):
+		avatar.grip("r").add_child(Items.model("axe"))
+		_axe_held = true
 	if _follow:
 		_focus = _focus.lerp(wasp.global_position, 1.0 - exp(-6.0 * dt / maxf(Engine.time_scale, 0.01)))
 	var off := Vector3(sin(_yaw) * cos(_pitch), -sin(_pitch), cos(_yaw) * cos(_pitch)) * _dist
