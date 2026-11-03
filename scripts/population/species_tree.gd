@@ -51,6 +51,8 @@ var props := {}
 ## The bark's colour far off (bark.gdshader: far_color; and so its far-off
 ## card's): alpha 0, its texture's mean.
 var far_bark := Color(0, 0, 0, 0)
+## How much lichen on its bark, of the oak's (bark.gdshader: lichen_amount).
+var lichen := 1.0
 var fruit := "" ## The item its grown trees bear (Items: "pawpaw", ...), "" none.
 
 var _cache := {} # variant -> [mesh, lods]
@@ -80,6 +82,9 @@ func bark_material(level: int, kind: String) -> ShaderMaterial:
 	if not _bark_mats.has(key):
 		var m := OakTree.bark_material(level, kind).duplicate() as ShaderMaterial
 		m.set_shader_parameter("bark_tex", OakTree._texture(bark_tex))
+		if lichen != 1.0:
+			var la = m.get_shader_parameter("lichen_amount")
+			m.set_shader_parameter("lichen_amount", float(la if la != null else 0.0) * lichen)
 		if far_bark.a > 0.0:
 			m.set_shader_parameter("far_color", Vector3(far_bark.r, far_bark.g, far_bark.b))
 		_bark_mats[key] = m
