@@ -34,6 +34,7 @@ uniform vec2 fade_in = vec2(0.0, 0.0);   // m: grows in over this (0: from the e
 uniform vec2 fade_out = vec2(30.0, 40.0); // m: shrinks away over this
 uniform float thin_from = 12.0;       // m: beyond this a share (thin_from / d)^1.5 is kept
 uniform float grass_sway = 0.3;       // the tip's sway, in clump heights per m of the wind
+uniform float wind_time = -1.0;       // s: the wind's clock, if set (0 on), else TIME (the wasp demo's: to know where a head's swayed to)
 uniform sampler2D frond_tex : source_color, filter_linear_mipmap_anisotropic, repeat_disable;
 uniform vec3 prairie_green = vec3(0.27, 0.43, 0.12);
 uniform vec3 prairie_blonde = vec3(0.74, 0.64, 0.38);
@@ -132,7 +133,7 @@ void vertex() {
 		across.xz = rot * across.xz;
 		vec2 root = rot * UV2 * spread;
 		vec3 w = vec3(pos.x + root.x, h, pos.y + root.y) + v * size + across * spread;
-		w += wind_sway(w, TIME) / max(sway, 1e-3) * grass_sway * size * frac * frac;
+		w += wind_sway(w, wind_time >= 0.0 ? wind_time : TIME) / max(sway, 1e-3) * grass_sway * size * frac * frac;
 		world_pos = w; // (the map's)
 		VERTEX = (VIEW_MATRIX * vec4(w - world_origin, 1.0)).xyz; // (drawn near the origin)
 		vec3 nrm = NORMAL;

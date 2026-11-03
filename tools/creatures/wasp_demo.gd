@@ -7,7 +7,8 @@ extends Node3D
 ## (walk about, settle)   5 sting the red ball   Space slow motion
 ## Mouse: drag to turn round it, wheel to come nearer or go off; the camera
 ## follows the wasp (F: or not). The flower's a clump of the game's own
-## purple coneflowers (key 2: onto one of their heads). For the scale, things from the game: the
+## purple coneflowers, swaying (key 2: feeding at one of their heads, in
+## flight, keeping with it). For the scale, things from the game: the
 ## player's figure with its axe, and on the plank a pawpaw, a black-eyed
 ## Susan, a yampah and a cattail.
 
@@ -26,7 +27,10 @@ var _label: Label
 const CONE_NEAR := Vector2(0.3, -0.2) ## m: the coneflowers about here (the cell whose spot's nearest: where in its cell a clump stands is its hash)
 var CONE_CELL := Vector2i.ZERO
 const CONE_H := 1.4 ## m: the clump's height (in the game 1.2-1.6 on the prairie)
-var _heads: Array = [] # the coneflowers' heads: [the disc's top, the way it faces]
+var _heads: Array = [] # the coneflowers' heads, still: [the disc's top, the way it faces, how far up its clump (its sway's share)]
+var _cone_mat: ShaderMaterial
+var _cone_size := 1.0
+var _wind_t := 0.0 # s: the wind's clock (ground_cover.gdshader: wind_time; slowed with the rest)
 const LEAF := Vector3(-0.3, 0.2, 0.0)
 const PLANK := Vector3(0.0, 0.06, 0.4)
 const BALL := Vector3(-0.35, 0.025, 0.35)
@@ -126,7 +130,7 @@ func _coneflower() -> void:
 	for k in L.u:
 		if k in GroundCover.DRAW_KEYS:
 			m.set_shader_parameter(k, L.u[k])
-	m.set_shader_parameter("grass_sway", 0.0)
+	_cone_mat = m
 	var size_b := roundf(CONE_H / GroundCover.SIZE_MAX * 255.0)
 	var img := Image.create(2, 1, false, Image.FORMAT_RGBA8)
 	img.set_pixel(0, 0, Color8(128, 0, int(size_b), 120)) # (the ground at 0: 512 m over base_h, in 1/64 m; the size; how blonde)
@@ -165,7 +169,24 @@ func _coneflower() -> void:
 			var v: Vector2 = rot.call(Vector2(vs[i].x, vs[i].z))
 			var n2: Vector2 = rot.call(Vector2(ns[i].x, ns[i].z))
 			var at := Vector3(pos.x + root.x + v.x * size, vs[i].y * size, pos.y + root.y + v.y * size)
-			_heads.append([at, Vector3(n2.x, ns[i].y, n2.y).normalized()])
+			var cols: PackedColorArray = a[Mesh.ARRAY_COLOR]
+			_heads.append([at, Vector3(n2.x, ns[i].y, n2.y).normalized(), cols[i].b])
+	_cone_size = size
+
+
+## Head k as it is now, swayed by the wind as the shader sways it
+## (ground_cover.gdshader: wind_sway, by grass_sway, the clump's size and
+## the share of its height, squared): [the disc's top, the way it faces].
+func _head_now(k: int) -> Array:
+	var h: Array = _heads[k]
+	var w: Vector3 = h[0]
+	var frac: float = h[2]
+	var t := _wind_t
+	var ph := w.x * 0.13 + w.z * 0.09 + w.y * 0.05
+	var gust := 0.55 + 0.45 * sin(t * 0.31 + w.x * 0.011 + w.z * 0.007)
+	var d := Vector3(sin(t * 1.3 + ph), 0.25 * sin(t * 1.7 + ph * 1.9), cos(t * 1.05 + ph * 1.3)) * gust
+	var gs: float = _cone_mat.get_shader_parameter("grass_sway") if _cone_mat.get_shader_parameter("grass_sway") != null else 0.3
+	return [w + d * gs * _cone_size * frac * frac, h[1]]
 
 
 func _new_prey() -> void:
@@ -185,8 +206,8 @@ func _unhandled_input(e: InputEvent) -> void:
 			KEY_1:
 				wasp.seek_food(Vector3.ZERO, 0.6)
 			KEY_2:
-				var h: Array = _heads[randi() % _heads.size()]
-				wasp.feed_on_flower(h[0], h[1], 0.008)
+				var k := randi() % _heads.size()
+				wasp.feed_on_flower(func() -> Array: return _head_now(k))
 			KEY_3:
 				wasp.feed_on_insect(prey, LEAF + Vector3(0, 0.002, 0), Vector3.UP)
 			KEY_4:
@@ -210,6 +231,8 @@ func _unhandled_input(e: InputEvent) -> void:
 
 
 func _process(dt: float) -> void:
+	_wind_t += dt
+	_cone_mat.set_shader_parameter("wind_time", _wind_t)
 	avatar.walk(dt, 0.0, true) # (standing)
 	if not _axe_held and avatar.grip("r"):
 		avatar.grip("r").add_child(Items.model("axe"))

@@ -10,8 +10,9 @@ extends Node3D
 ## yet: nothing chooses them; the caller does, e.g. tools/creatures/wasp_demo):
 ## - seek_food(centre, radius): flying about, weaving and hovering,
 ##   turning to look, now and then dropping to look closer
-## - feed_on_flower(head, normal, radius): onto a flower's head, head down
-##   lapping, antennae dabbing, shuffling round it now and then
+## - feed_on_flower(head, normal): at a flower's head in flight,
+##   keeping with it as it sways, legs down to it, head down lapping,
+##   antennae dabbing, round to another side of it now and then
 ## - feed_on_insect(prey, surface, normal): over its prey, pouncing,
 ##   then on the surface chewing it into a ball, held in its front legs,
 ##   turning it as it goes
@@ -81,6 +82,9 @@ var _heading := Vector3.FORWARD
 var _look := Vector3.ZERO # hovering: the way to face (ZERO: as it is)
 var _fly_target := Vector3.ZERO
 var _max_speed := 0.8 # m/s
+var _fly_ff := Vector3.ZERO # m/s: the target's own (a swaying flower's), followed
+var _fly_gain := 3.5 # /s: how hard it makes for the target (stiffer keeping with a flower)
+var _fly_resp := 7.0 # /s: how fast it takes up the speed it wants
 var _weave := 0.0 # m/s side to side
 var _jitter := 0.002 # m
 var _walk_target := Vector3.INF
@@ -94,7 +98,7 @@ var _t := 0.0
 var _act := 0
 
 # the pose: what the actions ask (_p), and as it is, easing there (_a)
-const POSE := {"wing_open": 0.0, "buzz": 1.0, "curl": 0.0, "sting_out": 0.0, "crouch": 0.0, "rise": 0.0, "lift_pitch": 0.0,
+const POSE := {"hover_pitch": 0.45, "wing_open": 0.0, "buzz": 1.0, "curl": 0.0, "sting_out": 0.0, "crouch": 0.0, "rise": 0.0, "lift_pitch": 0.0,
 		"head_pitch": 0.0, "head_yaw": 0.0, "mandibles": 0.0, "chew": 0.0, "lap": 0.0,
 		"ant_pitch": 0.35, "ant_spread": 0.35, "ant_down": 0.0, "ant_tap": 0.0, "pump": 0.0, "hold": 0.0, "groom": 0.0}
 const RATES := {"buzz": 40.0, "wing_open": 14.0, "curl": 16.0, "sting_out": 10.0, "mandibles": 20.0, "chew": 6.0, "lap": 6.0,
@@ -217,38 +221,88 @@ func seek_food(centre: Vector3, radius := 1.5) -> void:
 			_p.head_pitch = 0.0
 
 
-## Onto a flower's head (its middle, the way it faces; radius m), feeding:
-## head down, lapping, antennae dabbing at it, now and then shuffling round
-## to another part of it. Till another action.
-func feed_on_flower(head: Vector3, normal := Vector3.UP, radius := 0.02) -> void:
+## At a flower's head, feeding from it in flight, not landing: hovering
+## over it, its legs reaching down to the head and its own head down,
+## lapping, the antennae dabbing at it, keeping with the head as it sways;
+## now and then round to another side of it. head: a point (normal the way
+## it faces), or a Callable giving [point, normal] as it is now (a swaying
+## flower's). Till another action.
+func feed_on_flower(head, normal := Vector3.UP) -> void:
 	var id := _begin()
 	release()
-	normal = normal.normalized()
-	if not flying and (surface_p.distance_to(head) > radius * 1.5 or surface_n.dot(normal) < 0.95):
-		if not await _take_off(id):
-			return
-	if flying:
-		var off := _in_plane(normal, radius * 0.4)
-		if not await _touch_down(id, head + off, normal, _away(head)):
-			return
-	surface_p = head
-	_p.head_pitch = -0.45
-	_p.ant_down = 0.5
-	_p.ant_tap = 0.35
-	_p.pump = 0.6
-	_p.lap = 1.0
-	_p.crouch = 0.25
+	var now := func() -> Array: return head.call() if head is Callable else [head, normal.normalized()]
+	if not await _take_off(id):
+		return
+	var f: Array = now.call()
+	var face := _away(f[0])
+	_look = face
+	# over to it
+	_max_speed = 0.9
+	_fly_gain = 8.0
+	_fly_resp = 20.0
+	var prev := Vector3.INF
 	while true:
-		if not await _wait(id, rng.randf_range(1.2, 3.0)):
+		f = now.call()
+		var to: Vector3 = f[0] + (f[1] as Vector3) * 0.03 - face * 3.5 * MM
+		var dt := get_process_delta_time()
+		if prev != Vector3.INF and dt > 0.0:
+			_fly_ff = (to - prev) / dt # (keeping up with it as it sways)
+		prev = to
+		_fly_target = to
+		if _pos.distance_to(to) < 0.006:
+			break
+		await get_tree().process_frame
+		if id != _act:
 			return
-		# on round it
-		_p.lap = 0.0
-		_walk_target = head + _in_plane(normal, radius * 0.6)
-		if not await _until(id, func() -> bool: return _walk_target == Vector3.INF, 3.0):
+	# feeding, keeping with it
+	_p.head_pitch = -0.5
+	_p.ant_down = 0.4
+	_p.ant_tap = 0.35
+	_p.lap = 1.0
+	_p.hover_pitch = 0.12
+	_jitter = 0.0005
+	_max_speed = 0.5
+	_land_plane = true
+	var last := Vector3.INF
+	var shift := rng.randf_range(2.0, 4.0)
+	while true:
+		await get_tree().process_frame
+		if id != _act:
 			return
-		if not await _turn(id, _heading.rotated(normal, rng.randf_range(-2.2, 2.2))):
-			return
-		_p.lap = 1.0
+		var dt := get_process_delta_time()
+		f = now.call()
+		surface_p = f[0]
+		surface_n = f[1]
+		# its thorax over the head, a little back: its own head over the middle
+		var to := surface_p + surface_n * (BODY_H + 0.8) * MM - _flat(face, surface_n) * 3.5 * MM
+		if last != Vector3.INF and dt > 0.0:
+			_fly_ff = (to - last) / dt
+		last = to
+		_fly_target = to
+		shift -= dt
+		if shift <= 0.0:
+			# round to another side of it, lifting a little as it goes
+			shift = rng.randf_range(2.0, 4.5)
+			face = face.rotated(Vector3.UP, rng.randf_range(0.8, 2.0) * (1.0 if rng.randf() < 0.5 else -1.0))
+			_look = face
+			_p.lap = 0.0
+			_land_plane = false
+			last = Vector3.INF
+			var t := 0.0
+			while t < 0.6:
+				await get_tree().process_frame
+				if id != _act:
+					return
+				var sdt := get_process_delta_time()
+				t += sdt
+				f = now.call()
+				var to2: Vector3 = f[0] + (f[1] as Vector3) * 0.012 - face * 3.5 * MM
+				if sdt > 0.0:
+					_fly_ff = (to2 - _fly_target) / sdt
+				_fly_target = to2
+			_land_plane = true
+			last = _fly_target
+			_p.lap = 1.0
 
 
 ## Over its prey (a node: a caterpillar, say: Wasp.caterpillar()) on a
@@ -485,6 +539,10 @@ func _begin() -> int:
 		_p[k] = POSE[k]
 	_walk_target = Vector3.INF
 	_turning = false
+	_land_plane = false
+	_fly_ff = Vector3.ZERO
+	_fly_gain = 3.5
+	_fly_resp = 7.0
 	_weave = 0.0
 	_jitter = 0.002
 	_look = Vector3.ZERO
@@ -637,15 +695,17 @@ func _process(dt: float) -> void:
 func _fly(dt: float) -> void:
 	_ground_w = move_toward(_ground_w, 0.0, dt / 0.25)
 	var to := _fly_target - _pos
-	var want := to * 3.5
+	var want := to * _fly_gain
 	if want.length() > _max_speed:
 		want = want.normalized() * _max_speed
+	want += _fly_ff
 	var right := _heading.cross(Vector3.UP).normalized()
 	want += right * sin(_t * 5.3) * _weave + Vector3.UP * sin(_t * 3.1 + 1.0) * _weave * 0.3
-	_acc = ((want - _vel) * 7.0).limit_length(9.0)
+	_acc = ((want - _vel) * _fly_resp).limit_length(9.0)
 	_vel += _acc * dt
 	_pos += _vel * dt
-	var hv := Vector3(_vel.x, 0.0, _vel.z)
+	var rel := _vel - _fly_ff # (keeping with a swaying flower: its own way, not the sway's)
+	var hv := Vector3(rel.x, 0.0, rel.z)
 	var face := _heading
 	if hv.length() > 0.12:
 		face = hv.normalized()
@@ -730,8 +790,8 @@ func _place(dt: float) -> void:
 	var b: Basis
 	var o: Vector3
 	if flying:
-		var hs := Vector2(_vel.x, _vel.z).length()
-		var pitch := lerpf(0.45, 0.1, clampf(hs / 0.8, 0.0, 1.0))
+		var hs := Vector2(_vel.x - _fly_ff.x, _vel.z - _fly_ff.z).length()
+		var pitch := lerpf(_a.hover_pitch, 0.1, clampf(hs / 0.8, 0.0, 1.0))
 		var right := _heading.cross(Vector3.UP).normalized()
 		var roll := clampf(-_acc.dot(right) * 0.06, -0.6, 0.6)
 		b = _frame(Vector3.UP, _heading) * Basis(Vector3.RIGHT, pitch) * Basis(Vector3.BACK, roll)
