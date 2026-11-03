@@ -23,6 +23,9 @@ const KINDS := {
 	"coneflower": {"name": "Purple coneflower", "stack": 16, "shape": "flower", "size": Vector3(0.09, 0.5, 1.0), "color": Color(0.78, 0.42, 0.62), "disc": Color(0.42, 0.2, 0.06), "heads": 1},
 	"aster": {"name": "Swamp aster", "stack": 16, "shape": "flower", "size": Vector3(0.028, 0.5, 1.0), "color": Color(0.6, 0.45, 0.85), "disc": Color(0.93, 0.72, 0.12), "heads": 4},
 	"yampah": {"name": "Yampah", "stack": 16, "shape": "flower", "size": Vector3(0.04, 0.6, 1.0), "color": Color(0.95, 0.95, 0.9), "disc": Color(0.85, 0.86, 0.72), "heads": 3},
+	# a pot to catch sap in (Tapping: under a maple's notch), and full
+	"clay_pot": {"name": "Clay pot", "stack": 4, "shape": "pot", "size": Vector3(0.15, 0.15, 0.15), "color": Color(0.66, 0.38, 0.24)},
+	"pot_of_sap": {"name": "Pot of maple sap", "stack": 1, "shape": "pot", "size": Vector3(0.15, 0.15, 0.15), "color": Color(0.66, 0.38, 0.24), "full": Color(0.78, 0.6, 0.3)},
 	"cattail": {"name": "Cattail", "stack": 16, "shape": "cattail", "size": Vector3(0.024, 0.75, 0.16), "color": Color(0.36, 0.22, 0.12)},
 }
 
@@ -54,6 +57,8 @@ static func model(id: String) -> Node3D:
 		return _flower(k)
 	if k.shape == "cattail":
 		return _cattail(k)
+	if k.shape == "pot":
+		return _pot(k)
 	var mesh: PrimitiveMesh
 	match k.shape:
 		"cylinder":
@@ -81,19 +86,106 @@ static func model(id: String) -> Node3D:
 	return mi
 
 
-## An axe: an ash handle 70 cm long, held a third of the way up, and a steel
-## head across its top, the blade forward (-z).
+## An axe, of stone: a stick for a handle, 60 cm, held a third of the way
+## up; at its top a sharp stone, knapped to an edge, set in a split in it
+## and lashed there with twine, wound round above and below it and across;
+## the edge forward (-z).
 static func _axe() -> Node3D:
 	var root := Node3D.new()
-	var handle := _part(CylinderMesh.new(), Vector3(0.032, 0.7, 0.032), Color(0.6, 0.45, 0.28))
-	handle.position.y = 0.12
-	root.add_child(handle)
-	var head := _part(BoxMesh.new(), Vector3(0.03, 0.075, 0.17), Color(0.42, 0.43, 0.45))
-	head.position = Vector3(0.0, 0.43, -0.045)
+	var wood := Color(0.47, 0.36, 0.24)
+	# the stick: a little crooked, thicker at its foot, a knot or two
+	var low := _part(CylinderMesh.new(), Vector3(0.03, 0.34, 0.03), wood)
+	low.position.y = -0.03
+	root.add_child(low)
+	var high := _part(CylinderMesh.new(), Vector3(0.027, 0.32, 0.027), wood.darkened(0.06))
+	high.position = Vector3(0.0, 0.29, 0.004)
+	high.rotation.x = -0.03
+	root.add_child(high)
+	for k in [[Vector3(0.012, 0.08, 0.0), 0.012], [Vector3(-0.011, 0.25, 0.006), 0.01]]:
+		var knot := _part(SphereMesh.new(), Vector3.ONE * float(k[1]), wood.darkened(0.25))
+		knot.position = k[0]
+		root.add_child(knot)
+	# the stone: a flattened, tapering blade, its edge thinner and paler (knapped)
+	var stone := Color(0.33, 0.32, 0.3)
+	var head := _part(SphereMesh.new(), Vector3(0.032, 0.085, 0.16), stone)
+	head.position = Vector3(0.0, 0.41, -0.035)
+	(head.material_override as StandardMaterial3D).roughness = 0.75
 	root.add_child(head)
-	var edge := _part(BoxMesh.new(), Vector3(0.022, 0.11, 0.025), Color(0.75, 0.76, 0.78))
-	edge.position = Vector3(0.0, 0.43, -0.135)
+	var edge := _part(SphereMesh.new(), Vector3(0.012, 0.075, 0.06), stone.lightened(0.25))
+	edge.position = Vector3(0.0, 0.41, -0.1)
+	(edge.material_override as StandardMaterial3D).roughness = 0.5
 	root.add_child(edge)
+	var butt := _part(SphereMesh.new(), Vector3(0.03, 0.06, 0.05), stone.darkened(0.1))
+	butt.position = Vector3(0.0, 0.41, 0.035)
+	root.add_child(butt)
+	# the twine: wound round the stick above and below the stone, and across it
+	var twine := Color(0.62, 0.52, 0.34)
+	for y in [0.355, 0.37, 0.45, 0.465]:
+		var wrap := _ring(0.019, 0.004, twine)
+		wrap.position.y = y
+		root.add_child(wrap)
+	for a in [0.75, -0.75]:
+		var cross := _ring(0.03, 0.0035, twine)
+		cross.position = Vector3(0.0, 0.41, -0.003)
+		cross.rotation = Vector3(0.0, 0.0, a) # (round the stone and the stick, crossing)
+		cross.scale = Vector3(1.0, 1.0, 0.55)
+		root.add_child(cross)
+	return root
+
+
+## A ring of twine (a torus): radius r, thickness t.
+static func _ring(r: float, t: float, c: Color) -> MeshInstance3D:
+	var m := TorusMesh.new()
+	m.inner_radius = r - t
+	m.outer_radius = r + t
+	m.rings = 12
+	m.ring_segments = 5
+	var mi := MeshInstance3D.new()
+	mi.mesh = m
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = c
+	mat.roughness = 0.95
+	mi.material_override = mat
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	return mi
+
+
+## A clay pot (a lathe's round: a narrow foot, a full belly, a shoulder, a
+## lip), its middle at the origin; with sap in it to near its shoulder if
+## it's full.
+static func _pot(k: Dictionary) -> Node3D:
+	var root := Node3D.new()
+	var h: float = k.size.y
+	var prof := [Vector2(0.0, 0.0), Vector2(0.04, 0.0), Vector2(0.056, 0.012), Vector2(0.07, 0.05), Vector2(0.072, 0.088),
+			Vector2(0.062, 0.122), Vector2(0.052, 0.138), Vector2(0.058, 0.15), Vector2(0.054, 0.15), Vector2(0.047, 0.138), Vector2(0.056, 0.12), Vector2(0.064, 0.088), Vector2(0.062, 0.05), Vector2(0.05, 0.016), Vector2(0.0, 0.012)] # (out, up the outside, over the lip, down the inside)
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	const N := 20
+	for i in prof.size() - 1:
+		var a: Vector2 = prof[i]
+		var b: Vector2 = prof[i + 1]
+		for j in N:
+			var t0 := TAU * j / N
+			var t1 := TAU * (j + 1) / N
+			var q := [Vector3(cos(t0) * a.x, a.y, sin(t0) * a.x), Vector3(cos(t1) * a.x, a.y, sin(t1) * a.x),
+					Vector3(cos(t1) * b.x, b.y, sin(t1) * b.x), Vector3(cos(t0) * b.x, b.y, sin(t0) * b.x)]
+			for idx in [0, 2, 1, 0, 3, 2]:
+				st.add_vertex((q[idx] as Vector3) * (h / 0.15) - Vector3.UP * h * 0.5)
+	st.generate_normals()
+	var mi := MeshInstance3D.new()
+	mi.mesh = st.commit()
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = k.color
+	mat.roughness = 0.9
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	mi.material_override = mat
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	root.add_child(mi)
+	if k.has("full"):
+		var sap := _part(CylinderMesh.new(), Vector3(0.11, 0.004, 0.11) * (h / 0.15), k.full)
+		sap.position.y = h * 0.3
+		(sap.material_override as StandardMaterial3D).roughness = 0.08
+		root.add_child(sap)
 	return root
 
 

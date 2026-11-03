@@ -698,13 +698,54 @@ func _merge_fallen(ch: _Chunk) -> void:
 
 ## A tree's notch, as far as the axe has cut it (Felling): the bark shader's
 ## INSTANCE_CUSTOM (bark.gdshader: direction, depth, height, radius, in the
-## tree's own units). Its chunk is rebuilt with it. Not saved: a reload
-## heals it.
+## tree's own units). Its chunk is rebuilt with it. Saved with the game
+## (notches_to_dict: a maple's notch drips sap, Tapping).
 func set_notch(uid: int, notch: Color) -> void:
 	_notches[uid] = notch
 	var ch: _Chunk = _chunks.get(_uid_key(uid))
 	if ch:
 		_build_props(ch)
+
+
+## The notches an axe has cut: tree uid -> its notch (set_notch's Color).
+func notches() -> Dictionary:
+	return _notches
+
+
+func notches_to_dict() -> Dictionary:
+	var out := {}
+	for uid in _notches:
+		var c: Color = _notches[uid]
+		out[str(uid)] = [c.r, c.g, c.b, c.a]
+	return out
+
+
+func notches_from_dict(d: Dictionary) -> void:
+	for k in d:
+		var a = d[k]
+		if a is Array and a.size() == 4:
+			set_notch(int(k), Color(a[0], a[1], a[2], a[3]))
+
+
+## A standing prop by its uid, if its chunk's in: {uid, kind, variant,
+## transform (on the map)}, or {}.
+func tree_by_uid(uid: int) -> Dictionary:
+	var ch: _Chunk = _chunks.get(_uid_key(uid))
+	if ch == null or _removed.has(uid):
+		return {}
+	var k := (uid >> 16) & 0xFF
+	if k >= ch.uids.size():
+		return {}
+	var uids: PackedInt64Array = ch.uids[k]
+	var i := uids.find(uid)
+	if i < 0:
+		return {}
+	var xf: PackedFloat32Array = ch.xforms[k]
+	var j := i * 12
+	var base := Vector3(ch.key.x * CHUNK, 0.0, ch.key.y * CHUNK)
+	var b := Basis(Vector3(xf[j], xf[j + 4], xf[j + 8]), Vector3(xf[j + 1], xf[j + 5], xf[j + 9]), Vector3(xf[j + 2], xf[j + 6], xf[j + 10]))
+	var kind := props[k]
+	return {"uid": uid, "kind": kind, "variant": int(kind.get_meta("variant", 0)), "transform": Transform3D(b, base + Vector3(xf[j + 3], xf[j + 7], xf[j + 11]))}
 
 
 func _uid_key(uid: int) -> Vector2i:

@@ -497,6 +497,24 @@ static func _floats(b: Basis) -> Array:
 
 
 ## The fallen trees, to save.
+## The notches part cut (how many blows, at what height): to go on with.
+func marks_to_dict() -> Dictionary:
+	var out := {}
+	for uid in _blows:
+		out[str(uid)] = [_blows[uid], _heights.get(uid, CUT_LOW)]
+	return out
+
+
+func marks_from_dict(d: Dictionary) -> void:
+	_blows.clear()
+	_heights.clear()
+	for k in d:
+		var a = d[k]
+		if a is Array and a.size() == 2:
+			_blows[int(k)] = int(a[0])
+			_heights[int(k)] = float(a[1])
+
+
 func to_list() -> Array:
 	return _lying.duplicate(true)
 
