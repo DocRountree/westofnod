@@ -10,8 +10,9 @@ extends Node
 ## away from the player, off a fresh-sawn stump left where it stood
 ## (OakTree.fresh_stump: its top chopped flat in strokes, pale wood, no moss;
 ## none for a sapling), its foot landing a little beyond the stump, and lies
-## where it fell, propped on its crown (pressed only a little into the
-## ground: _rest).
+## where it fell, along the ground, its trunk pressed only a few cm into it
+## and its crown a little more, propped up on its crown where it must be
+## (_rest).
 ##
 ## The swing is sideways, from the axe's side across: the blade's edge
 ## leading, sweeping round the body in a level arc tilted to pass through
@@ -33,11 +34,15 @@ const BLOW_DEPTH := 0.045 ## m of trunk radius one blow cuts: a 0.5 m trunk take
 const FALL_TIME := 2.6 ## s, a full-sized tree from upright to the ground
 const CUT := 1.0 ## of the stump model's own height (its flat-sawn top): where the trunk comes away
 const KICK := 0.5 ## m beyond the stump (and as much again as the trunk's radius) the felled trunk's foot lands
-## How far a felled tree's crown may press into the ground (m), and as much
-## again as this share of how far it spreads out from its trunk: past that,
-## it props the trunk up (_rest)
-const SINK := 0.15
+## How far a felled tree may press into the ground (m), and as much again
+## as this share of how far each part of it is from the trunk's middle (the
+## trunk's own underside: its radius; a limb's or a leaf's: how far out it
+## is): the trunk hardly at all, the crown's edge more. Past that it's
+## propped up (_rest)
+const SINK := 0.06
 const SINK_SHARE := 0.12
+const RING := 8 ## points round the trunk and limbs at each of their nodes (_rest_points)
+const REST_VERSION := 2 ## (saved with a felled tree: laid again as it loads if it was laid by an earlier _rest, or none)
 const REST_POINTS := 260 ## points over a tree's wood and leaves _rest tries against the ground
 const WIND_UP := 1.5 ## rad round from the aim the swing starts (to the axe's side)
 const FOLLOW := 0.6 ## rad past the aim it follows through
@@ -309,7 +314,7 @@ func _fell(kind: PropKind, variant: int, xf: Transform3D, radius: float, away: V
 	var axis := Vector3.UP.cross(away).normalized()
 	# its foot lands beyond the stump, lying on the ground
 	var end := pivot + away * (KICK + radius)
-	end.y = maxf(world.height_at(end.x, end.z) + radius * 0.7, xf.origin.y)
+	end.y = maxf(world.height_at(end.x, end.z) + radius * 0.92, xf.origin.y) # (its underside just into the ground)
 	# over until its crown, about half its height out, comes down on the ground
 	var height := kind.mesh.get_aabb().end.y * xf.basis.get_scale().y
 	var reach := height * 0.5
@@ -322,7 +327,7 @@ func _fell(kind: PropKind, variant: int, xf: Transform3D, radius: float, away: V
 	var entry := {
 		"kind": String(kind.id), "basis": _floats(xf.basis), "at": [xf.origin.x, xf.origin.y, xf.origin.z],
 		"away": [away.x, away.z], "angle": angle, "cut": cut, "stump_scale": stump_scale, "stump_h": stump_h,
-		"end": [end.x, end.y, end.z], "stripes": [stripes.x, stripes.z], "rested": true,
+		"end": [end.x, end.y, end.z], "stripes": [stripes.x, stripes.z], "rested": REST_VERSION,
 	}
 	var node := _model(_felled_meshes(kind, variant))
 	node.transform = xf
@@ -346,72 +351,100 @@ func _fell(kind: PropKind, variant: int, xf: Transform3D, radius: float, away: V
 ## that's not enough (a big crown, downhill), raised as well. [angle, end].
 func _rest(kind: PropKind, variant: int, basis: Basis, axis: Vector3, angle: float, end: Vector3, cut: float) -> Array:
 	var world: WorldData = main.world
-	var pts := _rest_points(kind, variant)
+	var rp := _rest_points(kind, variant)
+	var pts: PackedVector3Array = rp[0]
+	var reach: PackedFloat32Array = rp[1]
 	var s := basis.get_scale().y
 	var h := cut / s # (the tree's own units: what's below stays in the stump)
-	var spread := 0.0
-	for p: Vector3 in pts:
-		if p.y > h:
-			spread = maxf(spread, Vector2(p.x, p.z).length())
-	var allow := SINK + SINK_SHARE * spread * s
-	# how deep the deepest of it goes into the ground, pitched a
-	var depth := func(a: float) -> float:
+	# how much deeper into the ground than it may go its worst part goes, pitched a
+	var over := func(a: float) -> float:
 		var t := Transform3D(Basis(axis, a) * basis, end)
 		var most := -INF
-		for p: Vector3 in pts:
+		for i in pts.size():
+			var p := pts[i]
 			if p.y <= h:
 				continue
 			var w := t * p
-			most = maxf(most, world.height_at(w.x, w.z) - w.y)
+			most = maxf(most, world.height_at(w.x, w.z) - w.y - (SINK + SINK_SHARE * reach[i] * s))
 		return most
-	if depth.call(angle) <= allow:
+	if over.call(angle) <= 0.0:
 		return [angle, end]
 	var lo := minf(deg_to_rad(55.0), angle) # (the most it props itself up)
-	var d: float = depth.call(lo)
-	if d > allow:
-		return [lo, end + Vector3.UP * (d - allow)]
+	var d: float = over.call(lo)
+	if d > 0.0:
+		return [lo, end + Vector3.UP * d]
 	# pitched up only as far as it needs (lo rests, hi sinks)
 	var hi := angle
 	for i in 8:
 		var mid := (lo + hi) * 0.5
-		if depth.call(mid) <= allow:
+		if over.call(mid) <= 0.0:
 			lo = mid
 		else:
 			hi = mid
 	return [lo, end]
 
 
-static var _rest_cache := {} # [kind id, variant] -> PackedVector3Array
+static var _rest_cache := {} # [kind id, variant] -> [points, their reach]
 
 
-## Points over a tree's wood and leaves (its own space, its simpler model's:
-## limbs, branches and leaf clumps), at most REST_POINTS, spread over it.
-static func _rest_points(kind: PropKind, variant: int) -> PackedVector3Array:
+## Points over a tree (its own space) for _rest, and each one's reach (how
+## far from the trunk's middle it is, its allowance's measure): rings round
+## the trunk and the stout limbs at every node (kind.climb: their radii as
+## drawn; a trunk's reach its radius there, a limb's how far out it is), and
+## up to REST_POINTS over its simpler model's limbs, branches and leaves,
+## with the crown's edge every way round.
+static func _rest_points(kind: PropKind, variant: int) -> Array:
 	var key := [String(kind.id), variant]
 	if not _rest_cache.has(key):
-		var meshes := _felled_meshes(kind, variant)
-		var m: Mesh = meshes[1] if meshes.size() > 1 and meshes[1] else meshes[0]
-		var all := PackedVector3Array()
-		for si in m.get_surface_count():
-			all.append_array(m.surface_get_arrays(si)[Mesh.ARRAY_VERTEX])
 		var out := PackedVector3Array()
+		var reach := PackedFloat32Array()
+		var c := kind.climb
+		var k := 0
+		var line := 0
+		while k < c.size():
+			var n := int(c[k])
+			k += 1
+			for m in n:
+				var q := Vector3(c[k], c[k + 1], c[k + 2])
+				var r := c[k + 3]
+				var nxt := Vector3(c[k + 4], c[k + 5], c[k + 6]) if m < n - 1 else q
+				var prv := Vector3(c[k - 4], c[k - 3], c[k - 2]) if m > 0 else q
+				var along := (nxt - prv).normalized() if nxt != prv else Vector3.UP
+				var u := along.cross(Vector3.UP if absf(along.y) < 0.9 else Vector3.RIGHT).normalized()
+				var v := along.cross(u)
+				for j in RING:
+					var a := TAU * j / RING
+					out.append(q + (u * cos(a) + v * sin(a)) * r)
+					reach.append(r if line == 0 else Vector2(q.x, q.z).length())
+				k += 4
+			line += 1
+		var meshes := _felled_meshes(kind, variant)
+		var mesh: Mesh = meshes[1] if meshes.size() > 1 and meshes[1] else meshes[0]
+		var all := PackedVector3Array()
+		for si in mesh.get_surface_count():
+			all.append_array(mesh.surface_get_arrays(si)[Mesh.ARRAY_VERTEX])
 		var step := maxf(float(all.size()) / REST_POINTS, 1.0)
 		var f := 0.0
+		var picked := PackedVector3Array()
 		while int(f) < all.size():
-			out.append(all[int(f)])
+			picked.append(all[int(f)])
 			f += step
 		# (and the furthest out from the trunk every way round, whatever the
 		# stride missed: the crown's edge, which meets the ground first)
 		var far := []
 		far.resize(16) # (nulls: none yet that way)
 		for p: Vector3 in all:
-			var k := int(fposmod(atan2(p.z, p.x) / TAU, 1.0) * 16.0) % 16
-			if far[k] == null or Vector2(p.x, p.z).length() > Vector2((far[k] as Vector3).x, (far[k] as Vector3).z).length():
-				far[k] = p
+			var b := int(fposmod(atan2(p.z, p.x) / TAU, 1.0) * 16.0) % 16
+			if far[b] == null or Vector2(p.x, p.z).length() > Vector2((far[b] as Vector3).x, (far[b] as Vector3).z).length():
+				far[b] = p
 		for p in far:
 			if p != null:
-				out.append(p)
-		_rest_cache[key] = out
+				picked.append(p)
+		for p: Vector3 in picked:
+			out.append(p)
+			# (on the trunk itself, a mesh point as tight as the trunk's ring)
+			reach.append(maxf(Vector2(p.x, p.z).length(), 0.0))
+		_rest_cache[key] = [out, reach]
 	return _rest_cache[key]
 
 
@@ -627,14 +660,18 @@ func from_list(list: Array) -> void:
 		var end: Array = e.get("end", [])
 		if end.size() == 3:
 			pivot = Vector3(end[0], end[1], end[2])
-		if not e.get("rested", false):
-			# (felled before they came to rest on their crowns: sunk through
-			# them; laid again, once, and saved so)
+		if int(e.get("rested", 0)) < REST_VERSION:
+			# (felled before they came to rest as they do now: sunk into the
+			# ground; laid again, once, and saved so: the foot as high as now,
+			# its underside just in, then rested)
+			var v := int(kind.get_meta("variant", 0))
+			var fr: float = kind.mesh_script.trunk_radius(v) * basis.get_scale().y if kind.mesh_script and kind.mesh_script.has_method("trunk_radius") else 0.3
+			pivot.y = maxf(pivot.y, main.world.height_at(pivot.x, pivot.z) + fr * 0.92)
 			var rest := _rest(kind, int(kind.get_meta("variant", 0)), basis, Vector3.UP.cross(dir).normalized(), float(e.get("angle", PI * 0.5)), pivot, float(e.get("cut", 0.0)))
 			e["angle"] = rest[0]
 			pivot = rest[1]
 			e["end"] = [pivot.x, pivot.y, pivot.z]
-			e["rested"] = true
+			e["rested"] = REST_VERSION
 		var node := _model(_felled_meshes(kind, int(kind.get_meta("variant", 0))))
 		node.transform = Transform3D(Basis(Vector3.UP.cross(dir).normalized(), float(e.get("angle", PI * 0.5))) * basis, pivot)
 		var sv: Array = e.get("stripes", e.get("chop", [dir.x, dir.z]))
