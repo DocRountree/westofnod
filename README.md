@@ -151,6 +151,11 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   `terrain_collider.gd`.
 - `scripts/player.gd`, `scripts/hud.gd`.
 - `tools/shot.tscn` is a scripted fly-through that saves screenshots.
+- `scripts/creatures/wasp.gd`: a paper wasp (`Wasp`), not yet in the game: its model
+  built from parts, posed by hand every frame, its animations methods (seek food, feed
+  on a flower, catch and eat a caterpillar, land and walk about and settle, sting).
+  `tools/creatures/wasp_demo.tscn` puts one on a plain with a flower, a caterpillar on a
+  leaf, a plank and a ball, each animation on a key (`godot --path . res://tools/creatures/wasp_demo.tscn`).
 
 ## The planet and the sky
 
