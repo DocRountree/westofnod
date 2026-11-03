@@ -57,7 +57,11 @@ void fragment() {
 	float k = fract(view_f) > bayer4(FRAGCOORD.xy + 1.0) ? k0 + 1.0 : k0;
 	k = mod(k, frames);
 	vec2 uv = vec2((k + UV.x) / frames, UV.y);
-	vec4 t = texture(atlas, uv);
+	// (the mip from the card's own UV, not uv: neighbouring pixels stippled
+	// to different frames jumped a frame apart, which read as the coarsest
+	// mip, the whole strip's mean, opaque and dark: squares)
+	vec2 gx = dFdx(UV) / vec2(frames, 1.0), gy = dFdy(UV) / vec2(frames, 1.0);
+	vec4 t = textureGrad(atlas, uv, gx, gy);
 	vec2 dx = dFdx(UV * atlas_px / vec2(frames, 1.0)), dy = dFdy(UV * atlas_px / vec2(frames, 1.0));
 	float mip = max(0.0, 0.5 * log2(max(dot(dx, dx), dot(dy, dy))));
 	ALPHA = t.a * (1.0 + mip * 0.25); // (thin branches kept as the mips blur them: leaves.gdshader)
