@@ -154,7 +154,7 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
 - `scripts/creatures/wasp.gd`: a paper wasp (`Wasp`, drawn at twice life size), not yet in the game: its model
   built from parts, posed by hand every frame, its animations methods (seek food, feed
   on a flower, catch and eat a caterpillar, land and walk about and settle, sting).
-  `tools/creatures/wasp_demo.tscn` puts one on a plain with a flower, a caterpillar on a
+  `tools/creatures/wasp_demo.tscn` puts one on a plain with a clump of the game's purple coneflowers, a caterpillar on a
   leaf, a plank and a ball (and for the scale the player's figure with its axe, and a pawpaw, a
   black-eyed Susan, a yampah and a cattail on the plank), each animation on a key (`godot --path . res://tools/creatures/wasp_demo.tscn`).
 

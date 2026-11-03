@@ -6,7 +6,8 @@ extends Node3D
 ## caterpillar (R puts a fresh one back on its leaf)   4 land on the plank
 ## (walk about, settle)   5 sting the red ball   Space slow motion
 ## Mouse: drag to turn round it, wheel to come nearer or go off; the camera
-## follows the wasp (F: or not). For the scale, things from the game: the
+## follows the wasp (F: or not). The flower's a clump of the game's own
+## purple coneflowers (key 2: onto one of their heads). For the scale, things from the game: the
 ## player's figure with its axe, and on the plank a pawpaw, a black-eyed
 ## Susan, a yampah and a cattail.
 
@@ -22,8 +23,10 @@ var _follow := true
 var _focus := Vector3.ZERO
 var _label: Label
 
-const FLOWER := Vector3(0.3, 0.0, -0.2)
-const FLOWER_H := 0.45
+const CONE_NEAR := Vector2(0.3, -0.2) ## m: the coneflowers about here (the cell whose spot's nearest: where in its cell a clump stands is its hash)
+var CONE_CELL := Vector2i.ZERO
+const CONE_H := 1.4 ## m: the clump's height (in the game 1.2-1.6 on the prairie)
+var _heads: Array = [] # the coneflowers' heads: [the disc's top, the way it faces]
 const LEAF := Vector3(-0.3, 0.2, 0.0)
 const PLANK := Vector3(0.0, 0.06, 0.4)
 const BALL := Vector3(-0.35, 0.025, 0.35)
@@ -45,27 +48,8 @@ func _ready() -> void:
 	sun.directional_shadow_max_distance = 4.0
 	add_child(sun)
 	_box(Vector3(0, -0.005, 0), Vector3(4, 0.01, 4), Color(0.33, 0.4, 0.2))
-	# the flower: a stem, petals round a dark middle
-	var stem := _box(FLOWER + Vector3(0, FLOWER_H * 0.5, 0), Vector3(0.005, FLOWER_H, 0.005), Color(0.3, 0.42, 0.15))
-	stem.name = "stem"
-	var petals := MeshInstance3D.new()
-	var disc := CylinderMesh.new()
-	disc.top_radius = 0.035
-	disc.bottom_radius = 0.035
-	disc.height = 0.002
-	petals.mesh = disc
-	petals.position = FLOWER + Vector3(0, FLOWER_H - 0.001, 0)
-	petals.material_override = _mat(Color(0.96, 0.7, 0.06))
-	add_child(petals)
-	var middle := MeshInstance3D.new()
-	var dome := CylinderMesh.new()
-	dome.top_radius = 0.011
-	dome.bottom_radius = 0.012
-	dome.height = 0.004
-	middle.mesh = dome
-	middle.position = FLOWER + Vector3(0, FLOWER_H - 0.001, 0)
-	middle.material_override = _mat(Color(0.17, 0.08, 0.04))
-	add_child(middle)
+	# the flower: a clump of the game's own purple coneflowers
+	_coneflower()
 	# the leaf the caterpillar's on, on a stalk
 	_box(LEAF + Vector3(0, -0.1, 0), Vector3(0.004, 0.2, 0.004), Color(0.3, 0.42, 0.15))
 	_box(LEAF + Vector3(0, 0.001, 0), Vector3(0.12, 0.002, 0.07), Color(0.25, 0.45, 0.15))
@@ -118,6 +102,72 @@ func _scale_things() -> void:
 		add_child(m)
 
 
+## A clump of the game's purple coneflowers (GroundCover: its mesh, its
+## shader, the layer's own colours), as a cell of the prairie's: the cell's
+## data (ground_cover_bake.gdshader's two texels) made up here, the
+## ground at 0, the clump CONE_H tall; no wind. Notes where its heads are,
+## worked out as the shader places them.
+func _coneflower() -> void:
+	var L: Dictionary
+	for l in GroundCover.LAYERS:
+		if l.get("flowers", "") == "coneflower":
+			L = l
+	var best := INF
+	for cz in range(-3, 3):
+		for cx in range(-3, 3):
+			var c := Vector2i(cx, cz)
+			var at := Vector2(c) * float(L.cell) + Vector2(GroundCover._h2(c, 1, L.u.seed), GroundCover._h2(c, 2, L.u.seed)) * float(L.cell)
+			if at.distance_to(CONE_NEAR) < best:
+				best = at.distance_to(CONE_NEAR)
+				CONE_CELL = c
+	var m := ShaderMaterial.new()
+	m.shader = load("res://shaders/render/ground_cover.gdshader")
+	m.set_shader_parameter("cell", L.cell)
+	for k in L.u:
+		if k in GroundCover.DRAW_KEYS:
+			m.set_shader_parameter(k, L.u[k])
+	m.set_shader_parameter("grass_sway", 0.0)
+	var size_b := roundf(CONE_H / GroundCover.SIZE_MAX * 255.0)
+	var img := Image.create(2, 1, false, Image.FORMAT_RGBA8)
+	img.set_pixel(0, 0, Color8(128, 0, int(size_b), 120)) # (the ground at 0: 512 m over base_h, in 1/64 m; the size; how blonde)
+	img.set_pixel(1, 0, Color(0.42, 0.38, 0.28, 1.0)) # (the ground's colour; all prairie)
+	m.set_shader_parameter("data_tex", ImageTexture.create_from_image(img))
+	m.set_shader_parameter("grid_origin", CONE_CELL)
+	m.set_shader_parameter("grid_size", Vector2i(1, 1))
+	m.set_shader_parameter("base_h", 0.0)
+	var mesh := GroundCover.flower_mesh(L.flowers, L.stems, L.radius, L.u.seed)
+	mesh.surface_set_material(0, m)
+	var mm := MultiMesh.new()
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	mm.mesh = mesh
+	mm.instance_count = 1
+	var cell: float = L.cell
+	mm.set_instance_transform(0, Transform3D(Basis(), Vector3(CONE_CELL.x * cell, 0.0, CONE_CELL.y * cell)))
+	var mi := MultiMeshInstance3D.new()
+	mi.multimesh = mm
+	mi.custom_aabb = AABB(Vector3(-1, -1, -1), Vector3(cell + 2, 4, cell + 2))
+	add_child(mi)
+	# the heads, as the shader puts them: the clump at the cell's spot, turned
+	var seed: int = L.u.seed
+	var pos := Vector2(CONE_CELL) * cell + Vector2(GroundCover._h2(CONE_CELL, 1, seed), GroundCover._h2(CONE_CELL, 2, seed)) * cell
+	var spin := GroundCover._h2(CONE_CELL, 8, seed) * TAU
+	var size := size_b / 255.0 * GroundCover.SIZE_MAX
+	var rot := func(v: Vector2) -> Vector2: return Vector2(cos(spin) * v.x - sin(spin) * v.y, sin(spin) * v.x + cos(spin) * v.y)
+	var a := mesh.surface_get_arrays(0)
+	var vs: PackedVector3Array = a[Mesh.ARRAY_VERTEX]
+	var uvs: PackedVector2Array = a[Mesh.ARRAY_TEX_UV]
+	var uv2s: PackedVector2Array = a[Mesh.ARRAY_TEX_UV2]
+	var ns: PackedVector3Array = a[Mesh.ARRAY_NORMAL]
+	_heads.clear()
+	for i in vs.size():
+		if absf(uvs[i].x - 4.5) < 0.01 and uvs[i].y < 0.01: # (a disc's top)
+			var root: Vector2 = rot.call(uv2s[i])
+			var v: Vector2 = rot.call(Vector2(vs[i].x, vs[i].z))
+			var n2: Vector2 = rot.call(Vector2(ns[i].x, ns[i].z))
+			var at := Vector3(pos.x + root.x + v.x * size, vs[i].y * size, pos.y + root.y + v.y * size)
+			_heads.append([at, Vector3(n2.x, ns[i].y, n2.y).normalized()])
+
+
 func _new_prey() -> void:
 	if prey:
 		if wasp:
@@ -135,7 +185,8 @@ func _unhandled_input(e: InputEvent) -> void:
 			KEY_1:
 				wasp.seek_food(Vector3.ZERO, 0.6)
 			KEY_2:
-				wasp.feed_on_flower(FLOWER + Vector3(0, FLOWER_H + 0.001, 0), Vector3.UP, 0.03)
+				var h: Array = _heads[randi() % _heads.size()]
+				wasp.feed_on_flower(h[0], h[1], 0.008)
 			KEY_3:
 				wasp.feed_on_insect(prey, LEAF + Vector3(0, 0.002, 0), Vector3.UP)
 			KEY_4:
