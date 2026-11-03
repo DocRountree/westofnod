@@ -1,7 +1,8 @@
 class_name Items
 ## What can be carried: each kind of item, by id. The axe fells trees
 ## (Felling); the rest, for now, are only things to carry (/give in the chat:
-## there is nothing in the world to pick up yet).
+## there is nothing in the world to pick up yet; the pawpaw and the crabapple
+## are the fruit of trees not yet in the game, PawpawTree and CrabappleTree).
 ##
 ## Each: name, stack (how many fit in one slot or hand), and how it looks held
 ## (a primitive: shape, size in m, colour).
@@ -12,6 +13,9 @@ const KINDS := {
 	"stone": {"name": "Stone", "stack": 16, "shape": "sphere", "size": Vector3(0.09, 0.07, 0.08), "color": Color(0.5, 0.49, 0.46)},
 	"acorn": {"name": "Acorn", "stack": 32, "shape": "sphere", "size": Vector3(0.018, 0.026, 0.018), "color": Color(0.55, 0.38, 0.16)},
 	"oak_leaf": {"name": "Oak leaf", "stack": 64, "shape": "box", "size": Vector3(0.07, 0.003, 0.11), "color": Color(0.3, 0.42, 0.14)},
+	# fruit (PawpawTree, CrabappleTree: their trees bear them)
+	"pawpaw": {"name": "Pawpaw", "stack": 12, "shape": "pawpaw", "size": Vector3(0.055, 0.11, 0.05), "color": Color(0.55, 0.62, 0.24)},
+	"crabapple": {"name": "Crabapple", "stack": 32, "shape": "crabapple", "size": Vector3(0.026, 0.024, 0.026), "color": Color(0.72, 0.16, 0.1)},
 }
 
 
@@ -36,6 +40,8 @@ static func model(id: String) -> Node3D:
 	var k: Dictionary = KINDS.get(id, {"shape": "box", "size": Vector3.ONE * 0.05, "color": Color.MAGENTA})
 	if k.shape == "axe":
 		return _axe()
+	if k.shape in ["pawpaw", "crabapple"]:
+		return _fruit(k)
 	var mesh: PrimitiveMesh
 	match k.shape:
 		"cylinder":
@@ -79,12 +85,40 @@ static func _axe() -> Node3D:
 	return root
 
 
+## A fruit: its body (a pawpaw's long, a little lopsided, green going
+## yellow; a crabapple's a small round apple, red), and its stalk.
+static func _fruit(k: Dictionary) -> Node3D:
+	var root := Node3D.new()
+	var body := _part(SphereMesh.new(), k.size, k.color)
+	(body.material_override as StandardMaterial3D).roughness = 0.45 if k.shape == "crabapple" else 0.6
+	root.add_child(body)
+	if k.shape == "pawpaw":
+		# lopsided: a second, smaller lobe to one side, and the dark scar at the stalk end
+		var lobe := _part(SphereMesh.new(), k.size * Vector3(0.85, 0.7, 0.85), Color(0.6, 0.64, 0.26))
+		lobe.position = Vector3(0.006, -0.02, 0.0)
+		root.add_child(lobe)
+		var scar := _part(CylinderMesh.new(), Vector3(0.012, 0.01, 0.012), Color(0.25, 0.2, 0.12))
+		scar.position.y = k.size.y * 0.5
+		root.add_child(scar)
+	else:
+		var stalk := _part(CylinderMesh.new(), Vector3(0.0025, 0.035, 0.0025), Color(0.35, 0.27, 0.15))
+		stalk.position.y = k.size.y * 0.5 + 0.015
+		stalk.rotation.z = 0.25
+		root.add_child(stalk)
+	return root
+
+
 static func _part(mesh: PrimitiveMesh, size: Vector3, c: Color) -> MeshInstance3D:
 	if mesh is CylinderMesh:
 		mesh.top_radius = 0.5
 		mesh.bottom_radius = 0.5
 		mesh.height = 1.0
 		mesh.radial_segments = 8
+	elif mesh is SphereMesh:
+		mesh.radius = 0.5
+		mesh.height = 1.0
+		mesh.radial_segments = 12
+		mesh.rings = 8
 	var mi := MeshInstance3D.new()
 	mi.mesh = mesh
 	mi.scale = size

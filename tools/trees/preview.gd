@@ -1,8 +1,9 @@
 extends SceneTree
 ## Renders a species' variants in a row on a plain, for looking at the
-## models (the oak's; or with maple, sycamore, lodgepole or cypress, theirs:
-## MapleTree, SycamoreTree, LodgepolePine, BaldCypress, not yet in the game).
-## xvfb-run godot --path . --resolution 1600x900 --script res://tools/trees/preview.gd -- <out_dir> [maple | sycamore | lodgepole | cypress] [lod] [side | pair | pair2 | close | bark | leaves | dead | snag | saplings]
+## models (the oak's; or with maple, sycamore, lodgepole, cypress, pawpaw or
+## crabapple, theirs: MapleTree, SycamoreTree, LodgepolePine, BaldCypress,
+## PawpawTree, CrabappleTree, not yet in the game).
+## xvfb-run godot --path . --resolution 1600x900 --script res://tools/trees/preview.gd -- <out_dir> [maple | sycamore | lodgepole | cypress | pawpaw | crabapple] [lod] [side | pair | pair2 | close | bark | leaves | dead | snag | saplings]
 
 var out := "user://"
 var _name := "oaks"
@@ -27,6 +28,12 @@ func _init() -> void:
 	elif args.has("cypress"):
 		S = BaldCypress
 		species = "cypresses"
+	elif args.has("pawpaw"):
+		S = PawpawTree
+		species = "pawpaws"
+	elif args.has("crabapple"):
+		S = CrabappleTree
+		species = "crabapples"
 	_name = species
 	var root3 := Node3D.new()
 	get_root().add_child(root3)
@@ -57,6 +64,8 @@ func _init() -> void:
 	var spread := 1.25 if S == SycamoreTree else 1.0 # (the sycamores are bigger)
 	if S == LodgepolePine:
 		spread = 0.6 # (slim)
+	elif S == PawpawTree or S == CrabappleTree:
+		spread = 0.35 # (small trees)
 	for i in at.size():
 		at[i] *= spread
 	S.build(0)
@@ -131,10 +140,12 @@ func _init() -> void:
 		OakTree.set_player(Vector3(48 + 0.45, 0.0, 12 + 0.45))
 		cam.fov = 50
 	elif args.has("pair"): # the first two standing trees, nearer
-		cam.look_at_from_position(Vector3(-41.25 * spread, 9, 40 * spread), Vector3(-41.25 * spread, 8, 0))
+		var hy := 9.0 * clampf(spread * 1.5, 0.4, 1.0) # (lower for the small trees)
+		cam.look_at_from_position(Vector3(-41.25 * spread, hy, 40 * spread), Vector3(-41.25 * spread, hy * 0.85, 0))
 		cam.fov = 55
 	elif args.has("pair2"): # the other two
-		cam.look_at_from_position(Vector3(13.75 * spread, 11, 45 * spread), Vector3(13.75 * spread, 10, 0))
+		var hy := 11.0 * clampf(spread * 1.5, 0.35, 1.0)
+		cam.look_at_from_position(Vector3(13.75 * spread, hy, 45 * spread), Vector3(13.75 * spread, hy * 0.85, 0))
 		cam.fov = 55
 	elif args.has("close"):
 		cam.look_at_from_position(Vector3(-55 + 4.0, 1.7, 6.0), Vector3(-55, 5.0, 0))

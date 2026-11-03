@@ -88,7 +88,7 @@ PropKind for models from a script: `mesh_script` (`build(variant)`,
 `variants` (per-variant weight, settings and `density_like` from
 `variant_props`), `lods` / `lod_distances` / `shadow_distance`, `shadow_mesh`.
 
-## Maple, sycamore, lodgepole pine, bald cypress (models only, not yet in the game)
+## Maple, sycamore, lodgepole pine, bald cypress, pawpaw, crabapple (models only, not yet in the game)
 
 `scripts/population/maple_tree.gd` (sugar maple, *Acer saccharum*) and
 `sycamore_tree.gd` (American sycamore, *Platanus occidentalis*): each the
@@ -124,6 +124,21 @@ maple` (or `sycamore`; `pair`, `pair2` for the standing trees nearer).
   Their textures: `python3 tools/trees/bake_conifer_textures.py`
   (`lodgepole_needles.png`, `lodgepole_bark.png`, `cypress_needles.png`,
   `cypress_bark.png`); `preview.gd ... lodgepole` / `cypress`.
+- Pawpaw (`pawpaw_tree.gd`, *Asimina triloba*): a small understory tree,
+  4-9 m, often a clump of stems from one root (`forks`); a slender trunk,
+  level, slightly drooping branches, a narrowish crown; huge (15-30 cm),
+  smooth-edged, obovate leaves hanging in ranks from the twigs; clusters of
+  stubby green fruit; thin, smooth grey-brown bark, blotched, warty with
+  lenticels.
+- Crabapple (`crabapple_tree.gd`, a wild *Malus*): a small tree, 5-8 m, a
+  short trunk or several stems, crooked, gnarled limbs spreading into a
+  broad, dense, twiggy dome; small oval, sharply toothed leaves clustered
+  on spurs; little red to yellow-green crabapples on long stalks;
+  grey-brown bark flaking in small scaly plates, orange-brown beneath.
+  Their textures: `python3 tools/trees/bake_small_tree_textures.py`
+  (`pawpaw_leaves.png`, `pawpaw_bark.png`, `crabapple_leaves.png`,
+  `crabapple_bark.png`); `preview.gd ... pawpaw` / `crabapple`. Their fruit
+  are items already (`Items`: `pawpaw`, `crabapple`; `/give` them).
 - American sycamore: a massive trunk dividing low into two or three leaders
   (`forks`), long crooked limbs at wide angles, an open, lumpy crown
   (`irregular`); bark peeling into a cream, grey-green and tan patchwork,
