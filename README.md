@@ -124,7 +124,9 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   (`Population.walk_near`). Clumps dissolve in and out (stippled) with distance, by which point their
   colour is exactly the ground's (`ground.gdshaderinc`, shared with the terrain). The
   forest floor also has patches of damp, matte mud, and its brown patches carry a
-  texture of fallen oak and maple leaves near the eye. Textures:
+  texture of fallen oak and maple leaves near the eye; the taiga's floor, rusty grey-brown
+  needle duff in mottles between dark feather moss, a texture of fallen pine needles (and the
+  odd cone and twig) the same way. Textures:
   `tools/ground/bake_ground_textures.py`.
 - **Player** (`scripts/avatar.gd`): a stylised figure animated procedurally with two-bone
   IK. Walking: feet step in turn, arms swing. Climbing: hands and feet hold points on
@@ -204,7 +206,7 @@ them); `tools/map/render_map.py --biomes` draws the biome map, and
 `tools/map/bake_biomes.py` (run by the baker) writes `data/world/biomes.png` for
 the game. The terrain shader colours each biome its own way (`biome_ground` in
 `terrain.gdshader`: leaf litter, red sand and scrub, golden grass, mud and
-pools, moss and lichen with snow, conifer floor, banded red sandstone walls on
+pools, moss and lichen with snow, needle duff and moss, banded red sandstone walls on
 scrubby caprock, black basalt and ash, beach and dunes), blending across the
 borders over about 200 m (the sixteen nearest texels of the biome map by a cubic
 B-spline, the borders wandering, so each biome reaches into the next in tongues

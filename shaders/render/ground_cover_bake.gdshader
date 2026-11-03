@@ -122,7 +122,8 @@ void fragment() {
 		float r_, k_, l_, pud;
 		ground += biome_ground(bk, sh, r_, k_, l_) * w;
 		rocky += k_ * w;
-		litter += l_ * w;
+		if (bk != 5)
+			litter += l_ * w; // (the forest's leaves: the taiga's needles keep no grass off, none grows there)
 		mud += biome_mud(bk, sh, pud) * w;
 		if (bk == 0)
 			fw += w;

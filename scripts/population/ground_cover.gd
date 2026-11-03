@@ -195,11 +195,14 @@ func setup(w: WorldData) -> void:
 				"material": m, "vps": vps, "bakes": bakes, "shown": -1, "baking": false, "want": Vector2i.MAX, "cam": Vector3.ZERO, "baked": Vector3.INF, "walks": -1})
 
 
-## The terrain's leaf litter texture (it's the terrain's material).
+## The terrain's leaf litter and pine needle textures (it's the terrain's material).
 static func setup_terrain(terrain: ShaderMaterial) -> void:
 	var t := OakTree._texture("res://data/population/textures/leaf_litter.png")
 	terrain.set_shader_parameter("litter_tex", t)
 	terrain.set_shader_parameter("litter_mean", _mean(t))
+	var n := OakTree._texture("res://data/population/textures/needle_litter.png")
+	terrain.set_shader_parameter("needle_tex", n)
+	terrain.set_shader_parameter("needle_mean", _mean(n))
 
 
 ## Every layer's grid worked out and shown (after the first update()s).

@@ -54,6 +54,31 @@ uniform sampler2D litter_tex : filter_linear_mipmap_anisotropic, repeat_enable; 
 uniform float litter_tile = 1.6; // m
 uniform vec3 litter_mean = vec3(0.372, 0.262, 0.153); // the texture's mean (GroundCover sets it)
 uniform vec2 litter_fade = vec2(25.0, 45.0); // m
+// Fallen pine needles (tools/ground/bake_ground_textures.py), laid over the
+// taiga's needle duff near the eye, as the leaves over the forest's litter.
+uniform sampler2D needle_tex : filter_linear_mipmap_anisotropic, repeat_enable; // (sRGB values; tileable every way round)
+uniform float needle_tile = 0.8; // m
+uniform vec3 needle_mean = vec3(0.4, 0.27, 0.16); // the texture's mean (GroundCover sets it)
+
+// A litter texture at the pixel (its tiles tile m, from the origin's own
+// tile: small, exact numbers), each tile turned a random quarter turn (the
+// texture fits itself every way round) so its repeat doesn't show, the
+// derivatives turned with it (no coarse mip at the seams); salt: another
+// pattern of turns.
+vec3 litter_sample(sampler2D tex, float tile_m, vec3 lp, ivec2 salt) {
+	vec2 o_tiles = floor(world_origin.xz / tile_m);
+	vec2 uv = (lp.xz + (world_origin.xz - o_tiles * tile_m)) / tile_m;
+	vec2 tile = floor(uv);
+	vec2 f = uv - tile;
+	int turn = int(hash(ivec2(tile) + ivec2(o_tiles) + salt) * 4.0) & 3;
+	vec2 dx = dFdx(uv), dy = dFdy(uv);
+	for (int k = 0; k < turn; k++) {
+		f = vec2(f.y, 1.0 - f.x);
+		dx = vec2(dx.y, -dx.x);
+		dy = vec2(dy.y, -dy.x);
+	}
+	return textureGrad(tex, f, dx, dy).rgb;
+}
 
 void fragment() {
 	vec3 world_pos = local_pos + world_origin; // (the map's)
@@ -79,12 +104,17 @@ void fragment() {
 	vec3 col = biome_ground(b1, sh, r_, k_, l_) * w1;
 	float rough = r_ * w1;
 	float rocky = k_ * w1;
-	float litter = l_ * w1;
+	// litter: the forest's fallen leaves; needles: the taiga's fallen needles
+	float litter = b1 == 5 ? 0.0 : l_ * w1;
+	float needles = b1 == 5 ? l_ * w1 : 0.0;
 	if (w2 > 0.002) {
 		col += biome_ground(b2, sh, r_, k_, l_) * w2;
 		rough += r_ * w2;
 		rocky += k_ * w2;
-		litter += l_ * w2;
+		if (b2 == 5)
+			needles += l_ * w2;
+		else
+			litter += l_ * w2;
 	} else {
 		w2 = 0.0;
 	}
@@ -97,24 +127,14 @@ void fragment() {
 	// the fallen leaves, near
 	float near = 1.0 - smoothstep(litter_fade.x, litter_fade.y, distance(world_pos, CAMERA_POSITION_WORLD + world_origin));
 	if (litter * near > 0.0) {
-		// each tile of it turned a random quarter turn (the texture fits
-		// itself every way round), so its repeat doesn't show; the
-		// derivatives turned with it, so the seams don't pick a coarse mip
-		// (in tiles from the origin's own tile, so small and exact: the map's
-		// tile numbers are tens of thousands, with no fraction left to them)
-		vec2 o_tiles = floor(world_origin.xz / litter_tile);
-		vec2 uv = (local_pos.xz + (world_origin.xz - o_tiles * litter_tile)) / litter_tile;
-		vec2 tile = floor(uv);
-		vec2 f = uv - tile;
-		int turn = int(hash(ivec2(tile) + ivec2(o_tiles) + ivec2(911, -373)) * 4.0) & 3;
-		vec2 dx = dFdx(uv), dy = dFdy(uv);
-		for (int k = 0; k < turn; k++) {
-			f = vec2(f.y, 1.0 - f.x);
-			dx = vec2(dx.y, -dx.x);
-			dy = vec2(dy.y, -dy.x);
-		}
-		vec3 leaves = textureGrad(litter_tex, f, dx, dy).rgb / litter_mean;
+		vec3 leaves = litter_sample(litter_tex, litter_tile, local_pos, ivec2(911, -373)) / litter_mean;
 		col *= mix(vec3(1.0), leaves, litter * near * (1.0 - rocky));
+	}
+	// and the fallen needles (the same: over their mean, fading out with
+	// distance without a change of colour)
+	if (needles * near > 0.0) {
+		vec3 nd = litter_sample(needle_tex, needle_tile, local_pos, ivec2(-517, 263)) / needle_mean;
+		col *= mix(vec3(1.0), nd, needles * near * (1.0 - rocky));
 	}
 
 	vec3 sand = mix(vec3(0.84, 0.80, 0.68), vec3(0.90, 0.86, 0.74), patches);

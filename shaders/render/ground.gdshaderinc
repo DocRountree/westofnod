@@ -73,6 +73,13 @@ float biome_mud(int b, Shared s, out float puddle) {
 	return mud;
 }
 
+// The taiga's floor: how much of it is fallen needles (the rest moss), in
+// mottles of a few to tens of metres; most of it.
+float taiga_needles(Shared s) {
+	float mottle = s.n9 * 0.55 + s.fine3 * 0.45;
+	return smoothstep(0.24, 0.44, mottle);
+}
+
 // A biome's ground colour, roughness, how bare (rock) it is here, and how
 // much of it is leaf litter (the forest's brown patches: terrain.gdshader
 // lays the fallen leaves' texture over them).
@@ -122,9 +129,17 @@ vec3 biome_ground(int b, Shared s, out float rough, out float rocky, out float l
 		ground = mix(ground, vec3(0.92, 0.94, 0.97), snow);
 		rock = vec3(0.36, 0.36, 0.37) * (0.85 + 0.3 * s.n9);
 		rough = mix(0.95, 0.6, snow);
-	} else if (b == 5) {     // taiga: dark conifer floor, grey rock
-		ground = mix(vec3(0.07, 0.13, 0.09), vec3(0.12, 0.19, 0.12), s.patches);
+	} else if (b == 5) {     // taiga: needle duff and moss, grey rock
+		// rusty brown fallen needles in mottles (terrain.gdshader lays the
+		// needles' texture over them: litter, as the forest's leaves),
+		// feather moss, dark green, between
+		vec3 moss = mix(vec3(0.12, 0.17, 0.08), vec3(0.17, 0.23, 0.1), s.patches);
+		vec3 duff = mix(vec3(0.22, 0.17, 0.115), vec3(0.28, 0.215, 0.15), s.n35); // (grey-brown, a little rusty)
+		duff = mix(duff, vec3(0.13, 0.095, 0.06), smoothstep(0.6, 0.85, s.fine3) * 0.5); // damp, darker
+		litter = taiga_needles(s);
+		ground = mix(moss, duff, litter);
 		ground = mix(ground, vec3(0.30, 0.29, 0.24), clump(s, 0.12));  // rocky openings
+		litter *= 1.0 - clump(s, 0.12);
 		rock = vec3(0.32, 0.32, 0.31) * (0.85 + 0.3 * s.n9);
 		float snow = smoothstep(1100.0, 1500.0, s.h + (s.patches - 0.5) * 200.0) * smoothstep(0.5, 0.75, s.n.y);
 		ground = mix(ground, vec3(0.9, 0.92, 0.95), snow);

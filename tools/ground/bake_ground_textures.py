@@ -16,7 +16,15 @@
   terrain multiplies its own litter colour by this over its mean, so the
   colour seen from afar doesn't change as the detail fades in.
 
-python3 tools/ground/bake_ground_textures.py
+- needle_litter.png: RGB, 1024 x 1024, about 0.8 m square, tileable every
+  way as the leaf litter: fallen pine needles (pairs, 4-7 cm, joined at
+  their sheath, splayed a little), rust, tan, grey-brown and dark, the
+  newest a brighter orange-brown, matted in layers over dark duff, the lower
+  ones shaded; here and there a small cone or a bit of twig. The terrain
+  lays it over the taiga's needle duff as it lays the leaves over the
+  forest's litter.
+
+python3 tools/ground/bake_ground_textures.py [--needles]  (--needles: only the needle litter)
 """
 import math
 import os
@@ -218,6 +226,99 @@ def _turn(x0, y0, P, S, k):
 LITTER_PALETTE = [(112, 82, 48), (128, 76, 40), (96, 70, 44), (140, 104, 62), (82, 58, 36), (118, 92, 52), (104, 64, 36)]
 
 
+NEEDLE_PALETTE = [(150, 92, 50), (168, 124, 76), (112, 90, 70), (84, 60, 40), (178, 108, 56), (132, 100, 66), (100, 70, 46)]
+
+
+def _needles(S, layer, ss):
+    """A fallen pine needle pair (or now and then a small cone, a bit of
+    twig) in its own patch: (colour, coverage, shadow), as _leaf's. The
+    tile is about 0.8 m: S / 0.8 px a metre."""
+    m = S / 0.8
+    roll = rng.random()
+    if roll < 0.012:  # a small cone, 3-5 cm, scales open
+        l = m * rng.uniform(0.03, 0.05)
+        r = int(l) + 6
+        P = 2 * r
+        yy, xx = np.mgrid[0:P, 0:P].astype(np.float32)
+        a = rng.uniform(0, 2 * math.pi)
+        u = ((xx - r) * math.cos(a) + (yy - r) * math.sin(a)) / (l * 0.5)
+        v = (-(xx - r) * math.sin(a) + (yy - r) * math.cos(a)) / (l * 0.33)
+        d = u * u + v * v
+        lf = np.clip((1.0 - d) * 6.0, 0, 1)
+        scales = 0.65 + 0.35 * np.abs(np.sin(u * 7.0 + np.abs(v) * 5.0))
+        col = np.array([108, 74, 44], np.float32)[None, None, :] * (scales * (1.0 - 0.3 * d))[..., None]
+        sh = np.asarray(Image.fromarray((lf * 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(l * 0.12)), np.float32) / 255 * 0.55
+        return col, lf, sh
+    twig = roll < 0.03
+    length = m * (rng.uniform(0.06, 0.14) if twig else rng.uniform(0.04, 0.07))
+    width = max(m * (0.003 if twig else 0.0011), 1.0)
+    c = np.array([78, 60, 44] if twig else NEEDLE_PALETTE[rng.integers(len(NEEDLE_PALETTE))], np.float32) * rng.uniform(0.85, 1.12)
+    c *= 0.72 + 0.34 * layer  # the top layers a little brighter
+    r = int(length) + 6
+    P = 2 * r
+    lf_img = Image.new("L", (P, P), 0)
+    d = ImageDraw.Draw(lf_img)
+    a = rng.uniform(0, 2 * math.pi)
+    base = (r - math.cos(a) * length * 0.5, r - math.sin(a) * length * 0.5)
+    spread = 0.0 if twig else rng.uniform(0.04, 0.3)
+    for k in ([0] if twig else [-1, 1]):
+        b = a + k * spread * 0.5 + rng.uniform(-0.03, 0.03)
+        bend = rng.uniform(-0.08, 0.08)
+        pts = [base]
+        for i in range(1, 5):
+            t = i / 4
+            bb = b + bend * t
+            pts.append((base[0] + math.cos(bb) * length * t, base[1] + math.sin(bb) * length * t))
+        d.line(pts, fill=255, width=int(round(width)) * ss // 2 + 1, joint="curve")
+    lf = np.asarray(lf_img, np.float32) / 255
+    sh = np.asarray(lf_img.filter(ImageFilter.GaussianBlur(width * 1.5)), np.float32) / 255 * 0.5
+    along = np.asarray(Image.fromarray((rng.uniform(0.88, 1.1, (1, 6)) * 120).astype(np.uint8)).resize((P, P), Image.BICUBIC), np.float32) / 120
+    col = c[None, None, :] * along[..., None]
+    return col, lf, sh
+
+
+def needle_litter(size=1024, ss=2):
+    """As litter(), with pine needles: tileable every way."""
+    S = size * ss
+    canvas = np.array([52, 38, 26], np.float32)[None, None, :] * rng.uniform(0.8, 1.15, (S, S))[..., None]
+    return _scatter(canvas, S, lambda layer: _needles(S, layer, ss), 60, 500, 9000)
+
+
+def _scatter(canvas, S, make, corners, edges, inside):
+    """Pieces made by make(layer) laid tileably every way (see litter())."""
+    for n in range(corners):
+        piece = make(rng.uniform(0.2, 1.0))
+        P = piece[1].shape[0]
+        x0, y0 = int(rng.uniform(-P * 0.45, P * 0.45)) - P // 2, int(rng.uniform(-P * 0.45, P * 0.45)) - P // 2
+        four = []
+        for q in range(4):
+            four.append((x0, y0, q))
+            x0, y0 = y0, -x0 - P
+        for k in range(4):
+            for fx, fy, q in four:
+                tx, ty = _turn(fx, fy, P, S, k)
+                _paste(canvas, piece, tx, ty, q + k)
+    for n in range(edges):
+        piece = make(rng.uniform(0.2, 1.0))
+        P = piece[1].shape[0]
+        cx, cy = rng.uniform(P * 0.5 + 2, S / 2), rng.uniform(-P * 0.3, P * 0.3)
+        pair = [(int(cx) - P // 2, int(cy) - P // 2, 0)]
+        pair.append((S - pair[0][0] - P, -pair[0][1] - P, 2))
+        for k in range(4):
+            for x0, y0, kk in pair:
+                tx, ty = _turn(x0, y0, P, S, k)
+                _paste(canvas, piece, tx, ty, kk + k)
+    for n in range(inside):
+        piece = make(0.2 + 0.8 * n / inside)
+        ys, xs = np.nonzero(piece[1] > 0.01)
+        if xs.size == 0:
+            continue
+        x0 = int(rng.uniform(1 - xs.min(), S - 1 - xs.max()))
+        y0 = int(rng.uniform(1 - ys.min(), S - 1 - ys.max()))
+        _paste(canvas, piece, x0, y0, 0)
+    return Image.fromarray(canvas.clip(0, 255).astype(np.uint8)).reduce(2)
+
+
 def litter(size=1024, ss=2):
     """Tileable every way: any tile can be turned any quarter turn next to any
     other. The leaves inside stay inside; the leaves across an edge are the
@@ -265,11 +366,18 @@ def litter(size=1024, ss=2):
 
 
 def main():
+    import sys
     os.makedirs(OUT, exist_ok=True)
+    if "--needles" in sys.argv:
+        needle_litter().save(os.path.join(OUT, "needle_litter.png"))
+        print("needle_litter.png")
+        return
     Image.fromarray(frond(), "RGBA").save(os.path.join(OUT, "fern_frond.png"))
     print("fern_frond.png")
     litter().save(os.path.join(OUT, "leaf_litter.png"))
     print("leaf_litter.png")
+    needle_litter().save(os.path.join(OUT, "needle_litter.png"))
+    print("needle_litter.png")
 
 
 if __name__ == "__main__":
