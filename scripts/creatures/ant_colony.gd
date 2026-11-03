@@ -137,7 +137,9 @@ func _process(dt: float) -> void:
 				yaw[i] += clampf(turn, -4.0 * dt, 4.0 * dt)
 		speed[i] = move_toward(speed[i], want, dt * 0.6)
 		var p := pos[i] + fwd * speed[i] * dt
-		# keeping apart: a push from any too near
+		# keeping apart: a push from any too near (at food hardly: they
+		# crowd round it)
+		var crowd := 0.08 if task[i] == 1 and Vector2(p.x - food[i].x, p.z - food[i].z).length() < 0.04 else 1.0
 		var k := Vector2i(floori(p.x / cell), floori(p.z / cell))
 		for dz in range(-1, 2):
 			for dx in range(-1, 2):
@@ -148,7 +150,7 @@ func _process(dt: float) -> void:
 					off.y = 0.0
 					var l := off.length()
 					if l < cell and l > 1e-6:
-						p += off / l * (cell - l) * minf(dt * 6.0, 0.5) * (0.3 if task[i] == 1 and feed_k[i] > 0.5 else 1.0)
+						p += off / l * (cell - l) * minf(dt * 6.0, 0.5) * crowd
 		p.y = height.call(p.x, p.z) if height.is_valid() else 0.0
 		pos[i] = p
 		var at := Transform3D(Basis(Vector3.UP, yaw[i]), p + Vector3.UP * BODY_H * MM)
@@ -174,8 +176,8 @@ func _think(i: int, dt: float) -> void:
 	# feeding: at its place round the food, its mouth on it
 	var at := food[i] + Vector3(cos(slot[i]), 0.0, sin(slot[i])) * REACH * MM
 	target[i] = at
-	var there := Vector2(pos[i].x - at.x, pos[i].z - at.z).length() < 0.002
-	feed_k[i] = move_toward(feed_k[i], 1.0 if there and speed[i] < 0.01 else 0.0, dt * 2.0)
+	var there := Vector2(pos[i].x - at.x, pos[i].z - at.z).length() < 0.003
+	feed_k[i] = move_toward(feed_k[i], 1.0 if there and speed[i] < 0.015 else 0.0, dt * 2.0)
 	if wait[i] <= 0.0:
 		# round to another place at it
 		slot[i] += rng.randf_range(0.6, 1.8) * (1.0 if rng.randf() < 0.5 else -1.0)
