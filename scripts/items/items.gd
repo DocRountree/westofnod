@@ -16,7 +16,7 @@ const KINDS := {
 	# fruit (PawpawTree, CrabappleTree, WalnutTree: their trees bear them)
 	"pawpaw": {"name": "Pawpaw", "stack": 1, "shape": "pawpaw", "size": Vector3(0.055, 0.11, 0.05), "color": Color(0.55, 0.62, 0.24)},
 	"crabapple": {"name": "Crabapple", "stack": 32, "shape": "crabapple", "size": Vector3(0.026, 0.024, 0.026), "color": Color(0.72, 0.16, 0.1)},
-	"walnut": {"name": "Black walnut", "stack": 16, "shape": "walnut", "size": Vector3(0.046, 0.044, 0.046), "color": Color(0.43, 0.5, 0.18)}, # (in its green husk, as picked)
+	"walnut": {"name": "Black walnut", "stack": 5, "shape": "walnut", "size": Vector3(0.046, 0.044, 0.046), "color": Color(0.43, 0.5, 0.18)}, # (in its green husk, as picked)
 	# flowers and cattails (GroundCover: picked where they grow, Foraging):
 	# a stem, its head(s) the petals' colour round the disc's
 	"susan": {"name": "Black-eyed Susan", "stack": 16, "shape": "flower", "size": Vector3(0.068, 0.5, 1.0), "color": Color(0.96, 0.7, 0.06), "disc": Color(0.17, 0.08, 0.04), "heads": 1},
