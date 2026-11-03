@@ -97,7 +97,7 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   the depth buffer can't be read, so the water's thickness falls back to the channel
   depth (rivers) or the sea floor (sea) and the view angle.
 - **Trees**: English oaks, sugar maples and crabapples in the forest (a few
-  of each on the prairie), pawpaws in its understory, lodgepole pines and bald
+  of each on the prairie), pawpaws in its understory (only there), lodgepole pines and bald
   cypresses thick in the taiga (a few in the forest), sycamores in the swamp
   (the living more at its edges, the dead in its middle); every one choppable
   (`data/population/README.md`), streamed by `Population`.

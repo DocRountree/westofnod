@@ -56,7 +56,7 @@ const SETTINGS := {
 	# and dead gathered in thickets (clonal patches, from one root); their
 	# trunks slender (a small foot, a small solid trunk)
 	"props": {
-		"all": {"view_distance": 300.0, "radius": 0.0},
+		"all": {"view_distance": 300.0, "radius": 0.0, "strict": true}, # (straying only where it grows: none into the taiga)
 		"tree": {"foot": 0.12, "radius": 0.14, "clump": {"forest": 1.0}, "clump_size": 16.0},
 		"sapling": {"foot": 0.03, "radius": 0.0, "clump": {"forest": 1.0}, "clump_size": 16.0},
 		"dead": {"foot": 0.12, "radius": 0.14, "clump": {"forest": 1.0}, "clump_size": 16.0, "min_spacing": 0.0},

@@ -106,7 +106,7 @@ const LAYERS := [
 			"forest_height": Vector2(0.45, 0.75), "prairie_height": Vector2(1.05, 1.35),
 			"prairie_green": Vector3(0.27, 0.37, 0.14), "prairie_blonde": Vector3(0.36, 0.4, 0.17),
 			"petal_color": Vector3(0.97, 0.97, 0.94), "petal_base": Vector3(0.92, 0.93, 0.84), "petal_alt": Vector3(0.94, 0.95, 0.88), "petal_alt_share": 0.3,
-			"disc_color": Vector3(0.9, 0.9, 0.78), "head_size": 0.045, "head_px": Vector2(3.0, 6.0),
+			"disc_color": Vector3(0.9, 0.9, 0.78), "head_size": 0.011, "head_px": Vector2(4.0, 9.0), # (its tiny flowers green, as the stems, well before they're too small to draw: they shimmered)
 			"fade_out": Vector2(26.0, 36.0), "thin_from": 20.0}},
 	# the swamp's: swamp asters, sparse, here and there in loose drifts
 	{"cell": 2.0, "cells": 12, "tiles": 7, "flowers": "aster", "stems": 2, "radius": 0.25,
