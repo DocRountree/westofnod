@@ -87,3 +87,35 @@ PropKind for models from a script: `mesh_script` (`build(variant)`,
 `build_lods(variant)`, `build_shadow(variant)`, `variant_props(variant)`),
 `variants` (per-variant weight, settings and `density_like` from
 `variant_props`), `lods` / `lod_distances` / `shadow_distance`, `shadow_mesh`.
+
+## Maple and sycamore (models only, not yet in the game)
+
+`scripts/population/maple_tree.gd` (sugar maple, *Acer saccharum*) and
+`sycamore_tree.gd` (American sycamore, *Platanus occidentalis*): each the
+oak's thirteen variants (four standing trees: open-grown, young, leaning,
+forest-grown; a stump; three logs; three dead trees; two saplings), grown by
+`broadleaf_tree.gd` (the oak's rules, generalised: each species' own
+segment lengths, crookedness, turn toward the light, branching angles,
+opposite or alternate branching, how lumpy its crown) and handed on through
+the same static calls `OakTree` answers (`build`, `build_lods`,
+`build_shadow`, `build_walk`, `build_climb`, `variant_props`), so either can
+become a prop's `mesh_script` later. Textures: `python3
+tools/trees/bake_broadleaf_textures.py` (`maple_leaves.png`,
+`maple_bark.png`, `sycamore_leaves.png`, `sycamore_bark.png`). To look at
+them: `xvfb-run godot --path . --script res://tools/trees/preview.gd -- <out>
+maple` (or `sycamore`; `pair`, `pair2` for the standing trees nearer).
+
+- Sugar maple: a straight trunk, limbs in opposite pairs climbing steeply, a
+  dense rounded to oval crown; leaves in opposite pairs on long stalks,
+  palmate, five-lobed, rounded sinuses, a few big teeth; grey bark in long,
+  loosening vertical plates.
+- American sycamore: a massive trunk dividing low into two or three leaders
+  (`forks`), long crooked limbs at wide angles, an open, lumpy crown
+  (`irregular`); bark peeling into a cream, grey-green and tan patchwork,
+  white up the limbs, the old foot dark and scaly (`TreeBuilder.tint_low`);
+  big, broad, shallowly lobed, coarsely toothed leaves one by one on stout
+  stalks, now and then a seed ball on its thread.
+
+Still to do for the game: the far-off cards (`ImpostorBaker`), the moss's
+sporophytes on their logs and stumps, the cut variant for felling, and
+props (`.tres`) with their densities by biome.

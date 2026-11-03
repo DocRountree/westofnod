@@ -35,6 +35,11 @@ var flare := 0.5 ## root flare at the base of the trunk (fraction of its radius)
 var bark_tint := Color(1, 1, 1) ## (dead wood: greyer, greener)
 var sways := true ## the twigs move in the wind (dead wood stands still)
 var splinter := false ## broken ends are snapped wood: tall splinters round a sunken middle
+## The bark darker low down, going over to bark_tint higher up (the American
+## sycamore: its old, dark, scaly foot under white limbs): tint_low below
+## tint_heights.x m, bark_tint above tint_heights.y. (Off when y <= x.)
+var tint_low := Color(1, 1, 1)
+var tint_heights := Vector2.ZERO
 
 
 func add_node(p: Vector3, par: int, lv: int) -> int:
@@ -288,7 +293,7 @@ func _tube(st: SurfaceTool, b: PackedInt32Array, sides_div: int, cap: Array, idx
 			# a branch's base as its parent there: see fit_radii)
 			st.set_uv2(Vector2(0.0, g[6]))
 			st.set_normal(dir)
-			st.set_color(bark_tint)
+			st.set_color(_tint_at(at.y))
 			st.add_vertex(at)
 	# (front faces are clockwise seen from outside)
 	var first := _bark_count
@@ -348,6 +353,12 @@ static func _jag(a: float, jag: float, splinter := false) -> float:
 
 
 var _bark_count := 0
+
+
+func _tint_at(y: float) -> Color:
+	if tint_heights.y <= tint_heights.x:
+		return bark_tint
+	return (tint_low * bark_tint).lerp(bark_tint, smoothstep(tint_heights.x, tint_heights.y, y))
 
 
 var _thin_from := 12.0
