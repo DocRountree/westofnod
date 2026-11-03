@@ -81,5 +81,10 @@ void fragment() {
 void light() {
 	float a = mix(1.0, ATTENUATION, shadow_strength);
 	float ndl = dot(NORMAL, LIGHT);
-	DIFFUSE_LIGHT += (clamp(ndl * 0.8 + 0.2, 0.0, 1.0) + max(-ndl, 0.0) * translucency) * a * LIGHT_COLOR / PI;
+	// the light through the leaves from behind only with the sun well up: a
+	// low sun's, golden and from behind, turned half of every crown yellow
+	// at dusk (a tinge of it left)
+	float sun_up = (INV_VIEW_MATRIX * vec4(LIGHT, 0.0)).y;
+	float through = translucency * mix(0.12, 1.0, smoothstep(0.05, 0.4, sun_up));
+	DIFFUSE_LIGHT += (clamp(ndl * 0.8 + 0.2, 0.0, 1.0) + max(-ndl, 0.0) * through) * a * LIGHT_COLOR / PI;
 }

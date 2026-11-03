@@ -54,21 +54,33 @@ vec3 sandstone(Shared s) {
 	return a * (0.85 + 0.3 * s.n9);
 }
 
-// Mud, in the forest: bare, damp patches a metre or a few across, breaking
+// Mud, in the forest (and the prairie's lowlands): bare, damp patches a metre or a few across, breaking
 // up the litter and the grass (more where the ground is wetter); darker,
 // wetter in the middle of the bigger ones. 0..1 (puddle: 0..1 within it). Nothing grows on it
 // (ground_cover_bake.gdshader asks here too). Past a few metres a pixel
 // its patches average out to their share of the ground.
+//
+// The prairie's lowlands too: the flat bottoms of its hollows (the ground a
+// metre or more below the land round it, over a few hundred metres: the
+// height map's coarser mip), muddier the deeper.
 float biome_mud(int b, Shared s, out float puddle) {
 	puddle = 0.0;
 	float from;
-	if (b == 0)
-		from = 0.71 - 0.05 * s.m.g;  // (the forest's only)
-	else
+	float far_share = 0.08; // (what a pixel too big for the patches gets)
+	if (b == 0) {
+		from = 0.71 - 0.05 * s.m.g;
+	} else if (b == 2) {
+		float low = smoothstep(1.0, 4.5, terrain_height(s.p, 3) - s.h) * smoothstep(0.9, 0.97, s.n.y);
+		if (low <= 0.0)
+			return 0.0;
+		from = 1.02 - 0.3 * low;
+		far_share = 0.05 * low;
+	} else {
 		return 0.0;
+	}
 	float n = vnoise(s.p / 5.0 + 41.0) * 0.6 + vnoise(s.p / 1.7 - 17.0) * 0.3 + vnoise(s.p / 0.6) * 0.1;
 	float detail = 1.0 - smoothstep(1.0, 4.0, s.fp);
-	float mud = mix(0.08, smoothstep(from, from + 0.02, n), detail);
+	float mud = mix(far_share, smoothstep(from, from + 0.02, n), detail);
 	puddle = smoothstep(from + 0.09, from + 0.11, n) * detail;
 	return mud;
 }
@@ -117,6 +129,11 @@ vec3 biome_ground(int b, Shared s, out float rough, out float rocky, out float l
 		ground = mix(vec3(0.44, 0.45, 0.20), vec3(0.58, 0.52, 0.26), s.patches);
 		ground = mix(ground, vec3(0.30, 0.40, 0.15), s.m.g * 0.6);   // greener where it's wetter
 		ground = mix(ground, vec3(0.62, 0.55, 0.30), clump(s, 0.12) * 0.6);
+		// mud in its lowlands (biome_mud), greyer than the forest's, puddles darker
+		float pud;
+		float mud = biome_mud(b, s, pud);
+		ground = mix(ground, mix(vec3(0.21, 0.17, 0.12), vec3(0.1, 0.085, 0.065), pud) * (0.9 + 0.2 * s.fine3), mud);
+		rough = mix(rough, 0.85, mud);
 	} else if (b == 3) {     // swamp: dark mud and moss, standing water
 		ground = mix(vec3(0.15, 0.16, 0.09), vec3(0.22, 0.25, 0.12), s.patches);
 		float pools = clump(s, 0.6);                                    // mostly water

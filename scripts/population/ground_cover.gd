@@ -76,14 +76,14 @@ const LAYERS := [
 	# the prairie's flowers: black-eyed Susans in drifts, fleabane scattered more widely
 	{"cell": 2.0, "cells": 12, "tiles": 7, "flowers": "susan", "stems": 3, "radius": 0.22,
 		"u": {"kind": 2, "seed": 9, "in_forest": false, "cover": 0.65, "drift": Vector3(26.0, 0.6, 3.1),
-			"forest_height": Vector2(1.25, 1.7), "prairie_height": Vector2(1.25, 1.7),
+			"forest_height": Vector2(0.35, 0.55), "prairie_height": Vector2(1.25, 1.7), # (low where the prairie gives way, as its grass)
 			"prairie_green": Vector3(0.26, 0.36, 0.12), "prairie_blonde": Vector3(0.36, 0.4, 0.16),
 			"petal_color": Vector3(0.96, 0.71, 0.06), "petal_base": Vector3(0.9, 0.47, 0.05), "petal_alt": Vector3(0.97, 0.6, 0.05), "petal_alt_share": 0.3,
 			"disc_color": Vector3(0.17, 0.08, 0.04), "head_size": 0.07, "head_px": Vector2(3.0, 6.0),
 			"fade_out": Vector2(28.0, 38.0), "thin_from": 22.0}},
 	{"cell": 2.0, "cells": 12, "tiles": 7, "flowers": "fleabane", "stems": 3, "radius": 0.2,
 		"u": {"kind": 2, "seed": 10, "in_forest": false, "cover": 0.45, "drift": Vector3(15.0, 0.5, -7.7),
-			"forest_height": Vector2(1.2, 1.5), "prairie_height": Vector2(1.2, 1.5),
+			"forest_height": Vector2(0.3, 0.5), "prairie_height": Vector2(1.2, 1.5),
 			"prairie_green": Vector3(0.28, 0.38, 0.14), "prairie_blonde": Vector3(0.38, 0.42, 0.18),
 			"petal_color": Vector3(0.97, 0.96, 0.95), "petal_base": Vector3(0.97, 0.96, 0.95), "petal_alt": Vector3(0.8, 0.7, 0.94), "petal_mix": 1.6,
 			"disc_color": Vector3(0.95, 0.78, 0.12), "head_size": 0.025, "head_px": Vector2(3.0, 6.0),

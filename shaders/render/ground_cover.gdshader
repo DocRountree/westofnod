@@ -182,11 +182,14 @@ void fragment() {
 		c = t.rgb * tip_col * mix(0.6, 1.0, smoothstep(0.0, 0.5, frac));
 	} else {
 		c = mix(root_col, tip_col, smoothstep(0.0, 0.7, frac)) * mix(0.75, 1.0, frac);
+		// a flower's head darker at dusk and night than the grass (pale
+		// petals glowed under the night's wider exposure)
+		float head_dim = 1.0 - 0.8 * night;
 		if (part == 4) // a flower's disc
-			c = pow(disc_color, vec3(2.2)) * COLOR.r * dim;
+			c = pow(disc_color, vec3(2.2)) * COLOR.r * head_dim;
 		else if (part == 3) // its rays
 			c = pow(petal_mix > 0.0 ? mix(petal_color, petal_alt, pow(pick, petal_mix))
-					: (pick < petal_alt_share ? petal_alt : mix(petal_base, petal_color, smoothstep(0.0, 0.45, clamp(UV.y, 0.0, 1.0)))), vec3(2.2)) * COLOR.r * dim;
+					: (pick < petal_alt_share ? petal_alt : mix(petal_base, petal_color, smoothstep(0.0, 0.45, clamp(UV.y, 0.0, 1.0)))), vec3(2.2)) * COLOR.r * head_dim;
 		else if (part == 2)
 			c = head_color * COLOR.r;
 	}
