@@ -3,8 +3,9 @@ class_name WalnutTree
 ## fallen logs, three dead standing trees and two saplings (variants 0-12,
 ## as the oak's), grown by SpeciesTree and dressed with
 ## data/population/textures/walnut_*.png
-## (tools/trees/bake_walnut_textures.py). Not yet in the game (no prop .tres);
-## tools/trees/preview.gd -- <out> walnut draws them.
+## (tools/trees/bake_walnut_textures.py). In the game
+## (data/population/props/walnut.tres); tools/trees/preview.gd -- <out>
+## walnut draws them.
 ##
 ## What makes it read as a black walnut: a tall, straight trunk, in a stand
 ## a long clean bole under a small crown; a few stout limbs, alternate,
@@ -54,8 +55,9 @@ const SETTINGS := {
 	"dead_tint": Color(0.82, 0.8, 0.77), # (weathered greyer, still dark)
 	"log_tint": Color(0.82, 0.85, 0.75),
 	"shadow": [7.5, 4.5, 20.0, 0.45],
-	# as a prop, when it's given one: the forest's, straying only where it
-	# grows, none in the swamp
+	# as a prop (data/population/props/walnut.tres: the forest's, a few on
+	# the prairie): straying only where it grows (none into the taiga), none
+	# in the swamp nor on its mud
 	"props": {
 		"all": {"strict": true, "not_in_swamp": true},
 	},

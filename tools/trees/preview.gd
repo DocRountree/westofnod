@@ -2,7 +2,7 @@ extends SceneTree
 ## Renders a species' variants in a row on a plain, for looking at the
 ## models (the oak's; or with maple, sycamore, lodgepole, cypress, pawpaw or
 ## crabapple, theirs: MapleTree, SycamoreTree, LodgepolePine, BaldCypress,
-## PawpawTree, CrabappleTree; or walnut, WalnutTree, not yet in the game).
+## PawpawTree, CrabappleTree; or walnut, WalnutTree).
 ## xvfb-run godot --path . --resolution 1600x900 --script res://tools/trees/preview.gd -- <out_dir> [maple | sycamore | lodgepole | cypress | pawpaw | crabapple | walnut] [lod] [side | pair | pair2 | close | bark | leaves | dead | snag | saplings]
 
 var out := "user://"
