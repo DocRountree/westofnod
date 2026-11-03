@@ -180,4 +180,4 @@ static func _flux(magnitude: float) -> float:
 # the big naked-eye ones (M31, M42, M45) read as faint smudges, as they do outdoors.
 static func _deep_sky_glow(magnitude: float, major: float, minor: float) -> float:
 	var surface := pow(10.0, -0.4 * (magnitude - 4.0)) / sqrt(major * minor / 100.0 + 1.0)
-	return clampf(0.012 * sqrt(surface), 0.0, 0.035)
+	return clampf(0.009 * sqrt(surface), 0.0, 0.026) # (a quarter dimmer than they were)
