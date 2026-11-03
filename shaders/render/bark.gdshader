@@ -263,6 +263,14 @@ void fragment() {
 		vec3 grad = sign(det) * (dFdx(h) * r1 + dFdy(h) * r2);
 		NORMAL = normalize(abs(det) * NORMAL - grad);
 		ALBEDO = t.rgb * COLOR.rgb;
+		// a far colour of its own (the sycamore's white): the texture going
+		// over to it with distance, its mean at it by the time it dithers
+		// into the flat far colour (or its details dithered in darker)
+		if (far_color.r >= 0.0) {
+			vec3 mean = textureLod(bark_tex, vec2(0.5), 12.0).rgb;
+			float k = smoothstep(12.0, detail_far.x, distance(world_pos, CAMERA_POSITION_WORLD));
+			ALBEDO *= mix(vec3(1.0), far_color / max(mean, vec3(0.02)), k);
+		}
 		AO = mix(0.45, 1.0, t.a);
 		AO_LIGHT_AFFECT = 0.25;
 		ROUGHNESS = 0.92;

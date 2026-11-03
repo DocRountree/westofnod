@@ -54,7 +54,7 @@ const VARIANTS := [
 ## two closer than 7.5 m: their trunks clear, limbs may interlace).
 const PROPS := {
 	"tree": {"standing": true, "foot": 0.75, "shadowless_in": ["swamp"]},
-	"stump": {"weight": 0.5, "shadowless_in": ["swamp"], "radius": 0.0, "foot": 0.6, "align_to_ground": 0.3, "sink": 0.12, "scale_range": Vector2(0.8, 1.1)},
+	"stump": {"weight": 0.5, "not_in_swamp": true, "shadowless_in": ["swamp"], "radius": 0.0, "foot": 0.6, "align_to_ground": 0.3, "sink": 0.12, "scale_range": Vector2(0.8, 1.1)},
 	"log": {"weight": 0.25, "not_in_swamp": true, "radius": 0.0, "align_to_ground": 0.9, "sink": 0.12, "scale_range": Vector2(0.8, 1.15), "shadows": false},
 	"dead": {"weight": 0.5 / 3.0, "standing": true, "density_like": {"swamp": "prairie"}, "like_group": "standing", "height_range": Vector2(-0.5, 1150.0), "foot": 0.65,
 		"clump": {"swamp": 1.0}, "clump_size": 34.0, "min_spacing": 7.5, "shadowless_in": ["swamp"]},
