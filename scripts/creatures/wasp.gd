@@ -351,6 +351,13 @@ func land(at: Vector3, normal := Vector3.UP) -> void:
 func sting(target: Vector3) -> void:
 	var id := _begin()
 	release()
+	# on a surface, but the target's not on it (or not near): from the air
+	if not flying:
+		var to := target - _pos
+		var off_plane := absf(to.dot(surface_n))
+		if off_plane > 0.01 or (to - surface_n * to.dot(surface_n)).length() > 0.06:
+			if not await _take_off(id):
+				return
 	if flying:
 		var face := target - _pos
 		face.y = 0.0
