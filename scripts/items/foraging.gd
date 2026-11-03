@@ -1,9 +1,10 @@
 class_name Foraging
 extends Node
-## Picking fruit (F: the "pick" action): from a fruiting tree in reach
-## (Population.fruit_near: a pawpaw's crown, a few metres from its trunk, in
-## front of you), a few of its fruit (Items) into the knapsack; a tree once
-## picked bears again the next day. Saved with the game (to_dict).
+## Picking fruit (right-click with a hand empty): from a fruiting tree in
+## reach (Population.fruit_near: a pawpaw's crown, a few metres from its
+## trunk, in front of you), a few of its fruit (Items) into the empty hand,
+## any it can't hold into the knapsack; a tree once picked bears again the
+## next day. Saved with the game (to_dict).
 
 const REACH := 2.8 ## m from the trunk: under its crown
 const MOST := 3 ## fruit a tree gives at a picking, at most
@@ -13,11 +14,15 @@ var _picked := {} # tree uid -> the day it was picked
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if not event.is_action_pressed(&"pick") or event.is_echo():
+	if not (event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT):
 		return
 	var p: Player = main.player
 	if Input.mouse_mode != Input.MOUSE_MODE_CAPTURED or p.typing or p.frozen:
 		return
+	var inv: Inventory = main.inventory
+	var hand := Inventory.RIGHT if inv.right.is_empty() else (Inventory.LEFT if inv.left.is_empty() else -1)
+	if hand < 0:
+		return # (both hands full: nothing to pick with)
 	get_viewport().set_input_as_handled()
 	var tree: Dictionary = main.population.fruit_near(Origin.map(p.camera.global_position), -p.camera.global_basis.z, REACH)
 	if tree.is_empty():
@@ -30,10 +35,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	# (how many: the tree's and the day's own, 1..MOST)
 	var n := 1 + int(fposmod(sin(float(uid % 100003) * 12.9898 + day * 78.233) * 43758.5453, 1.0) * MOST)
-	var left: int = main.inventory.add(tree.fruit, n)
-	if left >= n:
-		main.chat.say("Your knapsack is full.", Color(1.0, 0.7, 0.5))
-		return
+	# into the empty hand, as many as it holds; the rest into the knapsack
+	var in_hand := mini(n, Items.stack_of(tree.fruit))
+	inv.set_at(hand, {"id": tree.fruit, "count": in_hand})
+	var left: int = inv.add(tree.fruit, n - in_hand) if n > in_hand else 0
 	_picked[uid] = day
 	var got := n - left
 	main.chat.say("Picked %d %s%s." % [got, name, "" if got == 1 else "s"], Color(0.8, 1.0, 0.75))
