@@ -1,0 +1,108 @@
+extends Node3D
+## A plain to watch ants (AntColony) on, their two animations on keys:
+## godot --path . res://tools/creatures/ant_demo.tscn
+##
+## 1 all wandering about   2 all to the crumbs, feeding   3 half and half
+## + / - more or fewer ants (a colony, every one drawn by the shader)
+## Space slow motion   drag: turn round   wheel: nearer / further
+## For the scale, a pawpaw and a black-eyed Susan lying by (Items).
+
+var colony: AntColony
+var cam: Camera3D
+var _yaw := 0.7
+var _pitch := -0.6
+var _dist := 0.35
+var _count := 40
+var _label: Label
+
+const CRUMBS := [Vector3(0.08, 0.0035, -0.05), Vector3(-0.1, 0.0035, 0.07), Vector3(0.02, 0.0035, 0.12)]
+
+
+func _ready() -> void:
+	var env := Environment.new()
+	env.background_mode = Environment.BG_SKY
+	env.sky = Sky.new()
+	env.sky.sky_material = ProceduralSkyMaterial.new()
+	env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
+	env.tonemap_mode = Environment.TONE_MAPPER_ACES
+	var we := WorldEnvironment.new()
+	we.environment = env
+	add_child(we)
+	var sun := DirectionalLight3D.new()
+	sun.rotation = Vector3(deg_to_rad(-55), deg_to_rad(-35), 0)
+	sun.shadow_enabled = true
+	sun.directional_shadow_max_distance = 2.0
+	add_child(sun)
+	var ground := MeshInstance3D.new()
+	var b := BoxMesh.new()
+	b.size = Vector3(3, 0.01, 3)
+	ground.mesh = b
+	ground.position.y = -0.005
+	var gm := StandardMaterial3D.new()
+	gm.albedo_color = Color(0.42, 0.36, 0.26)
+	gm.roughness = 0.95
+	ground.material_override = gm
+	add_child(ground)
+	for c in CRUMBS:
+		var cr := AntColony.crumb()
+		cr.position = Vector3(c.x, 0.0, c.z)
+		add_child(cr)
+	for t in [["pawpaw", Vector3(-0.16, 0.028, -0.08), Vector3(0, 0.4, PI * 0.5)], ["susan", Vector3(0.15, 0.006, 0.1), Vector3(0, -0.3, PI * 0.5)]]:
+		var m := Items.model(t[0])
+		m.position = t[1]
+		m.rotation = t[2]
+		add_child(m)
+	cam = Camera3D.new()
+	cam.near = 0.001
+	cam.far = 50.0
+	cam.fov = 50.0
+	add_child(cam)
+	_label = Label.new()
+	_label.position = Vector2(12, 8)
+	add_child(_label)
+	_make()
+
+
+func _make() -> void:
+	if colony:
+		colony.queue_free()
+	colony = AntColony.new()
+	add_child(colony)
+	colony.setup(_count, Vector3.ZERO, 0.22)
+	_label.text = "%d ants   1 wander   2 feed on the crumbs   3 half and half   + / - more or fewer   Space slow motion   drag: turn round   wheel: nearer / further" % _count
+
+
+func _unhandled_input(e: InputEvent) -> void:
+	if e is InputEventKey and e.pressed and not e.echo:
+		match e.keycode:
+			KEY_1:
+				for i in _count:
+					colony.wander(i, Vector3.ZERO, 0.22)
+			KEY_2, KEY_3:
+				for i in _count:
+					if e.keycode == KEY_3 and i % 2 == 1:
+						colony.wander(i, Vector3.ZERO, 0.22)
+					else:
+						colony.feed(i, CRUMBS[i % CRUMBS.size()])
+			KEY_EQUAL, KEY_PLUS, KEY_KP_ADD:
+				_count = mini(_count * 2, 1280)
+				_make()
+			KEY_MINUS, KEY_KP_SUBTRACT:
+				_count = maxi(_count / 2, 1)
+				_make()
+			KEY_SPACE:
+				Engine.time_scale = 0.2 if Engine.time_scale > 0.5 else 1.0
+	elif e is InputEventMouseMotion and e.button_mask != 0:
+		_yaw -= e.relative.x * 0.008
+		_pitch = clampf(_pitch - e.relative.y * 0.008, -1.4, 1.2)
+	elif e is InputEventMouseButton and e.pressed:
+		if e.button_index == MOUSE_BUTTON_WHEEL_UP:
+			_dist = maxf(_dist * 0.85, 0.02)
+		elif e.button_index == MOUSE_BUTTON_WHEEL_DOWN:
+			_dist = minf(_dist / 0.85, 3.0)
+
+
+func _process(_dt: float) -> void:
+	var off := Vector3(sin(_yaw) * cos(_pitch), -sin(_pitch), cos(_yaw) * cos(_pitch)) * _dist
+	cam.global_position = off
+	cam.look_at(Vector3.ZERO, Vector3.UP)
