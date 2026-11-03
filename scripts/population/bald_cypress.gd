@@ -3,8 +3,8 @@ class_name BaldCypress
 ## three fallen logs, three dead standing trees and two saplings (variants
 ## 0-12, as the oak's), grown by SpeciesTree as a conifer and dressed with
 ## data/population/textures/cypress_*.png
-## (tools/trees/bake_conifer_textures.py). Not yet in the game:
-## tools/trees/preview.gd -- <out> cypress draws them.
+## (tools/trees/bake_conifer_textures.py). In the game
+## (data/population/props/); tools/trees/preview.gd -- <out> cypress draws them.
 ##
 ## What makes it read as a bald cypress: a swamp tree; its foot swollen and
 ## fluted into buttresses, knees (knobs of root) standing up out of the
@@ -50,6 +50,14 @@ const SETTINGS := {
 	"dead_tint": Color(0.8, 0.78, 0.74),
 	"log_tint": Color(0.76, 0.78, 0.68),
 	"shadow": [6.0, 8.0, 22.0, 0.6],
+	# as a prop (data/population/props/bald_cypress.tres: in the taiga with
+	# the lodgepoles, a few in the forest): straying only where it grows
+	# (never onto the prairie, nor into the swamp)
+	"props": {
+		"all": {"strict": true, "not_in_swamp": true},
+		"tree": {"foot": 0.6},
+		"dead": {"foot": 0.6},
+	},
 }
 
 static var _species: SpeciesTree

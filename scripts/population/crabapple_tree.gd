@@ -3,8 +3,8 @@ class_name CrabappleTree
 ## trees, a stump, three fallen logs, three dead standing trees and two
 ## saplings (variants 0-12, as the oak's), grown by SpeciesTree and dressed
 ## with data/population/textures/crabapple_*.png
-## (tools/trees/bake_small_tree_textures.py). Not yet in the game:
-## tools/trees/preview.gd -- <out> crabapple draws them.
+## (tools/trees/bake_small_tree_textures.py). In the game
+## (data/population/props/); tools/trees/preview.gd -- <out> crabapple draws them.
 ##
 ## What makes it read as a crabapple: a small tree, 5-8 m, on a short
 ## trunk, often several stems; crooked, gnarled limbs spreading low into a
@@ -50,6 +50,15 @@ const SETTINGS := {
 	"dead_tint": Color(0.8, 0.78, 0.74),
 	"log_tint": Color(0.78, 0.8, 0.7),
 	"shadow": [3.6, 1.4, 6.6, 0.18],
+	# as a prop (data/population/props/crabapple.tres: a few in the forest
+	# and out on the prairie): straying only where it grows, none in the
+	# swamp; small trees, drawn to 400 m, their trunks slender
+	"props": {
+		"all": {"strict": true, "not_in_swamp": true, "view_distance": 400.0},
+		"tree": {"foot": 0.25, "radius": 0.2},
+		"dead": {"foot": 0.25, "radius": 0.2},
+		"sapling": {"foot": 0.04, "radius": 0.0},
+	},
 }
 
 static var _species: SpeciesTree

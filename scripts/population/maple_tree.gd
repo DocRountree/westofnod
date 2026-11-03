@@ -3,7 +3,8 @@ class_name MapleTree
 ## fallen logs, three dead standing trees and two saplings (variants 0-12,
 ## as the oak's), grown by SpeciesTree and dressed with
 ## data/population/textures/maple_*.png (tools/trees/bake_broadleaf_textures.py).
-## Not yet in the game: tools/trees/preview.gd -- <out> maple draws them.
+## In the game (data/population/props/maple.tres);
+## tools/trees/preview.gd -- <out> maple draws them.
 ##
 ## What makes it read as a sugar maple: a straight, tall trunk; branching
 ## opposite (side branches in pairs, each pair square to the last), limbs
@@ -49,6 +50,12 @@ const SETTINGS := {
 	"dead_tint": Color(0.78, 0.76, 0.72),
 	"log_tint": Color(0.8, 0.83, 0.72),
 	"shadow": [6.4, 4.2, 18.5, 0.4],
+	# as a prop (data/population/props/maple.tres: in the forest, a very
+	# few out on the prairie): straying only where it grows (none into the
+	# taiga or the swamp, nor onto its mud)
+	"props": {
+		"all": {"strict": true, "not_in_swamp": true},
+	},
 }
 
 static var _species: SpeciesTree

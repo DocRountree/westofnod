@@ -21,6 +21,7 @@ extends Node3D
 
 const CHUNK := 64.0
 const PROP_DIR := "res://data/population/props/"
+const FIRST_KINDS := ["oak", "pawpaw"] ## Placed first, in this order (as before the other trees came: see _ready)
 const ACTOR_DIR := "res://data/population/actors/"
 const APPLY_PER_FRAME := 2 ## Generated chunks added to the scene per frame, at most (playing).
 var apply_per_frame := APPLY_PER_FRAME ## (more while the world loads, behind its screen)
@@ -71,7 +72,17 @@ class _Chunk:
 
 
 func _ready() -> void:
-	for k in _load_dir(PROP_DIR):
+	var kinds := _load_dir(PROP_DIR)
+	# the first kinds as they always were (a kind's index seeds its placing
+	# and is in its props' uids: the oaks and pawpaws where they stood, and
+	# the saved felled trees still theirs), then the rest by name
+	kinds.sort_custom(func(a, b) -> bool:
+		var ia := FIRST_KINDS.find(String(a.id))
+		var ib := FIRST_KINDS.find(String(b.id))
+		ia = ia if ia >= 0 else FIRST_KINDS.size()
+		ib = ib if ib >= 0 else FIRST_KINDS.size()
+		return ia < ib if ia != ib else String(a.id) < String(b.id))
+	for k in kinds:
 		if k is PropKind:
 			for kv in _variants(k):
 				props.append(kv)
@@ -991,8 +1002,12 @@ func _generate(key: Vector2i) -> void:
 				else:
 					bi = world.biome_blend_at(x, z, u)
 				var dc := kind.density_in(bi) * kind.clump_at(bi, x, z)
+				if kind.swamp_depth != Vector2.ZERO and bi == world.swamp and keep < dc * maxf(kind.swamp_depth.x, kind.swamp_depth.y):
+					dc *= lerpf(kind.swamp_depth.x, kind.swamp_depth.y, world.swamp_depth(x, z)) # (more at the edge, or in the middle)
 				if keep >= dc:
 					continue
+				if kind.strict and kind.density_in(world.biome_blend_at(x, z, u)) <= 0.0:
+					continue # (strayed onto ground it doesn't grow in)
 				if kind.not_in_swamp and world.swamp >= 0 and (world.swampiness(x, z) > 0.0 or world.biome_blend_at(x, z, u) == world.swamp):
 					continue # (none in the swamp, nor its muddy edge)
 				if kind.strays:

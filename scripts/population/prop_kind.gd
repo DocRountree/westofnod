@@ -76,9 +76,11 @@ func clump_at(b: int, x: float, z: float) -> float:
 	return lerpf(1.0, CLUMP_MAX * smoothstep(0.56, 0.78, n), k)
 
 
-## The most it can be anywhere (its peak density, clumped).
+## The most it can be anywhere (its peak density, clumped, and times the
+## most swamp_depth makes it).
 func peak_clumped() -> float:
-	return peak() * (CLUMP_MAX if not clump.is_empty() else 1.0)
+	var k := maxf(maxf(swamp_depth.x, swamp_depth.y), 1.0) if swamp_depth != Vector2.ZERO else 1.0
+	return peak() * (CLUMP_MAX if not clump.is_empty() else 1.0) * k
 ## What can be climbed (Player, C): lines (a trunk from the foot up, its
 ## limbs from where they leave it) as far as they're stout enough to hold
 ## you; each its node count, then 4 floats a node, local (at scale 1): x, y,
@@ -95,3 +97,11 @@ func peak_clumped() -> float:
 ## None in the swamp (where it is drawn swamp, or its mud reaches), however
 ## it strays or blends there (the oaks' logs).
 @export var not_in_swamp := false
+## Straying (strays), only into biomes it grows in: none where the ground's
+## own biome has no density for it (the pines: from the taiga into the
+## forest, but never onto the prairie).
+@export var strict := false
+## In the swamp, its density times x at the swamp's edge, y in its middle,
+## by how far in (WorldData.swamp_depth); (0, 0) none of this (the
+## sycamores: the living more at the edges, the dead in the middle).
+@export var swamp_depth := Vector2.ZERO

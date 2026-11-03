@@ -96,7 +96,11 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   Fresnel, a capped GGX sun highlight, and gloss falling away with distance. With MSAA
   the depth buffer can't be read, so the water's thickness falls back to the channel
   depth (rivers) or the sea floor (sea) and the view angle.
-- **Trees**: English oaks (`data/population/README.md`), streamed by `Population`.
+- **Trees**: English oaks, sugar maples and crabapples in the forest (a few
+  of each on the prairie), pawpaws in its understory, lodgepole pines and bald
+  cypresses thick in the taiga (a few in the forest), sycamores in the swamp
+  (the living more at its edges, the dead in its middle); every one choppable
+  (`data/population/README.md`), streamed by `Population`.
   Their bark carries lichen (leafy rosettes, cracked crust with fruiting discs, a
   powdery yellow-green crust: `data/population/textures/lichen.png`, drawn lobe by lobe
   by `tools/trees/bake_lichen.py`, each tree reading it from its own place, in drifts,

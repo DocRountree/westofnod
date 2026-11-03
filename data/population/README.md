@@ -88,7 +88,7 @@ PropKind for models from a script: `mesh_script` (`build(variant)`,
 `variants` (per-variant weight, settings and `density_like` from
 `variant_props`), `lods` / `lod_distances` / `shadow_distance`, `shadow_mesh`.
 
-## Maple, sycamore, lodgepole pine, bald cypress, pawpaw, crabapple (models only, not yet in the game)
+## Maple, sycamore, lodgepole pine, bald cypress, pawpaw, crabapple
 
 `scripts/population/maple_tree.gd` (sugar maple, *Acer saccharum*) and
 `sycamore_tree.gd` (American sycamore, *Platanus occidentalis*): each the
@@ -142,7 +142,7 @@ maple` (or `sycamore`; `pair`, `pair2` for the standing trees nearer).
   Their textures: `python3 tools/trees/bake_small_tree_textures.py`
   (`pawpaw_leaves.png`, `pawpaw_bark.png`, `crabapple_leaves.png`,
   `crabapple_bark.png`); `preview.gd ... pawpaw` / `crabapple`. Their fruit
-  are items already (`Items`: `pawpaw`, `crabapple`; `/give` them).
+  are items (`Items`: `pawpaw`, `crabapple`), picked from the trees.
 - American sycamore: a massive trunk dividing low into two or three leaders
   (`forks`), long crooked limbs at wide angles, an open, lumpy crown
   (`irregular`); bark peeling into a cream, grey-green and tan patchwork,
@@ -150,6 +150,26 @@ maple` (or `sycamore`; `pair`, `pair2` for the standing trees nearer).
   big, broad, shallowly lobed, coarsely toothed leaves one by one on stout
   stalks, now and then a seed ball on its thread.
 
-Still to do for the game: the far-off cards (`ImpostorBaker`), the moss's
-sporophytes on their logs and stumps, the cut variant for felling, and
-props (`.tres`) with their densities by biome.
+All in the game (`props/*.tres`), choppable as the oak (their cut
+variants), with the oak's far-off cards (`ImpostorBaker`); not yet the
+moss's sporophytes on their logs and stumps. Where they grow (whole kinds,
+per hectare, shared among their variants as the oak's):
+
+- `maple.tres`: the forest 5, the prairie 0.12 (a very few); none in the
+  taiga or the swamp (`strict`: straying across a border only into a biome
+  it grows in; `not_in_swamp`).
+- `crabapple.tres`: the forest 1.5, the prairie 0.5; none in the taiga or
+  the swamp. Its fruit hang on the grown trees and are picked as the
+  pawpaw's (`Foraging`).
+- `lodgepole.tres` and `bald_cypress.tres`: the taiga 17 and 9 (together
+  as thick as the oaks in the forest), thinning out up the mountains to
+  none past 1350 m; the forest 0.6 and 0.4; none on the prairie or in the
+  swamp.
+- `sycamore.tres`: the swamp's only, 10 (not straying out of it): the
+  living and saplings more at its edges, fewer in its middle (x1.8 to
+  x0.35), the dead the other way (x0.3 to x3: `PropKind.swamp_depth`, by
+  `WorldData.swamp_depth`, the swamp's share on rings 300 and 700 m round).
+
+The oaks and pawpaws are placed first, as before the others came
+(`Population.FIRST_KINDS`: a kind's index seeds its placing and is in its
+props' ids).

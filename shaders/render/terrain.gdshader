@@ -124,6 +124,7 @@ void fragment() {
 	float coast = (b1 == 10 ? w1 : 0.0) + (b2 == 10 ? w2 : 0.0);
 	float forest = (b1 == 0 ? w1 : 0.0) + (b2 == 0 ? w2 : 0.0);
 	float taiga = (b1 == 5 ? w1 : 0.0) + (b2 == 5 ? w2 : 0.0);
+	float swamp = (b1 == 3 ? w1 : 0.0) + (b2 == 3 ? w2 : 0.0);
 	// the fallen leaves, near
 	float near = 1.0 - smoothstep(litter_fade.x, litter_fade.y, distance(world_pos, CAMERA_POSITION_WORLD + world_origin));
 	if (litter * near > 0.0) {
@@ -147,15 +148,20 @@ void fragment() {
 	col *= mix(1.0, 0.78, (1.0 - smoothstep(0.0, 0.6, h)) * step(-0.3, h)); // damp line
 	// past where the trees are drawn (OakTree.VIEW, 600 m), their canopy
 	// painted on the ground, as much of it as the trees there would cover
-	// (from their density by biome: oak.tres, as Population places them): crowns lit on top, shadow between, fading to their mean
-	// once a pixel is wider than a crown
+	// (from their density by biome: data/population/props/, as Population
+	// places them: the forest's oaks and maples, the taiga's pines and
+	// cypresses, the prairie's few, the swamp's sycamores): crowns lit on
+	// top, shadow between, fading to their mean once a pixel is wider than
+	// a crown
 	float far_trees = smoothstep(520.0, 640.0, distance(world_pos, CAMERA_POSITION_WORLD + world_origin));
 	if (far_trees > 0.0) {
-		float cover = (forest * 0.46 + taiga * 0.04 + prairie * 0.03) * (1.0 - rocky) * (1.0 - m.a) * step(0.4, h)
-				* (1.0 - smoothstep(575.0, 1150.0, h)); // (the oaks thinning up the mountains: oak.tres, Population)
+		float broad = (forest * 0.52 + prairie * 0.05 + swamp * 0.1) * (1.0 - smoothstep(575.0, 1150.0, h)); // (the broadleaves thinning up the mountains: their .tres, Population)
+		float conifer = taiga * 0.38 * (1.0 - smoothstep(675.0, 1350.0, h)); // (the conifers: lodgepole.tres, bald_cypress.tres)
+		float cover = (broad + conifer) * (1.0 - rocky) * (1.0 - m.a) * step(0.4, h);
 		float crowns = vnoise(p / 5.0) * 0.55 + vnoise(p / 13.0 + 4.1) * 0.45;
 		crowns = mix(crowns, 0.5, smoothstep(2.0, 8.0, fp));
 		vec3 canopy = mix(vec3(0.05, 0.07, 0.035), vec3(0.17, 0.25, 0.09), smoothstep(0.3, 0.7, crowns));
+		canopy = mix(canopy, canopy * vec3(0.7, 0.82, 0.85), conifer / max(broad + conifer, 1e-3)); // (the conifers darker, bluer)
 		canopy *= 1.0 - 0.5 * night; // (as the leaves: leaves.gdshader NIGHT_DIM)
 		float c = clamp(cover * 1.6, 0.0, 1.0) * far_trees;
 		col = mix(col, canopy, c);

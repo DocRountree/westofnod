@@ -559,7 +559,7 @@ static func _cut_material(mat: ShaderMaterial) -> ShaderMaterial:
 ## the crown's middle, side the tree's height or width, whichever is more;
 ## its material's atlas photographed from `mesh` by ImpostorBaker (until
 ## then empty: nothing drawn).
-static func _impostor(variant: int, mesh: Mesh) -> Mesh:
+static func _impostor(variant: int, mesh: Mesh, species := "oak") -> Mesh:
 	var box := mesh.get_aabb()
 	var ext := maxf(maxf(absf(box.position.x), absf(box.end.x)), maxf(absf(box.position.z), absf(box.end.z)))
 	var side := maxf(box.size.y, ext * 2.0) * 1.04
@@ -585,7 +585,7 @@ static func _impostor(variant: int, mesh: Mesh) -> Mesh:
 		_no_photo = ImageTexture.create_from_image(img)
 	m.set_shader_parameter("atlas", _no_photo)
 	_lod_span(m, LOD.size())
-	_leaf_mats[["impostor", variant]] = m # (told the night, and the levels' fade, with the leaves)
+	_leaf_mats[["impostor", species, variant]] = m # (told the night, and the levels' fade, with the leaves)
 	quad.surface_set_material(0, m)
 	impostor_jobs.append([variant, mesh, m, side, mid])
 	return quad

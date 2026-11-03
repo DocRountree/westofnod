@@ -4,8 +4,8 @@ class_name LodgepolePine
 ## the beetles leave them) and two saplings (variants 0-12, as the oak's),
 ## grown by SpeciesTree as a conifer and dressed with
 ## data/population/textures/lodgepole_*.png
-## (tools/trees/bake_conifer_textures.py). Not yet in the game:
-## tools/trees/preview.gd -- <out> lodgepole draws them.
+## (tools/trees/bake_conifer_textures.py). In the game
+## (data/population/props/); tools/trees/preview.gd -- <out> lodgepole draws them.
 ##
 ## What makes it read as a lodgepole: a very straight, slender, barely
 ## tapering trunk; in a stand, bare for most of its height (it sheds its
@@ -52,6 +52,15 @@ const SETTINGS := {
 	"dead_tint": Color(0.86, 0.84, 0.8), # (a snag, silver-grey)
 	"log_tint": Color(0.8, 0.8, 0.72),
 	"shadow": [2.6, 9.0, 21.0, 0.24],
+	# as a prop (data/population/props/lodgepole.tres: the taiga's, with the
+	# bald cypresses as thick as the oaks in the forest, thinning out up the
+	# mountains to none past 1350 m; a few in the forest): straying only
+	# where it grows (never onto the prairie, nor into the swamp)
+	"props": {
+		"all": {"strict": true, "not_in_swamp": true},
+		"tree": {"foot": 0.35},
+		"dead": {"foot": 0.35},
+	},
 }
 
 static var _species: SpeciesTree

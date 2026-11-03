@@ -185,6 +185,21 @@ func height_at(x: float, z: float) -> float:
 	return b + detail(x, z) * land * dry
 
 
+## How far into the swamp (x, z) is: 0 at its edge (or out of it), 1 some
+## 700 m or more in: the share of the swamp round it on two rings (300 m
+## and 700 m), half of it at the edge.
+func swamp_depth(x: float, z: float) -> float:
+	if swamp < 0:
+		return 0.0
+	var n := 0
+	for r in [300.0, 700.0]:
+		for k in 10:
+			var a := TAU * (k + (0.5 if r > 400.0 else 0.0)) / 10.0
+			if biome_index_at(x + cos(a) * r, z + sin(a) * r) == swamp:
+				n += 1
+	return smoothstep(0.5, 1.0, n / 20.0)
+
+
 ## How much of a swamp (x, z) is in, 0..1: the four nearest biome texels
 ## blended, as in height_map.gdshaderinc (no fine relief there).
 func swampiness(x: float, z: float) -> float:

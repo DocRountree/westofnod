@@ -23,9 +23,9 @@ extends RefCounted
 ## build_shadow, build_walk, build_climb, variant_props), so either can
 ## later be a prop's mesh_script as the oak is.
 ##
-## Not yet in the game: the models only (tools/trees/preview.gd draws them).
-## What the oak has for the game beyond its models (the far trees' cards,
-## the moss's sporophytes, the cut variant for felling) isn't here yet.
+## In the game (data/population/props/: each species' .tres), with the oak's
+## far-off cards (OakTree._impostor) and its cut variant for felling; not
+## yet the moss's sporophytes.
 
 var name := ""
 var variants: Array = []
@@ -125,7 +125,13 @@ func _models(v: int) -> Array:
 			_:
 				tb = grow(v)
 				lods = [tb.lod(b[1], l[1], 2, 2, 4, card_size / 0.7, L[0]), tb.lod(b[2], l[2], 1, 3, 12, 2.0 * card_size / 0.7, L[1]), tb.lod(b[3], l[3], 0, 4, 36, 3.2 * card_size / 0.7, L[2])]
-		_cache[v] = [tb.build(b[0], l[0], 12.0), lods]
+		# a standing tree (live or dead) far off: one card, its photograph
+		# (OakTree._impostor, ImpostorBaker), in place of the last level's
+		# mesh; the meshes kept whole for the felled (cut_meshes)
+		var solid := lods.duplicate()
+		if k in ["tree", "dead"]:
+			lods[2] = OakTree._impostor(v, lods[1], name)
+		_cache[v] = [tb.build(b[0], l[0], 12.0), lods, solid]
 	return _cache[v]
 
 
@@ -339,7 +345,8 @@ func cut_meshes(v: int) -> Array:
 	v = posmod(v, variants.size())
 	if not _cut_meshes.has(v):
 		var out := []
-		for m: Mesh in [build(v)] + build_lods(v):
+		_models(v)
+		for m: Mesh in [build(v)] + (_cache[v][2] as Array): # (a felled tree far off: its mesh, not the standing tree's card)
 			var c := m.duplicate() as ArrayMesh
 			for si in c.get_surface_count():
 				var mat := c.surface_get_material(si) as ShaderMaterial

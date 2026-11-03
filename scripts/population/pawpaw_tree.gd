@@ -3,8 +3,8 @@ class_name PawpawTree
 ## fallen logs, three dead standing trees and two saplings (variants 0-12,
 ## as the oak's), grown by SpeciesTree and dressed with
 ## data/population/textures/pawpaw_*.png
-## (tools/trees/bake_small_tree_textures.py). Not yet in the game:
-## tools/trees/preview.gd -- <out> pawpaw draws them.
+## (tools/trees/bake_small_tree_textures.py). In the game
+## (data/population/props/pawpaw.tres); tools/trees/preview.gd -- <out> pawpaw draws them.
 ##
 ## What makes it read as a pawpaw: a small understory tree, 4-9 m, often in
 ## clonal thickets of several stems; a slender trunk, branches spreading

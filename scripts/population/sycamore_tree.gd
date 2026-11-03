@@ -3,8 +3,8 @@ class_name SycamoreTree
 ## stump, three fallen logs, three dead standing trees and two saplings
 ## (variants 0-12, as the oak's), grown by SpeciesTree and dressed with
 ## data/population/textures/sycamore_*.png
-## (tools/trees/bake_broadleaf_textures.py). Not yet in the game:
-## tools/trees/preview.gd -- <out> sycamore draws them.
+## (tools/trees/bake_broadleaf_textures.py). In the game
+## (data/population/props/); tools/trees/preview.gd -- <out> sycamore draws them.
 ##
 ## What makes it read as a sycamore: a massive trunk that often divides low
 ## into two or three great leaders; long, crooked limbs reaching out at
@@ -52,6 +52,17 @@ const SETTINGS := {
 	"dead_tint": Color(0.82, 0.8, 0.76),
 	"log_tint": Color(0.74, 0.74, 0.66),
 	"shadow": [9.0, 4.5, 21.0, 0.6],
+	# as a prop (data/population/props/sycamore.tres: the swamp's only, not
+	# straying out of it): the living more at its edges, fewer in its
+	# middle; the dead the other way about (WorldData.swamp_depth); casting
+	# shadows there (the oaks' dead don't)
+	"props": {
+		"all": {"strays": false},
+		"tree": {"swamp_depth": Vector2(1.8, 0.35), "shadowless_in": []},
+		"sapling": {"swamp_depth": Vector2(1.8, 0.35), "shadowless_in": []},
+		"dead": {"swamp_depth": Vector2(0.3, 3.0), "density_like": {}, "clump": {}},
+		"stump": {"shadowless_in": []},
+	},
 }
 
 static var _species: SpeciesTree
