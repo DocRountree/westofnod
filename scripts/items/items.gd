@@ -22,6 +22,7 @@ const KINDS := {
 	"fleabane": {"name": "Fleabane", "stack": 16, "shape": "flower", "size": Vector3(0.022, 0.45, 1.0), "color": Color(0.96, 0.95, 0.96), "disc": Color(0.95, 0.78, 0.12), "heads": 3},
 	"coneflower": {"name": "Purple coneflower", "stack": 16, "shape": "flower", "size": Vector3(0.09, 0.5, 1.0), "color": Color(0.78, 0.42, 0.62), "disc": Color(0.42, 0.2, 0.06), "heads": 1},
 	"aster": {"name": "Swamp aster", "stack": 16, "shape": "flower", "size": Vector3(0.028, 0.5, 1.0), "color": Color(0.6, 0.45, 0.85), "disc": Color(0.93, 0.72, 0.12), "heads": 4},
+	"yampah": {"name": "Yampah", "stack": 16, "shape": "flower", "size": Vector3(0.04, 0.6, 1.0), "color": Color(0.95, 0.95, 0.9), "disc": Color(0.85, 0.86, 0.72), "heads": 3},
 	"cattail": {"name": "Cattail", "stack": 16, "shape": "cattail", "size": Vector3(0.024, 0.75, 0.16), "color": Color(0.36, 0.22, 0.12)},
 }
 

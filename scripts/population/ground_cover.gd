@@ -35,6 +35,8 @@ extends Node3D
 ## - black-eyed Susans (Rudbeckia hirta), fleabane (Erigeron annuus) and
 ##   purple coneflowers (Echinacea purpurea): the prairie's wildflowers
 ##   among its grass, in drifts, their heads up
+## - yampah (Perideridia gairdneri): white umbels, on the prairie and in
+##   the forest, knee-high there
 ## - swamp asters (Symphyotrichum puniceum): the swamp's, sparse
 ##   among the grass's tips (taller than they'd be, the grass being head-high);
 ##   to 38 m and 34 m.
@@ -98,6 +100,14 @@ const LAYERS := [
 			"petal_color": Vector3(0.78, 0.42, 0.62), "petal_base": Vector3(0.62, 0.22, 0.42), "petal_alt": Vector3(0.86, 0.6, 0.76), "petal_alt_share": 0.25,
 			"disc_color": Vector3(0.42, 0.2, 0.06), "head_size": 0.09, "head_px": Vector2(3.0, 6.0),
 			"fade_out": Vector2(28.0, 38.0), "thin_from": 22.0}},
+	# yampah, in the prairie and in the forest's clearings: white umbels
+	{"cell": 2.0, "cells": 12, "tiles": 7, "flowers": "yampah", "stems": 3, "radius": 0.2,
+		"u": {"kind": 2, "seed": 13, "cover": 0.55, "drift": Vector3(20.0, 0.4, 5.9),
+			"forest_height": Vector2(0.45, 0.75), "prairie_height": Vector2(1.05, 1.35),
+			"prairie_green": Vector3(0.27, 0.37, 0.14), "prairie_blonde": Vector3(0.36, 0.4, 0.17),
+			"petal_color": Vector3(0.97, 0.97, 0.94), "petal_base": Vector3(0.92, 0.93, 0.84), "petal_alt": Vector3(0.94, 0.95, 0.88), "petal_alt_share": 0.3,
+			"disc_color": Vector3(0.9, 0.9, 0.78), "head_size": 0.045, "head_px": Vector2(3.0, 6.0),
+			"fade_out": Vector2(26.0, 36.0), "thin_from": 20.0}},
 	# the swamp's: swamp asters, sparse, here and there in loose drifts
 	{"cell": 2.0, "cells": 12, "tiles": 7, "flowers": "aster", "stems": 2, "radius": 0.25,
 		"u": {"kind": 2, "seed": 12, "in_forest": false, "in_prairie": false, "in_swamp": true, "swamp_clumped": false, "cover": 0.35,
@@ -623,7 +633,7 @@ static func cattail_mesh(stalks: int, radius: float, seed: int) -> ArrayMesh:
 
 
 ## A clump of wildflowers ("susan": black-eyed Susans; "fleabane";
-## "coneflower": purple coneflowers; "aster": swamp asters), in
+## "coneflower": purple coneflowers; "aster": swamp asters; "yampah"), in
 ## units of the clump's height, as grass_mesh: stems (strips, coloured as
 ## grass, CUSTOM0 their half width in m), a leaf or two low down, and the
 ## heads, solid: ray florets (UV.x 3..4, UV.y from their base out to their
@@ -719,6 +729,24 @@ static func flower_mesh(kind: String, stems: int, radius: float, seed: int) -> A
 				head.call(root, top, tilt, 13, 0.009, 0.034, 0.008, 0.012, 0.011, g)
 			else: # (the coneflower's rays hang down from its raised cone)
 				head.call(root, top, tilt, 14, 0.012, 0.045, 0.009, 0.03, 0.018, g)
+		elif kind == "yampah":
+			# a slender stem, forking near its top into two or three
+			# umbels, each a dome of small umbellets of tiny white flowers
+			# on fine rays
+			var fork := top * 0.78
+			strip.call(root, [Vector3.ZERO, fork * 0.5, fork], [0.0035, 0.003, 0.0025], side, n, shade, 0.0)
+			for u in rng.randi_range(2, 3):
+				var ua := rng.randf() * TAU
+				var reach := rng.randf_range(0.0, 0.05) if u == 0 else rng.randf_range(0.04, 0.09)
+				var uc := fork + Vector3(cos(ua) * reach, rng.randf_range(0.12, 0.22) * tall, sin(ua) * reach)
+				strip.call(root, [fork, uc], [0.0025, 0.002], side, n, shade, 0.0)
+				var size := rng.randf_range(0.8, 1.2)
+				for k in rng.randi_range(7, 10):
+					var ka := rng.randf() * TAU
+					var kr := sqrt(rng.randf()) * 0.022 * size
+					var c := uc + Vector3(cos(ka) * kr / H, (0.012 - kr * 0.35) * size / H, sin(ka) * kr / H)
+					strip.call(root, [uc, c], [0.0008, 0.0006], side, n, shade, 0.0)
+					head.call(root, c, Vector3(cos(ka), 0.0, sin(ka)) * kr * 15.0, 7, 0.0025, 0.0055, 0.0022, 0.0, 0.0012, rng.randf())
 		elif kind == "aster":
 			# branching from half way up into several heads, each 2.5-3 cm
 			var fork := top * 0.6
