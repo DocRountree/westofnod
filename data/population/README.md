@@ -88,13 +88,13 @@ PropKind for models from a script: `mesh_script` (`build(variant)`,
 `variants` (per-variant weight, settings and `density_like` from
 `variant_props`), `lods` / `lod_distances` / `shadow_distance`, `shadow_mesh`.
 
-## Maple and sycamore (models only, not yet in the game)
+## Maple, sycamore, lodgepole pine, bald cypress (models only, not yet in the game)
 
 `scripts/population/maple_tree.gd` (sugar maple, *Acer saccharum*) and
 `sycamore_tree.gd` (American sycamore, *Platanus occidentalis*): each the
 oak's thirteen variants (four standing trees: open-grown, young, leaning,
 forest-grown; a stump; three logs; three dead trees; two saplings), grown by
-`broadleaf_tree.gd` (the oak's rules, generalised: each species' own
+`species_tree.gd` (the oak's rules, generalised: each species' own
 segment lengths, crookedness, turn toward the light, branching angles,
 opposite or alternate branching, how lumpy its crown) and handed on through
 the same static calls `OakTree` answers (`build`, `build_lods`,
@@ -109,6 +109,21 @@ maple` (or `sycamore`; `pair`, `pair2` for the standing trees nearer).
   dense rounded to oval crown; leaves in opposite pairs on long stalks,
   palmate, five-lobed, rounded sinuses, a few big teeth; grey bark in long,
   loosening vertical plates.
+- Lodgepole pine (`lodgepole_pine.gd`, *Pinus contorta*), a conifer
+  (`whorls`: one leader to the top, whorls of short, level branches up it,
+  each as long as the crown's `profile` there): in a stand a tall, ramrod
+  bare pole with snapped branch `stubs` and a short narrow crown on top; in
+  the open a narrow cone; yellow-green needles in pairs, bottlebrush tufts,
+  small lopsided cones; thin orange-brown to grey scaly bark; the dead ones
+  silver-grey snags.
+- Bald cypress (`bald_cypress.gd`, *Taxodium distichum*), a conifer of the
+  swamp: a swollen, buttressed foot (`flare`), `knees` of root standing up
+  round it; young a neat cone, old a broad, flat top (`profile: flat`) on a
+  tall trunk; feathery flat sprays of soft, light green needles in two
+  rows; fibrous, stringy, reddish-brown to grey bark.
+  Their textures: `python3 tools/trees/bake_conifer_textures.py`
+  (`lodgepole_needles.png`, `lodgepole_bark.png`, `cypress_needles.png`,
+  `cypress_bark.png`); `preview.gd ... lodgepole` / `cypress`.
 - American sycamore: a massive trunk dividing low into two or three leaders
   (`forks`), long crooked limbs at wide angles, an open, lumpy crown
   (`irregular`); bark peeling into a cream, grey-green and tan patchwork,

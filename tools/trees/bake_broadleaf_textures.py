@@ -265,7 +265,8 @@ def maple_bark():
 
 
 def band_noise(n, cycles, seed, stretch=(1.0, 1.0)):
-    """Tileable noise of one scale: about `cycles` blobs round the tile."""
+    """Tileable noise of one scale: about `cycles` blobs round the tile;
+    stretch (x, y) > 1 that many times more of them that way (narrower)."""
     r = np.random.default_rng(seed)
     f = np.fft.fft2(r.standard_normal((n, n)))
     ky = np.fft.fftfreq(n)[:, None] * n / stretch[1]
@@ -285,7 +286,7 @@ def sycamore_bark():
     h = np.full((n, n), 0.75)
     for i, c in enumerate(colours[1:]):
         # plates a few cm to 15 cm across, smooth-edged, a little taller than wide
-        f = band_noise(n, [4.0, 6.0, 8.0][i], 31 + i, (1.0, 1.3)) + 0.22 * band_noise(n, 22.0, 41 + i)
+        f = band_noise(n, [4.0, 6.0, 8.0][i], 31 + i, (1.3, 1.0)) + 0.22 * band_noise(n, 22.0, 41 + i)
         thr = [0.2, 0.0, -0.35][i]  # (more of each newer layer showing)
         peeled = f > thr
         soft = np.clip((f - thr) / 0.06, 0, 1)

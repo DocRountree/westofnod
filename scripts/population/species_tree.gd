@@ -1,12 +1,24 @@
-class_name BroadleafTree
+class_name SpeciesTree
 extends RefCounted
-## A broadleaf species' models, grown by one set of rules (OakTree's,
+## A tree species' models, grown by one set of rules (OakTree's,
 ## generalised) from the species' own settings: how its wood grows (segment
 ## lengths, how crooked, how much it turns up, how wide its side branches
 ## leave, alternate or opposite), the shape of its crown, its bark and
 ## leaves (textures from tools/trees/bake_broadleaf_textures.py), and its
 ## variants (as the oak's: standing trees, a stump, logs, dead trees,
-## saplings). MapleTree and SycamoreTree each make one and hand on its
+## saplings).
+##
+## Conifers (a variant with "whorls"): one leader to the top, the branches
+## in whorls up it, each whorl's as long as the crown's profile there
+## ("cone": widest at the bottom, to a point; "narrow": a slim spire, the
+## lodgepole's; "flat": wide almost to the top, then flat, an old bald
+## cypress's), nearly level or drooping (limb_angle from the upright, over
+## 90 down; the top whorls lifted by lift_top degrees), the crown's edge that profile rather than an ellipsoid. And
+## "stubs": dead, snapped branch stubs up the bare bole below the crown
+## (the lodgepole's self-pruning); "knees": a bald cypress's knees, knobs of
+## root standing up out of the ground round it.
+##
+## MapleTree, SycamoreTree, LodgepolePine and BaldCypress each make one and hand on its
 ## models through the same static calls OakTree answers (build, build_lods,
 ## build_shadow, build_walk, build_climb, variant_props), so either can
 ## later be a prop's mesh_script as the oak is.
@@ -191,7 +203,7 @@ func _climb_lines(v: int) -> Array[PackedFloat32Array]:
 		for br in tb.branches:
 			if br.size() > 1 and br[0] == 0:
 				order.push_front(br)
-			elif br.size() > 1 and tb.level[br[1]] == 1:
+			elif br.size() > 1 and tb.level[br[1]] == 1 and tb.parent[br[0]] >= 0: # (not a cypress's knee, standing alone)
 				order.append(br)
 		for br in order:
 			var line := PackedFloat32Array()
@@ -322,6 +334,8 @@ func grow(v: int) -> TreeBuilder:
 
 
 func _grow_tree(P: Dictionary) -> TreeBuilder:
+	if P.get("whorls", 0) > 0:
+		return _grow_conifer(P)
 	var tb := _builder()
 	tb.rng.seed = P.seed
 	var rng := tb.rng
@@ -388,6 +402,118 @@ func _grow_tree(P: Dictionary) -> TreeBuilder:
 	return tb
 
 
+## A conifer: the leader straight up to the top, whorls of branches up it
+## through the crown, each as long as the crown's profile there; then the
+## dead stubs below the crown and the knees round the foot.
+func _grow_conifer(P: Dictionary) -> TreeBuilder:
+	var tb := _builder()
+	tb.rng.seed = P.seed
+	var rng := tb.rng
+	tb.flare = P.get("flare", 0.45 + P.trunk_r * 0.3)
+	tb.bark_tint = bark_tint
+	if P.get("kind", "tree") == "tree":
+		tb.tint_low = tint_low
+		tb.tint_heights = tint_heights * (P.trunk_h + P.leader_h)
+	var lean_az := rng.randf() * TAU
+	var lean_dir := Vector3(cos(lean_az), 0.0, sin(lean_az))
+	var c: Array = P.crown
+	P = P.duplicate()
+	P.lumps = []
+	P.cone_top = c[1]
+	P.cone_bottom = c[2]
+	P.cone_r = c[0]
+	P.lean_dir = lean_dir
+	var d := (Vector3.UP + lean_dir * tan(deg_to_rad(P.lean))).normalized()
+	var root := tb.add_node(Vector3.ZERO, -1, 0)
+	var stem := PackedInt32Array([root])
+	var total_h: float = P.trunk_h + P.leader_h
+	var steps := maxi(ceili(total_h / seg[0]), 3)
+	var p := Vector3.ZERO
+	var dirs: Array[Vector3] = [d]
+	for i in steps:
+		d = _turn(rng, d, crook[0])
+		d = (d + Vector3.UP * 0.06).normalized()
+		p += d * total_h / steps
+		stem.append(tb.add_node(p, stem[stem.size() - 1], 0))
+		dirs.append(d)
+	var whorls: int = P.whorls
+	var per: int = P.get("per_whorl", 4)
+	var az := rng.randf() * TAU
+	for w in whorls:
+		var f := (float(w) + rng.randf_range(-0.3, 0.3)) / maxf(whorls - 1, 1)
+		f = clampf(f, 0.0, 1.0)
+		var y := lerpf(c[2], c[1] * 0.97, f)
+		var at := 1
+		while at < stem.size() - 1 and tb.pos[stem[at]].y < y:
+			at += 1
+		var len: float = P.limb_len * _profile(P, f)
+		if len < seg[1] * 1.2:
+			continue
+		var n := per + rng.randi_range(-1, 1)
+		az += rng.randf_range(0.4, 1.2)
+		for k in n:
+			var a := az + TAU * (k + rng.randf_range(-0.2, 0.2)) / n
+			# lower ones droop more; the top ones lift
+			var tilt := deg_to_rad(lerpf(P.limb_angle + P.get("droop_low", 10.0), P.limb_angle - P.get("lift_top", 25.0), f) + rng.randf_range(-6.0, 6.0))
+			var dir := Vector3(sin(tilt) * cos(a), cos(tilt), sin(tilt) * sin(a))
+			_branch(tb, P, stem[at], dir, len * rng.randf_range(0.8, 1.1), 1, dirs[at])
+	tb.add_branch(stem)
+	tb.compute_radii(P.trunk_r, tip_r)
+	# the snapped stubs of the branches it's shed, up the bare bole
+	for k in P.get("stubs", 0):
+		var y := rng.randf_range(1.5, c[2] - 0.5)
+		var at := 1
+		while at < stem.size() - 1 and tb.pos[stem[at]].y < y:
+			at += 1
+		var a := rng.randf() * TAU
+		var dir := Vector3(cos(a), rng.randf_range(-0.35, 0.05), sin(a)).normalized()
+		var r := rng.randf_range(0.015, 0.035)
+		var nodes := PackedInt32Array([stem[at]])
+		var l := rng.randf_range(0.15, 0.6)
+		var q := tb.pos[stem[at]]
+		for i in 2:
+			nodes.append(tb.add_node(q + dir * l * (i + 1) / 2.0, nodes[i], 1))
+			tb.set_radius(nodes[i + 1], r * (1.0 - 0.3 * i))
+		tb.add_branch(nodes, false, true, r * 1.5)
+	# knees: knobs of root up out of the ground round the foot
+	for k in P.get("knees", 0):
+		var a := rng.randf() * TAU
+		var dist: float = P.trunk_r * 2.0 + rng.randf_range(0.5, 3.5)
+		var at := Vector3(cos(a) * dist, -0.15, sin(a) * dist)
+		var h := rng.randf_range(0.25, 0.9)
+		var r := rng.randf_range(0.07, 0.15) * (0.6 + h)
+		var nodes := PackedInt32Array([tb.add_node(at, -1, 1)])
+		var bend := Vector3(rng.randf_range(-0.1, 0.1), 0.0, rng.randf_range(-0.1, 0.1))
+		for i in 3:
+			nodes.append(tb.add_node(at + Vector3.UP * h * (i + 1) / 3.0 + bend * (i + 1) * h, nodes[i], 1))
+		for i in nodes.size():
+			tb.set_radius(nodes[i], r * (1.0 - 0.45 * float(i) / 3.0))
+		tb.add_branch(nodes)
+	return tb
+
+
+## A conifer's crown's width at f (0 its bottom .. 1 its top), 0..1.
+func _profile(P: Dictionary, f: float) -> float:
+	match P.get("profile", "cone"):
+		"narrow":
+			return 0.25 + 0.75 * pow(1.0 - f, 0.8) if f < 0.97 else 0.0
+		"flat": # (wide nearly to the top, then cut off: a flat top)
+			return sqrt(maxf(1.0 - pow(f, 9.0), 0.0)) * (0.85 + 0.15 * (1.0 - f))
+	return pow(1.0 - f, 0.9)
+
+
+## Whether q is out past the crown's edge (lv: a limb may overreach a little).
+func _outside(P: Dictionary, q: Vector3, lv: int) -> bool:
+	if P.has("cone_top"):
+		var f: float = (q.y - P.cone_bottom) / maxf(P.cone_top - P.cone_bottom, 0.1)
+		var r: float = P.cone_r * _profile(P, clampf(f, 0.0, 1.0)) * (1.12 if lv == 1 else 1.0) + 0.3
+		return f > 1.02 or Vector2(q.x, q.z).length() > r
+	var e: Vector3 = (q - P.env_centre) / P.env_radii
+	if e.y < 0.0:
+		e.y *= 0.35
+	return e.length() > (1.08 if lv == 1 else 1.0) * _reach(P, e)
+
+
 ## How far out the crown reaches the way e points (1: its ellipsoid), lumpy
 ## as irregular says.
 func _reach(P: Dictionary, e: Vector3) -> float:
@@ -419,10 +545,7 @@ func _branch(tb: TreeBuilder, P: Dictionary, from: int, dir: Vector3, length: fl
 		d = (d + Vector3.UP * u).normalized()
 		target = (target + Vector3.UP * u * 0.5).normalized()
 		var q := p + d * length / steps
-		var e: Vector3 = (q - P.env_centre) / P.env_radii
-		if e.y < 0.0:
-			e.y *= 0.35
-		if e.length() > (1.08 if lv == 1 else 1.0) * _reach(P, e) and i > 0:
+		if _outside(P, q, lv) and i > 0:
 			break
 		p = q
 		var node := tb.add_node(p, nodes[nodes.size() - 1], lv)

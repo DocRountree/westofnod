@@ -1,7 +1,7 @@
 class_name MapleTree
 ## The sugar maple (Acer saccharum): four standing trees, a stump, three
 ## fallen logs, three dead standing trees and two saplings (variants 0-12,
-## as the oak's), grown by BroadleafTree and dressed with
+## as the oak's), grown by SpeciesTree and dressed with
 ## data/population/textures/maple_*.png (tools/trees/bake_broadleaf_textures.py).
 ## Not yet in the game: tools/trees/preview.gd -- <out> maple draws them.
 ##
@@ -51,12 +51,12 @@ const SETTINGS := {
 	"shadow": [6.4, 4.2, 18.5, 0.4],
 }
 
-static var _species: BroadleafTree
+static var _species: SpeciesTree
 
 
-static func species() -> BroadleafTree:
+static func species() -> SpeciesTree:
 	if _species == null:
-		_species = BroadleafTree.new("maple", SETTINGS, VARIANTS)
+		_species = SpeciesTree.new("maple", SETTINGS, VARIANTS)
 	return _species
 
 

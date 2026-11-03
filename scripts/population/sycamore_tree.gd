@@ -1,7 +1,7 @@
 class_name SycamoreTree
 ## The American sycamore (Platanus occidentalis): four standing trees, a
 ## stump, three fallen logs, three dead standing trees and two saplings
-## (variants 0-12, as the oak's), grown by BroadleafTree and dressed with
+## (variants 0-12, as the oak's), grown by SpeciesTree and dressed with
 ## data/population/textures/sycamore_*.png
 ## (tools/trees/bake_broadleaf_textures.py). Not yet in the game:
 ## tools/trees/preview.gd -- <out> sycamore draws them.
@@ -54,12 +54,12 @@ const SETTINGS := {
 	"shadow": [9.0, 4.5, 21.0, 0.6],
 }
 
-static var _species: BroadleafTree
+static var _species: SpeciesTree
 
 
-static func species() -> BroadleafTree:
+static func species() -> SpeciesTree:
 	if _species == null:
-		_species = BroadleafTree.new("sycamore", SETTINGS, VARIANTS)
+		_species = SpeciesTree.new("sycamore", SETTINGS, VARIANTS)
 	return _species
 
 

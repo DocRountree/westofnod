@@ -1,8 +1,8 @@
 extends SceneTree
 ## Renders a species' variants in a row on a plain, for looking at the
-## models (the oak's; or with maple or sycamore, theirs: MapleTree,
-## SycamoreTree, not yet in the game).
-## xvfb-run godot --path . --resolution 1600x900 --script res://tools/trees/preview.gd -- <out_dir> [maple | sycamore] [lod] [side | pair | pair2 | close | bark | leaves | dead | snag | saplings]
+## models (the oak's; or with maple, sycamore, lodgepole or cypress, theirs:
+## MapleTree, SycamoreTree, LodgepolePine, BaldCypress, not yet in the game).
+## xvfb-run godot --path . --resolution 1600x900 --script res://tools/trees/preview.gd -- <out_dir> [maple | sycamore | lodgepole | cypress] [lod] [side | pair | pair2 | close | bark | leaves | dead | snag | saplings]
 
 var out := "user://"
 var _name := "oaks"
@@ -21,6 +21,12 @@ func _init() -> void:
 	elif args.has("sycamore"):
 		S = SycamoreTree
 		species = "sycamores"
+	elif args.has("lodgepole"):
+		S = LodgepolePine
+		species = "lodgepoles"
+	elif args.has("cypress"):
+		S = BaldCypress
+		species = "cypresses"
 	_name = species
 	var root3 := Node3D.new()
 	get_root().add_child(root3)
@@ -49,6 +55,8 @@ func _init() -> void:
 	root3.add_child(ground)
 	var at := [Vector3(-55, 0, 0), Vector3(-27.5, 0, 0), Vector3(0, 0, 0), Vector3(27.5, 0, 0), Vector3(48, 0, 12), Vector3(48, 0, -2), Vector3(62, 0, 0), Vector3(40, 0, 2), Vector3(54, 0, 6), Vector3(14, 0, 14), Vector3(20, 0, 16), Vector3(78, 0, -8), Vector3(92, 0, 6)]
 	var spread := 1.25 if S == SycamoreTree else 1.0 # (the sycamores are bigger)
+	if S == LodgepolePine:
+		spread = 0.6 # (slim)
 	for i in at.size():
 		at[i] *= spread
 	S.build(0)
