@@ -51,6 +51,9 @@ var props := {}
 ## The bark's colour far off (bark.gdshader: far_color; and so its far-off
 ## card's): alpha 0, its texture's mean.
 var far_bark := Color(0, 0, 0, 0)
+## The least radius (m) a limb must have where it leaves the trunk to be
+## climbed (and stood on).
+var climb_limb_r := 0.05
 var fruit := "" ## The item its grown trees bear (Items: "pawpaw", ...), "" none.
 
 var _cache := {} # variant -> [mesh, lods]
@@ -227,6 +230,11 @@ func _climb_lines(v: int) -> Array[PackedFloat32Array]:
 			elif br.size() > 1 and tb.level[br[1]] == 1 and tb.parent[br[0]] >= 0: # (not a cypress's knee, standing alone)
 				order.append(br)
 		for br in order:
+			# a limb only if it's stout enough to hold you where it leaves the
+			# trunk (climb_limb_r: a pine's many little whorled branches
+			# got in the way)
+			if br[0] != 0 and tb.radius[br[1]] < climb_limb_r:
+				continue
 			var line := PackedFloat32Array()
 			for i in br:
 				if tb.radius[i] < 0.05 and line.size() >= 8:

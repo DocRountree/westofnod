@@ -38,6 +38,7 @@ const VARIANTS := [
 ]
 
 const SETTINGS := {
+	"climb_limb_r": 0.1, # (only its stoutest limbs climbable: its many little whorled branches got in the way)
 	"seg": [0.5, 0.3, 0.22, 0.16],
 	"crook": [0.012, 0.12, 0.2, 0.25], # (a ramrod trunk)
 	"up": [0.0, 0.0, 0.035, 0.06],
