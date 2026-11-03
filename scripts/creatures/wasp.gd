@@ -1,6 +1,7 @@
 class_name Wasp
 extends Node3D
-## A paper wasp (Polistes fuscatus), about 16 mm long: dark reddish brown,
+## A paper wasp (Polistes fuscatus), drawn at twice life size (about 31 mm
+## long, its parts modelled at the life size of 16 mm: MM): dark reddish brown,
 ## the gaster ringed with narrow yellow bands, yellowish legs, the antennae
 ## orange at their tips, the wings smoky amber. Built from parts, posed
 ## every frame by hand (procedural: no clips).
@@ -26,10 +27,10 @@ extends Node3D
 ## in flight), the wings (folded, raised, or beating: a blur), the antennae
 ## (twitching), the head, mandibles and gaster.
 ##
-## Its parts are in mm (_body is scaled by MM); the wasp itself in metres.
+## Its parts are in model mm (_body is scaled by MM); the wasp itself in metres.
 ## Its position is set every frame: put it under a node that isn't moved.
 
-const MM := 0.001
+const MM := 0.002 ## m drawn per model mm (twice life size)
 const BODY_H := 2.3 ## mm the thorax's middle stands over the surface
 const STEP_TIME := 0.07 ## s a leg's swing takes
 
@@ -43,9 +44,13 @@ const GASTER_CURL := [0.25, 0.3, 0.35, 0.45, 0.5, 0.55] # and more, curled to st
 # tarsus (mm), home (the foot at rest on the surface: x, z), dangle (the
 # ankle in flight)
 const LEGS := [
-	{"hip": Vector3(0.6, -1.1, -1.3), "f": 2.4, "t": 2.3, "s": 2.2, "home": Vector2(3.0, -4.6), "dangle": Vector3(1.0, -3.0, -2.4)},
-	{"hip": Vector3(0.85, -1.2, 0.0), "f": 3.0, "t": 3.1, "s": 2.7, "home": Vector2(5.0, 0.4), "dangle": Vector3(1.4, -3.9, 0.6)},
-	{"hip": Vector3(0.85, -1.1, 1.2), "f": 3.6, "t": 4.1, "s": 3.5, "home": Vector2(4.6, 6.0), "dangle": Vector3(1.1, -4.4, 3.6)},
+	# (their feet splayed each into its own part of the round: the front
+	# legs forward and out, the middle out to the side, the hind back and
+	# out; so each knee bends up and out in its own leg's plane and none
+	# crosses another)
+	{"hip": Vector3(0.6, -1.1, -1.3), "f": 2.4, "t": 2.3, "s": 2.2, "home": Vector2(5.0, -5.3), "dangle": Vector3(1.6, -3.0, -3.4), "hang": Vector3(0.25, -0.8, -0.45)},
+	{"hip": Vector3(0.85, -1.2, 0.0), "f": 3.0, "t": 3.1, "s": 2.7, "home": Vector2(8.3, -1.0), "dangle": Vector3(2.4, -3.5, 0.2), "hang": Vector3(0.35, -0.9, 0.05)},
+	{"hip": Vector3(0.85, -1.1, 1.2), "f": 3.6, "t": 4.1, "s": 3.5, "home": Vector2(7.2, 8.2), "dangle": Vector3(2.0, -3.8, 4.6), "hang": Vector3(0.2, -0.8, 0.6)},
 ]
 const TRIPOD := [[0, 3, 4], [1, 2, 5]] # (a leg: its pair * 2, + 1 the right)
 # the wings: hinge, length, chord (mm); folded, and raised (sweep back from
@@ -273,7 +278,7 @@ func feed_on_insect(prey: Node3D, at: Vector3, normal := Vector3.UP) -> void:
 		if not await _wait(id, rng.randf_range(0.4, 0.9)):
 			return
 		# and on it
-		var on := at + (p - at) - normal * (p - at).dot(normal) - face * 0.0035
+		var on := at + (p - at) - normal * (p - at).dot(normal) - face * 4.5 * MM # (its head over it)
 		if not await _touch_down(id, on, normal, face, 0.35):
 			return
 		_holding = prey
@@ -316,7 +321,7 @@ func land(at: Vector3, normal := Vector3.UP) -> void:
 	# about a bit
 	_p.ant_tap = 0.3
 	for k in rng.randi_range(2, 4):
-		_walk_target = at + _in_plane(normal, 0.025)
+		_walk_target = at + _in_plane(normal, 0.04)
 		if not await _until(id, func() -> bool: return _walk_target == Vector3.INF, 4.0):
 			return
 		if not await _wait(id, rng.randf_range(0.3, 1.0)):
@@ -375,7 +380,7 @@ func sting(target: Vector3) -> void:
 			return
 		for k in rng.randi_range(2, 4):
 			_max_speed = 1.4
-			_fly_target = target - face * 0.004 + Vector3.UP * 0.004 # (the curled tip on it)
+			_fly_target = target - face * 2.0 * MM + Vector3.UP * 7.0 * MM # (the curled tip on it)
 			if not await _wait(id, 0.16):
 				return
 			for j in 3:
@@ -399,7 +404,7 @@ func sting(target: Vector3) -> void:
 	var to := target - _pos
 	to -= surface_n * to.dot(surface_n)
 	if to.length() > 0.006:
-		_walk_target = _pos + to - to.normalized() * 0.005
+		_walk_target = _pos + to - to.normalized() * 9.0 * MM
 		if not await _until(id, func() -> bool: return _walk_target == Vector3.INF, 3.0):
 			return
 	_p.wing_open = 0.8
@@ -547,7 +552,7 @@ func _touch_down(id: int, at: Vector3, normal: Vector3, face: Vector3, down := 0
 	surface_p = at
 	surface_n = normal
 	_land_plane = true
-	var hover := at + normal * 0.03
+	var hover := at + normal * 0.045
 	_look = face
 	_max_speed = 0.9
 	_fly_target = hover
@@ -734,7 +739,7 @@ func _place(dt: float) -> void:
 		o = _pos + j * 0.5 * _jitter
 	else:
 		b = _frame(surface_n, _flat(_heading, surface_n)) * Basis(Vector3.RIGHT, 0.12 + _a.lift_pitch)
-		o = _pos + surface_n * (BODY_H + 1.2 * _a.rise - 0.7 * _a.crouch) * MM
+		o = _pos + surface_n * (BODY_H + 1.2 * _a.rise - 0.45 * _a.crouch) * MM
 		o = global_position.lerp(o, 1.0 - exp(-25.0 * dt)) if global_position.distance_to(o) < 0.01 else o
 	var q := global_basis.get_rotation_quaternion().slerp(b.get_rotation_quaternion(), 1.0 - exp(-14.0 * dt))
 	global_transform = Transform3D(Basis(q), o)
@@ -777,16 +782,35 @@ func _pose_antennae(dt: float) -> void:
 		var segs: Array = _antennae[s]
 		var base := Vector3(0.45 * side, 0.45, -1.75)
 		var d := _dir(yaw, pitch, side)
-		var p := base + d * 1.3
+		var p := _over(base, base + d * 1.3, 1.3)
 		_seg(segs[0], base, p, 0.13)
-		# the flagellum, elbowed down from the scape and curling
+		# the flagellum, elbowed down from the scape and curling (along the
+		# surface, where it'd go into it)
 		var fy := yaw + 0.25
 		var fp: float = pitch - 0.9 - _a.ant_down
 		for k in 4:
-			var q := p + _dir(fy, fp, side) * 1.2
+			var q := _over(p, p + _dir(fy, fp, side) * 1.2, 1.2)
 			_seg(segs[k + 1], p, q, 0.12 if k < 3 else 0.14)
 			p = q
 			fp -= 0.12 + 0.15 * gw
+
+
+## An antenna's next joint q (the head's own space, len on from p): if
+## it'd be in the surface it stands on (or is coming down on), laid along it
+## instead.
+func _over(p: Vector3, q: Vector3, len: float) -> Vector3:
+	if flying and not _land_plane:
+		return q
+	var w := _head.to_global(q)
+	var h := (w - surface_p).dot(surface_n) - 0.2 * MM
+	if h >= 0.0:
+		return q
+	q = _head.to_local(w - surface_n * h)
+	q = p + (q - p).normalized() * len
+	# (the length kept, it can dip again: on the surface then, a little short)
+	w = _head.to_global(q)
+	h = (w - surface_p).dot(surface_n) - 0.2 * MM
+	return _head.to_local(w - surface_n * h) if h < 0.0 else q
 
 
 static func _dir(yaw: float, pitch: float, side: float) -> Vector3:
@@ -809,11 +833,13 @@ func _pose_gaster() -> void:
 func _pose_legs() -> void:
 	var inv := _body.global_transform.affine_inverse()
 	var up_l := (inv.basis * surface_n).normalized()
+	var plane_l := inv * surface_p
+	var plane_on := not flying or _land_plane
 	var reach := 0.0
 	var homes: Array[Vector3] = []
 	if flying and _land_plane:
 		var hgt := (_pos - surface_p).dot(surface_n) / MM - BODY_H
-		reach = clampf(1.0 - hgt / 8.0, 0.0, 1.0)
+		reach = clampf(1.0 - hgt / 10.0, 0.0, 1.0)
 		var save := _pos
 		_pos = _pos - surface_n * (_pos - surface_p).dot(surface_n)
 		homes = _homes()
@@ -829,7 +855,7 @@ func _pose_legs() -> void:
 		if flying:
 			var sway := Vector3(sin(_t * 2.1 + i) * 0.15, sin(_t * 1.7 + i * 0.7) * 0.2, 0.0)
 			ankle = Vector3(L.dangle.x * side, L.dangle.y, L.dangle.z) + sway
-			foot = ankle + Vector3(0.15 * side, -0.85, 0.5).normalized() * L.s
+			foot = ankle + Vector3(L.hang.x * side, L.hang.y, L.hang.z).normalized() * L.s
 			if reach > 0.0:
 				var f := inv * homes[i]
 				foot = foot.lerp(f, reach)
@@ -854,7 +880,17 @@ func _pose_legs() -> void:
 			var f := a0.lerp(a1, u)
 			foot = foot.lerp(f, _a.groom)
 			ankle = ankle.lerp(f + Vector3(0.5 * side, -0.8, 1.0).normalized() * L.s, _a.groom)
-		var knee := _knee(hip, ankle, L.f, L.t, Vector3(0.7 * side, 1.0, 0.25 * (pair - 1)))
+		# the knee up, and out the way the leg goes (in its own plane)
+		var up := up_l if plane_on else Vector3.UP
+		var out := ankle - hip
+		out -= up * out.dot(up)
+		out = out.normalized() if out.length() > 1e-4 else Vector3(side, 0.0, 0.0)
+		var knee := _knee(hip, ankle, L.f, L.t, up + out * 0.6)
+		# none of it through the surface
+		if plane_on:
+			foot = _above(foot, plane_l, up_l, 0.12)
+			ankle = _above(ankle, plane_l, up_l, 0.25)
+			knee = _above(knee, plane_l, up_l, 0.35)
 		var parts: Array = _legs[i]
 		_seg(parts[0], hip0, hip, 0.36)
 		_seg(parts[1], hip, knee, 0.27)
@@ -864,12 +900,20 @@ func _pose_legs() -> void:
 		_feet_drawn[i] = _body.to_global(foot)
 
 
-## The ankle over a foot: the tarsus lying back from it toward the hip, up a little.
+## The ankle over a foot: the tarsus lying back from it toward the hip,
+## mostly along the surface, up a little.
 static func _ankle(hip: Vector3, foot: Vector3, s: float, up: Vector3) -> Vector3:
 	var out := foot - hip
 	out -= up * out.dot(up)
 	out = out.normalized() if out.length() > 1e-4 else Vector3.FORWARD
-	return foot + (-out * 0.75 + up * 0.66) * s
+	return foot + (-out * 0.9 + up * 0.42) * s
+
+
+## p (the body's own space) kept at least margin (model mm) over the plane
+## through on, of normal n.
+static func _above(p: Vector3, on: Vector3, n: Vector3, margin: float) -> Vector3:
+	var h := (p - on).dot(n) - margin
+	return p - n * h if h < 0.0 else p
 
 
 ## The knee between hip and ankle (femur f, tibia t), bending toward pole.
