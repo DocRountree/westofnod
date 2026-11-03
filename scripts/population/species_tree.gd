@@ -143,8 +143,6 @@ func _models(v: int) -> Array:
 ## The shadow stand-in for a standing tree or a sapling (as the oak's).
 func build_shadow(v: int) -> Mesh:
 	var k := kind_of(v)
-	if k == "dead":
-		return OakTree.dead_shadow(_models(v)[2][0], name + str(v))
 	if not k in ["tree", "sapling"]:
 		return null
 	if not _shadows.has(k):

@@ -451,25 +451,6 @@ static func variant_props(v: int) -> Dictionary:
 	return p
 
 
-## A dead tree's shadow, cast by one mesh (its 40-120 m level, plain), not
-## by its levels themselves: handing over from one to the next (dithered),
-## both cast, and each shaded the other, a checker of shadow over it (the
-## white sycamores' trunks went grey).
-static var _dead_shadows := {}
-static var _shadow_mat: StandardMaterial3D
-
-
-static func dead_shadow(level: Mesh, key: String) -> Mesh:
-	if not _dead_shadows.has(key):
-		if _shadow_mat == null:
-			_shadow_mat = StandardMaterial3D.new()
-		var m := level.duplicate() as ArrayMesh
-		for si in m.get_surface_count():
-			m.surface_set_material(si, _shadow_mat)
-		_dead_shadows[key] = m
-	return _dead_shadows[key]
-
-
 ## The whole tree (PropKind.mesh_script).
 static func build(variant := 0) -> Mesh:
 	return _models(variant)[0]
@@ -484,9 +465,6 @@ static func build_shadow(variant := 0) -> Mesh:
 			if _shadow == null:
 				_shadow = TreeBuilder.shadow_proxy(7.5, 4.0, 14.0, 0.45, 23)
 			return _shadow
-		"dead": # (its own shape: OakTree.dead_shadow)
-			_models(variant)
-			return dead_shadow(_cache[posmod(variant, VARIANTS.size())][3][0], "oak" + str(variant))
 		"sapling": # (the same, small)
 			if _sapling_shadow == null:
 				_sapling_shadow = TreeBuilder.shadow_proxy(1.3, 1.0, 3.6, 0.05, 29)
