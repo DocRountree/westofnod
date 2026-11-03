@@ -11,8 +11,8 @@ extends Node
 ## clock and registers it with Game; find it with GameClock.current().
 
 @export_range(0.0, 24.0) var time_of_day := 12.0    ## Local mean solar time, hours.
-@export var day_minutes := 15.0                     ## Real minutes from sunrise to sunset (0 = frozen).
-@export var night_minutes := 10.0                   ## Real minutes from sunset to sunrise.
+@export var day_minutes := 120.0                    ## Real minutes from sunrise to sunset (0 = frozen): two hours.
+@export var night_minutes := 60.0                   ## Real minutes from sunset to sunrise: an hour.
 @export var scrub_speed := 2.0                      ## Game hours per real second on [ and ].
 
 signal day_changed(day: int)
