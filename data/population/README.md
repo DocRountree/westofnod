@@ -125,13 +125,14 @@ maple` (or `sycamore`; `pair`, `pair2` for the standing trees nearer).
   (`lodgepole_needles.png`, `lodgepole_bark.png`, `cypress_needles.png`,
   `cypress_bark.png`); `preview.gd ... lodgepole` / `cypress`.
 - Pawpaw (`pawpaw_tree.gd`, *Asimina triloba*), in the game: `props/pawpaw.tres`,
-  the forest's understory (8 a hectare, all its variants; the standing ones,
-  saplings and dead gathered in thickets, `clump`; drawn to 300 m; not yet
-  for the axe): a small understory tree,
+  the forest's understory (8 a hectare; the standing ones, saplings and dead
+  gathered in thickets, `clump`; no logs or stumps of their own, only those
+  an axe leaves; drawn to 300 m; felled as the oaks are; the grown ones bear
+  fruit, real and picked one by one: `Foraging`): a small understory tree,
   4-9 m, often a clump of stems from one root (`forks`); a slender trunk,
   level, slightly drooping branches, a narrowish crown; huge (15-30 cm),
-  smooth-edged, obovate leaves hanging in ranks from the twigs; clusters of
-  stubby green fruit; thin, smooth grey-brown bark, blotched, warty with
+  smooth-edged, obovate leaves hanging in ranks from the twigs; stubby green
+  fruit hanging under the twigs (`fruit_spots`: Foraging hangs as many as are left); thin, smooth grey-brown bark, blotched, warty with
   lenticels.
 - Crabapple (`crabapple_tree.gd`, a wild *Malus*): a small tree, 5-8 m, a
   short trunk or several stems, crooked, gnarled limbs spreading into a

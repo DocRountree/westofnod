@@ -78,10 +78,13 @@ float biome_mud(int b, Shared s, out float puddle) {
 	} else {
 		return 0.0;
 	}
-	float n = vnoise(s.p / 5.0 + 41.0) * 0.6 + vnoise(s.p / 1.7 - 17.0) * 0.3 + vnoise(s.p / 0.6) * 0.1;
+	// (the prairie's patches bigger, and more of each a puddle)
+	float k = b == 2 ? 2.2 : 1.0;
+	float n = vnoise(s.p / (5.0 * k) + 41.0) * 0.6 + vnoise(s.p / (1.7 * k) - 17.0) * 0.3 + vnoise(s.p / (0.6 * k)) * 0.1;
 	float detail = 1.0 - smoothstep(1.0, 4.0, s.fp);
 	float mud = mix(far_share, smoothstep(from, from + 0.02, n), detail);
-	puddle = smoothstep(from + 0.09, from + 0.11, n) * detail;
+	float wet = b == 2 ? 0.035 : 0.09;
+	puddle = smoothstep(from + wet, from + wet + 0.02, n) * detail;
 	return mud;
 }
 
@@ -129,11 +132,11 @@ vec3 biome_ground(int b, Shared s, out float rough, out float rocky, out float l
 		ground = mix(vec3(0.44, 0.45, 0.20), vec3(0.58, 0.52, 0.26), s.patches);
 		ground = mix(ground, vec3(0.30, 0.40, 0.15), s.m.g * 0.6);   // greener where it's wetter
 		ground = mix(ground, vec3(0.62, 0.55, 0.30), clump(s, 0.12) * 0.6);
-		// mud in its lowlands (biome_mud), greyer than the forest's, puddles darker
+		// mud in its lowlands (biome_mud): pale, the prairie's soil, big puddles darker
 		float pud;
 		float mud = biome_mud(b, s, pud);
-		ground = mix(ground, mix(vec3(0.21, 0.17, 0.12), vec3(0.1, 0.085, 0.065), pud) * (0.9 + 0.2 * s.fine3), mud);
-		rough = mix(rough, 0.85, mud);
+		ground = mix(ground, mix(vec3(0.43, 0.39, 0.29), vec3(0.27, 0.25, 0.19), pud) * (0.9 + 0.2 * s.fine3), mud); // (pale, as the prairie's soil: dried at its edges)
+		rough = mix(rough, mix(0.85, 0.35, pud), mud); // (the puddles a little wet-shiny)
 	} else if (b == 3) {     // swamp: dark mud and moss, standing water
 		ground = mix(vec3(0.15, 0.16, 0.09), vec3(0.22, 0.25, 0.12), s.patches);
 		float pools = clump(s, 0.6);                                    // mostly water

@@ -8,8 +8,7 @@ laid out as the oak's (bake_oak_textures.py; TreeBuilder reads them the same):
     (15-30 cm) one by one in two ranks, hanging down and out from it, more
     toward its end; obovate (widest beyond the middle, wedge-shaped to the
     stalk, a short point at the tip), smooth-edged, the side veins running
-    out in parallel arcs; now and then a cluster of two to four stubby green
-    fruit. Clumps 1.4 m.
+    out in parallel arcs (no fruit: Foraging hangs real ones). Clumps 1.4 m.
   - Crabapple (Malus): a sprig 0.5 m across, a twig with short spurs, each a
     cluster of small oval leaves (5-8 cm), sharply toothed, and now and then a
     few little red crabapples hanging on long stalks. Clumps 1 m.
@@ -145,9 +144,8 @@ def pawpaw_sprig(rgba, cover, ox, oy, size, ang0):
         side = -side
         t += rng.uniform(0.12, 0.17)
     leaves.append((end, a + rng.uniform(-0.3, 0.3), rng.uniform(0.18, 0.26) * size))
-    if rng.uniform() < 0.5:
-        q = (ox + (end[0] - ox) * 0.3, oy + (end[1] - oy) * 0.3)
-        pawpaw_fruit(rgba, cover, q[0], q[1], a + math.pi * 0.8 * rng.choice([-1, 1]), size)
+    # (no fruit painted on: a tree's fruit are real, Foraging hangs them, as
+    # many as are left to pick)
     for p, b, l in leaves[::-1]:
         st = (p[0] + math.cos(b) * 0.008 * size, p[1] + math.sin(b) * 0.008 * size)
         draw_line(rgba, cover, p, st, 0.0015 * size, 0.0012 * size, [0.38, 0.36, 0.2])

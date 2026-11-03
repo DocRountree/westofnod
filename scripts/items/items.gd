@@ -14,7 +14,7 @@ const KINDS := {
 	"acorn": {"name": "Acorn", "stack": 32, "shape": "sphere", "size": Vector3(0.018, 0.026, 0.018), "color": Color(0.55, 0.38, 0.16)},
 	"oak_leaf": {"name": "Oak leaf", "stack": 64, "shape": "box", "size": Vector3(0.07, 0.003, 0.11), "color": Color(0.3, 0.42, 0.14)},
 	# fruit (PawpawTree, CrabappleTree: their trees bear them)
-	"pawpaw": {"name": "Pawpaw", "stack": 12, "shape": "pawpaw", "size": Vector3(0.055, 0.11, 0.05), "color": Color(0.55, 0.62, 0.24)},
+	"pawpaw": {"name": "Pawpaw", "stack": 1, "shape": "pawpaw", "size": Vector3(0.055, 0.11, 0.05), "color": Color(0.55, 0.62, 0.24)},
 	"crabapple": {"name": "Crabapple", "stack": 32, "shape": "crabapple", "size": Vector3(0.026, 0.024, 0.026), "color": Color(0.72, 0.16, 0.1)},
 }
 

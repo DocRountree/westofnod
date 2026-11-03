@@ -114,3 +114,8 @@ static func cut_meshes(variant := 0) -> Array:
 ## What fruit variant v bears (Foraging): an item id, "" none.
 static func fruit_of(variant: int) -> String:
 	return species().fruit_of(variant)
+
+
+## Where variant v's fruit hang (Foraging), its own space.
+static func fruit_spots(variant: int) -> PackedVector3Array:
+	return species().fruit_spots(variant)

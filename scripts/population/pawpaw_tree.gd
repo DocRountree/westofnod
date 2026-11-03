@@ -60,7 +60,8 @@ const SETTINGS := {
 		"tree": {"foot": 0.12, "radius": 0.14, "clump": {"forest": 1.0}, "clump_size": 16.0},
 		"sapling": {"foot": 0.03, "radius": 0.0, "clump": {"forest": 1.0}, "clump_size": 16.0},
 		"dead": {"foot": 0.12, "radius": 0.14, "clump": {"forest": 1.0}, "clump_size": 16.0, "min_spacing": 0.0},
-		"stump": {"foot": 0.12},
+		"stump": {"weight": 0.0, "foot": 0.12}, # (none lying about of themselves: only those an axe leaves)
+		"log": {"weight": 0.0},
 	},
 }
 
@@ -124,3 +125,8 @@ static func cut_meshes(variant := 0) -> Array:
 ## What fruit variant v bears (Foraging): an item id, "" none.
 static func fruit_of(variant: int) -> String:
 	return species().fruit_of(variant)
+
+
+## Where variant v's fruit hang (Foraging), its own space.
+static func fruit_spots(variant: int) -> PackedVector3Array:
+	return species().fruit_spots(variant)

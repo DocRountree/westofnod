@@ -251,6 +251,47 @@ func fruit_of(v: int) -> String:
 	return fruit if kind_of(v) == "tree" else ""
 
 
+var _fruit_spots := {}
+
+
+## Where variant v's fruit hang (its own space, at scale 1): under twigs in
+## the outer, lower two thirds of its crown, as many places as it can bear,
+## in a fixed order (Foraging hangs the first so many, as many as are left).
+func fruit_spots(v: int) -> PackedVector3Array:
+	v = posmod(v, variants.size())
+	if not _fruit_spots.has(v):
+		var out := PackedVector3Array()
+		if fruit_of(v) != "":
+			var tb := grow(v)
+			var c: Array = variants[v].crown
+			var top: float = c[1]
+			var bottom: float = c[2]
+			var r := RandomNumberGenerator.new()
+			r.seed = int(variants[v].seed) * 7 + 3
+			var spots: Array[Vector3] = []
+			for sp in tb.sprigs:
+				var q: Vector3 = tb.pos[sp[0]]
+				if q.y > bottom + 0.3 and q.y < bottom + (top - bottom) * 0.66 and Vector2(q.x, q.z).length() > 0.5:
+					spots.append(q)
+			# a few spread out: each far from those before
+			for i in 24:
+				if spots.is_empty():
+					break
+				var best := spots[r.randi() % spots.size()]
+				var far := -1.0
+				for t in 6:
+					var cand := spots[r.randi() % spots.size()]
+					var d := INF
+					for o in out:
+						d = minf(d, o.distance_to(cand))
+					if d > far:
+						far = d
+						best = cand
+				out.append(best + Vector3(r.randf_range(-0.05, 0.05), -0.1, r.randf_range(-0.05, 0.05))) # (hanging below the twig)
+		_fruit_spots[v] = out
+	return _fruit_spots[v]
+
+
 var _sections := {}
 
 

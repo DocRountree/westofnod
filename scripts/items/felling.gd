@@ -42,6 +42,7 @@ var _swing := -1.0 # 0..1 through a swing; < 0 none
 var _struck := false
 var _repeat := false # the button held since a swing began: swing again (_keep_swinging)
 var _blows := {} # tree uid -> blows so far
+var _heights := {} # tree uid -> the height (m over its foot) its notch is cut at: where the first blow was aimed
 var _aim := Vector3.INF # the swing's mark (on the map): the notch's middle; INF none
 var _falling: Array = [] # {node, axis, angle, t, time, pivot, basis}
 var _lying: Array = [] # what to_list saves, one entry a tree
@@ -88,7 +89,30 @@ func _mark() -> Vector3:
 	if tree.is_empty():
 		return Vector3.INF
 	var at: Vector3 = (tree.transform as Transform3D).origin
-	return at + Vector3.UP * _cut(float(tree.radius)) + _notch_side() * float(tree.radius)
+	return at + Vector3.UP * _tree_cut(tree) + _notch_side() * float(tree.radius)
+
+
+const CUT_LOW := 0.12 ## m: the lowest a tree can be cut (over its foot)
+const CUT_HIGH := 1.9 ## m: the highest (a swing at shoulder height)
+
+
+## The height (m over its foot) a tree is cut at: where its notch was begun,
+## or (none yet) where the view meets its trunk: aim low, a low stump; aim
+## high, a tall one. Never above about two fifths of the tree.
+func _tree_cut(tree: Dictionary) -> float:
+	if _heights.has(tree.uid):
+		return _heights[tree.uid]
+	var p: Player = main.player
+	var eye := Origin.map(p.camera.global_position)
+	var fwd := -p.camera.global_basis.z
+	var xf: Transform3D = tree.transform
+	var to := Vector2(xf.origin.x - eye.x, xf.origin.z - eye.z)
+	var flat := maxf(Vector2(fwd.x, fwd.z).length(), 0.05)
+	var t := maxf(to.length() - float(tree.radius), 0.0) / flat # (along the view, to the bark)
+	var h := eye.y + fwd.y * t - xf.origin.y
+	var kind: PropKind = tree.kind
+	var top := kind.mesh.get_aabb().end.y * xf.basis.get_scale().y * 0.4
+	return clampf(h, CUT_LOW, maxf(minf(CUT_HIGH, top), CUT_LOW))
 
 
 ## The side of the trunk the notch is cut in (on the map, across the ground,
@@ -247,17 +271,20 @@ func _strike() -> void:
 		return
 	var need := clampi(ceili(float(tree.radius) / BLOW_DEPTH), 2, 14)
 	var n: int = _blows.get(tree.uid, 0) + 1
+	var cut := _tree_cut(tree)
+	_heights[tree.uid] = cut # (the first blow sets the notch's height: the rest go into it)
 	if n < need:
 		_blows[tree.uid] = n
-		_notch(tree, _notch_side(), float(n) / need)
+		_notch(tree, _notch_side(), float(n) / need, cut)
 		return
 	_blows.erase(tree.uid)
+	_heights.erase(tree.uid)
 	_repeat = false # (down: no more swings till the button's pressed again)
 	main.population.remove_prop(tree.uid)
 	var xf: Transform3D = tree.transform
 	var away := _notch_side() # (falling toward the notch, as a tree does: square to the view)
 	var stripes := _view_dir() # (the axe's strokes across the cut run square to the notch's)
-	var entry := _fell(tree.kind, tree.variant, xf, tree.radius, away, stripes)
+	var entry := _fell(tree.kind, tree.variant, xf, tree.radius, away, stripes, cut)
 	var f: Dictionary = entry.falling
 	_falling.append(f)
 	entry.erase("falling")
@@ -267,12 +294,10 @@ func _strike() -> void:
 ## Puts a felled tree in the world: its stump (if it has one) and the tree,
 ## upright, to fall over toward `away`. Returns the entry to save, with
 ## "falling" the fall to animate.
-func _fell(kind: PropKind, variant: int, xf: Transform3D, radius: float, away: Vector3, stripes: Vector3) -> Dictionary:
+func _fell(kind: PropKind, variant: int, xf: Transform3D, radius: float, away: Vector3, stripes: Vector3, cut: float) -> Dictionary:
 	var world: WorldData = main.world
-	var cut := 0.08
 	var stump_scale := _stump_scale(radius)
-	if stump_scale > 0.0:
-		cut = _cut(radius)
+	var stump_h := _stump_height(cut)
 	var pivot := xf.origin + Vector3.UP * cut
 	var axis := Vector3.UP.cross(away).normalized()
 	# its foot lands beyond the stump, lying on the ground
@@ -285,7 +310,7 @@ func _fell(kind: PropKind, variant: int, xf: Transform3D, radius: float, away: V
 	var angle := clampf(PI * 0.5 + atan2(end.y - ground, reach), deg_to_rad(65.0), deg_to_rad(105.0))
 	var entry := {
 		"kind": String(kind.id), "basis": _floats(xf.basis), "at": [xf.origin.x, xf.origin.y, xf.origin.z],
-		"away": [away.x, away.z], "angle": angle, "cut": cut, "stump_scale": stump_scale,
+		"away": [away.x, away.z], "angle": angle, "cut": cut, "stump_scale": stump_scale, "stump_h": stump_h,
 		"end": [end.x, end.y, end.z], "stripes": [stripes.x, stripes.z],
 	}
 	var node := _model(_felled_meshes(kind, variant))
@@ -293,7 +318,7 @@ func _fell(kind: PropKind, variant: int, xf: Transform3D, radius: float, away: V
 	_cut_base(node, kind, variant, xf, cut, stripes)
 	if stump_scale > 0.0:
 		var sn := _model([OakTree.fresh_stump()[0]] + OakTree.fresh_stump()[1])
-		sn.transform = Transform3D(_stump_basis(stripes, stump_scale), xf.origin)
+		sn.transform = Transform3D(_stump_basis(stripes, stump_scale, stump_h), xf.origin)
 		_solid_stump(xf.origin, cut, stump_scale)
 	_solid(kind, Transform3D(Basis(axis, angle) * xf.basis, end), cut)
 	entry.falling = {"node": node, "axis": axis, "angle": angle, "t": 0.0, "cut": cut, "end": end,
@@ -303,31 +328,31 @@ func _fell(kind: PropKind, variant: int, xf: Transform3D, radius: float, away: V
 
 ## The stump turned so its own x runs the way the axe came, away from the
 ## player (bark.gdshader lays the chopped top's strokes along it: square to
-## the notch's), at scale s.
-static func _stump_basis(away: Vector3, s: float) -> Basis:
-	return Basis(Vector3.UP, atan2(-away.z, away.x)).scaled(Vector3.ONE * s)
+## the notch's), s across, sy up (as tall as the cut: _stump_height).
+static func _stump_basis(away: Vector3, s: float, sy := -1.0) -> Basis:
+	return Basis(Vector3.UP, atan2(-away.z, away.x)).scaled(Vector3(s, s if sy < 0.0 else sy, s))
 
 
-## The stump's scale for a trunk of this radius (0: none, a sapling's).
+## The stump's scale across for a trunk of this radius (the stump is 0.5 m
+## round at the foot).
 static func _stump_scale(radius: float) -> float:
-	return radius / 0.5 if radius > 0.12 else 0.0 # (the stump is 0.5 m round at the foot)
+	return radius / 0.5
 
 
-## The height (m, on the map) the trunk comes away at: the stump's top, where
-## the notch is cut.
-static func _cut(radius: float) -> float:
-	var s := _stump_scale(radius)
-	return OakTree.fresh_stump()[0].get_aabb().end.y * CUT * s if s > 0.0 else 0.08
+## The stump's scale up, for a cut this high (m): its top where the trunk
+## came away (CUT of the stump model's own height).
+static func _stump_height(cut: float) -> float:
+	return cut / (OakTree.fresh_stump()[0].get_aabb().end.y * CUT)
 
 
 ## A blow's mark: the notch, done part of the way (0..1), facing `toward`
 ## (on the map, across the ground: back along the player's view, so the cut
 ## lies square to it).
-func _notch(tree: Dictionary, toward: Vector3, done: float) -> void:
+func _notch(tree: Dictionary, toward: Vector3, done: float, cut: float) -> void:
 	var xf: Transform3D = tree.transform
 	var s := xf.basis.get_scale().x
 	var to := xf.basis.inverse() * toward # (the tree's own space)
-	var h := _cut(float(tree.radius)) / s
+	var h := cut / s
 	# the trunk's radius there as drawn (the roots' flare widens it), a little
 	# over (the bark's ridges): the notch's mouth is at the bark
 	var r: float = float(tree.radius) / s
@@ -504,6 +529,6 @@ func from_list(list: Array) -> void:
 		var s := float(e.get("stump_scale", 0.0))
 		if s > 0.0:
 			var sn := _model([OakTree.fresh_stump()[0]] + OakTree.fresh_stump()[1])
-			sn.transform = Transform3D(_stump_basis(stripes, s), origin)
+			sn.transform = Transform3D(_stump_basis(stripes, s, float(e.get("stump_h", s))), origin) # (saved before stumps went by the cut: as tall as wide)
 			_solid_stump(origin, float(e.get("cut", 0.0)), s)
 		_lying.append(e)

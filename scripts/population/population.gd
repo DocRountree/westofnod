@@ -793,6 +793,38 @@ func fruit_near(eye: Vector3, fwd: Vector3, reach: float) -> Dictionary:
 	return best
 
 
+## Every fruiting tree within r of p (Foraging hangs their fruit): each
+## {uid, kind, variant, transform (on the map), fruit}.
+func fruit_trees_near(p: Vector3, r: float) -> Array:
+	var out := []
+	var c := _key(p)
+	var n := ceili(r / CHUNK)
+	for dz in range(-n, n + 1):
+		for dx in range(-n, n + 1):
+			var ch: _Chunk = _chunks.get(c + Vector2i(dx, dz))
+			if ch == null:
+				continue
+			var base := Vector3(ch.key.x * CHUNK, 0.0, ch.key.y * CHUNK)
+			for k in ch.xforms.size():
+				var kind := props[k]
+				var v := int(kind.get_meta("variant", 0))
+				if kind.mesh_script == null or not kind.mesh_script.has_method("fruit_of"):
+					continue
+				var fruit: String = kind.mesh_script.fruit_of(v)
+				if fruit == "":
+					continue
+				var xf: PackedFloat32Array = ch.xforms[k]
+				var uids: PackedInt64Array = ch.uids[k]
+				for i in uids.size():
+					var j := i * 12
+					var at := base + Vector3(xf[j + 3], xf[j + 7], xf[j + 11])
+					if Vector2(at.x - p.x, at.z - p.z).length() > r or _removed.has(uids[i]):
+						continue
+					var b := Basis(Vector3(xf[j], xf[j + 4], xf[j + 8]), Vector3(xf[j + 1], xf[j + 5], xf[j + 9]), Vector3(xf[j + 2], xf[j + 6], xf[j + 10]))
+					out.append({"uid": uids[i], "kind": kind, "variant": v, "transform": Transform3D(b, at), "fruit": fruit})
+	return out
+
+
 ## The prop kind made from mesh_script's variant v (null if none).
 func kind_of(mesh_script: Script, v: int) -> PropKind:
 	for k in props:
