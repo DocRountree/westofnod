@@ -247,11 +247,8 @@ void fragment() {
 			NORMAL = normalize(abs(det) * NORMAL - sign(det) * (dFdx(fh) * r1 + dFdy(fh) * r2));
 			ALBEDO *= 0.94 + 0.12 * mix(lc_hash(vec3(vec2(bi), 11.0)), lc_hash(vec3(vec2(bi + ivec2(1, 0)), 11.0)), smoothstep(0.8, 1.0, fract(band))); // (each stroke a shade apart)
 		}
-	} else if (smoothstep(detail_far.x, detail_far.y, distance(world_pos, CAMERA_POSITION_WORLD)) > bayer4(FRAGCOORD.xy + 1.0)
-			|| (far_color.r >= 0.0 && (lod_f.x < 1.0 || lod_f.y < 1.0))) {
+	} else if (smoothstep(detail_far.x, detail_far.y, distance(world_pos, CAMERA_POSITION_WORLD)) > bayer4(FRAGCOORD.xy + 1.0)) {
 		// far: the bark's average colour (the texture's smallest mip), flat
-		// (a far colour of its own, the sycamore's white: the dots of a
-		// level dithering in or out that colour too, flat, till it's in)
 		ALBEDO = (far_color.r >= 0.0 ? far_color : textureLod(bark_tex, vec2(0.5), 12.0).rgb) * COLOR.rgb;
 		AO = 0.75;
 		AO_LIGHT_AFFECT = 0.25;
