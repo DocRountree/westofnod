@@ -52,7 +52,6 @@ const SETTINGS := {
 	"dead_tint": Color(0.82, 0.8, 0.76),
 	"log_tint": Color(0.74, 0.74, 0.66),
 	"shadow": [9.0, 4.5, 21.0, 0.6],
-	"lichen": 0.0, # (its bark peels, shedding it: the lichen's dark fruiting discs speckled the white wood)
 	"far_bark": Color(0.88, 0.87, 0.82), # (white far off, as the eye reads its limbs: the patchwork's mean is grey)
 	# as a prop (data/population/props/sycamore.tres: the swamp's only, not
 	# straying out of it): the living more at its edges, fewer in its
