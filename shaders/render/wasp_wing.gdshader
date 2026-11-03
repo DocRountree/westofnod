@@ -11,10 +11,23 @@ render_mode cull_disabled, depth_draw_never;
 // the stroke from front to back, the wing seen most where it turns at
 // either end.
 
+#include "res://shaders/render/wind.gdshaderinc"
+
+// swaying with a flower's head (Wasp.feed_on_flower): as
+// ground_cover.gdshader sways the head at sway_at (the map's, still), by
+// sway_k (its grass_sway * the clump's size * its height's share, squared)
+uniform vec3 sway_at;
+uniform float sway_k = 0.0;
+
 uniform bool blur = false;
 uniform float opacity = 1.0;
 uniform vec3 membrane : source_color = vec3(0.5, 0.36, 0.2);
 uniform vec3 vein : source_color = vec3(0.22, 0.13, 0.06);
+
+void vertex() {
+	if (sway_k > 0.0)
+		VERTEX += inverse(mat3(MODEL_MATRIX)) * wind_sway(sway_at, TIME) / max(sway, 1e-3) * sway_k;
+}
 
 void fragment() {
 	vec2 uv = UV;
