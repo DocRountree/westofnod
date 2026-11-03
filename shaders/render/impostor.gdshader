@@ -10,12 +10,15 @@ render_mode cull_disabled;
 // out from the card's middle toward the camera.
 //
 // The atlas is premultiplied (its background black, transparent): colour /
-// alpha undoes it after filtering, so the mips' edges don't darken.
+// alpha undoes it after filtering, so the mips' edges don't darken; in its
+// own sRGB, before it's made linear (made linear first, a pixel a third
+// covered came out a quarter as bright: thin limbs far off dithered in as
+// dark dots, white sycamores' worst).
 
 #include "res://shaders/render/aerial.gdshaderinc"
 #include "res://shaders/render/lod_fade.gdshaderinc"
 
-uniform sampler2D atlas : source_color, filter_linear_mipmap, repeat_disable;
+uniform sampler2D atlas : filter_linear_mipmap, repeat_disable; // (sRGB, premultiplied: read raw, undone, then made linear: srgb())
 uniform float frames = 8.0;
 uniform vec2 frame = vec2(8.0, 8.0); // the card's middle's height, half its side (the tree's own units)
 uniform vec2 atlas_px = vec2(1280.0, 160.0);
@@ -29,6 +32,10 @@ varying flat float view_f; // which way round it's seen, in frames (0..frames)
 varying vec3 n_right; // world: the card's right, up, and toward the camera (for the dome's normal)
 varying vec3 n_up;
 varying vec3 n_back;
+
+vec3 srgb(vec3 c) {
+	return mix(c / 12.92, pow((c + 0.055) / 1.055, vec3(2.4)), step(vec3(0.04045), c));
+}
 
 void vertex() {
 	lod_f = lod_vertex(CAMERA_POSITION_WORLD, MODEL_MATRIX, PROJECTION_MATRIX);
@@ -66,14 +73,14 @@ void fragment() {
 	float mip = max(0.0, 0.5 * log2(max(dot(dx, dx), dot(dy, dy))));
 	ALPHA = t.a * (1.0 + mip * 0.25); // (thin branches kept as the mips blur them: leaves.gdshader)
 	ALPHA_SCISSOR_THRESHOLD = 0.5;
-	ALBEDO = t.rgb / max(t.a, 0.004) * 0.9 * (1.0 - NIGHT_DIM * night); // (a little darker: the leaves' own shade deep in the crown, which the photograph hasn't)
+	ALBEDO = srgb(clamp(t.rgb / max(t.a, 0.004), 0.0, 1.0)) * 0.9 * (1.0 - NIGHT_DIM * night); // (a little darker: the leaves' own shade deep in the crown, which the photograph hasn't)
 	vec2 q = UV * 2.0 - 1.0;
 	q *= 0.8;
 	vec3 n = normalize(n_right * q.x - n_up * q.y + n_back * sqrt(max(1.0 - dot(q, q), 0.05)));
 	// bare wood (grey to white: little colour in it) not lit as a crown's
 	// dome, nor shaded as deep in one: a white sycamore's limbs went grey
 	// and black on its far side
-	vec3 rgb = t.rgb / max(t.a, 0.004);
+	vec3 rgb = clamp(t.rgb / max(t.a, 0.004), 0.0, 1.0);
 	float wood = 1.0 - smoothstep(0.08, 0.25, max(rgb.r, max(rgb.g, rgb.b)) - min(rgb.r, min(rgb.g, rgb.b)));
 	n = normalize(mix(n, n_back + n_up * 0.6, wood * 0.7));
 	NORMAL = normalize((VIEW_MATRIX * vec4(n, 0.0)).xyz);
