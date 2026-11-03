@@ -173,7 +173,8 @@ per hectare, shared among their variants as the oak's):
   the swamp. Its fruit hang on the grown trees and are picked as the
   pawpaw's (`Foraging`).
 - `walnut.tres`: the forest 3, the prairie 0.25 (sparse); none in the
-  taiga or the swamp (`strict`, `not_in_swamp`). Its walnuts hang on the
+  taiga or the swamp (`strict`, `not_in_swamp`); no dead walnuts standing
+  and no fallen logs of their own (weight 0: only the trees an axe fells). Its walnuts hang on the
   grown trees and are picked as the pawpaw's (`Foraging`).
 - `lodgepole.tres` and `bald_cypress.tres`: the taiga 17 and 9 (together
   as thick as the oaks in the forest), thinning out up the mountains to

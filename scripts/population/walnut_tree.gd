@@ -60,6 +60,11 @@ const SETTINGS := {
 	# in the swamp nor on its mud
 	"props": {
 		"all": {"strict": true, "not_in_swamp": true},
+		# no dead walnuts standing, and none lying fallen of themselves:
+		# only the logs an axe leaves (their models kept: variants 5-8 and
+		# 6, 11, 12 as the oak's, so the kinds' indices stay as they were)
+		"dead": {"weight": 0.0, "density_like": {}},
+		"log": {"weight": 0.0},
 	},
 }
 
