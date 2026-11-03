@@ -32,8 +32,10 @@ extends Node3D
 ##   yellower), in patches: none at the water's edge, thicker and
 ##   taller up the beach; near (to 25 m) and middle (18-62 m);
 ## - ferns: the forest's, in drifts, knee-high; to 45 m.
-## - black-eyed Susans (Rudbeckia hirta) and fleabane (Erigeron annuus): the
-##   prairie's wildflowers among its grass, in drifts, their heads up
+## - black-eyed Susans (Rudbeckia hirta), fleabane (Erigeron annuus) and
+##   purple coneflowers (Echinacea purpurea): the prairie's wildflowers
+##   among its grass, in drifts, their heads up
+## - swamp asters (Symphyotrichum puniceum): the swamp's, sparse
 ##   among the grass's tips (taller than they'd be, the grass being head-high);
 ##   to 38 m and 34 m.
 ## The forest's brown patches are leaf litter: a texture on the terrain
@@ -74,27 +76,43 @@ const LAYERS := [
 			"prairie_green": Vector3(0.76, 0.74, 0.58), "prairie_blonde": Vector3(0.88, 0.84, 0.69), "patch_tints": Vector2(0.2, 0.2),
 			"fade_in": Vector2(18.0, 25.0), "fade_out": Vector2(48.0, 62.0), "thin_from": 32.0}},
 	# the prairie's flowers: black-eyed Susans in drifts, fleabane scattered more widely
-	{"cell": 2.0, "cells": 12, "tiles": 7, "flowers": "susan", "stems": 3, "radius": 0.22,
-		"u": {"kind": 2, "seed": 9, "in_forest": false, "cover": 0.65, "drift": Vector3(26.0, 0.6, 3.1),
+	{"cell": 2.0, "cells": 12, "tiles": 7, "flowers": "susan", "stems": 4, "radius": 0.22,
+		"u": {"kind": 2, "seed": 9, "in_forest": false, "cover": 0.85, "drift": Vector3(26.0, 0.7, 3.1),
 			"forest_height": Vector2(0.35, 0.55), "prairie_height": Vector2(1.25, 1.7), # (low where the prairie gives way, as its grass)
 			"prairie_green": Vector3(0.26, 0.36, 0.12), "prairie_blonde": Vector3(0.36, 0.4, 0.16),
 			"petal_color": Vector3(0.96, 0.71, 0.06), "petal_base": Vector3(0.9, 0.47, 0.05), "petal_alt": Vector3(0.97, 0.6, 0.05), "petal_alt_share": 0.3,
 			"disc_color": Vector3(0.17, 0.08, 0.04), "head_size": 0.07, "head_px": Vector2(3.0, 6.0),
 			"fade_out": Vector2(28.0, 38.0), "thin_from": 22.0}},
-	{"cell": 2.0, "cells": 12, "tiles": 7, "flowers": "fleabane", "stems": 3, "radius": 0.2,
-		"u": {"kind": 2, "seed": 10, "in_forest": false, "cover": 0.45, "drift": Vector3(15.0, 0.5, -7.7),
+	{"cell": 2.0, "cells": 12, "tiles": 7, "flowers": "fleabane", "stems": 4, "radius": 0.2,
+		"u": {"kind": 2, "seed": 10, "in_forest": false, "cover": 0.7, "drift": Vector3(15.0, 0.6, -7.7),
 			"forest_height": Vector2(0.3, 0.5), "prairie_height": Vector2(1.2, 1.5),
 			"prairie_green": Vector3(0.28, 0.38, 0.14), "prairie_blonde": Vector3(0.38, 0.42, 0.18),
 			"petal_color": Vector3(0.97, 0.96, 0.95), "petal_base": Vector3(0.97, 0.96, 0.95), "petal_alt": Vector3(0.8, 0.7, 0.94), "petal_mix": 1.6,
 			"disc_color": Vector3(0.95, 0.78, 0.12), "head_size": 0.025, "head_px": Vector2(3.0, 6.0),
 			"fade_out": Vector2(24.0, 34.0), "thin_from": 20.0}},
+	# purple coneflowers, in a few drifts of their own
+	{"cell": 2.0, "cells": 12, "tiles": 7, "flowers": "coneflower", "stems": 3, "radius": 0.2,
+		"u": {"kind": 2, "seed": 11, "in_forest": false, "cover": 0.6, "drift": Vector3(22.0, 0.35, 9.3),
+			"forest_height": Vector2(0.35, 0.55), "prairie_height": Vector2(1.2, 1.6),
+			"prairie_green": Vector3(0.25, 0.34, 0.12), "prairie_blonde": Vector3(0.35, 0.38, 0.16),
+			"petal_color": Vector3(0.78, 0.42, 0.62), "petal_base": Vector3(0.62, 0.22, 0.42), "petal_alt": Vector3(0.86, 0.6, 0.76), "petal_alt_share": 0.25,
+			"disc_color": Vector3(0.42, 0.2, 0.06), "head_size": 0.09, "head_px": Vector2(3.0, 6.0),
+			"fade_out": Vector2(28.0, 38.0), "thin_from": 22.0}},
+	# the swamp's: swamp asters, sparse, here and there in loose drifts
+	{"cell": 2.0, "cells": 12, "tiles": 7, "flowers": "aster", "stems": 2, "radius": 0.25,
+		"u": {"kind": 2, "seed": 12, "in_forest": false, "in_prairie": false, "in_swamp": true, "swamp_clumped": false, "cover": 0.35,
+			"drift": Vector3(18.0, 0.35, -4.6), "prairie_height": Vector2(0.8, 1.3),
+			"prairie_green": Vector3(0.22, 0.33, 0.12), "prairie_blonde": Vector3(0.3, 0.36, 0.14),
+			"petal_color": Vector3(0.6, 0.45, 0.85), "petal_base": Vector3(0.52, 0.36, 0.8), "petal_alt": Vector3(0.78, 0.68, 0.94), "petal_mix": 1.2,
+			"disc_color": Vector3(0.93, 0.72, 0.12), "head_size": 0.03, "head_px": Vector2(3.0, 6.0),
+			"fade_out": Vector2(26.0, 36.0), "thin_from": 20.0}},
 	{"cell": 0.5, "cells": 24, "tiles": 9, "fronds": 8,
 		"u": {"kind": 1, "seed": 4, "in_prairie": false, "forest_height": Vector2(0.25, 0.45),
 			"fade_out": Vector2(32.0, 45.0), "thin_from": 16.0}},
 ]
 const MAX_LOGS := 256 ## logs, stumps, trunks and boulders the grass is kept out of, nearest first (ground_cover_bake.gdshader: logs[])
 const REBAKE := 5.0 ## m the camera moves before a layer's grid is worked out again
-const BAKE_KEYS := ["kind", "seed", "in_forest", "in_prairie", "in_swamp", "in_coast", "forest_height", "prairie_height", "cover", "drift"]
+const BAKE_KEYS := ["kind", "seed", "in_forest", "in_prairie", "in_swamp", "swamp_clumped", "in_coast", "forest_height", "prairie_height", "cover", "drift"]
 const DRAW_KEYS := ["kind", "seed", "fade_in", "fade_out", "thin_from", "prairie_green", "prairie_blonde", "patch_tints",
 		"petal_color", "petal_base", "petal_alt", "petal_alt_share", "disc_color", "head_size", "head_px", "petal_mix"]
 
@@ -477,7 +495,8 @@ static func cattail_mesh(stalks: int, radius: float, seed: int) -> ArrayMesh:
 	return st.commit()
 
 
-## A clump of wildflowers ("susan": black-eyed Susans; "fleabane"), in
+## A clump of wildflowers ("susan": black-eyed Susans; "fleabane";
+## "coneflower": purple coneflowers; "aster": swamp asters), in
 ## units of the clump's height, as grass_mesh: stems (strips, coloured as
 ## grass, CUSTOM0 their half width in m), a leaf or two low down, and the
 ## heads, solid: ray florets (UV.x 3..4, UV.y from their base out to their
@@ -566,10 +585,23 @@ static func flower_mesh(kind: String, stems: int, radius: float, seed: int) -> A
 		var lt := rng.randf_range(0.15, 0.3)
 		strip.call(root, [Vector3(0.0, lt * 0.5, 0.0), Vector3(dir.x * 0.05, lt, dir.y * 0.05), Vector3(dir.x * 0.1, lt * 1.15, dir.y * 0.1)],
 				[0.004, 0.009, 0.001], Vector3(-dir.y, 0.0, dir.x), Vector3(dir.x, 0.6, dir.y).normalized(), shade, 0.0)
-		if kind == "susan":
+		if kind == "susan" or kind == "coneflower":
 			strip.call(root, [Vector3.ZERO, top * 0.5 + Vector3(lean.x, 0.0, lean.y) * 0.3, top], [0.0035, 0.003, 0.0022], side, n, shade, 0.0)
-			head.call(root, top, Vector3(lean.x, 0.0, lean.y) * 2.0 + Vector3(rng.randf_range(-0.2, 0.2), 0.0, rng.randf_range(-0.2, 0.2)),
-					13, 0.009, 0.034, 0.008, 0.012, 0.011, g)
+			var tilt := Vector3(lean.x, 0.0, lean.y) * 2.0 + Vector3(rng.randf_range(-0.2, 0.2), 0.0, rng.randf_range(-0.2, 0.2))
+			if kind == "susan":
+				head.call(root, top, tilt, 13, 0.009, 0.034, 0.008, 0.012, 0.011, g)
+			else: # (the coneflower's rays hang down from its raised cone)
+				head.call(root, top, tilt, 14, 0.012, 0.045, 0.009, 0.03, 0.018, g)
+		elif kind == "aster":
+			# branching from half way up into several heads, each 2.5-3 cm
+			var fork := top * 0.6
+			strip.call(root, [Vector3.ZERO, fork * 0.5, fork], [0.005, 0.0045, 0.004], side, n, shade, 0.0)
+			for h in rng.randi_range(3, 5):
+				var ha := rng.randf() * TAU
+				var reach := rng.randf_range(0.04, 0.12)
+				var c := fork + Vector3(cos(ha) * reach, rng.randf_range(0.15, 0.4) * tall, sin(ha) * reach)
+				strip.call(root, [fork, (fork + c) * 0.5 + Vector3(0.0, 0.03, 0.0), c], [0.003, 0.0028, 0.0024], side, n, shade, 0.0)
+				head.call(root, c, Vector3(cos(ha), 0.0, sin(ha)) * 0.35, 22, 0.005, 0.014, 0.0022, 0.002, 0.002, rng.randf())
 		else:
 			var fork := top * 0.82
 			strip.call(root, [Vector3.ZERO, fork * 0.5, fork], [0.0055, 0.005, 0.0042], side, n, shade, 0.0)

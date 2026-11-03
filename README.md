@@ -120,8 +120,9 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   grass about up to head-high (1.5-2.0 m), green to blonde, out to 125 m; across a border the one turns into
   the other. Among the prairie's grass, wildflowers in drifts: black-eyed Susans
   (golden rays drooping round a dark brown dome) and fleabane (a few small heads a stem, fine rays
-  pure white to light purple, a little lower), their heads up among the grass's tips; to 38 m. In the swamp, broad-bladed reeds 1.8-2.3 m tall in clumps here and there,
-  standing in the water too. Nothing grows under a log or stump, or in a trunk or boulder
+  pure white to light purple, a little lower) and purple coneflowers (pink-purple rays hanging
+  from a raised orange-brown cone), their heads up among the grass's tips; to 38 m. In the swamp, broad-bladed reeds 1.8-2.3 m tall in clumps here and there,
+  standing in the water too, and a few swamp asters (branching, violet heads round yellow discs), sparse. Nothing grows under a log or stump, or in a trunk or boulder
   (`Population.walk_near`). Clumps dissolve in and out (stippled) with distance, by which point their
   colour is exactly the ground's (`ground.gdshaderinc`, shared with the terrain). The
   forest floor also has patches of damp, matte mud, and its brown patches carry a
