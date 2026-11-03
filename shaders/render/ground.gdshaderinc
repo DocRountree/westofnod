@@ -62,7 +62,8 @@ vec3 sandstone(Shared s) {
 //
 // The prairie's lowlands too: the flat bottoms of its hollows (the ground a
 // metre or more below the land round it, over a few hundred metres: the
-// height map's coarser mip), muddier the deeper.
+// height map's coarser mip; and flat, under 6 degrees or so: not the hills'
+// lower slopes), muddier the deeper.
 float biome_mud(int b, Shared s, out float puddle) {
 	puddle = 0.0;
 	float from;
@@ -70,7 +71,9 @@ float biome_mud(int b, Shared s, out float puddle) {
 	if (b == 0) {
 		from = 0.71 - 0.05 * s.m.g;
 	} else if (b == 2) {
-		float low = smoothstep(1.0, 4.5, terrain_height(s.p, 3) - s.h) * smoothstep(0.9, 0.97, s.n.y);
+		// (only on the flat: the bottoms of the hills, not their lower
+		// slopes, which lie below the land round them too)
+		float low = smoothstep(1.0, 4.5, terrain_height(s.p, 3) - s.h) * smoothstep(0.984, 0.996, s.n.y);
 		if (low <= 0.0)
 			return 0.0;
 		from = 1.02 - 0.3 * low;
@@ -136,7 +139,7 @@ vec3 biome_ground(int b, Shared s, out float rough, out float rocky, out float l
 		float pud;
 		float mud = biome_mud(b, s, pud);
 		ground = mix(ground, mix(vec3(0.43, 0.39, 0.29), vec3(0.27, 0.25, 0.19), pud) * (0.9 + 0.2 * s.fine3), mud); // (pale, as the prairie's soil: dried at its edges)
-		rough = mix(rough, mix(0.85, 0.35, pud), mud); // (the puddles a little wet-shiny)
+		rough = mix(rough, mix(0.9, 0.78, pud), mud); // (the puddles damp, hardly shining)
 	} else if (b == 3) {     // swamp: dark mud and moss, standing water
 		ground = mix(vec3(0.15, 0.16, 0.09), vec3(0.22, 0.25, 0.12), s.patches);
 		float pools = clump(s, 0.6);                                    // mostly water

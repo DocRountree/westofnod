@@ -17,6 +17,7 @@ uniform sampler2D bark_tex : source_color, filter_linear_mipmap_anisotropic, rep
 uniform float bump = 0.012; // m of relief at full height
 uniform float shadow_strength = 0.6;
 uniform vec2 detail_far = vec2(60.0, 90.0); // m: the texture fades out between these
+uniform vec3 far_color = vec3(-1.0); // the bark's colour far off, if set (the sycamore's white: its patchwork's mean is grey); else its texture's mean
 
 varying vec3 world_pos;
 varying vec3 obj; // the tree's own space, offset per tree across (the lichen's and moss's patterns)
@@ -248,7 +249,7 @@ void fragment() {
 		}
 	} else if (smoothstep(detail_far.x, detail_far.y, distance(world_pos, CAMERA_POSITION_WORLD)) > bayer4(FRAGCOORD.xy + 1.0)) {
 		// far: the bark's average colour (the texture's smallest mip), flat
-		ALBEDO = textureLod(bark_tex, vec2(0.5), 12.0).rgb * COLOR.rgb;
+		ALBEDO = (far_color.r >= 0.0 ? far_color : textureLod(bark_tex, vec2(0.5), 12.0).rgb) * COLOR.rgb;
 		AO = 0.75;
 		AO_LIGHT_AFFECT = 0.25;
 		ROUGHNESS = 0.92;

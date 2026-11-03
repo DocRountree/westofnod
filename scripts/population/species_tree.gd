@@ -48,6 +48,9 @@ var shadow := [7.5, 4.0, 14.0, 0.45] ## the shadow stand-in: crown radius, botto
 ## As a prop, what differs from the oak's (OakTree.PROPS): kind ("all" for
 ## every kind) -> PropKind settings (variant_props).
 var props := {}
+## The bark's colour far off (bark.gdshader: far_color; and so its far-off
+## card's): alpha 0, its texture's mean.
+var far_bark := Color(0, 0, 0, 0)
 var fruit := "" ## The item its grown trees bear (Items: "pawpaw", ...), "" none.
 
 var _cache := {} # variant -> [mesh, lods]
@@ -77,6 +80,8 @@ func bark_material(level: int, kind: String) -> ShaderMaterial:
 	if not _bark_mats.has(key):
 		var m := OakTree.bark_material(level, kind).duplicate() as ShaderMaterial
 		m.set_shader_parameter("bark_tex", OakTree._texture(bark_tex))
+		if far_bark.a > 0.0:
+			m.set_shader_parameter("far_color", Vector3(far_bark.r, far_bark.g, far_bark.b))
 		_bark_mats[key] = m
 		OakTree._bark_mats[[name, level, kind]] = m # (told the night, the biomes, the levels' fade with the oak's)
 	return _bark_mats[key]

@@ -70,8 +70,14 @@ void fragment() {
 	vec2 q = UV * 2.0 - 1.0;
 	q *= 0.8;
 	vec3 n = normalize(n_right * q.x - n_up * q.y + n_back * sqrt(max(1.0 - dot(q, q), 0.05)));
+	// bare wood (grey to white: little colour in it) not lit as a crown's
+	// dome, nor shaded as deep in one: a white sycamore's limbs went grey
+	// and black on its far side
+	vec3 rgb = t.rgb / max(t.a, 0.004);
+	float wood = 1.0 - smoothstep(0.08, 0.25, max(rgb.r, max(rgb.g, rgb.b)) - min(rgb.r, min(rgb.g, rgb.b)));
+	n = normalize(mix(n, n_back + n_up * 0.6, wood * 0.7));
 	NORMAL = normalize((VIEW_MATRIX * vec4(n, 0.0)).xyz);
-	AO = 0.7;
+	AO = mix(0.7, 0.95, wood);
 	AO_LIGHT_AFFECT = 0.4;
 	ROUGHNESS = 0.7;
 	SPECULAR = 0.15; // (one smooth dome caught more of the sky's sheen than the many cards)
