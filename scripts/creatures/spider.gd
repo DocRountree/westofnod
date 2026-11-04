@@ -6,10 +6,13 @@ extends "res://scripts/creatures/hexapod.gd" # (by path: found whether or not th
 ## - "wolf": a Carolina wolf spider (Hogna carolinensis): big, hairy, dark
 ##   brown; hunts on the ground, running down its prey. Its egg sac carried
 ##   on its spinnerets; its spiderlings, hatched, ride on its back a while
-## - "fishing": a six-spotted fishing spider (Dolomedes triton): long
-##   legged, olive brown, cream banded, white spotted; runs on water (its
-##   ground: the water's surface). Its egg sac carried in its jaws; a
-##   nursery web spun over it to hatch in, guarded
+## - "fishing": a six-spotted fishing spider (Dolomedes triton): flat and
+##   broad, its very long legs splayed wide and flat, the knees low, the
+##   body low on the water (each foot dimpling it); olive brown, a cream
+##   band down each side, white spots paired down the abdomen; its eyes two
+##   rows of four, both curved back. Runs on water (its ground: the water's
+##   surface). Its egg sac carried in its jaws, then set down at the
+##   water's edge for the spiderlings to come out of
 ## - "funnel": a grass spider (Agelenopsis): a funnel weaver; spins a sheet
 ##   web on the ground with a funnel retreat at its side, waits at the
 ##   funnel's mouth, rushes out at what lands on the sheet and drags it in.
@@ -41,8 +44,11 @@ extends "res://scripts/creatures/hexapod.gd" # (by path: found whether or not th
 const SPECIES := {
 	"wolf": {"pattern": 0, "ceph": Vector3(12.0, 4.6, 3.6), "abd": Vector3(13.0, 5.4, 4.4), "leg": Vector3(8.5, 10.0, 10.0), "pairs": [1.0, 0.92, 0.82, 1.06],
 			"femur": Color(0.3, 0.22, 0.14), "tibia": Color(0.24, 0.17, 0.11), "body_h": 5.6, "speed": 0.09, "eyes": "wolf", "leg_r": 0.8, "young": 0.16},
-	"fishing": {"pattern": 1, "ceph": Vector3(9.5, 4.2, 2.8), "abd": Vector3(11.0, 4.4, 3.4), "leg": Vector3(12.5, 15.0, 15.0), "pairs": [1.0, 1.05, 0.88, 1.08],
-			"femur": Color(0.32, 0.28, 0.2), "tibia": Color(0.28, 0.24, 0.16), "body_h": 5.0, "speed": 0.11, "eyes": "wolf", "leg_r": 0.6, "young": 0.15},
+	# (the fishing spider: flat, broad, low on the water, its very long legs
+	# splayed wide and flat, the knees low; its eyes two curved rows)
+	"fishing": {"pattern": 1, "ceph": Vector3(9.0, 4.5, 2.2), "abd": Vector3(12.5, 3.8, 2.8), "leg": Vector3(14.0, 16.5, 17.0), "pairs": [1.0, 1.06, 0.84, 1.02],
+			"femur": Color(0.3, 0.27, 0.2), "tibia": Color(0.27, 0.24, 0.17), "body_h": 3.0, "speed": 0.12, "eyes": "pisaurid", "leg_r": 0.55, "young": 0.15,
+			"sprawl": 1.2, "knee_up": 0.45, "flat": true},
 	"funnel": {"pattern": 2, "ceph": Vector3(7.5, 2.9, 2.2), "abd": Vector3(8.5, 3.2, 2.7), "leg": Vector3(7.5, 8.5, 9.5), "pairs": [1.0, 0.92, 0.84, 1.1],
 			"femur": Color(0.5, 0.4, 0.28), "tibia": Color(0.42, 0.33, 0.22), "body_h": 3.8, "speed": 0.12, "eyes": "rows", "leg_r": 0.42, "young": 0.2, "spinnerets": 3.2},
 	"argiope": {"pattern": 3, "ceph": Vector3(8.5, 3.6, 2.6), "abd": Vector3(17.0, 6.2, 5.2), "leg": Vector3(10.5, 11.5, 12.0), "pairs": [1.0, 0.98, 0.62, 0.95],
@@ -80,6 +86,7 @@ var _web_pos := Vector3.ZERO
 var _web_head := Vector3.DOWN
 var _path: Array = [] # points to go along, in the web (its parent's space)
 var _path_speed := 0.12
+var _dimples: Array[MeshInstance3D] = [] # (the fishing spider's: the water dimpled under each foot)
 
 
 func _init(kind_ := "wolf", young_ := false) -> void:
@@ -100,16 +107,38 @@ func _init(kind_ := "wolf", young_ := false) -> void:
 		var k: float = S.pairs[p]
 		var a := deg_to_rad(ANG[p])
 		var h := deg_to_rad(HOME[p])
-		var reach := (lg.x + lg.y) * k * 0.82
+		var reach := (lg.x + lg.y) * k * 0.82 * float(S.get("sprawl", 1.0))
 		L.append({
 			"hip": _ceph_c + Vector3(sin(a) * ceph.y * 0.82, -0.6, -cos(a) * ceph.x * 0.38),
 			"f": lg.x * k, "t": lg.y * k, "s": lg.z * k * 0.8,
 			"home": Vector2(sin(h) * reach, _ceph_c.z - cos(h) * reach),
 			"dangle": Vector3(sin(a) * reach * 0.45, -2.0, _ceph_c.z - cos(a) * reach * 0.45),
-			"pole": Vector3(sin(a) * 0.5, 1.0, -cos(a) * 0.3),
+			"pole": Vector3(sin(a) * 0.5, float(S.get("knee_up", 1.0)), -cos(a) * 0.3),
 			"r": float(S.leg_r) * (0.9 if p == 2 else 1.0),
 		})
 	legs = L
+
+
+func _ready() -> void:
+	super()
+	if kind == "fishing":
+		# the water's surface dimpled under each foot, a ring of light round it
+		var ring := TorusMesh.new()
+		ring.inner_radius = 0.75
+		ring.outer_radius = 1.0
+		ring.rings = 12
+		ring.ring_segments = 6
+		var m := StandardMaterial3D.new()
+		m.albedo_color = Color(0.85, 0.9, 0.95, 0.4)
+		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		m.roughness = 0.05
+		for i in legs.size() * 2:
+			var d := MeshInstance3D.new()
+			d.mesh = ring
+			d.material_override = m
+			d.top_level = true # (placed where its foot is, not riding on the body)
+			add_child(d)
+			_dimples.append(d)
 
 
 func _build() -> void:
@@ -126,7 +155,7 @@ func _build() -> void:
 	cm.set_shader_parameter("abd_z", 999.0)
 	cm.set_shader_parameter("half_w", hw)
 	# the cephalothorax: the head's end raised (the eyes), widest behind it
-	var front_up := 0.9 if kind in ["wolf", "fishing"] else 0.4
+	var front_up := 0.9 if kind == "wolf" else (0.15 if S.get("flat", false) else 0.4) # (the wolf spider's eyes raised up front; the fishing spider flat)
 	var cephm := MeshInstance3D.new()
 	cephm.mesh = _loft([[-L - 0.3, front_up, hw * 0.45, hh * 0.45], [-L * 0.88, front_up, hw * 0.66, hh * 0.8], [-L * 0.55, 0.5, hw, hh],
 			[-L * 0.22, 0.25, hw * 0.88, hh * 0.78], [-0.5, 0.0, hw * 0.4, hh * 0.42], [-0.05, 0.0, 0.5, 0.5]], 2.2)
@@ -160,7 +189,13 @@ func _build() -> void:
 	# others' two rows of four
 	var eye := _mat(Color(0.02, 0.02, 0.02), 0.08)
 	var front := _ceph_c.z - L * 0.5 - 0.3
-	if S.eyes == "wolf":
+	if S.eyes == "pisaurid": # (two rows of four, both curved back: the outer eyes behind the inner)
+		for row in 2:
+			for k in 4:
+				var x := (k - 1.5) * (0.7 + 0.25 * row)
+				var back := absf(x) * (0.45 + 0.2 * row)
+				_part(Vector3(x, front_up + hh * (0.55 + 0.25 * row), front + 0.3 + row * 1.0 + back), Vector3.ONE * (0.5 + 0.12 * row), eye)
+	elif S.eyes == "wolf":
 		for k in 4:
 			_part(Vector3((k - 1.5) * 0.55, front_up + hh * 0.35, front + 0.2), Vector3.ONE * 0.45, eye)
 		for side: float in [-1.0, 1.0]:
@@ -411,6 +446,14 @@ func _process(dt: float) -> void:
 		_orb(dt)
 		return
 	super(dt)
+	if not _dimples.is_empty():
+		var parent := get_parent() as Node3D
+		for i in _dimples.size():
+			var d := _dimples[i]
+			d.visible = not airborne and parent != null
+			if d.visible:
+				d.global_position = parent.to_global(_feet[i]) + Vector3.UP * 0.0003
+				d.scale = Vector3(1.0, 0.25, 1.0) * 0.0032 * size * (1.0 + 0.08 * sin(_t * 3.0 + i))
 
 
 ## (A wolf spiderling) riding on its mother's back, then off.
@@ -632,8 +675,7 @@ func _piloted() -> void:
 ## the fishing spider's a bigger one, the grass spider's a flat white
 ## disc, the garden spider's a brown papery jar hung on threads. hatch():
 ## the spiderlings out of it: the wolf spider's up onto its mother's back
-## to ride; the fishing spider's milling in the nursery web she's spun
-## over it, then away; the others out, clustered a while, then away.
+## to ride; the fishing spider's out where she's set it down, then away; the others out, clustered a while, then away.
 class EggSac extends Node3D:
 	var kind := "wolf"
 	var mother: Node3D
@@ -683,28 +725,13 @@ class EggSac extends Node3D:
 		_t = 0.0
 		_left = {"wolf": 14, "fishing": 12, "funnel": 9, "argiope": 12}.get(kind, 10)
 		if kind == "fishing" and is_instance_valid(mother):
-			# (she sets it down in a nursery web spun over it among the plants)
+			# (she sets it down at the water's edge, the spiderlings out of it there)
 			var gp := global_position
 			var parent := mother.get_parent() as Node3D
 			reparent(parent, false)
 			global_position = Vector3(gp.x, float(mother.call("_ground", gp.x, gp.z)) + 0.02, gp.z)
 			scale = Vector3.ONE
 			mother.set("_carry", null)
-			var tent := MeshInstance3D.new()
-			var cone := CylinderMesh.new()
-			cone.top_radius = 0.004
-			cone.bottom_radius = 0.06
-			cone.height = 0.08
-			cone.radial_segments = 16
-			cone.cap_bottom = false
-			cone.cap_top = false
-			tent.mesh = cone
-			var silk := ShaderMaterial.new()
-			silk.shader = preload("res://shaders/render/silk.gdshader")
-			silk.set_shader_parameter("opacity", 0.35)
-			tent.material_override = silk
-			tent.position = Vector3(0.0, 0.02, 0.0)
-			add_child(tent)
 
 	func _process(dt: float) -> void:
 		if _t < 0.0:
