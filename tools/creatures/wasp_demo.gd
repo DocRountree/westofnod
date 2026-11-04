@@ -35,10 +35,11 @@ var beetles: Beetles
 var _ants_feeding := false
 var _beetles_feeding := false
 var _following := 0 # wasp, moth, monarch, ants, beetles
-var _milkweed: Array = [] # the milkweed's flowers (points)
+var _flowers := {} # the patch's clumps' florets (points), by kind (DemoFlowers.patch)
+var _milkweed: Array = [] # the first milkweed's
 var _swamp: Array = [] # the swamp milkweed's
-const MOTHS_AT := Vector3(0.9, 0.0, -0.4) # (round the milkweeds)
-const STONE := Vector3(-0.95, 0.04, 0.75)
+const MOTHS_AT := Vector3(2.4, 0.0, -0.6) # (the flower patch's middle)
+const STONE := Vector3(2.7, 0.04, 0.55) # (by the flower patch)
 const ANTS_AT := Vector3(0.45, 0.0, 0.0)
 const CRUMB := Vector3(0.5, 0.0, 0.05)
 const BEETLES_AT := Vector3(-0.55, 0.0, -0.25)
@@ -81,9 +82,9 @@ func _ready() -> void:
 	var sun := DirectionalLight3D.new()
 	sun.rotation = Vector3(deg_to_rad(-55), deg_to_rad(-35), 0)
 	sun.shadow_enabled = true
-	sun.directional_shadow_max_distance = 4.0
+	sun.directional_shadow_max_distance = 7.0
 	add_child(sun)
-	_box(Vector3(0, -0.005, 0), Vector3(4, 0.01, 4), Color(0.33, 0.4, 0.2))
+	_box(Vector3(0.8, -0.005, 0), Vector3(7, 0.01, 5), Color(0.33, 0.4, 0.2))
 	# the flower: a clump of the game's own purple coneflowers
 	_coneflower()
 	# the leaf the caterpillar's on, on a stalk
@@ -119,22 +120,25 @@ func _ready() -> void:
 
 
 ## The other creatures, each at its own place on the plain: the
-## hummingbird moth and the monarch round a clump each of the game's common
-## and swamp milkweed (DemoFlowers), a stone for the monarch to bask on;
+## hummingbird moth and the monarch round a patch of the game's flowers
+## (DemoFlowers.patch: three clumps of common milkweed, one of swamp
+## milkweed, coneflowers, Susans, fleabane, asters, yampah), a stone for the
+## monarch to bask on;
 ## ants round a crumb; beetles round two leaves.
 func _others() -> void:
-	_milkweed = Flowers.clump(self, "milkweed", Vector2(MOTHS_AT.x + 0.15, MOTHS_AT.z - 0.1), 1.3, Color(0.42, 0.38, 0.28))
-	_swamp = Flowers.clump(self, "swamp_milkweed", Vector2(MOTHS_AT.x - 0.5, MOTHS_AT.z - 0.45), 1.2, Color(0.2, 0.22, 0.14))
+	_flowers = Flowers.patch(self, Vector2(MOTHS_AT.x, MOTHS_AT.z), Color(0.42, 0.38, 0.28))
+	_milkweed = _flowers.milkweed
+	_swamp = _flowers.swamp_milkweed
 	var stone := _box(STONE - Vector3(0, 0.02, 0), Vector3(0.25, 0.04, 0.18), Color(0.5, 0.48, 0.44))
 	stone.rotation.y = 0.4
 	moth = MothScript.new()
 	add_child(moth)
 	moth.place(MOTHS_AT + Vector3(0.0, 0.6, 0.3))
-	moth.search(MOTHS_AT, 0.6, Flowers.heads(_milkweed) + Flowers.heads(_swamp))
+	moth.search(MOTHS_AT, 1.0, _all_heads())
 	monarch = MonarchScript.new()
 	add_child(monarch)
 	monarch.place(MOTHS_AT + Vector3(-0.3, 1.0, 0.2))
-	monarch.fly(MOTHS_AT, 1.0)
+	monarch.fly(MOTHS_AT, 1.3)
 	var crumb := AntColony.crumb()
 	crumb.position = CRUMB
 	add_child(crumb)
@@ -288,13 +292,13 @@ func _unhandled_input(e: InputEvent) -> void:
 				_to_flower = false
 				wasp.sting(BALL + Vector3(0, 0.02, 0))
 			KEY_6:
-				moth.search(MOTHS_AT, 0.6, Flowers.heads(_milkweed) + Flowers.heads(_swamp))
+				moth.search(MOTHS_AT, 1.0, _all_heads())
 				_following = 1
 			KEY_7:
-				moth.feed(_milkweed)
+				moth.feed(_flowers[["milkweed", "milkweed2", "milkweed3"].pick_random()])
 				_following = 1
 			KEY_8:
-				monarch.fly(MOTHS_AT, 1.0)
+				monarch.fly(MOTHS_AT, 1.3)
 				_following = 2
 			KEY_9:
 				monarch.bask(STONE, Vector3.UP)
@@ -356,6 +360,14 @@ func _process(dt: float) -> void:
 	var off := Vector3(sin(_yaw) * cos(_pitch), -sin(_pitch), cos(_yaw) * cos(_pitch)) * _dist
 	cam.global_position = _focus + off
 	cam.look_at(_focus, Vector3.UP)
+
+
+## Every flower's head in the patch, for the moth to look over.
+func _all_heads() -> Array:
+	var out := []
+	for k in _flowers:
+		out += Flowers.heads(_flowers[k])
+	return out
 
 
 func _box(at: Vector3, size: Vector3, c: Color) -> MeshInstance3D:

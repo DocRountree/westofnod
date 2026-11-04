@@ -1,10 +1,14 @@
 class_name Monarch
 extends "res://scripts/creatures/lepidoptera.gd" # (by path: found whether or not the editor has seen the class yet)
 ## A monarch (Danaus plexippus), at twice life size (its wings 20 cm
-## across): orange wings veined black, a black border with two rows of
-## white dots, the forewings' tips black with orange and white spots;
-## beneath paler, the hindwings yellowish with bolder veins; the body black,
-## dotted white; clubbed black antennae. Not yet in the game
+## across): tawny orange wings veined black, a black border with two rows
+## of white dots, the forewings' tips black crossed by orange and white
+## spots; beneath paler, the forewings' tips buff, the hindwings pale buff,
+## their veins black edged white (the wings: bake_lepidoptera_wings.py). The
+## body black, slender, dotted white along the thorax and the abdomen's
+## sides, white spots by the big eyes, palps white beneath; long, slender,
+## gradually clubbed antennae; only four legs to walk on (a brush-foot: its
+## forelegs small, folded up under the chest). Not yet in the game
 ## (tools/creatures/lepidoptera_demo.tscn).
 ##
 ## - fly(centre, radius): flap and glide: a few strong, slow beats, then a
@@ -42,22 +46,54 @@ func _init() -> void:
 	proboscis = 14.0
 	stand = 4.0
 	pattern = 0
-	_head_at = Vector3(0.0, -0.6, -9.5)
+	fore_wing = "monarch_fore"
+	hind_wing = "monarch_hind"
+	fore_hinge = Vector3(1.1, 1.5, -4.6)
+	hind_hinge = Vector3(1.1, 1.3, -1.6)
+	_head_at = Vector3(0.0, -0.8, -8.8)
 
 
 func _build() -> void:
 	var black := Color(0.03, 0.025, 0.025)
-	var white := Color(0.9, 0.88, 0.85)
-	_part(Vector3(0.0, 0.5, -3.0), Vector3(4.4, 4.2, 7.5), black, 0.8) # (the thorax)
-	_part(Vector3(0.0, 0.2, -8.0), Vector3(3.6, 3.4, 3.2), black, 0.8) # (the head)
+	var white := Color(0.92, 0.9, 0.86)
+	var eye := Color(0.13, 0.11, 0.09)
+	# the thorax: stout, furred black, spotted white on its sides and over
+	# its shoulders
+	_part(Vector3(0.0, 0.5, -3.0), Vector3(4.6, 4.4, 7.6), black, 0.85, null, 0.25)
+	_part(Vector3(0.0, -0.4, -2.6), Vector3(4.0, 3.2, 6.4), black, 0.85, null, 0.2) # (its chest, under)
+	# the head: black, two big eyes, white dots round them and on the brow
+	_part(Vector3(0.0, 0.2, -7.6), Vector3(3.6, 3.3, 3.0), black, 0.75, null, 0.15)
 	for side in [-1.0, 1.0]:
-		_part(Vector3(1.4 * side, 0.4, -8.6), Vector3(1.6, 2.0, 1.9), Color(0.1, 0.09, 0.08), 0.3) # (its eyes)
-		for k in 3: # (white dots on the thorax and the head)
-			_part(Vector3(1.6 * side, 0.9 - k * 0.8, -5.0 + k * 1.6), Vector3.ONE * 0.6, white, 0.6)
-		_part(Vector3(1.2 * side, -0.6, -8.0), Vector3.ONE * 0.5, white, 0.6)
-	_part(Vector3(0.0, -0.3, 6.0), Vector3(3.2, 3.0, 13.0), black, 0.8) # (the abdomen)
-	_antennae(Vector3(0.7, 1.4, -9.2), 14.0, 0.8, black)
-	_legs_at(Vector3(0.0, -1.8, -3.0), 6.0, black)
+		_part(Vector3(1.45 * side, 0.45, -7.9), Vector3(1.7, 2.4, 2.3), eye, 0.22)
+		_part(Vector3(0.55 * side, 1.55, -8.4), Vector3.ONE * 0.55, white, 0.6)
+		_part(Vector3(1.55 * side, -0.85, -7.2), Vector3.ONE * 0.5, white, 0.6)
+		# the palps: two short, upturned scaly prongs under the face, white
+		# beneath
+		var palp := _part(Vector3(0.5 * side, -1.0, -9.2), Vector3(0.75, 0.85, 2.4), black, 0.7)
+		palp.rotation.x = 0.5
+		_part(Vector3(0.5 * side, -1.35, -9.0), Vector3(0.5, 0.4, 1.6), white, 0.7)
+		# the thorax's white spots: a row along each side, a pair at the
+		# collar, a few under
+		for k in 4:
+			_part(Vector3(2.15 * side, 0.9 - k * 0.55, -5.4 + k * 1.5), Vector3(0.55, 0.6, 0.65), white, 0.6)
+		_part(Vector3(0.9 * side, 2.4, -5.9), Vector3(0.6, 0.45, 0.6), white, 0.6)
+		_part(Vector3(1.2 * side, -1.8, -4.0), Vector3(0.6, 0.45, 0.7), white, 0.6)
+		_part(Vector3(1.0 * side, -1.9, -1.4), Vector3(0.6, 0.45, 0.7), white, 0.6)
+	# the abdomen: slender, in segments tapering to its tip, black, a row
+	# of fine white dots low down each side
+	var segs := [[1.2, 3.3], [3.8, 3.4], [6.4, 3.3], [9.0, 3.1], [11.6, 2.8], [14.2, 2.4], [16.6, 1.9], [18.6, 1.3]]
+	for i in segs.size():
+		var z: float = segs[i][0]
+		var wd: float = segs[i][1]
+		var y := -0.3 - 0.0025 * z * z # (drooping a little toward its tip)
+		_part(Vector3(0.0, y, z), Vector3(wd, wd * 0.95, 3.1), black, 0.8, null, 0.12)
+		if i < segs.size() - 1:
+			for side in [-1.0, 1.0]:
+				_part(Vector3(wd * 0.44 * side, y - wd * 0.18, z), Vector3(0.38, 0.38, 0.5), white, 0.6)
+	# long slender antennae, gradually clubbed
+	_antennae(Vector3(0.6, 1.4, -8.8), 16.0, 1.0, black, 0.17, 0.25)
+	# its forelegs small and folded under the chest; the walking four long
+	_legs_at(Vector3(0.0, -1.8, -3.0), 7.5, black, true)
 
 
 ## Flap and glide, wandering round centre (within radius).

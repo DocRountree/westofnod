@@ -176,15 +176,18 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   `tools/creatures/wasp_demo.tscn` puts one on a plain with a clump of the game's purple coneflowers, a caterpillar on a
   leaf, a plank and a ball (and for the scale the player's figure with its axe, and a pawpaw, a
   black-eyed Susan, a yampah and a cattail on the plank), each animation on a key (`godot --path . res://tools/creatures/wasp_demo.tscn`);
-  and every other creature beside it, each at its own place (the hummingbird moth and the monarch round the milkweeds and a
-  stone, ants round a crumb, beetles round two leaves), their animations on keys too, Tab following each in turn.
+  and every other creature beside it, each at its own place (the hummingbird moth and the monarch round a patch of the
+  game's flowers, milkweeds among coneflowers, Susans, fleabane, asters and yampah, and a stone, ants round a crumb, beetles round two leaves), their animations on keys too, Tab following each in turn.
 - `scripts/creatures/lepidoptera.gd` (`Lepidoptera`): a butterfly or moth at twice life size, not yet in the game: built
-  from parts, its wings quads painted by `shaders/render/lepidoptera_wing.gdshader`, flying (beating, gliding, a blur
+  from parts (furred where the species is), its wings cut to their real outlines and painted, veins, borders and
+  spots, above and beneath (`tools/creatures/bake_lepidoptera_wings.py` bakes `data/creatures/lepidoptera_wings.png`
+  and the outlines, `scripts/creatures/lepidoptera_wings.gd`; drawn by `shaders/render/lepidoptera_wing.gdshader`), flying (beating, gliding, a blur
   past the eye's speed), perching, its proboscis uncoiling to a point. `hummingbird_moth.gd` (`HummingbirdMoth`,
   *Hemaris thysbe*: search, darting from hover to hover and looking in at flowers; feed, hovering at a flower's florets,
   its proboscis in each) and `monarch.gd` (`Monarch`, *Danaus plexippus*: fly, flap and glide; bask on a stone, its
   wings spread; feed on a flower, its wings closed over its back). `tools/creatures/lepidoptera_demo.tscn` shows them
-  with a clump each of the game's common and swamp milkweed and a stone, each animation on a key.
+  in a patch of the game's flowers (`DemoFlowers.patch`: three clumps of common milkweed, one of swamp milkweed,
+  coneflowers, Susans, fleabane, asters, yampah) and a stone, each animation on a key.
 
 ## The planet and the sky
 

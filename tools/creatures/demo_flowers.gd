@@ -20,7 +20,8 @@ static func heads(florets: Array) -> Array:
 
 
 ## A clump of one of the game's flowers (GroundCover's layer with that
-## `flowers`), as a cell of its layer: the cell's data (ground_cover_bake's
+## `flowers`: milkweed, swamp_milkweed, coneflower, susan, fleabane, aster,
+## yampah), standing at `near` (within a few cm), as a cell of its layer: the cell's data (ground_cover_bake's
 ## two texels) made up here, the ground at 0, the clump `tall` m; no wind.
 ## Its florets' tops, as the shader places them (the map's = the parent's,
 ## at the origin).
@@ -30,22 +31,32 @@ static func clump(parent: Node3D, flowers: String, near: Vector2, tall: float, g
 		if l.get("flowers", "") == flowers:
 			L = l
 	var cell: float = L.cell
+	# a cell (and a seed: the hash's) whose clump stands at `near`, near
+	# enough (every clump of a kind can then stand where it's wanted; each
+	# its own plants, the mesh drawn from that seed)
 	var seed: int = L.u.seed
 	var at_cell := Vector2i.ZERO
 	var best := INF
-	for cz in range(-3, 3):
-		for cx in range(-3, 3):
-			var c := Vector2i(cx, cz)
-			var at := Vector2(c) * cell + Vector2(GroundCover._h2(c, 1, seed), GroundCover._h2(c, 2, seed)) * cell
-			if at.distance_to(near) < best:
-				best = at.distance_to(near)
-				at_cell = c
+	for s in 600:
+		var sd: int = L.u.seed + s * 101
+		for cz in range(-2, 2):
+			for cx in range(-2, 2):
+				var c := Vector2i(cx, cz)
+				var at := Vector2(c) * cell + Vector2(GroundCover._h2(c, 1, sd), GroundCover._h2(c, 2, sd)) * cell
+				var d := at.distance_to(near)
+				if d < best:
+					best = d
+					at_cell = c
+					seed = sd
+		if best < 0.03:
+			break
 	var m := ShaderMaterial.new()
 	m.shader = load("res://shaders/render/ground_cover.gdshader")
 	m.set_shader_parameter("cell", cell)
 	for k in L.u:
 		if k in GroundCover.DRAW_KEYS:
 			m.set_shader_parameter(k, L.u[k])
+	m.set_shader_parameter("seed", seed)
 	m.set_shader_parameter("grass_sway", 0.0) # (still: the insects go by where the flowers are)
 	m.set_shader_parameter("fade_out", Vector2(1000.0, 1001.0))
 	m.set_shader_parameter("thin_from", 1000.0)
@@ -89,3 +100,25 @@ static func clump(parent: Node3D, flowers: String, near: Vector2, tall: float, g
 ## v turned by a (as ground_cover.gdshader turns a clump: mat2(cos, sin; -sin, cos)).
 static func _turn(v: Vector2, a: float) -> Vector2:
 	return Vector2(cos(a) * v.x - sin(a) * v.y, sin(a) * v.x + cos(a) * v.y)
+
+
+## A patch of the prairie's flowers round `centre` (xz): its milkweeds and
+## the others among them, each kind's clumps at its own spots (offsets
+## from centre, m). Returns {flowers: florets} for each kind (the milkweeds'
+## clumps' florets kept apart: "milkweed", "milkweed2", ...).
+static func patch(parent: Node3D, centre: Vector2, ground: Color) -> Dictionary:
+	var out := {}
+	var plan := [
+		["milkweed", Vector2(0.0, 0.0), 1.3], ["milkweed", Vector2(0.55, 0.35), 1.15], ["milkweed", Vector2(-0.35, 0.5), 1.25],
+		["swamp_milkweed", Vector2(-0.6, -0.35), 1.2],
+		["coneflower", Vector2(0.45, -0.45), 0.95], ["coneflower", Vector2(-0.9, 0.2), 0.9],
+		["susan", Vector2(0.95, 0.0), 0.8], ["susan", Vector2(0.15, 0.85), 0.75],
+		["fleabane", Vector2(-0.2, -0.75), 0.7], ["aster", Vector2(0.9, 0.8), 0.95], ["yampah", Vector2(-0.95, -0.7), 0.95]]
+	for p: Array in plan:
+		var key: String = p[0]
+		var n := 2
+		while out.has(key):
+			key = "%s%d" % [p[0], n]
+			n += 1
+		out[key] = clump(parent, p[0], centre + (p[1] as Vector2), p[2], ground)
+	return out

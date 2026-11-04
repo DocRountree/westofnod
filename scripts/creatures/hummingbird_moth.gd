@@ -1,11 +1,14 @@
 class_name HummingbirdMoth
 extends "res://scripts/creatures/lepidoptera.gd" # (by path: found whether or not the editor has seen the class yet)
 ## A hummingbird clearwing (Hemaris thysbe), at twice life size (about 5 cm
-## long, its wings 9 cm across): a stout, furry body, olive-yellow on the
-## thorax, a band of burgundy across the abdomen, a black fan of a tail
-## tuft; clubbed black antennae; clear, glassy wings, their veins and broad
-## border reddish brown, beating too fast to see (a blur, ~40 a second); a
-## long proboscis. It never settles: it feeds hovering, like a hummingbird.
+## long, its wings 9 cm across): a stout, densely furred body, olive above,
+## cream beneath the thorax and the head, two burgundy segments across the
+## abdomen, a fan of a tail tuft, dark with yellowish edges; big dark eyes;
+## stout black antennae thickening to a hooked tip; pale legs; clear,
+## glassy wings, their veins, a dark bar closing the cell and a broad
+## border toothed along the veins reddish brown, the bases olive and furred
+## (bake_lepidoptera_wings.py), beating too fast to see (a blur, ~40 a
+## second); a long proboscis. It never settles: it feeds hovering, like a hummingbird.
 ## Not yet in the game (tools/creatures/lepidoptera_demo.tscn).
 ##
 ## - search(centre, radius, flowers): darting about from hover to hover,
@@ -23,12 +26,12 @@ var _flowers: Array = []
 var _florets: Array = []
 var _wait := 0.0
 var _at := -1 # the floret it's at
-var _tuft: MeshInstance3D
+var _tuft: Node3D
 
 
 func _init() -> void:
 	body_len = 25.0
-	wing_len = 22.0
+	wing_len = 23.0
 	wing_w = 9.0
 	hind_len = 12.0
 	hind_w = 8.0
@@ -38,25 +41,56 @@ func _init() -> void:
 	accel = 11.0
 	proboscis = 24.0
 	pattern = 1
+	fore_wing = "hemaris_fore"
+	hind_wing = "hemaris_hind"
+	fore_hinge = Vector3(2.0, 2.2, -4.6)
+	hind_hinge = Vector3(1.9, 1.9, -1.2)
 	_head_at = Vector3(0.0, -0.8, -12.0)
 
 
 func _build() -> void:
-	var olive := Color(0.5, 0.48, 0.2)
-	var burgundy := Color(0.36, 0.1, 0.09)
-	var dark := Color(0.08, 0.07, 0.05)
-	# thorax, head (big dark eyes), abdomen in three: olive, the burgundy
-	# band, olive; all furry (rough)
-	_part(Vector3(0.0, 0.5, -2.5), Vector3(7.0, 6.5, 8.0), olive, 0.95)
-	_part(Vector3(0.0, 0.3, -8.0), Vector3(5.0, 4.6, 4.2), olive.darkened(0.15), 0.95)
+	var olive := Color(0.46, 0.46, 0.19)
+	var olive_hi := Color(0.6, 0.57, 0.26) # (the fur's paler tips, over the shoulders)
+	var cream := Color(0.86, 0.8, 0.52)
+	var burgundy := Color(0.33, 0.08, 0.08)
+	var dark := Color(0.07, 0.055, 0.045)
+	# the thorax: big and round, densely furred olive above, cream beneath;
+	# the shoulder flaps (tegulae) a paler olive
+	_part(Vector3(0.0, 0.7, -3.0), Vector3(7.2, 6.6, 8.4), olive, 0.95, null, 0.6)
+	_part(Vector3(0.0, -1.2, -3.0), Vector3(6.0, 4.2, 7.6), cream, 0.95, null, 0.5)
 	for side in [-1.0, 1.0]:
-		_part(Vector3(1.9 * side, 0.6, -8.8), Vector3(2.2, 2.8, 2.6), dark, 0.25)
-	_part(Vector3(0.0, 0.0, 3.4), Vector3(6.4, 5.8, 5.0), olive, 0.95)
-	_part(Vector3(0.0, -0.2, 7.0), Vector3(5.6, 5.0, 4.0), burgundy, 0.9)
-	_part(Vector3(0.0, -0.4, 10.0), Vector3(4.4, 4.0, 3.6), olive.darkened(0.1), 0.95)
-	_tuft = _part(Vector3(0.0, -0.4, 12.4), Vector3(4.5, 1.2, 3.0), dark, 0.9)
-	_antennae(Vector3(1.0, 1.6, -9.5), 8.0, 0.8, dark)
-	_legs_at(Vector3(0.0, -2.6, -2.5), 4.0, olive.darkened(0.3))
+		var teg := _part(Vector3(2.4 * side, 2.0, -3.8), Vector3(2.6, 2.2, 5.4), olive_hi, 0.95, null, 0.6)
+		teg.rotation.z = -0.4 * side
+	# the head: olive, the big dark eyes; cream palps under the face, the
+	# coiled proboscis between
+	_part(Vector3(0.0, 0.4, -8.0), Vector3(5.0, 4.4, 4.0), olive, 0.95, null, 0.5)
+	for side in [-1.0, 1.0]:
+		_part(Vector3(1.95 * side, 0.6, -8.6), Vector3(2.3, 3.1, 2.9), dark, 0.2)
+	_part(Vector3(0.0, -1.5, -9.4), Vector3(3.2, 1.9, 2.4), cream, 0.95, null, 0.5)
+	# the abdomen: stout, tapering, in segments: olive, then the two
+	# burgundy ones, then olive-yellow; beneath, cream forward, dark
+	# burgundy behind
+	var segs := [[1.6, 6.6, olive], [4.0, 6.5, olive], [6.3, 6.1, burgundy], [8.5, 5.5, burgundy], [10.5, 4.6, olive_hi]]
+	for i in segs.size():
+		var z: float = segs[i][0]
+		var wd: float = segs[i][1]
+		var y := -0.1 - 0.02 * z
+		_part(Vector3(0.0, y, z), Vector3(wd, wd * 0.92, 3.0), segs[i][2], 0.95, null, 0.5)
+		_part(Vector3(0.0, y - wd * 0.22, z), Vector3(wd * 0.8, wd * 0.5, 2.7), cream if i < 2 else burgundy.darkened(0.3), 0.95, null, 0.4)
+	# the tail fan: dark in the middle, yellowish at its edges, spread from
+	# the tip (fanned wider to steady it, hovering: _think)
+	_tuft = Node3D.new()
+	_tuft.position = Vector3(0.0, -0.4, 11.8)
+	_body.add_child(_tuft)
+	for k in 5:
+		var a := (k - 2) * 0.32
+		var col := dark if absi(k - 2) < 2 else olive_hi.darkened(0.15)
+		var hair := _part(Vector3(sin(a) * 1.4, 0.0, cos(a) * 1.4), Vector3(1.3, 0.8, 3.2), col, 0.95, _tuft, 0.5)
+		hair.rotation.y = a
+	# stout black antennae, thickening along their length to a hooked tip
+	_antennae(Vector3(1.0, 1.9, -9.4), 8.5, 0.8, dark, 0.3, 0.55, true)
+	# pale legs
+	_legs_at(Vector3(0.0, -2.8, -2.6), 4.5, cream.darkened(0.15))
 
 
 ## Darting about round centre (within radius), now and then hovering in
@@ -134,4 +168,4 @@ func _think(dt: float) -> void:
 	# the tail tuft fanned out to steady it, holding still
 	if _tuft:
 		var spread := 1.0 + 0.6 * clampf(1.0 - _vel.length() / 0.4, 0.0, 1.0)
-		_tuft.scale = Vector3(4.5 * spread, 1.2, 3.0)
+		_tuft.scale = Vector3(spread, 1.0, 1.0)

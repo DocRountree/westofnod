@@ -9,9 +9,10 @@ extends Node3D
 ## Tab: follow the moth or the monarch   F follow on/off   Space slow motion
 ## Mouse: drag to turn round, wheel to come nearer or go off.
 ##
-## The flowers are the game's own: a clump of common milkweed and one of
-## swamp milkweed (GroundCover: their meshes, their shader, the layers' own
-## colours), as cells of the prairie's and the swamp's, still (no wind, so
+## The flowers are the game's own: a patch of three clumps of common
+## milkweed, one of swamp milkweed, and coneflowers, black-eyed Susans,
+## fleabane, asters and yampah among them (DemoFlowers.patch; GroundCover:
+## their meshes, their shader, the layers' own colours), still (no wind, so
 ## the CPU knows where their flowers are: noted from their meshes as the
 ## shader places them).
 
@@ -29,9 +30,10 @@ var _pitch := -0.3
 var _dist := 0.5
 var _follow := true
 var _focus := Vector3.ZERO
-var _milkweed: Array = [] # its flowers (points)
+var _flowers := {} # each clump's florets (points), by kind (DemoFlowers.patch)
+var _milkweed: Array = [] # the first milkweed's
 var _swamp: Array = []
-const STONE := Vector3(-0.45, 0.04, 0.35)
+const STONE := Vector3(-0.2, 0.04, 1.35)
 
 
 func _ready() -> void:
@@ -53,8 +55,9 @@ func _ready() -> void:
 	# a flat stone, to bask on
 	var stone := _box(STONE - Vector3(0, 0.02, 0), Vector3(0.25, 0.04, 0.18), Color(0.5, 0.48, 0.44))
 	stone.rotation.y = 0.4
-	_milkweed = Flowers.clump(self, "milkweed", Vector2(0.35, -0.2), 1.3, Color(0.42, 0.38, 0.28))
-	_swamp = Flowers.clump(self, "swamp_milkweed", Vector2(-0.4, -0.45), 1.2, Color(0.2, 0.22, 0.14))
+	_flowers = Flowers.patch(self, Vector2.ZERO, Color(0.42, 0.38, 0.28))
+	_milkweed = _flowers.milkweed
+	_swamp = _flowers.swamp_milkweed
 	moth = MothScript.new()
 	add_child(moth)
 	moth.place(Vector3(0.0, 0.6, 0.3))
@@ -72,7 +75,7 @@ func _ready() -> void:
 	label.position = Vector2(12, 8)
 	label.text = "Moth: 1 search   2 feed at the milkweed\nMonarch: 3 fly   4 bask on the stone   5 feed at the swamp milkweed   6 feed at the milkweed\nTab: follow the other   F follow on/off   Space slow motion   drag: turn round   wheel: nearer / further"
 	add_child(label)
-	moth.search(Vector3(0.0, 0.0, 0.0), 0.7, Flowers.heads(_milkweed) + Flowers.heads(_swamp))
+	moth.search(Vector3(0.0, 0.0, 0.0), 1.0, _all_heads())
 	monarch.fly(Vector3(0.0, 0.0, 0.0), 1.2)
 
 
@@ -80,10 +83,10 @@ func _unhandled_input(e: InputEvent) -> void:
 	if e is InputEventKey and e.pressed and not e.echo:
 		match e.keycode:
 			KEY_1:
-				moth.search(Vector3.ZERO, 0.7, Flowers.heads(_milkweed) + Flowers.heads(_swamp))
+				moth.search(Vector3.ZERO, 1.0, _all_heads())
 				_following = moth
 			KEY_2:
-				moth.feed(_milkweed)
+				moth.feed(_flowers[["milkweed", "milkweed2", "milkweed3"].pick_random()])
 				_following = moth
 			KEY_3:
 				monarch.fly(Vector3.ZERO, 1.2)
@@ -111,6 +114,14 @@ func _unhandled_input(e: InputEvent) -> void:
 			_dist = maxf(_dist * 0.85, 0.03)
 		elif e.button_index == MOUSE_BUTTON_WHEEL_DOWN:
 			_dist = minf(_dist / 0.85, 4.0)
+
+
+## Every flower's head in the patch, for the moth to look over.
+func _all_heads() -> Array:
+	var out := []
+	for k in _flowers:
+		out += Flowers.heads(_flowers[k])
+	return out
 
 
 func _process(dt: float) -> void:

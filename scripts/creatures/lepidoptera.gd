@@ -2,8 +2,10 @@ class_name Lepidoptera
 extends Node3D
 ## A butterfly or a moth, drawn at twice life size as the wasp and the ants
 ## are (its parts in model mm: MM): built from parts, posed every frame by
-## hand (no clips), its four wings plain quads painted by
-## lepidoptera_wing.gdshader. Not yet in the game: tools/creatures/
+## hand (no clips), its four wings cut to their outlines
+## (lepidoptera_wings.gd) and painted (data/creatures/lepidoptera_wings.png,
+## both baked by tools/creatures/bake_lepidoptera_wings.py; drawn by
+## lepidoptera_wing.gdshader). Not yet in the game: tools/creatures/
 ## lepidoptera_demo.tscn shows them. The species (HummingbirdMoth, Monarch)
 ## build their bodies and say what they do (_think: their animations, each
 ## a method run until another's called); this is the motor under them:
@@ -22,6 +24,7 @@ extends Node3D
 ## Its position is set every frame: put it under a node that isn't moved.
 
 const MM := 0.002 ## m drawn per model mm (twice life size)
+const WINGS := preload("res://scripts/creatures/lepidoptera_wings.gd")
 
 # what the species sets (_init)
 var body_len := 25.0 ## mm, head to tail
@@ -36,7 +39,11 @@ var max_speed := 1.0 ## m/s
 var accel := 6.0 ## how hard it springs toward its target
 var proboscis := 15.0 ## mm, uncoiled
 var stand := 3.0 ## mm its middle stands over what it's perched on
-var pattern := 0 ## lepidoptera_wing.gdshader's
+var pattern := 0 ## lepidoptera_wing.gdshader's (the blur's colour)
+var fore_wing := "monarch_fore" ## lepidoptera_wings.gd's
+var hind_wing := "monarch_hind"
+var fore_hinge := Vector3(0.9, 1.0, -1.2) ## mm: the right forewing's root on the thorax
+var hind_hinge := Vector3(0.9, 1.0, 1.0)
 
 var rng := RandomNumberGenerator.new()
 var flying := true
@@ -105,22 +112,35 @@ func _think(_dt: float) -> void:
 
 
 ## A part: an ellipsoid at `at` (mm), `size` across (mm), coloured.
-func _part(at: Vector3, size: Vector3, color: Color, rough := 0.7, parent: Node3D = null) -> MeshInstance3D:
+## fur: how furry it looks (0 bare, 1 furred: a soft sheen at its rim, as
+## light catches the hairs round its edge).
+func _part(at: Vector3, size: Vector3, color: Color, rough := 0.7, parent: Node3D = null, fur := 0.0) -> MeshInstance3D:
 	var mi := MeshInstance3D.new()
-	var s := SphereMesh.new()
-	s.radius = 0.5
-	s.height = 1.0
-	s.radial_segments = 12
-	s.rings = 7
-	mi.mesh = s
+	mi.mesh = _SPHERE
 	mi.position = at
 	mi.scale = size
 	var m := StandardMaterial3D.new()
 	m.albedo_color = color
 	m.roughness = rough
+	if fur > 0.0:
+		m.rim_enabled = true
+		m.rim = fur
+		m.rim_tint = 0.6
 	mi.material_override = m
 	(parent if parent else _body).add_child(mi)
 	return mi
+
+
+static var _SPHERE: SphereMesh = _sphere()
+
+
+static func _sphere() -> SphereMesh:
+	var s := SphereMesh.new()
+	s.radius = 0.5
+	s.height = 1.0
+	s.radial_segments = 16
+	s.rings = 10
+	return s
 
 
 ## A stick (a leg's segment, an antenna) from a to b (mm), r thick.
@@ -146,47 +166,83 @@ func _stick(a: Vector3, b: Vector3, r: float, color: Color, parent: Node3D = nul
 	return mi
 
 
-## A pair of clubbed antennae from the head at `base` (mm, the right one's
-## socket), `len` long, swept up and forward.
-func _antennae(base: Vector3, length: float, club: float, color: Color) -> void:
+## A pair of antennae from the head at `base` (mm, the right one's socket),
+## `length` long, swept up, out and forward and curving a little up: thin,
+## thickening over their last `club_len` (a share) to `club` mm across; a
+## hook: their tips bent back (a hawk moth's).
+func _antennae(base: Vector3, length: float, club: float, color: Color, thick := 0.18, club_len := 0.22, hook := false) -> void:
+	const N := 10
 	for side in [-1.0, 1.0]:
-		var a := Vector3(base.x * side, base.y, base.z)
-		var b := a + Vector3(0.35 * side, 0.6, -0.72).normalized() * length
-		_stick(a, b, 0.18, color)
-		_part(b, Vector3(club, club, club * 2.2), color, 0.5)
+		var p := Vector3(base.x * side, base.y, base.z)
+		var d := Vector3(0.38 * side, 0.55, -0.74).normalized()
+		for k in N:
+			var t := float(k + 1) / N
+			var r := thick
+			var into := clampf((t - (1.0 - club_len)) / club_len, 0.0, 1.0)
+			r = lerpf(thick, club * 0.5, into * into)
+			var dd := d
+			if hook and k == N - 1:
+				dd = (d + Vector3(0.25 * side, -0.5, 0.9)).normalized() # (the hooked tip)
+				r = thick * 0.7
+			var q := p + dd * length / N
+			_stick(p, q, r, color)
+			if into > 0.0 and not (hook and k == N - 1):
+				_part(q, Vector3.ONE * r * 2.0, color, 0.5) # (round the club's joints)
+			p = q
+			d = (d + Vector3(0.0, 0.035, 0.03)).normalized() # (curving up a little, as they go)
 
 
 ## Three pairs of legs under the thorax (mm: their hips' middle, how long),
-## each its own node (stretched out perched, tucked flying: _legs).
-func _legs_at(hip: Vector3, length: float, color: Color) -> void:
+## each its own node (stretched out perched, tucked flying: _legs): a femur
+## out and up to the knee, a tibia down, a tarsus to the foot on the
+## surface (stand under the body). reduced_front: the forelegs small and
+## folded up against the chest, unused (a brush-footed butterfly's).
+func _legs_at(hip: Vector3, length: float, color: Color, reduced_front := false) -> void:
 	for pair in 3:
 		for side in [-1.0, 1.0]:
 			var leg := Node3D.new()
 			leg.position = hip + Vector3(0.6 * side, 0.0, (pair - 1) * 1.6)
 			_body.add_child(leg)
-			var knee := Vector3(1.6 * side, 0.4, (pair - 1) * 0.8) * length / 5.0
-			var foot := Vector3(2.4 * side, -stand, (pair - 1) * 1.8) * length / 5.0
-			_stick(Vector3.ZERO, knee, 0.22, color, leg)
-			_stick(knee, foot, 0.16, color, leg)
+			if reduced_front and pair == 0:
+				var f := Vector3(0.5 * side, -0.6, -1.6)
+				_stick(Vector3.ZERO, f, 0.22, color, leg)
+				_stick(f, f + Vector3(0.1 * side, 0.5, -1.0), 0.18, color, leg)
+				leg.set_meta("side", side)
+				_legs.append(leg)
+				continue
+			var s := length / 5.0
+			var spread := (pair - 1) * 1.0 # (the forelegs reach forward, the hind back)
+			var knee := Vector3(1.9 * side * s, 0.9 * s, spread * 0.9 * s)
+			var drop := -stand - hip.y
+			var ankle := Vector3(2.8 * side * s, lerpf(0.9 * s, drop, 0.8), spread * 2.0 * s)
+			var foot := Vector3(3.3 * side * s, drop, spread * 2.6 * s)
+			_stick(Vector3.ZERO, knee, 0.26, color, leg)
+			_part(knee, Vector3.ONE * 0.5, color, 0.6, leg)
+			_stick(knee, ankle, 0.2, color, leg)
+			_stick(ankle, foot, 0.13, color, leg)
 			leg.set_meta("side", side)
 			_legs.append(leg)
 
 
 func _build_wings() -> void:
 	var shader: Shader = load("res://shaders/render/lepidoptera_wing.gdshader")
+	var tex := _wings_texture()
 	for k in 4:
 		var hind := k >= 2
 		var side := 1.0 if k % 2 == 1 else -1.0
+		var w: Dictionary = WINGS.WINGS[hind_wing if hind else fore_wing]
+		var at := hind_hinge if hind else fore_hinge
 		var hinge := Node3D.new()
-		hinge.position = Vector3(0.9 * side, 1.0, 1.0 if hind else -1.2)
+		hinge.position = Vector3(at.x * side, at.y, at.z)
 		_body.add_child(hinge)
 		var m := ShaderMaterial.new()
 		m.shader = shader
+		m.set_shader_parameter("wings", tex)
+		m.set_shader_parameter("under", w.under)
 		m.set_shader_parameter("pattern", pattern)
-		m.set_shader_parameter("hind", hind)
 		_wing_mats.append(m)
 		var mi := MeshInstance3D.new()
-		mi.mesh = _wing_mesh(hind_len if hind else wing_len, hind_w if hind else wing_w, side, -0.2 if hind else 0.15)
+		mi.mesh = _wing_mesh(w, side)
 		mi.material_override = m
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 		hinge.add_child(mi)
@@ -200,29 +256,70 @@ func _build_wings() -> void:
 		var fan := MeshInstance3D.new()
 		fan.mesh = _fan_mesh(wing_len, side)
 		fan.material_override = m
-		fan.position = Vector3(0.9 * side, 1.0, -0.2)
+		fan.position = Vector3(fore_hinge.x * side, fore_hinge.y, (fore_hinge.z + hind_hinge.z) * 0.5)
 		fan.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		fan.visible = false
 		_body.add_child(fan)
 		_fans.append(fan)
 
 
-## A wing's quad (mm, its hinge at the origin): out along x (side: +1 the
-## right, -1 the left), across from its leading edge (lead of its breadth
-## forward of the hinge) back; UV.x along, UV.y across; the upper side the
-## front face.
-static func _wing_mesh(length: float, breadth: float, side: float, lead: float) -> ArrayMesh:
+static var _wings_tex: Texture2D
+
+
+## The wings' atlas: imported (the editor's), or, not yet imported (run
+## from the command line before the editor has seen it), read straight
+## from the PNG.
+static func _wings_texture() -> Texture2D:
+	if _wings_tex == null:
+		const PATH := "res://data/creatures/lepidoptera_wings.png"
+		if ResourceLoader.exists(PATH):
+			_wings_tex = load(PATH)
+		if _wings_tex == null:
+			var img := Image.load_from_file(PATH)
+			img.generate_mipmaps()
+			_wings_tex = ImageTexture.create_from_image(img)
+	return _wings_tex
+
+
+## A wing (mm, its hinge at the origin): its outline (lepidoptera_wings.gd's
+## w) fanned from its middle, out along x (side: +1 the right, -1 the left:
+## mirrored), back along z, a little cupped (the costa stiff and straight,
+## the rest dipping a touch behind it); UV on the atlas; the upper side the
+## front face: clockwise seen from above (the outline walks so; the
+## mirrored left wing's triangles taken the other way round).
+static func _wing_mesh(w: Dictionary, side: float) -> ArrayMesh:
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	var corners := [Vector2(0, 0), Vector2(1, 0), Vector2(1, 1), Vector2(0, 1)]
-	# (the upper side the front either way: clockwise seen from above, the
-	# mirrored left wing's corners taken the other way round)
-	var order := [0, 1, 2, 0, 2, 3] if side > 0.0 else [0, 2, 1, 0, 3, 2]
-	for i in order:
-		var uv: Vector2 = corners[i]
-		st.set_uv(uv)
-		st.set_normal(Vector3.UP)
-		st.add_vertex(Vector3(uv.x * length * side, 0.0, (uv.y - lead) * breadth))
+	var outline: Array = w.outline
+	var mid: Vector2 = w.middle
+	var uv0: Vector2 = w.uv_origin
+	var per: Vector2 = w.uv_per_mm
+	var z_min := INF
+	var z_max := -INF
+	for p: Vector2 in outline:
+		z_min = minf(z_min, p.y)
+		z_max = maxf(z_max, p.y)
+	var depth := (z_max - z_min) * 0.035
+	const RINGS := 3
+	var at := func(p: Vector2) -> Array:
+		var across := (p.y - z_min) / maxf(z_max - z_min, 1e-3)
+		return [Vector3(p.x * side, -depth * across * across, p.y), uv0 + p * per]
+	for i in outline.size():
+		var a: Vector2 = outline[i]
+		var b: Vector2 = outline[(i + 1) % outline.size()]
+		# (in rings out from the middle, so the cupping bends it)
+		for r in RINGS:
+			var t0 := float(r) / RINGS
+			var t1 := float(r + 1) / RINGS
+			var quad := [mid.lerp(a, t0), mid.lerp(a, t1), mid.lerp(b, t1), mid.lerp(b, t0)]
+			var tris := [[0, 1, 2], [0, 2, 3]] if r > 0 else [[0, 1, 2]]
+			for tri: Array in tris:
+				var order: Array = tri if side > 0.0 else [tri[0], tri[2], tri[1]]
+				for q: int in order:
+					var v: Array = at.call(quad[q])
+					st.set_uv(v[1])
+					st.set_normal(Vector3.UP)
+					st.add_vertex(v[0])
 	return st.commit()
 
 
