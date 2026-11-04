@@ -19,7 +19,8 @@ extends Node3D
 ## at the milkweed   8 the monarch flying   9 it basking on the stone   0 it
 ## feeding at the swamp milkweed   A the ants: wandering, or at their crumb
 ## B the June bugs: walking about, or eating at their leaves   L the
-## lady beetles: walking about, or hunting their leaves over
+## lady beetles: walking about, or hunting their leaves over   J the June
+## bugs flying (B again brings them down)   K the lady beetles flying (L)
 ## Tab: the camera follows the next of them (wasp, moth, monarch, ants,
 ## June bugs, lady beetles).
 
@@ -121,7 +122,7 @@ func _ready() -> void:
 	_focus = wasp.global_position
 	_label = Label.new()
 	_label.position = Vector2(12, 8)
-	_label.text = "Wasp: 1 seek food   2 feed on the flower   3 catch the caterpillar (R: a new one)   4 land on the plank   5 sting the ball\nMoth: 6 search   7 feed at the milkweed   Monarch: 8 fly   9 bask on the stone   0 feed at the swamp milkweed\nA ants: wander / feed   B June bugs: walk / eat   L lady beetles: walk / hunt   Tab follow the next   F follow on/off   Space slow motion   drag: turn round   wheel: nearer / further"
+	_label.text = "Wasp: 1 seek food   2 feed on the flower   3 catch the caterpillar (R: a new one)   4 land on the plank   5 sting the ball\nMoth: 6 search   7 feed at the milkweed   Monarch: 8 fly   9 bask on the stone   0 feed at the swamp milkweed\nA ants: wander / feed   B June bugs: walk / eat   L lady beetles: walk / hunt   J / K June bugs / lady beetles fly   Tab follow the next   F follow on/off   Space slow motion   drag: turn round   wheel: nearer / further"
 	add_child(_label)
 	wasp.seek_food(Vector3.ZERO, 0.6)
 
@@ -291,6 +292,16 @@ func _unhandled_input(e: InputEvent) -> void:
 						ladies.feed(i, leaf + Vector3(randf_range(-0.02, 0.02), 0.0, randf_range(-0.035, 0.035)))
 					else:
 						ladies.wander(i, LADIES_AT, SWARM_R)
+				_following = 5
+			KEY_J:
+				for i in BEETLE_COUNT:
+					beetles.fly(i, BEETLES_AT, 0.4, 0.35)
+				_beetles_feeding = true # (so B next brings them down to walk)
+				_following = 4
+			KEY_K:
+				for i in LADY_COUNT:
+					ladies.fly(i, LADIES_AT, 0.3, 0.25)
+				_ladies_feeding = true
 				_following = 5
 			KEY_TAB:
 				_following = (_following + 1) % 6

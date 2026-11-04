@@ -4,6 +4,7 @@ extends Node3D
 ## godot --path . res://tools/creatures/beetle_demo.tscn
 ##
 ## 1 all walking about   2 all to the leaves, eating   3 half and half
+## 4 all flying (up, round about; 1 or 2 brings them down)   5 half flying
 ## + / - more or fewer of each (every one drawn by the shader)
 ## Space slow motion   drag: turn round   wheel: nearer / further
 ## For the scale, a pawpaw and a black-eyed Susan lying by (Items).
@@ -73,7 +74,7 @@ func _make() -> void:
 	for c in colonies:
 		add_child(c)
 		c.setup(_count, Vector3.ZERO, 0.22)
-	_label.text = "%d June bugs and %d lady beetles   1 walk about   2 eat at the leaves   3 half and half   + / - more or fewer   Space slow motion   drag: turn round   wheel: nearer / further" % [_count, _count]
+	_label.text = "%d June bugs and %d lady beetles   1 walk about   2 eat at the leaves   3 half and half   4 fly   5 half fly   + / - more or fewer   Space slow motion   drag: turn round   wheel: nearer / further" % [_count, _count]
 
 
 func _unhandled_input(e: InputEvent) -> void:
@@ -92,6 +93,11 @@ func _unhandled_input(e: InputEvent) -> void:
 							# (each its own place on its leaf)
 							var leaf: Vector3 = CRUMBS[i % CRUMBS.size()]
 							c.feed(i, leaf + Vector3(randf_range(-0.02, 0.02), 0.0, randf_range(-0.035, 0.035)))
+			KEY_4, KEY_5:
+				for c in colonies:
+					for i in _count:
+						if e.keycode == KEY_4 or i % 2 == 0:
+							c.fly(i, Vector3.ZERO, 0.3, 0.2 if c is LadyScript else 0.3)
 			KEY_EQUAL, KEY_PLUS, KEY_KP_ADD:
 				_count = mini(_count * 2, 1280)
 				_make()

@@ -7,7 +7,8 @@ extends "res://scripts/creatures/beetles.gd" # (by path: found whether or not th
 ## missing in life; these have all thirteen); the pronotum black, edged
 ## white, two short white dashes on it converging toward the back (the
 ## name's); the head black with white patches; short clubbed antennae;
-## short black legs. Not yet in the game (tools/creatures/beetle_demo.tscn,
+## short black legs. Flying, the elytra raised high and spread, the hind
+## wings a whirring blur under them, the legs tucked. Not yet in the game (tools/creatures/beetle_demo.tscn,
 ## wasp_demo.tscn). Beetles: how they're made and moved; "eating" at a
 ## leaf, for them, is hunting it over for aphids.
 
@@ -22,6 +23,8 @@ func _init() -> void:
 	body_h = 1.15
 	top_speed = 0.035
 	reach = 2.8
+	fly_speed = 0.45
+	fly_pitch = 0.45
 	apart = 7.0
 	pronotum_part = 17
 	colors = {
@@ -36,11 +39,17 @@ func _init() -> void:
 		"mark_b": Color(0.93, 0.92, 0.88),
 		"stride_hz": 6.0,
 		"sweep": 0.5,
+		# flying: the elytra raised high and spread, the legs tucked, the
+		# wings a pale smoky brown
+		"elytra_open": Vector3(1.05, -0.4, 0.35),
+		"fly_tuck": Vector2(0.9, 0.6),
+		"fly_hz": 24.0,
+		"wing_color": Color(0.6, 0.5, 0.4),
 	}
 	shape = {
 		"under": [Vector3(0.0, -0.4, 0.4), Vector3(3.3, 1.1, 4.8)],
 		"pronotum": [Vector3(0.0, 0.25, -1.45), Vector3(3.1, 1.3, 1.6)],
-		"elytron": [Vector3(0.8, 0.3, 0.95), Vector3(2.3, 2.4, 4.6)],
+		"elytra": [Vector3(0.0, 0.3, 0.95), Vector3(3.9, 2.4, 4.6)],
 		"scutellum": [Vector3(0.0, 0.6, -1.2), Vector3(0.3, 0.2, 0.3)],
 		"neck": Vector3(0.0, -0.1, -2.0),
 		"head": [Vector3(0.0, -0.05, -0.3), Vector3(1.5, 1.0, 0.9)],
@@ -55,22 +64,24 @@ func _init() -> void:
 			{"hip": Vector3(0.8, -0.7, 0.8), "f": 1.1, "t": 1.05, "s": 0.75, "home": Vector2(2.05, 2.05)},
 		],
 		"leg_r": 0.13,
+		"hind_wing": 1.4,
 	}
 
 
 func _marks(ball: Callable) -> void:
-	var c: Vector3 = shape.elytron[0]
-	var size: Vector3 = shape.elytron[1]
+	var c: Vector3 = shape.elytra[0]
+	var size: Vector3 = shape.elytra[1]
 	var pc: Vector3 = shape.pronotum[0]
 	var ps: Vector3 = shape.pronotum[1]
 	for side: float in [-1.0, 1.0]:
-		var e := Vector3(c.x * side, c.y, c.z)
-		# the thirteen spots (the shared one: half on each side, meeting)
+		# the thirteen spots (the shared one: half on each elytron, meeting
+		# at the middle line), riding on the elytra
+		var m := _el_mark(side)
 		for sp: Array in SPOTS:
 			var at: Vector2 = sp[0]
 			var r: float = sp[1]
-			_spot(ball, e, size, at.x * side, c.z + at.y, Vector2(r, r * 1.1), 17)
-		_spot(ball, e, size, 0.12 * side, -0.6, Vector2(0.22, 0.24), 17)
+			_spot(ball, c, size, at.x * side, c.z + at.y, Vector2(r, r * 1.1), m)
+		_spot(ball, c, size, 0.13 * side, -0.6, Vector2(0.13, 0.24), m)
 		# the pronotum's white: its side margins, the front edge's corner,
 		# and the dash converging toward the back
 		_spot(ball, pc, ps, 1.22 * side, pc.z + 0.1, Vector2(0.28, 0.62), 18)

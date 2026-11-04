@@ -167,11 +167,12 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   the crumbs, 3 half and half, + / - more or fewer).
 - `scripts/creatures/beetles.gd` (`Beetles`): beetles at twice life size, not yet in the game, the make they
   share: made and moved as the ants are (one mesh, the same shader, the same CPU side), each species its own shape,
-  markings, colours and pace, walking and eating at a leaf. `june_beetles.gd` (`JuneBeetles`, *Phyllophaga*: glossy
+  markings, colours and pace, walking, eating at a leaf and flying (the elytra, one
+  unbroken shell at rest, parting and rising, the hind wings unfolding and beating, nose up). `june_beetles.gd` (`JuneBeetles`, *Phyllophaga*: glossy
   reddish brown, ridged wing cases, a fan of plates on each antenna, spurred legs) and `lady_beetles.gd`
   (`LadyBeetles`, *Hippodamia convergens*: orange-red, thirteen black spots, the black pronotum edged white with its
   two converging white dashes). `tools/creatures/beetle_demo.tscn` (both kinds; keys: 1 walk
-  about, 2 eat at the leaves, 3 half and half, + / - more or fewer).
+  about, 2 eat at the leaves, 3 half and half, 4 fly, 5 half fly, + / - more or fewer).
 - `scripts/creatures/wasp.gd`: a paper wasp (`Wasp`, drawn at twice life size), not yet in the game: its model
   built from parts, posed by hand every frame, its animations methods (seek food, feed
   on a flower, catch and eat a caterpillar, land and walk about and settle, sting).

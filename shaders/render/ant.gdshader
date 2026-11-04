@@ -12,7 +12,11 @@ shader_type spatial;
 // the body, 16 a shell over it (metallic: a beetle's); 1 the head, 2/3 its mandibles, 4/5 its antennae's scapes, 6/7
 // their funiculi, 15 its eyes; 8-13 the legs, 14 the gaster; 17/18 marks
 // on the body or the shell, mark_a's and mark_b's colours (a lady beetle's
-// spots, its pronotum's white), 19/20 the same on the head), .y a leg's
+// spots, its pronotum's white), 19/20 the same on the head; a beetle's
+// flying parts: 21/22 its wing cases (elytra, left and right: the shell's
+// colour; closed, the two halves of one dome, unbroken), 23/24 marks on
+// them (mark_a), 25/26 its hind wings (folded away under the elytra, not
+// drawn, till it flies)), .y a leg's
 // segment (0 coxa, 1 femur, 2 tibia, 3 tarsus), .z along an ellipsoid
 // (-0.5 front .. 0.5 behind: the gaster's bands), .w 1 where it's banded.
 // Each part turns about its joint (the pivots: uniforms, from the same
@@ -23,6 +27,10 @@ shader_type spatial;
 //   right in turn, dabbing down; the head bobbing
 // - feeding: the head down, the mandibles working, the antennae drumming,
 //   the front legs up and forward on the food, the gaster pumping
+// - flying (a beetle: INSTANCE_CUSTOM.w, 0..1): the elytra raised and
+//   spread (elytra_open: roll out, pitch up, yaw out, rad), the hind wings
+//   unfolding from under them and beating (fly_hz; drawn stippled, a blur),
+//   the legs tucked (fly_tuck: back, in)
 
 uniform vec3 hips[6];      // each leg's coxa, at the body
 uniform vec3 knees[6];
@@ -45,7 +53,13 @@ uniform float shell_metal = 0.75; // (a dogbane beetle's metallic; a June bug's,
 uniform float shell_gloss = 0.9;
 uniform vec3 mark_a : source_color = vec3(0.02);
 uniform vec3 mark_b : source_color = vec3(0.9, 0.88, 0.84);
-uniform float sweep = 1.0; // how much the antennae sweep and drum (an ant's 1)
+uniform float sweep = 1.0;
+uniform vec3 elytra_pivots[2]; // their hinges, at their bases
+uniform vec3 wing_pivots[2];
+uniform vec3 elytra_open = vec3(0.9, -0.35, 0.3);
+uniform vec2 fly_tuck = vec2(0.7, 0.5);
+uniform float fly_hz = 22.0; // (drawn: a real beat's too fast to see)
+uniform vec3 wing_color : source_color = vec3(0.45, 0.35, 0.25); // how much the antennae sweep and drum (an ant's 1)
 
 varying flat int part;
 varying float band_z;
@@ -70,6 +84,7 @@ void vertex() {
 	float walk = INSTANCE_CUSTOM.x;
 	float feed = INSTANCE_CUSTOM.y;
 	float seed = INSTANCE_CUSTOM.z;
+	float fly = INSTANCE_CUSTOM.w;
 	float t = TIME + seed * 37.0;
 	vec3 v = VERTEX;
 	vec3 n = NORMAL;
@@ -95,6 +110,35 @@ void vertex() {
 			turn(v, n, knees[i], across, -0.6 * lift);
 		turn(v, n, hips[i], across, -0.3 * lift);
 		turn(v, n, hips[i], up, ang * side);
+		// flying: drawn back and in under the body
+		if (fly > 0.0) {
+			turn(v, n, hips[i], vec3(1.0, 0.0, 0.0), -fly_tuck.x * fly);
+			turn(v, n, hips[i], vec3(0.0, 0.0, 1.0), -fly_tuck.y * fly * side);
+		}
+	}
+	// a beetle's flight: the elytra up and out, the hind wings out and beating
+	float beat = smoothstep(0.6, 1.0, fly);
+	float fph = t * fly_hz * 6.2832;
+	if (part >= 21 && part <= 24) {
+		int s = (part - 21) % 2;
+		float side = s == 1 ? 1.0 : -1.0;
+		vec3 o = elytra_pivots[s];
+		float shiver = 0.04 * beat * sin(fph + 0.6); // (shaken by the wings' beat)
+		turn(v, n, o, vec3(0.0, 0.0, 1.0), (elytra_open.x * fly + shiver) * side);
+		turn(v, n, o, vec3(1.0, 0.0, 0.0), elytra_open.y * fly);
+		turn(v, n, o, up, elytra_open.z * fly * side);
+	}
+	if (part == 25 || part == 26) {
+		int s = part - 25;
+		float side = s == 1 ? 1.0 : -1.0;
+		vec3 o = wing_pivots[s];
+		// unfolding: out from under the elytra (grown from the hinge)
+		float unfold = smoothstep(0.25, 0.85, fly);
+		v = o + (v - o) * vec3(unfold, 1.0, mix(0.3, 1.0, unfold));
+		// beating: up and down through a wide stroke, twisting
+		float stroke = beat * (0.25 + 0.95 * sin(fph));
+		turn(v, n, o, vec3(1.0, 0.0, 0.0), 0.3 * beat * cos(fph));
+		turn(v, n, o, vec3(0.0, 0.0, 1.0), stroke * side);
 	}
 	// the antennae: the funiculus about its elbow, then the whole about its socket
 	if (part >= 4 && part <= 7) {
@@ -150,9 +194,25 @@ void fragment() {
 		gloss = shell_gloss;
 		metal = shell_metal;
 	}
-	if (part >= 17 && part <= 20) {
-		c = (part == 17 || part == 19) ? mark_a : mark_b;
+	if (part == 21 || part == 22) { // (the elytra: the shell's, as 16)
+		float glance = 1.0 - clamp(dot(NORMAL, VIEW), 0.0, 1.0);
+		c = mix(shell_a, shell_b, smoothstep(0.15, 0.85, glance) * iridescence);
 		gloss = shell_gloss;
+		metal = shell_metal;
+	}
+	if ((part >= 17 && part <= 20) || part == 23 || part == 24) {
+		c = (part == 17 || part == 19 || part >= 23) ? mark_a : mark_b;
+		gloss = shell_gloss;
+	}
+	if (part == 25 || part == 26) {
+		// the hind wings: thin, brownish, see-through; beating, a blur
+		// (stippled: half the pixels gone)
+		ivec2 q = ivec2(mod(FRAGCOORD.xy, 4.0));
+		int m[16] = int[](0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5);
+		if ((float(m[q.x + q.y * 4]) + 0.5) / 16.0 > 0.45)
+			discard;
+		c = wing_color;
+		gloss = 0.8;
 	}
 	ALBEDO = c;
 	METALLIC = metal;

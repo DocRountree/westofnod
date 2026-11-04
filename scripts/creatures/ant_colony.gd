@@ -126,6 +126,8 @@ func _process(dt: float) -> void:
 			grid[k] = []
 		grid[k].append(i)
 	for i in n:
+		if _air(i, dt): # (a beetle flying: moved there, not walking)
+			continue
 		_think(i, dt)
 		var fwd := Vector3(-sin(yaw[i]), 0.0, -cos(yaw[i]))
 		var to := target[i] - pos[i]
@@ -165,7 +167,18 @@ func _process(dt: float) -> void:
 		pos[i] = p
 		var at := Transform3D(Basis(Vector3.UP, yaw[i]), p + Vector3.UP * body_h * MM)
 		multimesh.set_instance_transform(i, at)
-		multimesh.set_instance_custom_data(i, Color(clampf(speed[i] / top_speed, 0.0, 1.0), feed_k[i], seed[i], 0.0))
+		multimesh.set_instance_custom_data(i, Color(clampf(speed[i] / top_speed, 0.0, 1.0), feed_k[i], seed[i], _fly_of(i)))
+
+
+## A flyer's (Beetles): whether i's in the air, moved there (true: not
+## walking); an ant never is.
+func _air(_i: int, _dt: float) -> bool:
+	return false
+
+
+## A flyer's: how far into flying i's pose is (the shader's), 0 an ant's.
+func _fly_of(_i: int) -> float:
+	return 0.0
 
 
 ## Where ant i's making for, as it's doing.
