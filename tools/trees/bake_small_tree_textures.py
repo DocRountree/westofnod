@@ -10,8 +10,8 @@ laid out as the oak's (bake_oak_textures.py; TreeBuilder reads them the same):
     stalk, a short point at the tip), smooth-edged, the side veins running
     out in parallel arcs (no fruit: Foraging hangs real ones). Clumps 1.4 m.
   - Crabapple (Malus): a sprig 0.5 m across, a twig with short spurs, each a
-    cluster of small oval leaves (5-8 cm), sharply toothed, and now and then a
-    few little red crabapples hanging on long stalks. Clumps 1 m.
+    cluster of small oval leaves (5-8 cm), sharply toothed (no fruit:
+    Foraging hangs real ones). Clumps 1 m.
 - pawpaw_bark.png: tileable, 0.6 m square: thin, smooth, grey-brown, blotched
   lighter, warty with small raised lenticels. Alpha the height.
 - crabapple_bark.png: tileable: grey-brown, flaking off in small, scaly
@@ -167,18 +167,6 @@ CRAB = [0.2, 0.33, 0.11]
 CRAB_VEIN = [0.48, 0.58, 0.26]
 
 
-def crabapples(rgba, cover, x, y, ang, size):
-    for k in range(int(rng.integers(2, 5))):
-        b = ang + rng.uniform(-0.6, 0.6)
-        l = rng.uniform(0.03, 0.05) * size
-        e = (x + math.cos(b) * l, y + math.sin(b) * l)
-        draw_line(rgba, cover, (x, y), e, 0.0008 * size, 0.0007 * size, [0.36, 0.3, 0.16])
-        r = rng.uniform(0.011, 0.014) * size
-        red = rng.uniform(0, 1)
-        c = [0.62 + 0.1 * red, 0.12 + 0.3 * (1 - red) ** 2, 0.08]
-        blob(rgba, cover, e[0] + math.cos(b) * r * 0.8, e[1] + math.sin(b) * r * 0.8, r, r * 0.95, b, c, 0.35)
-
-
 def crab_spur(rgba, cover, x, y, ang, size):
     """A spur: a cluster of 3-6 leaves fanning out from one point."""
     n = int(rng.integers(3, 7))
@@ -192,7 +180,9 @@ def crab_spur(rgba, cover, x, y, ang, size):
 
 def crab_sprig(rgba, cover, ox, oy, size, ang0):
     twig_c = [0.36, 0.27, 0.2]
-    L = rng.uniform(0.3, 0.36) * size
+    # (short enough that it and its tip's leaves stay below the tile's top
+    # quarter, which the cards crop off: TreeBuilder.card_crop)
+    L = rng.uniform(0.22, 0.26) * size
     pts = [(ox, oy)]
     a = ang0
     for k in range(3):  # (crooked)
@@ -208,9 +198,6 @@ def crab_sprig(rgba, cover, ox, oy, size, ang0):
         draw_line(rgba, cover, p, s, 0.0018 * size, 0.0015 * size, twig_c)
         spurs.append((s, b))
     spurs.append((pts[-1], a))
-    if rng.uniform() < 0.6:
-        s, b = spurs[int(rng.integers(0, len(spurs) - 1))]
-        crabapples(rgba, cover, s[0], s[1], b + math.pi * 0.6 * rng.choice([-1, 1]), size)
     for s, b in spurs:
         crab_spur(rgba, cover, s[0], s[1], b, size)
 
@@ -220,8 +207,6 @@ def crab_clump(tile, cover, S, size):
         r = math.sqrt(rng.uniform(0, 1)) * 0.36
         a = rng.uniform(0, 2 * math.pi)
         x, y = S * (0.5 + math.cos(a) * r), S * (0.5 + math.sin(a) * r)
-        if rng.uniform() < 0.08:
-            crabapples(tile, cover, x, y, rng.uniform(0, 2 * math.pi), size)
         crab_spur(tile, cover, x, y, rng.uniform(0, 2 * math.pi), size)
 
 

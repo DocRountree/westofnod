@@ -15,7 +15,7 @@ radius = 0.2
 view_distance = 400.0
 density = {
 "forest": 1.5,
-"prairie": 0.5
+"prairie": 0.8
 }
 height_range = Vector2(2, 1150)
 min_normal_y = 0.8

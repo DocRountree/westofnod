@@ -178,7 +178,7 @@ per hectare, shared among their variants as the oak's):
 - `maple.tres`: the forest 5, the prairie 0.12 (a very few); none in the
   taiga or the swamp (`strict`: straying across a border only into a biome
   it grows in; `not_in_swamp`).
-- `crabapple.tres`: the forest 1.5, the prairie 0.5; none in the taiga or
+- `crabapple.tres`: the forest 1.5, the prairie 0.8; none in the taiga or
   the swamp. Its fruit hang on the grown trees and are picked as the
   pawpaw's (`Foraging`).
 - `walnut.tres`: the forest 3, the prairie 0.25 (sparse); none in the

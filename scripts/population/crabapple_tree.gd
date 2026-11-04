@@ -35,7 +35,7 @@ const VARIANTS := [
 ]
 
 const SETTINGS := {
-	"fruit": "crabapple", # (Foraging: picked from the grown trees, right-click with a hand empty)
+	"fruit": "crabapple", # (Foraging: hung on the grown trees, picked one by one with a left click)
 	"seg": [0.4, 0.42, 0.3, 0.2],
 	"crook": [0.06, 0.26, 0.33, 0.36], # (gnarled, zigzag)
 	"up": [0.0, 0.01, 0.05, 0.08],
