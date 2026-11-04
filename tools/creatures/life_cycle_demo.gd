@@ -4,7 +4,7 @@ extends Node3D
 ##
 ## monarch: the adult, milkweed and leaves to lay on, a caterpillar, a
 ##   chrysalis hanging from a twig
-## hummingbird clearwing: the adult, leaves (it lays hovering), a hornworm,
+## hummingbird clearwing: the adult, coneflowers and asters (its nectar), leaves (it lays hovering), a hornworm,
 ##   a pupa in its cocoon in the litter
 ## paper wasp: the adult and its comb, grubs in some of its cells
 ## carpenter ants, red harvesters: a queen each, a pile of her eggs, and
@@ -110,6 +110,7 @@ var lady: LadyScript
 var _monarch_leaves: Array = [] # [spot, normal]
 var _moth_leaves: Array = []
 var _cells: Array = [] # the comb's cells' mouths (the plain's)
+var _moth_flowers: Array = [] # the clearwing's flowers' heads (its nectar)
 var _trig_heads: Array = [] # the trigonalid's flowers' heads
 var _trig_leaves: Array = [] # its leaves' tops [point, normal]
 var _pupae: Array = []
@@ -270,10 +271,13 @@ func _monarch_station() -> void:
 func _moth_station() -> void:
 	var c := _station(1)
 	_leaves(c, [Vector3(0.12, 0.2, 0.0), Vector3(-0.1, 0.26, -0.08), Vector3(0.02, 0.14, 0.16)], _moth_leaves)
+	# its flowers: purple coneflowers and asters, for its nectar
+	_moth_flowers = Flowers.clump(self, "coneflower", Vector2(c.x - 0.22, c.z - 0.18), 0.6, Color(0.42, 0.38, 0.28))
+	_moth_flowers.append_array(Flowers.clump(self, "aster", Vector2(c.x + 0.24, c.z + 0.22), 0.5, Color(0.42, 0.38, 0.28)))
 	moth = MothScript.new()
 	add_child(moth)
 	moth.place(c + Vector3(0.0, 0.4, 0.2))
-	moth.search(c, 0.4, [])
+	moth.feed(_moth_flowers)
 	var worm := LarvaScript.new("hemaris")
 	add_child(worm)
 	worm.place(c + Vector3(-0.2, 0.0, 0.25), Vector3.RIGHT)
@@ -1016,7 +1020,7 @@ func _male_partners() -> void:
 	mo.male = true
 	add_child(mo)
 	mo.place(_station(1) + Vector3(-0.2, 0.35, 0.1))
-	mo.search(_station(1), 0.4, [])
+	mo.search(_station(1), 0.4, _moth_flowers)
 	males["moth"] = mo
 	var w := Wasp.new()
 	w.male = true
@@ -1296,7 +1300,7 @@ func _lay_all() -> void:
 	var c0 := _station(0)
 	monarch.lay(_monarch_leaves.map(func(l): return l[0]), _monarch_leaves.map(func(l): return l[1]), func() -> void: monarch.fly(c0, 0.4))
 	var c1 := _station(1)
-	moth.lay(_moth_leaves.map(func(l): return l[0]), _moth_leaves.map(func(l): return l[1]), func() -> void: moth.search(c1, 0.4, []))
+	moth.lay(_moth_leaves.map(func(l): return l[0]), _moth_leaves.map(func(l): return l[1]), func() -> void: moth.search(c1, 0.4, _moth_flowers))
 	wasp.lay_eggs(_empty_cells().slice(0, 1), Vector3.UP, 0.0068)
 	june.lay(0, Vector3(-0.05, 0.0, 0.0))
 	lady.lay(0, Vector3(0.02, 0.0, -0.02))
@@ -1348,7 +1352,7 @@ func _hatch_all() -> void:
 			if a.has_method("fly"):
 				a.call("fly", c, 0.4)
 			else:
-				a.call("search", c, 0.4, []))
+				a.call("search", c, 0.4, _moth_flowers if k == 1 else []))
 
 
 ## The keys: one for each thing they all do, for those at the station in
@@ -1476,7 +1480,7 @@ func _do(c: Node, act: String, all: Array) -> void:
 				if a.has_method("fly"):
 					a.call("fly", _station(k), 0.4)
 				else:
-					a.call("search", _station(k), 0.4, []))
+					a.call("search", _station(k), 0.4, _moth_flowers if k == 1 else []))
 		elif c.has_method("hatch") and not (c is AntColony):
 			c.call("hatch")
 		elif sc == SpiderScript: # (its sacs, carried or left)
@@ -1529,7 +1533,7 @@ func _do(c: Node, act: String, all: Array) -> void:
 			if sc == MonarchScript:
 				c.call("fly", st, 0.4)
 			elif sc == MothScript:
-				c.call("search", st, 0.4, [])
+				c.call("search", st, 0.4, _moth_flowers)
 			elif sc == Wasp or sc == TrigScript:
 				c.call("seek_food", st, 0.5 if sc == Wasp else 0.35)
 			elif sc == MantisScript:
@@ -1549,7 +1553,7 @@ func _do(c: Node, act: String, all: Array) -> void:
 			if sc == MonarchScript:
 				c.call("lay", _monarch_leaves.map(func(l): return l[0]), _monarch_leaves.map(func(l): return l[1]), Callable(c, "fly").bind(st, 0.4))
 			elif sc == MothScript:
-				c.call("lay", _moth_leaves.map(func(l): return l[0]), _moth_leaves.map(func(l): return l[1]), Callable(c, "search").bind(st, 0.4, []))
+				c.call("lay", _moth_leaves.map(func(l): return l[0]), _moth_leaves.map(func(l): return l[1]), Callable(c, "search").bind(st, 0.4, _moth_flowers))
 			elif sc == Wasp:
 				c.call("lay_eggs", _empty_cells().slice(0, 1), Vector3.UP, 0.0068) # (one cell a lay: the next empty one)
 			elif sc == TrigScript:
@@ -1598,7 +1602,7 @@ func _do(c: Node, act: String, all: Array) -> void:
 			if sc == MonarchScript:
 				c.call("fly", st, 0.6)
 			elif sc == MothScript:
-				c.call("search", st, 0.5, [])
+				c.call("search", st, 0.5, _moth_flowers)
 			elif sc == Wasp or sc == TrigScript:
 				c.call("seek_food", st, 0.6 if sc == Wasp else 0.4)
 			elif sc == HopperScript:
@@ -1764,6 +1768,9 @@ func _feed(c: Node, act: String, young: bool, p: Vector3, st: Vector3) -> void:
 		c.call("hunt", f)
 	elif sc == HareScript:
 		c.call("eat", _hare_food_near(p, act == "hunt" and not young)) # (H: the willow shoot, sitting up)
+	elif sc == MothScript: # (nectar: hovering at its flowers, one floret after another)
+		if not young:
+			c.call("feed", _moth_flowers)
 	elif sc == TrigScript: # (nectar: from flower to flower)
 		c.call("visit_flowers", _trig_heads, 0.0)
 	elif sc == Wasp:

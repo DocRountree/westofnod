@@ -405,7 +405,9 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   spiked, in a ragged cocoon in the litter. They ripen (the monarch's going clear, its wings showing through),
   wriggle, split, and are left empty skins; the adult pushes out (the monarch head first, down; the clearwing out of
   its cocoon), turns or climbs to hang, its abdomen swollen, its crumpled wings hanging down and pumped out to full
-  size, dried, opened and closed (`Lepidoptera.emerge`); then flies. `tools/creatures/life_cycle_demo.tscn`, a station each.
+  size, dried, opened and closed (`Lepidoptera.emerge`); then flies. `tools/creatures/life_cycle_demo.tscn`, a station each. The clearwing's
+  station has purple coneflowers and asters: it hovers at them, its tongue in one floret after another (E; its
+  searching flights, W and F, stop at them too).
 - `scripts/creatures/lepidoptera.gd` (`Lepidoptera`): a butterfly or moth at twice life size, not yet in the game: built
   from parts (furred where the species is), its wings cut to their real outlines and painted, veins, borders and
   spots, above and beneath (`tools/creatures/bake_lepidoptera_wings.py` bakes `data/creatures/lepidoptera_wings.png`
