@@ -8,7 +8,7 @@ extends Node
 ## stump will be: Population.set_notch, drawn by bark.gdshader). Felled, the
 ## tree leaves the population for good (Population.remove_prop) and falls
 ## away from the player, off a fresh-sawn stump left where it stood
-## (OakTree.fresh_stump: its top chopped flat in strokes, pale wood, no moss;
+## (its species' fresh_stump: its top chopped flat in strokes, pale wood, no moss;
 ## none for a sapling), its foot landing a little beyond the stump, and lies
 ## where it fell, its trunk along the ground, pressed only a few cm into it
 ## (pitched up from its foot where it would sink further: _rest); its crown
@@ -307,7 +307,7 @@ func _strike() -> void:
 func _fell(kind: PropKind, variant: int, xf: Transform3D, radius: float, away: Vector3, stripes: Vector3, cut: float) -> Dictionary:
 	var world: WorldData = main.world
 	var stump_scale := _stump_scale(radius)
-	var stump_h := _stump_height(cut)
+	var stump_h := _stump_height(kind, cut)
 	var pivot := xf.origin + Vector3.UP * cut
 	var axis := Vector3.UP.cross(away).normalized()
 	var lie := _lie(kind, variant, xf, radius, away, cut)
@@ -323,7 +323,7 @@ func _fell(kind: PropKind, variant: int, xf: Transform3D, radius: float, away: V
 	node.transform = xf
 	_cut_base(node, kind, variant, xf, cut, stripes)
 	if stump_scale > 0.0:
-		var sn := _model([OakTree.fresh_stump()[0]] + OakTree.fresh_stump()[1])
+		var sn := _model(_fresh_stump(kind))
 		sn.transform = Transform3D(_stump_basis(stripes, stump_scale, stump_h), xf.origin)
 		_solid_stump(xf.origin, cut, stump_scale)
 	_solid(kind, Transform3D(Basis(axis, angle) * xf.basis, end), cut)
@@ -447,8 +447,16 @@ static func _stump_scale(radius: float) -> float:
 
 ## The stump's scale up, for a cut this high (m): its top where the trunk
 ## came away (CUT of the stump model's own height).
-static func _stump_height(cut: float) -> float:
-	return cut / (OakTree.fresh_stump()[0].get_aabb().end.y * CUT)
+static func _stump_height(kind: PropKind, cut: float) -> float:
+	return cut / ((_fresh_stump(kind)[0] as Mesh).get_aabb().end.y * CUT)
+
+
+## The stump an axe leaves of a kind of tree, every level of detail: its
+## species' own (its mesh_script's fresh_stump(): its bark, its shape),
+## else the oak's.
+static func _fresh_stump(kind: PropKind) -> Array:
+	var fs: Array = kind.mesh_script.fresh_stump() if kind.mesh_script and kind.mesh_script.has_method("fresh_stump") else OakTree.fresh_stump()
+	return [fs[0]] + fs[1]
 
 
 ## A blow's mark: the notch, done part of the way (0..1), facing `toward`
@@ -662,7 +670,11 @@ func from_list(list: Array) -> void:
 		_solid(kind, node.transform, float(e.get("cut", 0.0)))
 		var s := float(e.get("stump_scale", 0.0))
 		if s > 0.0:
-			var sn := _model([OakTree.fresh_stump()[0]] + OakTree.fresh_stump()[1])
-			sn.transform = Transform3D(_stump_basis(stripes, s, float(e.get("stump_h", s))), origin) # (saved before stumps went by the cut: as tall as wide)
+			var sn := _model(_fresh_stump(kind))
+			# (as tall as the cut, by its own species' stump; saved before
+			# stumps went by the cut: as tall as wide)
+			var sh := _stump_height(kind, float(e.get("cut", 0.0))) if e.has("stump_h") else s
+			e["stump_h"] = sh
+			sn.transform = Transform3D(_stump_basis(stripes, s, sh), origin)
 			_solid_stump(origin, float(e.get("cut", 0.0)), s)
 		_lying.append(e)

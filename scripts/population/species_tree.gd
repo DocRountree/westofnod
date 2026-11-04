@@ -373,6 +373,31 @@ func cut_meshes(v: int) -> Array:
 	return _cut_meshes[v]
 
 
+var _fresh_stump := []
+
+
+## The stump an axe leaves (Felling), as OakTree.fresh_stump(): this
+## species' stump, its bark and its tint, but sawn flat across (no
+## splinters), its top fresh, pale wood; 0.5 m round at its foot as the
+## oak's (Felling scales it by the trunk's radius over that). [mesh, lods].
+func fresh_stump() -> Array:
+	if _fresh_stump.is_empty():
+		var b := [bark_material(0, "fresh_stump"), bark_material(1, "fresh_stump"), bark_material(2, "fresh_stump"), bark_material(3, "fresh_stump")]
+		var l := [leaf_material(0), leaf_material(1), leaf_material(2), leaf_material(3)]
+		var P := {"seed": 1}
+		for V: Dictionary in variants:
+			if V.get("kind", "tree") == "stump":
+				P = V.duplicate()
+				break
+		P.r = 0.5
+		var tb := grow_stump(P)
+		tb.splinter = false
+		tb.caps[tb.caps.size() - 1][2] = 0.0 # (sawn flat across)
+		var lods: Array[Mesh] = [tb.lod(b[1], l[1], 0, 2, 0, 1.0), tb.lod(b[2], l[2], 0, 3, 0, 1.0), tb.lod(b[3], l[3], 0, 4, 0, 1.0)]
+		_fresh_stump = [tb.build(b[0], l[0], 12.0), lods]
+	return _fresh_stump
+
+
 # ---- skeletons --------------------------------------------------------------
 
 func _builder() -> TreeBuilder:

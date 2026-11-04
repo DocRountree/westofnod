@@ -117,6 +117,11 @@ static func cut_meshes(variant := 0) -> Array:
 	return species().cut_meshes(variant)
 
 
+## The stump an axe leaves (Felling): this species' own, sawn flat.
+static func fresh_stump() -> Array:
+	return species().fresh_stump()
+
+
 ## What fruit variant v bears (Foraging): an item id, "" none.
 static func fruit_of(variant: int) -> String:
 	return species().fruit_of(variant)
