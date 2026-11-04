@@ -158,11 +158,12 @@ func _build() -> void:
 	_neck = Node3D.new()
 	_neck.position = S.neck_at
 	_body.add_child(_neck)
-	_fur_shells(_mesh(_loft(S.neck, 2.0), body, _neck), fl * 1.15, 10)
+	_fur_shells(_mesh(_loft(S.neck, 2.0), _part_coat("neck", body), _neck), fl * 1.15, 10)
 	_head = Node3D.new()
 	_head.position = S.head_at
 	_neck.add_child(_head)
-	_fur_shells(_mesh(_loft(S.head, 2.0), face, _head), fl * 0.4, 6)
+	var head_m := _part_coat("head", face)
+	_fur_shells(_mesh(_loft(S.head, 2.0), head_m, _head), fl * 0.4, 6)
 	_jaw = Node3D.new()
 	_jaw.position = S.jaw_at
 	_head.add_child(_jaw)
@@ -182,6 +183,10 @@ func _build() -> void:
 	face.set_shader_parameter("bare_a", Vector3(-eat.x, eat.y, eat.z))
 	face.set_shader_parameter("bare_b", Vector3(eat.x, eat.y, eat.z))
 	face.set_shader_parameter("bare_r", es.y * 0.85)
+	if head_m != face:
+		head_m.set_shader_parameter("bare_a", Vector3(-eat.x, eat.y, eat.z))
+		head_m.set_shader_parameter("bare_b", Vector3(eat.x, eat.y, eat.z))
+		head_m.set_shader_parameter("bare_r", es.y * 0.85)
 	for side: float in [-1.0, 1.0]:
 		var at: Vector3 = eat
 		var em := _mat(E.color, 0.04)
@@ -261,6 +266,13 @@ func _build() -> void:
 		(_leg_mesh[i][2] as MeshInstance3D).visible = false # (the walker's tarsus: the paw here)
 		(_leg_mesh[i][1] as MeshInstance3D).mesh = _sphere # (the lower leg rounded, tapering)
 	_build_extra()
+
+
+## (The species' own material for a part, "neck" or "head", if any: given
+## the one it would have. Set here, before the part's fur is grown: a
+## material changed after would leave its instance uniforms orphaned.)
+func _part_coat(_name: String, m: ShaderMaterial) -> ShaderMaterial:
+	return m
 
 
 ## (The species' own parts, if any.)

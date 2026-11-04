@@ -72,20 +72,12 @@ func _male_size() -> float:
 
 
 func _build_extra() -> void:
-	# the hump, its wool long; the neck and the head all shaggy, the beard
+	# the hump, its wool long; the beard (the neck and the head shaggy:
+	# _part_coat)
 	var body := _torso.material_override as ShaderMaterial
 	body.set_shader_parameter("fur_front", 1.6)
 	body.set_shader_parameter("front_z", -350.0)
-	var front := (body.duplicate() as ShaderMaterial)
-	front.set_shader_parameter("front_z", 1e5) # (all of it the shaggy front)
-	for mi in [_neck.get_child(0), _head.get_child(0)]:
-		var m := mi as MeshInstance3D
-		var fm := front if m.get_parent() == _neck else ((m.material_override as ShaderMaterial).duplicate() as ShaderMaterial)
-		fm.set_shader_parameter("front_z", 1e5)
-		fm.set_shader_parameter("fur_front", 1.3)
-		m.material_override = fm
-		for sh in m.get_children():
-			(sh as MeshInstance3D).material_override = fm
+	var front := _part_coat("neck", body)
 	if not young:
 		var hp: Array = S.hump
 		_fur_shells(_part(hp[0], hp[1], front, _body), 70.0, 10)
@@ -112,6 +104,19 @@ func _build_extra() -> void:
 			c.queue_free()
 		for side: float in [-1.0, 1.0]:
 			_part(Vector3(0.18 * side, -0.05, 0.25), Vector3(0.48, 0.9, 0.7), _coat(4), pw)
+
+
+## (Its neck and head: all of them the shaggy front, the wool long.)
+var _front_m: Dictionary = {}
+
+func _part_coat(name: String, m: ShaderMaterial) -> ShaderMaterial:
+	var key := name if name == "head" else "neck"
+	if not _front_m.has(key):
+		var fm := m.duplicate() as ShaderMaterial
+		fm.set_shader_parameter("front_z", 1e5)
+		fm.set_shader_parameter("fur_front", 1.3 if key == "head" else 1.6)
+		_front_m[key] = fm
+	return _front_m[key]
 
 
 # --- its ways ----------------------------------------------------------------------
