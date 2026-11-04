@@ -167,6 +167,17 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   colony is one draw call; the CPU only moves them along (wandering, or to food and
   feeding, keeping apart). `tools/creatures/ant_demo.tscn` (keys: 1 wander, 2 feed on
   the crumbs, 3 half and half, + / - more or fewer, 4 the other kind).
+- `scripts/creatures/mollies.gd` (`Mollies`): sailfin mollies (*Poecilia latipinna*), life size, in schools, made
+  and moved as the ants are: one mesh, every fish an instance of it, posed by `shaders/render/molly.gdshader` (the
+  body's wave down to the tail, faster and wider swimming fast; curved into its turns; the pectorals sculling as it
+  hovers; grazing's pecks; the male's great spotted, orange-edged sail half folded swimming, raised and quivering to
+  display), so a school of hundreds is a draw call. Olive above, silvery sides, a net of scales with rows of dark
+  spots; the males iridescent, orange throated, their gonopodium; the females' small dorsal and fan of an anal fin.
+  The CPU side schools them (keeping apart, going their neighbours' way, staying together; the school wandering the
+  water it's given, `swim_to`, `scatter`), sends one down to graze now and then, a male to display beside a female;
+  each steerable (`member(i)`, pilot.gd). `tools/creatures/molly_demo.tscn` (a tank of them; keys: 1 school, 2 graze,
+  3 the males display, S scatter, M move the school, P one steered, + / - more or fewer); a few in the life cycle
+  demo's pond.
 - `scripts/creatures/beetles.gd` (`Beetles`): beetles at twice life size, not yet in the game, the make they
   share: made and moved as the ants are (one mesh, the same shader, the same CPU side), each species its own shape,
   markings, colours and pace, walking, eating at a leaf and flying (the elytra, one

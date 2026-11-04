@@ -16,7 +16,8 @@ extends Node3D
 ##   fly to catch
 ## eastern diamondback rattlesnake, eastern milk snake (life size): an adult
 ##   and a young each, a mouse each to eat
-## wolf spider, fishing spider (on a pond), grass spider (its funnel web
+## wolf spider, fishing spider (on a pond, a little school of sailfin
+##   mollies in it), grass spider (its funnel web
 ##   spun as it starts), yellow garden spider (its orb spun off a branch),
 ##   pill bugs in leaf litter (a female and young)
 ## deer mouse (life size): a female, a male, her grass nest, seeds
@@ -78,6 +79,7 @@ const SnakeScript := preload("res://scripts/creatures/snake.gd")
 const HopperScript := preload("res://scripts/creatures/grasshopper.gd")
 const MantisScript := preload("res://scripts/creatures/mantis.gd")
 const MouseScript := preload("res://scripts/creatures/mouse.gd")
+const MolliesScript := preload("res://scripts/creatures/mollies.gd")
 const AnoleScript := preload("res://scripts/creatures/anole.gd")
 const ScorpionScript := preload("res://scripts/creatures/scorpion.gd")
 const JoshuaScript := preload("res://scripts/population/joshua_tree.gd")
@@ -406,6 +408,11 @@ func _spider_stations() -> void:
 		match kinds[k]:
 			"fishing": # (a pond: it runs on the water)
 				_pond(c)
+				var mollies := MolliesScript.new() # (a little school of sailfin mollies in it)
+				mollies.tank_min = c + Vector3(-POND_W + 0.03, POND - 0.29, -POND_D + 0.03)
+				mollies.tank_max = c + Vector3(POND_W - 0.03, POND - 0.02, POND_D - 0.03)
+				add_child(mollies)
+				mollies.setup(14, c + Vector3(0.0, POND - 0.12, 0.0), 0.08)
 				sp.place(c + Vector3(0.0, POND, 0.0), 0.5)
 				sp.height = func(_x: float, _z: float) -> float: return POND
 				sp.wander(c + Vector3(0.0, POND, 0.0), 0.2)
