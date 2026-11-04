@@ -398,7 +398,10 @@ static func _loft(keys: Array, sq := 2.0) -> ArrayMesh:
 				var out := (a + b + c) / 3.0 - mid
 				out.z = 0.0
 				var order := [0, 1, 2] if (-(b - a).cross(c - a)).dot(out) >= 0.0 else [0, 2, 1]
-				var n := (-(ps[order[1]] - ps[order[0]]).cross(ps[order[2]] - ps[order[0]])).normalized()
+				var p0: Vector3 = ps[order[0]]
+				var p1: Vector3 = ps[order[1]]
+				var p2: Vector3 = ps[order[2]]
+				var n := (-(p1 - p0).cross(p2 - p0)).normalized()
 				for o: int in order:
 					var p: Vector3 = ps[o]
 					var rn := (p - mid)
