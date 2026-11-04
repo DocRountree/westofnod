@@ -466,12 +466,45 @@ func _think(dt: float) -> void:
 		var wl := float(K.len) * size * 0.45 # (a wave's length along its path)
 		_phase += _speed * dt / wl * TAU
 		var way := _dir.rotated(Vector3.UP, 0.55 * sin(_phase))
-		_pos += way * _speed * dt
+		# never through its own body: steering away from any of it ahead,
+		# slowing for it; its head kept clear of it whatever (the body
+		# follows the head's path: if the head never crosses it, nor does
+		# the body)
+		var clear := float(K.r) * size * 2.4
+		var steer := 0.0
+		var slow := 1.0
+		var ahead := _pos + way * clear * 1.8
+		for i in range(6, _pts.size()):
+			var q: Vector3 = _pts[i]
+			var d := Vector2(ahead.x - q.x, ahead.z - q.z).length()
+			if d < clear * 1.8:
+				var side := signf(_dir.cross(q - _pos).y) # (+: it's to the left)
+				var k := 1.0 - d / (clear * 1.8)
+				steer -= (side if side != 0.0 else 1.0) * k
+				slow = minf(slow, lerpf(1.0, 0.35, k))
+		if steer != 0.0:
+			_dir = _dir.rotated(Vector3.UP, clampf(steer * 3.0 * dt, -2.5 * dt, 2.5 * dt))
+			way = _dir.rotated(Vector3.UP, 0.3 * sin(_phase))
+		_pos += way * _speed * slow * dt
 		_pos.y = ground_y
+		_keep_clear(clear)
 	if _trail.is_empty() or _trail[0].distance_to(_pos) > float(K.len) * size / SPINE / 3.0:
 		_trail.push_front(_pos)
 		while _trail.size() > SPINE * 4 + 20:
 			_trail.pop_back()
+
+
+## The head pushed out of its own body wherever it's come within `clear`
+## of it (its neck's first points left out: they're its own).
+func _keep_clear(clear: float) -> void:
+	for pass_ in 2:
+		for i in range(6, _pts.size()):
+			var q: Vector3 = _pts[i]
+			var off := Vector2(_pos.x - q.x, _pos.z - q.z)
+			var d := off.length()
+			if d < clear:
+				var out := off / d if d > 1e-5 else Vector2(_dir.z, -_dir.x)
+				_pos += Vector3(out.x, 0.0, out.y) * (clear - d)
 
 
 ## Eating: to it, the strike, (the milk snake's coils round it), then
