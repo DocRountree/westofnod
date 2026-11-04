@@ -37,6 +37,7 @@ extends "res://scripts/creatures/hexapod.gd" # (by path: found whether or not th
 ## sleep {seconds}, mark, birth {n, den} (a female's), nurse, play (the
 ## young's), mate {partner}.
 
+const SkinScript := preload("res://scripts/creatures/mammal_skin.gd")
 var S: Dictionary = {} ## the species' (its subclass's): shape, gaits, ways
 var young := false
 var home_den: Node3D ## her den (a female's)
@@ -91,6 +92,40 @@ var _tail: Array[Node3D] = []
 var _legx: Array = [] # each leg: [metapodial, paw]
 var _eyes: Array[MeshInstance3D] = []
 var _lids: Array[MeshInstance3D] = []
+var _skin: SkinScript # (its one skin: body, neck, head, jaw, legs, tail)
+var _sb := {} # (its bones: name -> index)
+var _joints: Array = [] # (each leg's joints now: hip, knee, wrist or hock, ball, toe; the body's mm)
+
+
+## Leg i's joints, its foot at foot (the body's mm; up, fwd its up and
+## forward there; lifted: how far the foot's off the ground, 0..1; folded:
+## sitting or lying; lying): [hip, knee, wrist or hock, ball, foot].
+func _leg_chain(i: int, foot: Vector3, up: Vector3, fwd: Vector3, lifted: float, folded := 0.0, lying := 0.0) -> Array:
+	var L: Dictionary = legs[i / 2]
+	var hind := i >= 2
+	var side := 1.0 if i % 2 == 1 else -1.0
+	var hp: Vector3 = L.hip
+	var hip := Vector3(hp.x * side, hp.y, hp.z)
+	var p: float = L.p
+	var m: float = L.s
+	var ball := foot + (-fwd * lerpf(0.95, 0.45, lifted) + up * lerpf(0.3, 0.9, lifted)).normalized() * p
+	var mdir: Vector3
+	if bool(S.get("plantigrade", false)):
+		# (a bear's: flat on its sole, heel down; the heel lifting first
+		# as the foot comes up; the forefoot's wrist a little raised)
+		ball = foot + (-fwd * 0.97 + up * lerpf(0.05, 0.5, lifted)).normalized() * p
+		mdir = (-fwd + up * lerpf(0.06 if hind else 0.22, 1.2, lifted)).normalized()
+		mdir = mdir.lerp(-fwd, folded * (1.0 if hind else 0.5)).normalized()
+	elif hind:
+		mdir = (-fwd * lerpf(0.35, 0.7, lifted) + up).normalized()
+		mdir = mdir.lerp(-fwd, folded).normalized() # (sitting, lying: the hock down)
+	else:
+		mdir = (-fwd * lerpf(0.1, 0.8, lifted) + up).normalized()
+		mdir = mdir.lerp((-fwd * 0.2 + up * 0.15).normalized(), lying).normalized() # (lying: the forearm down)
+	var top := ball + mdir * m
+	var pl: Vector3 = L.pole
+	var knee := _knee(hip, top, L.f, L.t, Vector3(pl.x * side, pl.y, pl.z))
+	return [hip, knee, top, ball, foot]
 
 
 ## (The species calls it, S set.)
@@ -122,6 +157,7 @@ func _coat(part: int, along := 0.0) -> ShaderMaterial:
 	m.set_shader_parameter("young", young)
 	m.set_shader_parameter("along", along)
 	m.set_shader_parameter("ear_len", float((S.ear as Dictionary).len))
+	m.set_shader_parameter("hair", float(S.get("fur", 25.0)))
 	return m
 
 
@@ -142,60 +178,42 @@ func _build() -> void:
 	if young:
 		fl *= 0.6
 		tl *= 0.5
-	_torso = _mesh(_loft(S.body, 2.0), body, _body)
-	_fur_shells(_torso, fl, 10)
-	# the muscle over its shoulder blades and its haunches
-	var F: Dictionary = S.fore
-	var H: Dictionary = S.hind
-	for side: float in [-1.0, 1.0]:
-		var fh: Vector3 = F.hip
-		var hh: Vector3 = H.hip
-		var sh := _part(Vector3(fh.x * side * 0.85, fh.y + float(F.a) * 0.3, fh.z + 10.0), Vector3(float(F.r) * 3.4, float(F.a) * 0.85, float(F.r) * 4.6), body)
-		_fur_shells(sh, fl * 0.9, 8)
-		var ha := _part(Vector3(hh.x * side * 0.9, hh.y + float(H.a) * 0.15, hh.z + 15.0), Vector3(float(H.r) * 3.8, float(H.a) * 0.9, float(H.r) * 5.0), body)
-		_fur_shells(ha, fl * 0.9, 8)
-	# the neck, rising from the chest; the head on it
+	# its body, neck, head, jaw, legs and tail: one skin (_build_skin, at
+	# the end); here the joints its motor moves
 	_neck = Node3D.new()
 	_neck.position = S.neck_at
 	_body.add_child(_neck)
-	_fur_shells(_mesh(_loft(S.neck, 2.0), _part_coat("neck", body), _neck), fl * 1.15, 10)
 	_head = Node3D.new()
 	_head.position = S.head_at
 	_neck.add_child(_head)
-	var head_m := _part_coat("head", face)
-	_fur_shells(_mesh(_loft(S.head, 2.0), head_m, _head), fl * 0.4, 6)
+	var head_m := face
 	_jaw = Node3D.new()
 	_jaw.position = S.jaw_at
 	_head.add_child(_jaw)
-	_fur_shells(_mesh(_loft(S.jaw, 2.0), face, _jaw), fl * 0.35, 5)
-	var jk: Array = S.jaw
-	for side: float in [-1.0, 1.0]: # (the lips' dark line)
-		var j0: Array = jk[0]
-		var j1: Array = jk[jk.size() - 1]
-		_stick(Vector3(float(j0[2]) * 0.85 * side, float(j0[1]) + float(j0[3]) * 0.7, float(j0[0])), Vector3(float(j1[2]) * 0.8 * side, float(j1[1]) + float(j1[3]) * 0.6, float(j1[0])), 1.6, _mat(Color(0.08, 0.06, 0.05), 0.5), _jaw)
-	_part(Vector3(0.0, 4.0, -20.0), Vector3(30.0, 4.0, 60.0) * float(S.get("mouth", 1.0)), _mat(Color(0.55, 0.3, 0.3), 0.5), _jaw)
+	_part(Vector3(0.0, 4.0, -20.0), Vector3(30.0, 4.0, 60.0) * float(S.get("mouth", 1.0)), _mat(Color(0.5, 0.28, 0.28), 0.5), _jaw) # (its tongue, the mouth's floor)
 	var E: Dictionary = S.eye
 	# (each eye set on the head's surface, bulging from it; the fur bare
 	# round it)
 	var es: Vector3 = E.size
 	var eat: Vector3 = E.at
-	eat.x = _surface_x(S.head, eat.z, eat.y) - es.x * 0.12
+	eat.x = _surface_x(S.head, eat.z, eat.y) - es.x * 0.3
 	face.set_shader_parameter("bare_a", Vector3(-eat.x, eat.y, eat.z))
 	face.set_shader_parameter("bare_b", Vector3(eat.x, eat.y, eat.z))
 	face.set_shader_parameter("bare_r", es.y * 0.85)
-	if head_m != face:
-		head_m.set_shader_parameter("bare_a", Vector3(-eat.x, eat.y, eat.z))
-		head_m.set_shader_parameter("bare_b", Vector3(eat.x, eat.y, eat.z))
-		head_m.set_shader_parameter("bare_r", es.y * 0.85)
+	for m: ShaderMaterial in [head_m, body]: # (the skin's too: its face's coords the head's)
+		m.set_shader_parameter("bare_a", Vector3(-eat.x, eat.y, eat.z))
+		m.set_shader_parameter("bare_b", Vector3(eat.x, eat.y, eat.z))
+		m.set_shader_parameter("bare_r", es.y * 0.85)
 	for side: float in [-1.0, 1.0]:
 		var at: Vector3 = eat
 		var em := _mat(E.color, 0.04)
 		em.clearcoat_enabled = true # (the cornea's wet gloss)
-		em.clearcoat = 1.0
-		var e := _part(Vector3(at.x * side, at.y, at.z), E.size, em, _head)
+		em.clearcoat = 0.55
+		em.clearcoat_roughness = 0.25
+		var e := _part(Vector3(at.x * side, at.y, at.z), E.size * Vector3(0.8, 1.0, 1.0), em, _head)
 		_eyes.append(e)
-		_part(Vector3((at.x - es.x * 0.2) * side, at.y, at.z), es * Vector3(1.0, 1.16, 1.16), _mat(Color(0.06, 0.05, 0.04), 0.6), _head) # (its rim, dark, just behind it)
-		var pu := _part(Vector3((at.x + float((E.size as Vector3).x) * 0.42) * side, at.y, at.z - 1.0), Vector3(2.0, float((E.size as Vector3).y) * float(E.get("slit", 0.4)), float((E.size as Vector3).z) * 0.35), _mat(Color(0.02, 0.02, 0.02), 0.02), _head)
+		_part(Vector3((at.x - es.x * 0.12) * side, at.y, at.z), es * Vector3(0.8, 1.14, 1.14), _mat(Color(0.05, 0.04, 0.035), 0.55), _head) # (its lids' dark rim)
+		var pu := _part(Vector3((at.x + es.x * 0.34) * side, at.y, at.z - 1.0), Vector3(1.5, es.y * float(E.get("slit", 0.4)), es.z * 0.32), _mat(Color(0.015, 0.012, 0.01), 0.02), _head)
 		pu.rotation.y = 0.0
 		var lid := _part(Vector3(at.x * side, at.y, at.z) * 1.0, (E.size as Vector3) * 1.08, face, _head)
 		lid.visible = false
@@ -216,7 +234,8 @@ func _build() -> void:
 		for k in 5:
 			var a := deg_to_rad(-18.0 + 9.0 * k)
 			var d := Vector3(side * cos(a), sin(a) * 0.4, 0.45).normalized()
-			_stick(wp + Vector3(12.0 * side, -12.0, 20.0), wp + Vector3(12.0 * side, -12.0, 20.0) + d * float(S.get("whisker", 70.0)), 0.6, wd, _head)
+			if float(S.get("whisker", 70.0)) > 0.0:
+				_stick(wp + Vector3(12.0 * side, -12.0, 20.0), wp + Vector3(12.0 * side, -12.0, 20.0) + d * float(S.get("whisker", 70.0)), 0.35, wd, _head)
 	# the ears
 	var R: Dictionary = S.ear
 	var ear_m := _coat(5)
@@ -231,41 +250,232 @@ func _build() -> void:
 			_stick(Vector3(0.0, float(R.len) * 0.95, 0.0), Vector3(-3.0 * side, float(R.len) + float(R.tuft), 2.0), 2.2, _coat(7), en)
 		_ear_nodes.append(en)
 	# the face's own (a bobcat's ruff)
-	for r: Array in S.get("ruff", []):
+	for r: Array in []: # (a bobcat's ruff: painted on its face now, not blobs)
 		for side: float in [-1.0, 1.0]:
 			var at: Vector3 = r[0]
 			_fur_shells(_part(Vector3(at.x * side, at.y, at.z), r[1], face, _head), fl * 1.3, 8)
 	# the tail: a chain from the rump
 	var T: Dictionary = S.tail
 	var prev: Node3D = _body
-	var radii: Array = T.radii
 	for k in int(T.n):
 		var n := Node3D.new()
 		n.position = T.base if k == 0 else Vector3(0.0, 0.0, float(T.seg))
 		prev.add_child(n)
-		var r: float = radii[k]
-		_fur_shells(_part(Vector3(0.0, 0.0, float(T.seg) * 0.5), Vector3(r * 2.0, r * 1.9, float(T.seg) * 1.5), _coat(6, (k + 0.5) / float(T.n)), n), tl, 10)
 		_tail.append(n)
 		prev = n
 	# the legs: upper, lower, metapodial, the paw
 	_build_legs(_coat(2), _coat(3))
 	var paw := _coat(4)
+	_joints.resize(4)
 	for i in 4:
 		var mm := MeshInstance3D.new()
 		mm.mesh = _cyl
 		mm.material_override = _coat(3)
 		_body.add_child(mm)
-		mm.mesh = _sphere # (rounded, not a rod)
+		mm.mesh = null # (the skin's: these carry only what's on them)
 		var pw := _part(Vector3.ZERO, Vector3.ONE, paw)
-		for k in 4: # (its toes' pads, and their claws)
-			var x := (float(k) - 1.5) * 0.24
-			_part(Vector3(x, -0.15, 0.36 - absf(x) * 0.3), Vector3(0.26, 0.6, 0.32), paw, pw)
-			if not bool(S.get("plantigrade", false)):
-				_stick(Vector3(x, -0.2, 0.5 - absf(x) * 0.3), Vector3(x * 1.05, -0.45, 0.62 - absf(x) * 0.3), 0.025, _mat(Color(0.12, 0.1, 0.08), 0.3), pw)
+		pw.mesh = null
+		if not bool(S.get("plantigrade", false)) and not bool(S.get("hooves", false)):
+			for k in 4: # (its claws, at its toes' tips)
+				var x := (float(k) - 1.5) * 0.22
+				_stick(Vector3(x, -0.18, 0.42 - absf(x) * 0.3), Vector3(x * 1.05, -0.34, 0.56 - absf(x) * 0.3), 0.03, _mat(Color(0.1, 0.085, 0.07), 0.35), pw)
 		_legx.append([mm, pw])
-		(_leg_mesh[i][2] as MeshInstance3D).visible = false # (the walker's tarsus: the paw here)
-		(_leg_mesh[i][1] as MeshInstance3D).mesh = _sphere # (the lower leg rounded, tapering)
+		for q in 4:
+			(_leg_mesh[i][q] as MeshInstance3D).mesh = null
+	_build_skin(body)
 	_build_extra()
+
+
+## Its skin: one tube through its body (rump to chest), one up its neck
+## into its head to its nose, its lower jaw, each leg from inside its
+## shoulder or haunch down to its toes, its tail; each ring weighted to the
+## bones there, blended where they meet. Rest: the head and neck as it most
+## often holds them, its legs standing, its tail carried.
+func _build_skin(mat: ShaderMaterial) -> void:
+	var K: SkinScript = SkinScript.new()
+	var torso := K.bone("torso", Transform3D())
+	var nrest := Transform3D(Basis.from_euler(Vector3(float(S.neck_pitch), 0.0, 0.0)), S.neck_at)
+	var hrest := nrest * Transform3D(Basis.from_euler(Vector3(-float(S.neck_pitch) * 0.85, 0.0, 0.0)), S.head_at)
+	var jrest := hrest * Transform3D(Basis(), S.jaw_at)
+	var neck := K.bone("neck", nrest)
+	var head := K.bone("head", hrest)
+	var jaw := K.bone("jaw", jrest)
+	_sb = {"torso": torso, "neck": neck, "head": head, "jaw": jaw}
+	var pw := float(S.get("boxy", 2.3))
+	# the body, rump to chest, and on up its neck into its head to its nose:
+	# one tube (its chest rounding up into its throat)
+	var bk: Array = (S.body as Array).duplicate()
+	bk.sort_custom(func(a: Array, b: Array) -> bool: return float(a[0]) > float(b[0]))
+	var z0 := float(bk[0][0])
+	var z1 := float(bk[bk.size() - 1][0])
+	var nk: Array = S.neck
+	var n0: Array = nk[0]
+	var nz := (nrest * Vector3(0.0, n0[1], n0[0])).z # (the neck's root, along the body)
+	var rings := []
+	for k: Array in bk:
+		if float(k[0]) < nz + float(n0[3]) * float(S.get("chest_gap", 0.9)):
+			continue
+		var a := 0.6 * (z0 - float(k[0])) / maxf(z0 - z1, 1.0)
+		rings.append(SkinScript.ring(Vector3(0.0, k[1], k[0]), Vector3.RIGHT, Vector3.UP, k[2], k[3], float(k[3]) * float(S.get("belly", 1.0)), {torso: 1.0}, 0, a, 0.0, pw))
+	for j in nk.size():
+		var k: Array = nk[j]
+		var w := {torso: 0.5, neck: 0.5} if j == 0 else ({neck: 1.0} if j < nk.size() - 1 else {neck: 0.75, head: 0.25})
+		rings.append(SkinScript.ring(nrest * Vector3(0.0, k[1], k[0]), nrest.basis.x, nrest.basis.y, k[2], k[3], k[3], w, 0, 0.6 + 0.12 * j / maxf(nk.size() - 1, 1), 0.0, lerpf(pw, 2.0, float(j) / nk.size())))
+	var hk: Array = S.head
+	for j in hk.size():
+		var k: Array = hk[j]
+		var w := {neck: 0.35, head: 0.65} if j == 0 else {head: 1.0}
+		rings.append(SkinScript.ring(hrest * Vector3(0.0, k[1], k[0]), hrest.basis.x, hrest.basis.y, k[2], k[3], k[3], w, 0, 0.75 + 0.25 * j / maxf(hk.size() - 1, 1), 0.35 if j == 0 else 1.0))
+	K.tube(SkinScript.smooth(rings, 4), 24, head)
+	# (its chest's front, under its throat: the body's foremost rings, apart)
+	var chest := []
+	for k: Array in bk:
+		if float(k[0]) < nz + float(n0[3]) * float(S.get("chest_gap", 0.9)) + float(n0[3]) * 1.5:
+			var a := 0.6 * (z0 - float(k[0])) / maxf(z0 - z1, 1.0)
+			chest.append(SkinScript.ring(Vector3(0.0, float(k[1]) - float(k[3]) * 0.12, k[0]), Vector3.RIGHT, Vector3.UP, float(k[2]) * 0.92, float(k[3]) * 0.8, float(k[3]) * 0.95, {torso: 1.0}, 0, a, 0.0, pw))
+	if chest.size() >= 2:
+		K.tube(SkinScript.smooth(chest, 3), 22, head)
+	# the lower jaw
+	rings = []
+	var jk: Array = S.jaw
+	for j in jk.size():
+		var k: Array = jk[j]
+		rings.append(SkinScript.ring(jrest * Vector3(0.0, k[1], k[0]), jrest.basis.x, jrest.basis.y, k[2], k[3], k[3], {head: 0.5, jaw: 0.5} if j == 0 else {jaw: 1.0}, 0, 0.9, 1.0))
+	K.tube(SkinScript.smooth(rings, 3), 14, head)
+	# the tail
+	var T: Dictionary = S.tail
+	var radii: Array = T.radii
+	var carry: Array = T.carry
+	var trest := []
+	var prev := Transform3D()
+	for k in int(T.n):
+		var xf := prev * Transform3D(Basis.from_euler(Vector3(float(carry[0]) if k == 0 else float(carry[1]), 0.0, 0.0)), T.base if k == 0 else Vector3(0.0, 0.0, float(T.seg)))
+		trest.append(xf)
+		_sb["tail%d" % k] = K.bone("tail%d" % k, xf)
+		prev = xf
+	rings = []
+	var t0: Transform3D = trest[0]
+	rings.append(SkinScript.ring(t0 * Vector3(0.0, 0.0, -float(radii[0]) * 1.2), t0.basis.x, t0.basis.y, float(radii[0]) * 1.1, float(radii[0]) * 1.1, float(radii[0]) * 1.1, {torso: 1.0}, 6, 0.0))
+	var n := int(T.n)
+	for k in n:
+		var xf: Transform3D = trest[k]
+		var rk := float(radii[k])
+		var wj := {torso: 0.5, _sb["tail0"]: 0.5} if k == 0 else {_sb["tail%d" % (k - 1)]: 0.5, _sb["tail%d" % k]: 0.5}
+		rings.append(SkinScript.ring(xf.origin, xf.basis.x, xf.basis.y, rk, rk, rk, wj, 6, float(k) / n))
+		var rn := float(radii[mini(k + 1, n - 1)])
+		rings.append(SkinScript.ring(xf * Vector3(0.0, 0.0, float(T.seg) * 0.5), xf.basis.x, xf.basis.y, (rk + rn) * 0.5, (rk + rn) * 0.5, (rk + rn) * 0.5, {_sb["tail%d" % k]: 1.0}, 6, (k + 0.5) / n))
+	var last: Transform3D = trest[n - 1]
+	var rl := float(radii[n - 1]) * 0.75
+	rings.append(SkinScript.ring(last * Vector3(0.0, 0.0, float(T.seg)), last.basis.x, last.basis.y, rl, rl, rl, {_sb["tail%d" % (n - 1)]: 1.0}, 6, 1.0))
+	K.tube(SkinScript.smooth(rings, 2), 12)
+	# the legs: standing
+	for i in 4:
+		var L: Dictionary = legs[i / 2]
+		var side := 1.0 if i % 2 == 1 else -1.0
+		var hm: Vector2 = L.home
+		var J := _leg_chain(i, Vector3(hm.x * side, -body_h, hm.y), Vector3.UP, Vector3.FORWARD, 0.0)
+		var bones := []
+		for q in 4:
+			bones.append(K.bone("leg%d_%d" % [i, q], SkinScript.along(J[q], J[q + 1])))
+		_sb["leg%d" % i] = bones
+		K.tube(SkinScript.smooth(_leg_rings(i, J, torso, bones), 2), 16)
+	_skin = K
+	mat.set_shader_parameter("skin", true)
+	_torso = K.finish(_body, mat)
+
+
+## Leg i's rings, its joints J (at rest), from inside the body (the bone
+## `torso`) through its four bones.
+func _leg_rings(i: int, J: Array, torso: int, b: Array) -> Array:
+	var L: Dictionary = legs[i / 2]
+	var hind := i >= 2
+	var r: float = L.r
+	var a: float = L.f
+	var hip: Vector3 = J[0]
+	var knee: Vector3 = J[1]
+	var top: Vector3 = J[2]
+	var ball: Vector3 = J[3]
+	var toe: Vector3 = J[4]
+	var hooved := bool(S.get("hooves", false))
+	var flat := bool(S.get("plantigrade", false))
+	var part := 3 if hind else 2
+	var thick := float(S.get("limb", 1.0))
+	# each: [where, half width, half depth behind, before, bones, how far down the leg]
+	var spec := []
+	if hind:
+		spec = [[hip * Vector3(0.45, 1.0, 1.0) + Vector3(0.0, a * 0.42, a * 0.12), 1.5, 2.8, 2.1, {torso: 1.0}],
+			[hip * Vector3(0.72, 1.0, 1.0), 1.95, 3.2, 2.4, {torso: 0.55, b[0]: 0.45}],
+			[(hip * Vector3(0.85, 1.0, 1.0)).lerp(knee, 0.45), 1.85, 2.8, 2.0, {b[0]: 0.85, torso: 0.15}],
+			[knee, 1.5, 1.8, 1.45, {b[0]: 0.5, b[1]: 0.5}],
+			[knee.lerp(top, 0.3), 1.3, 1.85, 1.05, {b[1]: 1.0}],
+			[knee.lerp(top, 0.82), 0.78, 0.9, 0.72, {b[1]: 1.0}],
+			[top, 0.78, 1.1, 0.78, {b[1]: 0.5, b[2]: 0.5}],
+			[top.lerp(ball, 0.5), 0.68, 0.68, 0.68, {b[2]: 1.0}]]
+	else:
+		spec = [[hip * Vector3(0.5, 1.0, 1.0) + Vector3(0.0, a * 0.55, a * 0.08), 1.35, 2.4, 2.4, {torso: 1.0}],
+			[hip * Vector3(0.75, 1.0, 1.0), 1.7, 2.2, 2.5, {torso: 0.55, b[0]: 0.45}],
+			[(hip * Vector3(0.88, 1.0, 1.0)).lerp(knee, 0.5), 1.55, 1.85, 1.95, {b[0]: 0.85, torso: 0.15}],
+			[knee, 1.4, 1.85, 1.35, {b[0]: 0.5, b[1]: 0.5}],
+			[knee.lerp(top, 0.3), 1.25, 1.15, 1.45, {b[1]: 1.0}],
+			[knee.lerp(top, 0.82), 0.82, 0.78, 0.88, {b[1]: 1.0}],
+			[top, 0.82, 0.86, 0.82, {b[1]: 0.5, b[2]: 0.5}],
+			[top.lerp(ball, 0.55), 0.7, 0.68, 0.7, {b[2]: 1.0}]]
+	if hooved: # (the pastern, down into the hoof)
+		spec.append([ball, 0.82, 0.8, 0.85, {b[2]: 0.5, b[3]: 0.5}])
+		spec.append([ball.lerp(toe, 0.35), 0.8, 0.75, 0.8, {b[3]: 1.0}])
+	elif flat: # (the bear's broad sole)
+		spec.append([ball, 1.25, 0.9, 1.0, {b[2]: 0.5, b[3]: 0.5}])
+		spec.append([ball.lerp(toe, 0.55), 1.55, 0.6, 0.7, {b[3]: 1.0}])
+		spec.append([ball.lerp(toe, 0.95), 1.3, 0.45, 0.5, {b[3]: 1.0}])
+	else: # (the paw)
+		spec.append([ball, 0.95, 0.85, 0.9, {b[2]: 0.5, b[3]: 0.5}])
+		spec.append([ball.lerp(toe, 0.55), 1.22, 0.62, 0.72, {b[3]: 1.0}])
+		spec.append([ball.lerp(toe, 0.92), 1.0, 0.45, 0.5, {b[3]: 1.0}])
+	var pts := []
+	for sp: Array in spec:
+		pts.append(sp[0])
+	var total := 0.0
+	for k in range(1, pts.size()):
+		total += (pts[k] as Vector3).distance_to(pts[k - 1])
+	var out := []
+	var run := 0.0
+	for k in spec.size():
+		var sp: Array = spec[k]
+		var c: Vector3 = sp[0]
+		if k > 0:
+			run += c.distance_to(pts[k - 1])
+		var d: Vector3 = ((pts[mini(k + 1, pts.size() - 1)] as Vector3) - (pts[maxi(k - 1, 0)] as Vector3)).normalized()
+		var ax := (Vector3.RIGHT - d * d.dot(Vector3.RIGHT)).normalized()
+		var ay := d.cross(ax).normalized() # (behind it, for a leg standing; beneath, for a paw)
+		out.append(SkinScript.ring(c, ax, ay, float(sp[1]) * r * thick, float(sp[2]) * r * thick, float(sp[3]) * r * thick, sp[4], part, run / maxf(total, 1.0), 0.0, 2.0))
+	return out
+
+
+## The skin's bones where the motor has its parts now.
+func _skin_pose() -> void:
+	if _skin == null:
+		return
+	var nt := _neck.transform
+	var ht := nt * _head.transform
+	_skin.pose(_sb.neck, nt)
+	_skin.pose(_sb.head, ht)
+	_skin.pose(_sb.jaw, ht * _jaw.transform)
+	var prev := Transform3D()
+	for k in _tail.size():
+		prev = prev * _tail[k].transform
+		_skin.pose(_sb["tail%d" % k], prev)
+	for i in 4:
+		var J: Array = _joints[i]
+		if J == null or J.is_empty():
+			continue
+		var bones: Array = _sb["leg%d" % i]
+		for q in 4:
+			_skin.pose(bones[q], SkinScript.along(J[q], J[q + 1]))
+
+
+## (No shells: its coat is painted, carnivore.gdshader's.)
+func _fur_shells(_mi: MeshInstance3D, _len_mm: float, _shells := 8, _spacing := -1.0) -> void:
+	pass
 
 
 ## (The species' own material for a part, "neck" or "head", if any: given
@@ -289,7 +499,7 @@ static func _ear_mesh(len_: float, width: float, point: float) -> ArrayMesh:
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var ring := func(i: int, k: int) -> Array:
 		var t := float(i) / RINGS
-		var hw := width * 0.5 * pow(1.0 - t, point) + 1.0
+		var hw := width * 0.5 * pow(1.0 - t, point) * (0.82 + 0.45 * sin(PI * minf(t * 1.25, 1.0))) * (1.0 - smoothstep(0.82, 1.0, t) * 0.6) + 1.0
 		var a := TAU * float(k % ROUND) / ROUND
 		var x := sin(a) * hw
 		var z := cos(a) * maxf(hw * 0.22, 2.0)
@@ -882,28 +1092,12 @@ func _pose_legs() -> void:
 			foot = Vector3(dg.x * side, dg.y, dg.z)
 		else:
 			foot = inv * _feet[i]
-		var p: float = L.p
-		var m: float = L.s
-		# (how far it's lifted: the paw curled back)
 		var gy := -(body_h * (1.0 - 0.45 * _crouch) + _lift) # (the ground, near enough, under it)
 		var lifted := clampf((foot.y - gy) / 50.0, 0.0, 1.0) if not airborne else 1.0
-		var ball := foot + (-fwd * lerpf(0.95, 0.45, lifted) + up * lerpf(0.3, 0.9, lifted)).normalized() * p
-		var mdir: Vector3
-		if bool(S.get("plantigrade", false)):
-			# (a bear's: flat on its sole, heel down; the heel lifting first
-			# as the foot comes up; the forefoot's wrist a little raised)
-			ball = foot + (-fwd * 0.97 + up * lerpf(0.05, 0.5, lifted)).normalized() * p
-			mdir = (-fwd + up * lerpf(0.06 if hind else 0.22, 1.2, lifted)).normalized()
-			mdir = mdir.lerp(-fwd, maxf(_sit, _lie) * (1.0 if hind else 0.5)).normalized()
-		elif hind:
-			mdir = (-fwd * lerpf(0.35, 0.7, lifted) + up).normalized()
-			mdir = mdir.lerp(-fwd, maxf(_sit, _lie)).normalized() # (sitting, lying: the hock down)
-		else:
-			mdir = (-fwd * lerpf(0.1, 0.8, lifted) + up).normalized()
-			mdir = mdir.lerp((-fwd * 0.2 + up * 0.15).normalized(), _lie).normalized() # (lying: the forearm down)
-		var top := ball + mdir * m
-		var pl: Vector3 = L.pole
-		var knee := _knee(hip, top, L.f, L.t, Vector3(pl.x * side, pl.y, pl.z))
+		var ch := _leg_chain(i, foot, up, fwd, lifted, maxf(_sit, _lie), _lie)
+		var knee: Vector3 = ch[1]
+		var top: Vector3 = ch[2]
+		var ball: Vector3 = ch[3]
 		var r: float = L.r
 		var mesh: Array = _leg_mesh[i]
 		(mesh[0] as MeshInstance3D).transform = _seg(hip, knee, r * float(L.femur_r))
@@ -917,6 +1111,8 @@ func _pose_legs() -> void:
 		var xx := z.cross(up).normalized() if absf(z.dot(up)) < 0.95 else Vector3.RIGHT
 		var yy := xx.cross(z).normalized()
 		(x[1] as MeshInstance3D).transform = Transform3D(Basis(xx * r * 2.2, yy * r * 1.3, z * l * 1.5), (ball + foot) * 0.5)
+		_joints[i] = [hip, knee, top, ball, foot]
+	_skin_pose()
 
 
 # --- the pose -----------------------------------------------------------------

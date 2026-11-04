@@ -32,7 +32,7 @@ extends "res://scripts/creatures/carnivore.gd" # (by path: found whether or not 
 
 const SPEC := {
 	"species": 6, "hooves": true,
-	"body": [[-1050.0, 100.0, 200.0, 300.0], [-900.0, 150.0, 330.0, 520.0], [-600.0, 180.0, 380.0, 560.0], [-200.0, 100.0, 360.0, 470.0],
+	"body": [[-1050.0, 100.0, 200.0, 300.0], [-900.0, 215.0, 330.0, 585.0], [-600.0, 260.0, 380.0, 640.0], [-250.0, 165.0, 360.0, 535.0],
 			[200.0, 60.0, 320.0, 400.0], [600.0, 70.0, 300.0, 360.0], [900.0, 60.0, 230.0, 270.0], [1000.0, 40.0, 100.0, 100.0]],
 	"body_h": 1050.0, "body_len": 2000.0, "body_w": 360.0,
 	"hump": [Vector3(0.0, 560.0, -640.0), Vector3(520.0, 620.0, 950.0)],
@@ -78,11 +78,11 @@ func _build_extra() -> void:
 	body.set_shader_parameter("fur_front", 1.6)
 	body.set_shader_parameter("front_z", -350.0)
 	var front := _part_coat("neck", body)
+	front.set_shader_parameter("skin", false) # (the hump: its own part, not the skin's)
 	if not young:
-		var hp: Array = S.hump
-		_fur_shells(_part(hp[0], hp[1], front, _body), 70.0, 10)
+		# (its hump: the skin's own, in its body's rings)
 		# the beard, under its chin
-		var face := (_head.get_child(0) as MeshInstance3D).material_override
+		var face := _coat(1)
 		_fur_shells(_part(Vector3(0.0, -230.0, -280.0), Vector3(150.0, 220.0, 200.0), face, _head), 90.0, 9)
 		# its horns: short, black, out from the sides of its head, curving
 		# up and in
