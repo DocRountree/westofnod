@@ -17,6 +17,10 @@ extends MultiMeshInstance3D
 ## - lay(i, at): a beetle's (lays; not the ants): to the spot, and laying
 ##   there, tipped tail down, an egg left at its tip every few seconds,
 ##   shuffling a little between: a cluster of them (Brood's, egg_kind)
+## - steered, each on its own (a state machine's: member(i), with every
+##   creature's calls: go, go_to, face, stop, act (feed {at, seconds}; a
+##   beetle's lay {at, seconds}, fly {centre, radius, height, seconds}),
+##   behaviours, is_busy, action_finished: pilot.gd)
 ## They keep a little apart from one another. They walk on the ground the
 ## height callable gives (x, z -> y), flat at y 0 without one.
 ##
@@ -35,6 +39,7 @@ var reach := 4.6 ## mm from its thorax's middle to its mouth
 var apart := 9.0 ## mm they keep between them
 var shader: Shader = preload("res://shaders/render/ant.gdshader")
 const BroodScript := preload("res://scripts/creatures/brood.gd") # (by path: found whether or not the editor has seen the class yet)
+const PilotScript := preload("res://scripts/creatures/pilot.gd")
 var colors := {} ## the shader's colours, its own (else an ant's)
 var lays := false ## whether it lays (lay(): a beetle's; the ants don't)
 var egg_kind := "carpenter" ## Brood's
@@ -55,6 +60,9 @@ var slot := PackedFloat32Array() # feeding: its place round the food (rad)
 var feed_k := PackedFloat32Array() # 0..1 into feeding
 var wait := PackedFloat32Array() # s till it next changes its mind
 var seed := PackedFloat32Array()
+var pace := PackedFloat32Array() # m/s (its pilot's: <= 0 its own)
+var _pilots := {} # i -> its pilot (pilot.gd)
+var _members := {} # i -> Member
 var lay_k := PackedFloat32Array() # 0..1 into laying
 var lay_at := PackedVector3Array()
 var lay_wait := PackedFloat32Array()
@@ -100,6 +108,7 @@ func setup(n: int, c: Vector3, r: float) -> void:
 	lay_k.resize(n)
 	lay_at.resize(n)
 	lay_wait.resize(n)
+	pace.resize(n)
 	for i in n:
 		var a := rng.randf() * TAU
 		pos[i] = c + Vector3(cos(a), 0.0, sin(a)) * sqrt(rng.randf()) * r
@@ -141,6 +150,8 @@ func _process(dt: float) -> void:
 	if multimesh == null or dt <= 0.0:
 		return
 	_t += dt
+	for i in _pilots:
+		(_pilots[i] as PilotScript).tick(dt)
 	var n := pos.size()
 	# who's near whom (a grid of cells APART across): to keep apart
 	var cell := apart * MM
@@ -165,7 +176,8 @@ func _process(dt: float) -> void:
 			var a := atan2(-to.x, -to.z) + wiggle
 			var turn := wrapf(a - yaw[i], -PI, PI)
 			yaw[i] += clampf(turn, -6.0 * dt, 6.0 * dt)
-			want = minf(top_speed * (0.75 + 0.5 * seed[i]), d * 5.0) * clampf(1.0 - absf(turn) / 1.3, 0.0, 1.0)
+			var own := pace[i] if pace[i] > 0.0 else top_speed * (0.75 + 0.5 * seed[i])
+			want = minf(own, d * 5.0) * clampf(1.0 - absf(turn) / 1.3, 0.0, 1.0)
 		else:
 			want = 0.0
 			if task[i] == 1: # (at the food: facing it)
@@ -214,6 +226,9 @@ func _think(i: int, dt: float) -> void:
 		lay_k[i] = move_toward(lay_k[i], 0.0, dt * 2.0)
 	if task[i] == 3:
 		_lay_step(i, dt)
+		return
+	if task[i] == 4: # (its pilot's: going where it's sent, or holding)
+		feed_k[i] = move_toward(feed_k[i], 0.0, dt * 2.0)
 		return
 	if task[i] == 0:
 		feed_k[i] = move_toward(feed_k[i], 0.0, dt * 2.0)
@@ -269,6 +284,118 @@ func _drop_egg(i: int) -> void:
 	eggs.append(e)
 	if eggs.size() > 100:
 		eggs.pop_front().queue_free()
+
+
+# --- steering: a state machine's, each one on its own (pilot.gd) -------------------
+
+## Ant (or beetle) i, to steer: its calls (go, go_to, face, stop, act,
+## behaviours, is_busy, action_finished) as every creature's.
+func member(i: int) -> Member:
+	if not _members.has(i):
+		var m := Member.new()
+		m.colony = self
+		m.i = i
+		_members[i] = m
+		var p := PilotScript.new(self, i)
+		p.finished = m.action_finished.emit
+		_pilots[i] = p
+	return _members[i]
+
+
+func _p_here(i: int) -> Vector3:
+	return pos[i]
+
+
+func _p_heading(i: int) -> Vector3:
+	return Vector3(-sin(yaw[i]), 0.0, -cos(yaw[i]))
+
+
+func _p_steer(i: int, point: Vector3, speed: float) -> void:
+	task[i] = 4
+	target[i] = point
+	pace[i] = speed
+
+
+func _p_hold(i: int) -> void:
+	task[i] = 4
+	target[i] = pos[i]
+	centre[i] = pos[i] # (a flyer comes down here)
+	radius[i] = 0.01
+	pace[i] = -1.0
+
+
+func _p_mobile(_i: int) -> bool:
+	return true
+
+
+func _p_speed(_i: int) -> float:
+	return top_speed
+
+
+func _p_reach(_i: int) -> float:
+	return 0.004 + apart * MM * 0.5
+
+
+## feed {at, seconds}; a beetle's lay {at, seconds}, fly {centre, radius,
+## height, seconds}.
+func _p_behaviours(_i: int) -> PackedStringArray:
+	return PackedStringArray(["feed", "lay"]) if lays else PackedStringArray(["feed"])
+
+
+func _p_act(i: int, name: String, args: Dictionary) -> bool:
+	match name:
+		"feed":
+			feed(i, args.get("at", pos[i] + _p_heading(i) * 0.01))
+		"lay":
+			if not lays:
+				return false
+			lay(i, args.get("at", pos[i]))
+		_:
+			return false
+	return true
+
+
+func _p_act_done(_i: int, _name: String) -> bool:
+	return false
+
+
+func _p_act_secs(_i: int, name: String) -> float:
+	return 12.0 if name == "lay" else 8.0
+
+
+## One of a colony, steered on its own (AntColony.member(i)).
+class Member extends RefCounted:
+	signal action_finished(name: String, ok: bool)
+	var colony: Object
+	var i := 0
+
+	func _pilot() -> RefCounted:
+		return colony.get("_pilots")[i]
+
+	func go(direction: Vector3, speed := -1.0, seconds := -1.0) -> void:
+		_pilot().call("go", direction, speed, seconds)
+
+	func go_to(point: Vector3, speed := -1.0) -> void:
+		_pilot().call("go_to", point, speed)
+
+	func face(direction: Vector3) -> void:
+		_pilot().call("face", direction)
+
+	func stop() -> void:
+		_pilot().call("stop")
+
+	func act(name: String, args := {}) -> bool:
+		return _pilot().call("act", name, args)
+
+	func behaviours() -> PackedStringArray:
+		return colony.call("_p_behaviours", i)
+
+	func is_busy() -> bool:
+		return _pilot().call("busy")
+
+	## Where it is now.
+	func position() -> Vector3:
+		return colony.call("_p_here", i)
 
 
 ## A crumb of food (a sugar crumb, say), for them to feed on: about 3 mm

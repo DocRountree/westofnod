@@ -238,6 +238,22 @@ func setup(n: int, c: Vector3, r: float) -> void:
 	super(n, c, r)
 
 
+## (Steering, pilot.gd: a beetle's behaviours, flying too.)
+func _p_behaviours(_i: int) -> PackedStringArray:
+	return PackedStringArray(["feed", "lay", "fly"]) if lays else PackedStringArray(["feed", "fly"])
+
+
+func _p_act(i: int, name: String, args: Dictionary) -> bool:
+	if name == "fly":
+		fly(i, args.get("centre", pos[i]), float(args.get("radius", 0.3)), float(args.get("height", 0.25)))
+		return true
+	return super(i, name, args)
+
+
+func _p_act_secs(i: int, name: String) -> float:
+	return 6.0 if name == "fly" else super(i, name)
+
+
 ## Beetle i up and flying round c (within r), about h (m) over the ground.
 func fly(i: int, c: Vector3, r: float, h := 0.25) -> void:
 	task[i] = 2

@@ -24,7 +24,13 @@ extends Node3D
 ##   (leathery, white: Egg), later hatching (Egg.hatch: a slit, the young's
 ##   head out, waiting, then out and away); the rattler gives birth (no
 ##   eggs): n young, each in a clear membrane it wriggles free of at once
+## Steering (a state machine's: pilot.gd): go, go_to, face, stop, act
+## (eat {prey}, coil {seconds}, lay {n}), behaviours, is_busy,
+## action_finished; height (the ground under every point of it).
 ## Put it under a node that isn't moved: its own transform stays identity.
+
+signal action_finished(name: String, ok: bool)
+const PilotScript := preload("res://scripts/creatures/pilot.gd")
 
 const SPINE := 40
 const KINDS := {
@@ -37,6 +43,9 @@ var K: Dictionary
 var young := false
 var size := 1.0
 var ground_y := 0.0
+var height: Callable ## (x, z) -> the ground's y (none: level, at ground_y)
+var _pilot: PilotScript
+var _pace := -1.0
 var rng := RandomNumberGenerator.new()
 var eggs: Array[Node3D] = [] ## its eggs (or birth sacs) laid, in its parent
 var _g_to := 1.0
@@ -419,6 +428,8 @@ func _process(dt: float) -> void:
 	_t += dt
 	_st += dt
 	size = move_toward(size, _g_to, _g_rate * dt)
+	if _pilot:
+		_pilot.tick(dt)
 	_think(dt)
 	_update(dt)
 
@@ -442,6 +453,9 @@ func _think(dt: float) -> void:
 			go = _pos.distance_to(_target) > 0.03 * size
 		"coil":
 			_coil_k = move_toward(_coil_k, 1.0, dt * 0.6)
+		"piloted": # (going where it's sent)
+			_coil_k = move_toward(_coil_k, 0.0, dt * 0.8)
+			go = _pos.distance_to(_target) > 0.02 * size
 		"lay":
 			_coil_k = move_toward(_coil_k, 0.8, dt * 0.6)
 			if _coil_k > 0.75:
@@ -455,7 +469,7 @@ func _think(dt: float) -> void:
 		"eat":
 			go = _eat(dt)
 	# moving: the head on toward its target, its way swinging in waves
-	var want := float(K.speed) * lerpf(0.5, 1.0, size) if go else 0.0
+	var want := (_pace if _pace > 0.0 else float(K.speed) * lerpf(0.5, 1.0, size)) if go else 0.0
 	_speed = move_toward(_speed, want, dt * 0.5)
 	if _speed > 0.0005:
 		var to := _target - _pos
@@ -486,12 +500,120 @@ func _think(dt: float) -> void:
 			_dir = _dir.rotated(Vector3.UP, clampf(steer * 3.0 * dt, -2.5 * dt, 2.5 * dt))
 			way = _dir.rotated(Vector3.UP, 0.3 * sin(_phase))
 		_pos += way * _speed * slow * dt
+		ground_y = _ground(_pos.x, _pos.z)
 		_pos.y = ground_y
 		_keep_clear(clear)
 	if _trail.is_empty() or _trail[0].distance_to(_pos) > float(K.len) * size / SPINE / 3.0:
 		_trail.push_front(_pos)
 		while _trail.size() > SPINE * 4 + 20:
 			_trail.pop_back()
+
+
+## The ground's height at (x, z): height's, or level.
+func _ground(x: float, z: float) -> float:
+	return float(height.call(x, z)) if height.is_valid() else ground_y
+
+
+# --- steering: a state machine's (pilot.gd) ---------------------------------------
+
+func _pl() -> PilotScript:
+	if _pilot == null:
+		_pilot = PilotScript.new(self)
+		_pilot.finished = action_finished.emit
+	return _pilot
+
+
+func go(direction: Vector3, speed := -1.0, seconds := -1.0) -> void:
+	_pl().go(direction, speed, seconds)
+
+
+func go_to(point: Vector3, speed := -1.0) -> void:
+	_pl().go_to(point, speed)
+
+
+func face(direction: Vector3) -> void:
+	_pl().face(direction)
+
+
+func stop() -> void:
+	_pl().stop()
+
+
+func act(name: String, args := {}) -> bool:
+	return _pl().act(name, args)
+
+
+func behaviours() -> PackedStringArray:
+	return _p_behaviours()
+
+
+func is_busy() -> bool:
+	return _pilot != null and _pilot.busy()
+
+
+func _p_here() -> Vector3:
+	return _pos
+
+
+func _p_heading() -> Vector3:
+	return _dir
+
+
+func _p_steer(point: Vector3, speed: float) -> void:
+	_mode = "piloted"
+	_target = point
+	_pace = speed
+
+
+func _p_hold() -> void:
+	_mode = "hold"
+	_target = _pos
+	_pace = -1.0
+
+
+func _p_mobile() -> bool:
+	return _mode != "peek"
+
+
+func _p_speed() -> float:
+	return float(K.speed) * lerpf(0.5, 1.0, size)
+
+
+func _p_reach() -> float:
+	return float(K.r) * size * 3.0 + 0.02
+
+
+## eat {prey: a Node3D, its mouse}, coil {seconds}, lay {n} (the adult's:
+## the rattler's, born).
+func _p_behaviours() -> PackedStringArray:
+	return PackedStringArray(["eat", "coil"]) if young else PackedStringArray(["eat", "coil", "lay"])
+
+
+func _p_act(name: String, args: Dictionary) -> bool:
+	match name:
+		"eat":
+			var prey: Node3D = args.get("prey")
+			if prey == null or not is_instance_valid(prey):
+				return false
+			eat(prey)
+		"coil":
+			coil()
+		"lay":
+			lay(int(args.get("n", 6)))
+		_:
+			return false
+	return true
+
+
+func _p_act_done(name: String) -> bool:
+	match name:
+		"eat", "lay":
+			return _mode != name
+	return false
+
+
+func _p_act_secs(name: String) -> float:
+	return 8.0 if name == "coil" else -1.0
 
 
 ## The head pushed out of its own body wherever it's come within `clear`
@@ -607,7 +729,9 @@ func _drop_egg() -> void:
 	e.mother = self
 	parent.add_child(e)
 	var a := rng.randf() * TAU
-	e.position = Vector3(vent.x, ground_y, vent.z) + Vector3(cos(a), 0.0, sin(a)) * float(K.r) * 1.5
+	var at := Vector3(vent.x, 0.0, vent.z) + Vector3(cos(a), 0.0, sin(a)) * float(K.r) * 1.5
+	at.y = _ground(at.x, at.z)
+	e.position = at
 	e.rotation.y = rng.randf() * TAU
 	eggs.append(e)
 	if K.egg == "sac": # (born, not laid: out of its membrane at once)
@@ -623,7 +747,7 @@ func _update(_dt: float) -> void:
 	_pts.clear()
 	for i in SPINE:
 		var p := _along_trail(i * seg)
-		_pts.append(Vector3(p.x, ground_y + R * _profile(float(i) / (SPINE - 1)) * 0.85, p.z))
+		_pts.append(Vector3(p.x, _ground(p.x, p.z) + R * _profile(float(i) / (SPINE - 1)) * 0.85, p.z))
 	# coiled: an Archimedean spiral round _coil_at, the tail outside, the
 	# head on top of it, raised a little
 	if _coil_k > 0.0:
@@ -636,7 +760,7 @@ func _update(_dt: float) -> void:
 			var th := (-a0 + sqrt(a0 * a0 + 2.0 * b * s)) / maxf(b, 1e-6)
 			var r := a0 + b * th
 			var c := _coil_at + Vector3(cos(-th), 0.0, sin(-th)) * r
-			var y := ground_y + R * _profile(float(i) / (SPINE - 1)) * 0.85 + (R * 1.6 if i < raised * 2 else 0.0)
+			var y := _ground(c.x, c.z) + R * _profile(float(i) / (SPINE - 1)) * 0.85 + (R * 1.6 if i < raised * 2 else 0.0)
 			if i < raised: # (the neck in an S, the head up, looking out)
 				y += R * 2.5 * (1.0 - float(i) / raised) + R
 			var coiled := Vector3(c.x, y, c.z)

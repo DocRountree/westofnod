@@ -414,6 +414,50 @@ func _on_landed() -> void:
 		stalk(_pos, 0.15)
 
 
+# --- steering (pilot.gd): its behaviours --------------------------------------------
+
+## strike {at, prey}, watch {at, seconds}, groom, fly {at} and lay {at}
+## (the adult's).
+func _p_behaviours() -> PackedStringArray:
+	return PackedStringArray(["strike", "watch", "groom"]) if nymph else PackedStringArray(["strike", "watch", "groom", "fly", "lay"])
+
+
+func _p_act(name: String, args: Dictionary) -> bool:
+	var prey: Node3D = args.get("prey")
+	match name:
+		"strike":
+			var at: Vector3 = args.get("at", prey.position if prey else _pos + _p_heading() * 0.04)
+			strike(at, prey)
+		"watch":
+			watch(args.get("at", _pos + _p_heading() * 0.2))
+		"groom":
+			groom()
+		"fly":
+			fly(args.get("at", _pos + _p_heading() * 0.4))
+		"lay":
+			lay(args.get("at", _pos - _p_heading() * 0.03))
+		_:
+			return false
+	return true
+
+
+func _p_act_done(name: String) -> bool:
+	match name:
+		"strike", "groom", "fly", "lay":
+			return _mode != name
+	return false
+
+
+func _p_act_secs(name: String) -> float:
+	return 4.0 if name == "watch" else -1.0
+
+
+func _piloted() -> void:
+	_mode = "piloted"
+	_look = Vector3.INF
+	_rest_fore()
+
+
 ## Let down from p on a thread (a hatchling, from its egg case): falling
 ## slowly, its legs out.
 func drop(p: Vector3) -> void:

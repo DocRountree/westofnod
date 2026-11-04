@@ -98,6 +98,26 @@ func _build() -> void:
 	_legs_at(Vector3(0.0, -2.8, -2.6), 4.5, cream.darkened(0.15))
 
 
+## Its behaviours (a state machine's: pilot.gd): search {centre, radius,
+## flowers, seconds}, feed {florets, seconds}, lay {spots, normals}.
+func _p_behaviours() -> PackedStringArray:
+	return PackedStringArray(["search", "feed", "lay"])
+
+
+func _p_act(name: String, args: Dictionary) -> bool:
+	match name:
+		"search":
+			search(args.get("centre", _pos), float(args.get("radius", 0.5)), args.get("flowers", []))
+		"feed":
+			var f: Array = args.get("florets", [])
+			if f.is_empty():
+				return false
+			feed(f)
+		_:
+			return super(name, args)
+	return true
+
+
 ## Darting about round centre (within radius), now and then hovering in
 ## front of one of `flowers` (their heads: points, its parent's space).
 func search(centre: Vector3, radius: float, flowers := []) -> void:

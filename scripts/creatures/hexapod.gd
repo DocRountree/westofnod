@@ -15,7 +15,13 @@ extends Node3D
 ## The species sets the shape (legs: hip, f, t, s, home, dangle, pole,
 ## walks, r; body_h) and poses its own parts (_pose: head, wings, abdomen),
 ## and decides what to do (_think).
-## Its transform is set every frame: put it under a node that isn't moved.
+## Steering (a state machine's: pilot.gd): go, go_to, face, stop, act,
+## behaviours, is_busy, action_finished; height (the ground, for its feet
+## and its walking). Its transform is set every frame: put it under a node
+## that isn't moved.
+
+signal action_finished(name: String, ok: bool)
+const PilotScript := preload("res://scripts/creatures/pilot.gd")
 
 const MM := 0.002
 const G := 9.8
@@ -32,6 +38,9 @@ var tripod := [[0, 3, 4], [1, 2, 5]] ## (a leg: its pair * 2, + 1 the right)
 var size := 1.0
 var nymph := false
 var ground_y := 0.0
+var height: Callable ## (x, z) -> the ground's y (none: level, at ground_y)
+var _pilot: PilotScript
+var _pace := -1.0 # (m/s, the pilot's: -1 its own)
 var rng := RandomNumberGenerator.new()
 
 # where it is, how it's moving
@@ -308,6 +317,8 @@ func _process(dt: float) -> void:
 		return
 	_t += dt
 	size = move_toward(size, _g_to, _g_rate * dt)
+	if _pilot:
+		_pilot.tick(dt)
 	_think(dt)
 	if airborne:
 		_fly(dt)
@@ -334,9 +345,11 @@ func _walk(dt: float) -> void:
 		var a := atan2(-to.x, -to.z)
 		var turn := wrapf(a - _yaw, -PI, PI)
 		_yaw += clampf(turn, -2.5 * dt, 2.5 * dt)
-		want = minf(walk_speed * lerpf(0.35, 1.0, size), d * 4.0) * clampf(1.0 - absf(turn) / 1.2, 0.0, 1.0)
+		var pace := _pace if _pace > 0.0 else walk_speed * lerpf(0.35, 1.0, size)
+		want = minf(pace, d * 4.0) * clampf(1.0 - absf(turn) / 1.2, 0.0, 1.0)
 	_speed = move_toward(_speed, want, dt * 0.4)
 	_pos += Vector3(-sin(_yaw), 0.0, -cos(_yaw)) * _speed * dt
+	ground_y = _ground(_pos.x, _pos.z)
 	_pos.y = ground_y
 
 
@@ -354,6 +367,11 @@ func _fly(dt: float) -> void:
 		_vel.y -= G * dt
 	_pos += Vector3(_vel.x, 0.0, _vel.z) * dt
 	_alt += _vel.y * dt
+	# (its height in the air kept as the ground under it changes)
+	var g := _ground(_pos.x, _pos.z)
+	_alt += ground_y - g
+	ground_y = g
+	_pos.y = g
 	var hv := Vector2(_vel.x, _vel.z)
 	if hv.length() > 0.05:
 		var turn := wrapf(atan2(-hv.x, -hv.y) - _yaw, -PI, PI)
@@ -407,7 +425,7 @@ func _home(i: int) -> Vector3:
 	var side := 1.0 if i % 2 == 1 else -1.0
 	var hm: Vector2 = L.home
 	var p := transform * (_body.transform * Vector3(hm.x * side, -body_h, hm.y))
-	return Vector3(p.x, ground_y, p.z)
+	return Vector3(p.x, _ground(p.x, p.z), p.z)
 
 
 func _gait(dt: float) -> void:
@@ -491,6 +509,102 @@ static func _knee(hip: Vector3, ankle: Vector3, f: float, t: float, pole: Vector
 	var p := pole - dir * pole.dot(dir)
 	p = p.normalized() if p.length() > 1e-4 else Vector3.UP
 	return hip + dir * a + p * hh
+
+
+## The ground's height at (x, z): height's, or level.
+func _ground(x: float, z: float) -> float:
+	return float(height.call(x, z)) if height.is_valid() else ground_y
+
+
+# --- steering: a state machine's (pilot.gd) ---------------------------------------
+
+func _pl() -> PilotScript:
+	if _pilot == null:
+		_pilot = PilotScript.new(self)
+		_pilot.finished = action_finished.emit
+	return _pilot
+
+
+func go(direction: Vector3, speed := -1.0, seconds := -1.0) -> void:
+	_pl().go(direction, speed, seconds)
+
+
+func go_to(point: Vector3, speed := -1.0) -> void:
+	_pl().go_to(point, speed)
+
+
+func face(direction: Vector3) -> void:
+	_pl().face(direction)
+
+
+func stop() -> void:
+	_pl().stop()
+
+
+func act(name: String, args := {}) -> bool:
+	return _pl().act(name, args)
+
+
+func behaviours() -> PackedStringArray:
+	return _p_behaviours()
+
+
+func is_busy() -> bool:
+	return _pilot != null and _pilot.busy()
+
+
+func _p_here() -> Vector3:
+	return _pos
+
+
+func _p_heading() -> Vector3:
+	return Vector3(-sin(_yaw), 0.0, -cos(_yaw))
+
+
+func _p_steer(point: Vector3, speed: float) -> void:
+	_piloted()
+	_target = point
+	_pace = speed
+	_turn_to = INF
+
+
+func _p_hold() -> void:
+	_piloted()
+	_target = _pos
+	_pace = -1.0
+
+
+func _p_mobile() -> bool:
+	return true
+
+
+func _p_speed() -> float:
+	return walk_speed * lerpf(0.35, 1.0, size)
+
+
+func _p_reach() -> float:
+	return 0.012 * size + 0.004
+
+
+func _p_behaviours() -> PackedStringArray:
+	return PackedStringArray()
+
+
+func _p_act(_name: String, _args: Dictionary) -> bool:
+	return false
+
+
+func _p_act_done(_name: String) -> bool:
+	return true
+
+
+func _p_act_secs(_name: String) -> float:
+	return -1.0
+
+
+## (The species: its own doings set aside, the pilot driving.)
+func _piloted() -> void:
+	pass
 
 
 ## Where p (body mm) is, in its parent's space.

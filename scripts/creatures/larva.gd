@@ -21,6 +21,9 @@ extends Node3D
 ## rippling as they go (waves of their prolegs, tail to head), or stop and
 ## eat (eat(): the head working side to side); the grubs lie curled where
 ## they're put (place), slowly curling and uncurling, wriggling.
+## Steering (a state machine's: pilot.gd): go, go_to, face, stop (a
+## crawler's; a grub stays where it lies), act (eat {seconds}), behaviours,
+## is_busy, action_finished; height (the ground it crawls on).
 ## Larva.new(kind, size): size its share of its full size (a hatchling's
 ## small: grow(to, secs) to grow it). Put it under a node that isn't moved
 ## (it's drawn in its parent's space: its own transform stays identity).
@@ -51,7 +54,13 @@ const KINDS := {
 			"pattern": 4, "base": Color(0.96, 0.95, 0.9), "head": Color(0.92, 0.88, 0.78), "curl": 1.8, "neck": true, "crease": 0.03},
 }
 
+signal action_finished(name: String, ok: bool)
+const PilotScript := preload("res://scripts/creatures/pilot.gd")
+
 var kind := "monarch"
+var height: Callable ## (x, z) -> the ground's y (none: level, where it was put)
+var _pilot: PilotScript
+var _pace := -1.0
 var K: Dictionary
 var rng := RandomNumberGenerator.new()
 var _holders: Array[Node3D] = [] # each segment's frame (unscaled: its extras ride on it)
@@ -465,6 +474,8 @@ func _process(dt: float) -> void:
 		return
 	_t += dt
 	_g = move_toward(_g, _g_to, _g_rate * dt)
+	if _pilot:
+		_pilot.tick(dt)
 	if K.style == "crawl":
 		_crawl(dt)
 	_place_spine()
@@ -484,10 +495,10 @@ func _process(dt: float) -> void:
 
 
 func _crawl(dt: float) -> void:
-	var speed: float = K.speed
-	if _mode == "wander":
+	var speed: float = _pace if _pace > 0.0 else float(K.speed)
+	if _mode == "wander" or _mode == "piloted":
 		_wait -= dt
-		if _wait <= 0.0 or _pos.distance_to(_target) < 0.004:
+		if _mode == "wander" and (_wait <= 0.0 or _pos.distance_to(_target) < 0.004):
 			var a := rng.randf() * TAU
 			_target = _centre + Vector3(cos(a), 0.0, sin(a)) * sqrt(rng.randf()) * _radius
 			_wait = rng.randf_range(3.0, 8.0)
@@ -500,7 +511,7 @@ func _crawl(dt: float) -> void:
 			var surge := 1.0
 			if K.get("legs", "") == "caterpillar":
 				surge = 0.3 + 1.4 * maxf(sin(_t * TAU * 0.7), 0.0)
-			var step := speed * lerpf(0.25, 1.0, _g) * surge * dt
+			var step := speed * (1.0 if _pace > 0.0 else lerpf(0.25, 1.0, _g)) * surge * dt
 			# the head turns only as it goes, and no faster than the body
 			# behind can follow: at most `bend` a segment's length gone. So
 			# the trail it leaves never bends more than a joint can, and the
@@ -509,7 +520,7 @@ func _crawl(dt: float) -> void:
 			var can := most / maxf(_seg * _g, 1e-5) * step * 0.9
 			_dir = _dir.rotated(Vector3.UP, clampf(turn, -can, can))
 			_pos += _dir * step
-			_pos.y = _centre.y
+			_pos.y = float(height.call(_pos.x, _pos.z)) if height.is_valid() else _centre.y
 	# the trail: where the head's been, for the body to follow
 	if _trail.is_empty() or _trail[0].distance_to(_pos) > _seg * _g * 0.25:
 		_trail.push_front(_pos)
@@ -617,7 +628,7 @@ func _place_spine() -> void:
 func _step_feet(dt: float) -> void:
 	if _feet.is_empty():
 		return
-	var ground := _pos.y
+	var ground := _pos.y # (under each foot: height's, if it's given)
 	for f in _feet:
 		var i: int = f.i
 		var side: float = f.side
@@ -628,6 +639,8 @@ func _step_feet(dt: float) -> void:
 		var hip := h.origin + right * side * w * 0.5 + Vector3.DOWN * w * 0.55
 		var reach: float = f.get("reach", 0.2)
 		var want := Vector3(hip.x, ground, hip.z) + right * side * w * reach + fwd * w * 0.25
+		if height.is_valid():
+			want.y = float(height.call(want.x, want.z))
 		var foot: Vector3 = f.foot
 		if foot == Vector3.INF:
 			foot = want
@@ -676,6 +689,95 @@ static func _seg_xf(a: Vector3, b: Vector3, r: float, stretch := 1.0) -> Transfo
 	var x := y.cross(Vector3.FORWARD if absf(y.z) < 0.9 else Vector3.RIGHT).normalized()
 	var z := x.cross(y)
 	return Transform3D(Basis(x * r * 2.0, y * l * stretch, z * r * 2.0), (a + b) * 0.5)
+
+
+# --- steering: a state machine's (pilot.gd) ---------------------------------------
+
+func _pl() -> PilotScript:
+	if _pilot == null:
+		_pilot = PilotScript.new(self)
+		_pilot.finished = action_finished.emit
+	return _pilot
+
+
+func go(direction: Vector3, speed := -1.0, seconds := -1.0) -> void:
+	_pl().go(direction, speed, seconds)
+
+
+func go_to(point: Vector3, speed := -1.0) -> void:
+	_pl().go_to(point, speed)
+
+
+func face(direction: Vector3) -> void:
+	_pl().face(direction)
+
+
+func stop() -> void:
+	_pl().stop()
+
+
+func act(name: String, args := {}) -> bool:
+	return _pl().act(name, args)
+
+
+func behaviours() -> PackedStringArray:
+	return _p_behaviours()
+
+
+func is_busy() -> bool:
+	return _pilot != null and _pilot.busy()
+
+
+func _p_here() -> Vector3:
+	return _pos
+
+
+func _p_heading() -> Vector3:
+	return _dir
+
+
+func _p_steer(point: Vector3, speed: float) -> void:
+	_mode = "piloted"
+	_target = point
+	_pace = speed
+
+
+func _p_hold() -> void:
+	_mode = "rest"
+	_target = _pos
+	_pace = -1.0
+
+
+func _p_mobile() -> bool:
+	return K.style == "crawl" # (a grub stays where it lies)
+
+
+func _p_speed() -> float:
+	return float(K.speed) * lerpf(0.25, 1.0, _g)
+
+
+func _p_reach() -> float:
+	return _seg * _g * 1.5 + 0.003
+
+
+## eat {seconds}.
+func _p_behaviours() -> PackedStringArray:
+	return PackedStringArray(["eat"])
+
+
+func _p_act(name: String, _args: Dictionary) -> bool:
+	if name != "eat":
+		return false
+	eat()
+	return true
+
+
+func _p_act_done(_name: String) -> bool:
+	return false
+
+
+func _p_act_secs(_name: String) -> float:
+	return 8.0
 
 
 ## The point d (m) back along the head's trail (straight back past its end).

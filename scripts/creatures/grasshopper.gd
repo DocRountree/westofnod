@@ -303,6 +303,51 @@ func _on_landed() -> void:
 		_wait = rng.randf_range(0.5, 2.0)
 
 
+# --- steering (pilot.gd): its behaviours --------------------------------------------
+
+## hop {at}, fly {at} (the adult's), feed {at, seconds}, lay {at} (the
+## adult's); at defaulting to ahead of it (or where it is, to lay).
+func _p_behaviours() -> PackedStringArray:
+	return PackedStringArray(["hop", "feed"]) if nymph else PackedStringArray(["hop", "fly", "feed", "lay"])
+
+
+func _p_act(name: String, args: Dictionary) -> bool:
+	var ahead := _pos + _p_heading()
+	match name:
+		"hop":
+			hop(args.get("at", _pos + _p_heading() * 0.15))
+			_after_mode = "piloted"
+		"fly":
+			fly(args.get("at", _pos + _p_heading() * 0.5))
+			_after_mode = "piloted"
+		"feed":
+			feed(args.get("at", _pos.lerp(ahead, 0.02)))
+		"lay":
+			lay(args.get("at", _pos))
+		_:
+			return false
+	return true
+
+
+func _p_act_done(name: String) -> bool:
+	match name:
+		"hop", "fly":
+			return _mode not in ["hop", "fly"]
+		"lay":
+			return _mode != "lay"
+	return false
+
+
+func _p_act_secs(name: String) -> float:
+	return 6.0 if name == "feed" else -1.0
+
+
+func _piloted() -> void:
+	if _mode not in ["hop", "fly", "lay"]:
+		_mode = "piloted"
+	_after_mode = "piloted"
+
+
 ## The egg pod: where the abdomen's tip went down, in the soil.
 func _drop_pod() -> void:
 	var parent := get_parent() as Node3D

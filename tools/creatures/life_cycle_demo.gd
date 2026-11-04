@@ -31,6 +31,9 @@ extends Node3D
 ## Y the young eat: the larvae, the nymphs, the young snakes (each its own
 ##   small meal)
 ## (1 also: the rattlesnake gives birth, the milk snake lays; 4: its eggs hatch)
+## P steered by the steering layer (pilot.gd), as a state machine would: the
+##   grasshopper, the mantis, the snakes, the moth, a lady beetle, each
+##   through a few orders, one after another as each says it's done
 ## Tab / Shift+Tab: the next station   Space slow motion
 ## drag: turn round   wheel: nearer / further
 
@@ -358,6 +361,56 @@ func _young_eat() -> void:
 			c.call("eat", m)
 
 
+## Each through its orders, one after another: each a Callable giving the
+## order; the next given once the creature says the last's done (or not).
+func _sequence(c: Object, orders: Array) -> void:
+	var left := orders.duplicate() # (shared with the lambda: it's an Array)
+	var next := func(_name := "", _ok := true) -> void:
+		if not left.is_empty():
+			(left.pop_front() as Callable).call()
+	c.connect("action_finished", next)
+	next.call()
+
+
+## The steering layer, as a state machine would use it.
+func _pilot_demo() -> void:
+	var c7 := _station(7)
+	_sequence(hopper, [
+		func() -> void: hopper.go(Vector3.LEFT, -1.0, 2.5),
+		func() -> void: hopper.face(Vector3.BACK),
+		func() -> void: hopper.act("hop", {"at": hopper.position + Vector3.BACK * 0.2}),
+		func() -> void: hopper.go_to(_hopper_leaf + Vector3(0.0, 0.0, 0.03)),
+		func() -> void: hopper.act("feed", {"at": _hopper_leaf, "seconds": 3.0}),
+	])
+	_sequence(mantis, [
+		func() -> void: mantis.go(Vector3.RIGHT, -1.0, 3.0),
+		func() -> void: mantis.act("watch", {"at": _station(8) + Vector3(0.0, 0.05, 0.2), "seconds": 2.5}),
+		func() -> void: mantis.act("groom", {"seconds": 4.0}),
+		func() -> void: mantis.go_to(_station(8)),
+	])
+	_sequence(rattler, [
+		func() -> void: rattler.go(Vector3.FORWARD, -1.0, 4.0),
+		func() -> void: rattler.act("coil", {"seconds": 5.0}),
+		func() -> void: rattler.go_to(_station(9) + Vector3(0.4, 0.0, 0.3)),
+	])
+	_sequence(milk, [
+		func() -> void: milk.go_to(_station(10) + Vector3(0.5, 0.0, -0.4)),
+		func() -> void: milk.go(Vector3.BACK, 0.3, 3.0),
+		func() -> void: milk.act("coil", {"seconds": 4.0}),
+	])
+	_sequence(moth, [
+		func() -> void: moth.go(Vector3.RIGHT, -1.0, 2.0),
+		func() -> void: moth.go_to(_station(1) + Vector3(0.0, 0.3, 0.0)),
+		func() -> void: moth.act("lay", {"spots": _moth_leaves.map(func(l): return l[0]), "normals": _moth_leaves.map(func(l): return l[1])}),
+	])
+	var lb: Object = lady.member(0)
+	_sequence(lb, [
+		func() -> void: lb.go(Vector3.FORWARD, -1.0, 2.0),
+		func() -> void: lb.act("fly", {"seconds": 3.0}),
+		func() -> void: lb.go_to(Vector3(0.03, 0.0, 0.03)),
+	])
+
+
 ## A fly on the mantis's leaf, for it to catch.
 func _new_prey() -> void:
 	if is_instance_valid(_prey):
@@ -481,6 +534,8 @@ func _unhandled_input(e: InputEvent) -> void:
 				milk.wander(_station(10), 0.55)
 			KEY_Y:
 				_young_eat()
+			KEY_P:
+				_pilot_demo()
 			KEY_5:
 				for k in 2:
 					_ant_pile(k)
@@ -506,7 +561,7 @@ func _go(i: int) -> void:
 
 
 func _say() -> void:
-	_label.text = "%s   (Tab / Shift+Tab: the next)\n1 all lay eggs   2 the pupae hatch   3 new pupae   4 the eggs hatch   5 new ant eggs\n6 grasshopper hops   7 flies   8 eats   9 mantis strikes the fly   0 flies   G grooms\nR rattlesnake eats   M milk snake eats   C snakes coil   W off again   Y the young eat   Space slow motion   drag: turn round   wheel: nearer / further" % NAMES[_at]
+	_label.text = "%s   (Tab / Shift+Tab: the next)\n1 all lay eggs   2 the pupae hatch   3 new pupae   4 the eggs hatch   5 new ant eggs\n6 grasshopper hops   7 flies   8 eats   9 mantis strikes the fly   0 flies   G grooms\nR rattlesnake eats   M milk snake eats   C snakes coil   W off again   Y the young eat   P steered   Space slow motion   drag: turn round   wheel: nearer / further" % NAMES[_at]
 
 
 func _process(dt: float) -> void:

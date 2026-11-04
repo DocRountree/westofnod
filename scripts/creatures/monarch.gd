@@ -100,6 +100,31 @@ func _build() -> void:
 	_legs_at(Vector3(0.0, -1.8, -3.0), 7.5, black, true)
 
 
+## Its behaviours (a state machine's: pilot.gd): fly {centre, radius,
+## seconds}, bask {at, normal, seconds}, feed {florets, seconds}, lay
+## {spots, normals}.
+func _p_behaviours() -> PackedStringArray:
+	return PackedStringArray(["fly", "bask", "feed", "lay"])
+
+
+func _p_act(name: String, args: Dictionary) -> bool:
+	match name:
+		"fly":
+			fly(args.get("centre", _pos), float(args.get("radius", 0.6)))
+		"bask":
+			if not args.has("at"):
+				return false
+			bask(args.at, args.get("normal", Vector3.UP))
+		"feed":
+			var f: Array = args.get("florets", [])
+			if f.is_empty():
+				return false
+			feed(f)
+		_:
+			return super(name, args)
+	return true
+
+
 ## Flap and glide, wandering round centre (within radius).
 func fly(centre: Vector3, radius: float) -> void:
 	_mode = "fly"

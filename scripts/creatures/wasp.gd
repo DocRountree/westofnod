@@ -31,9 +31,18 @@ extends Node3D
 ## in flight), the wings (folded, raised, or beating: a blur), the antennae
 ## (twitching), the head, mandibles and gaster.
 ##
+## Steering (a state machine's: pilot.gd): go (flying, at its height; or
+## walking, on the surface it's on), go_to, face, stop (hovering, or
+## standing), act (seek_food {centre, radius, seconds}, feed_on_flower
+## {head, normal, sway, seconds}, feed_on_insect {prey, at, normal,
+## seconds}, land {at, normal}, sting {at}, lay_eggs {cells, normal, depth},
+## take_off), behaviours, is_busy, action_finished; height (the ground,
+## when it walks on it).
 ## Its parts are in model mm (_body is scaled by MM); the wasp itself in metres.
 ## Its position is set every frame: put it under a node that isn't moved.
 
+signal action_finished(name: String, ok: bool)
+const PilotScript := preload("res://scripts/creatures/pilot.gd")
 const MM := 0.002 ## m drawn per model mm (twice life size)
 const BroodScript := preload("res://scripts/creatures/brood.gd") # (by path: found whether or not the editor has seen the class yet)
 const BODY_H := 2.3 ## mm the thorax's middle stands over the surface
@@ -74,6 +83,10 @@ const LEG_YELLOW := Color(0.8, 0.55, 0.18)
 const TIP_ORANGE := Color(0.85, 0.45, 0.12)
 
 var rng := RandomNumberGenerator.new()
+var height: Callable ## (x, z) -> the ground's y (walking on it, piloted)
+var _pilot: PilotScript
+var _piloting := false # (its own action stopped: the pilot steering)
+var _p_done := false
 
 # where it is and how it's moving
 var flying := true
@@ -522,6 +535,151 @@ func lay_eggs(cells: Array, normal := Vector3.UP, depth := 0.012) -> void:
 	_p.ant_down = 0.15
 
 
+# --- steering: a state machine's (pilot.gd) ---------------------------------------
+
+func _pl() -> PilotScript:
+	if _pilot == null:
+		_pilot = PilotScript.new(self)
+		_pilot.finished = action_finished.emit
+	return _pilot
+
+
+func go(direction: Vector3, speed := -1.0, seconds := -1.0) -> void:
+	_pl().go(direction, speed, seconds)
+
+
+func go_to(point: Vector3, speed := -1.0) -> void:
+	_pl().go_to(point, speed)
+
+
+func face(direction: Vector3) -> void:
+	_pl().face(direction)
+
+
+func stop() -> void:
+	_pl().stop()
+
+
+func act(name: String, args := {}) -> bool:
+	return _pl().act(name, args)
+
+
+func behaviours() -> PackedStringArray:
+	return _p_behaviours()
+
+
+func is_busy() -> bool:
+	return _pilot != null and _pilot.busy()
+
+
+func _p_here() -> Vector3:
+	return _pos
+
+
+func _p_heading() -> Vector3:
+	return _heading
+
+
+## Flying: to the point; on a surface: walking to it, on the surface (the
+## ground's height under it, if it's given).
+func _p_steer(point: Vector3, speed: float) -> void:
+	if not _piloting:
+		_begin() # (its own action stopped)
+		release()
+		_piloting = true
+	if flying:
+		_fly_target = point
+		_max_speed = speed if speed > 0.0 else 0.8
+		_look = Vector3.ZERO
+	else:
+		if height.is_valid() and surface_n.y > 0.95:
+			surface_p = Vector3(_pos.x, float(height.call(_pos.x, _pos.z)), _pos.z)
+		_walk_target = point - surface_n * (point - surface_p).dot(surface_n)
+		_walk_speed = speed if speed > 0.0 else 0.025
+
+
+func _p_hold() -> void:
+	_begin()
+	_piloting = true
+	if flying:
+		_fly_target = _pos
+		_max_speed = 0.5
+	else:
+		_walk_target = Vector3.INF
+
+
+func _p_mobile() -> bool:
+	return true
+
+
+func _p_speed() -> float:
+	return 0.8 if flying else 0.025
+
+
+func _p_reach() -> float:
+	return 0.03 if flying else 0.01
+
+
+func _p_behaviours() -> PackedStringArray:
+	return PackedStringArray(["seek_food", "feed_on_flower", "feed_on_insect", "land", "sting", "lay_eggs", "take_off"])
+
+
+func _p_act(name: String, args: Dictionary) -> bool:
+	match name:
+		"feed_on_flower":
+			if not args.has("head"):
+				return false
+		"feed_on_insect":
+			if not args.has("prey"):
+				return false
+		"land", "sting":
+			if not args.has("at"):
+				return false
+		"lay_eggs":
+			if (args.get("cells", []) as Array).is_empty():
+				return false
+	_piloting = false
+	_p_run(name, args)
+	return true
+
+
+## Runs its action; done if it ends (not cut short by another).
+func _p_run(name: String, args: Dictionary) -> void:
+	_p_done = false
+	var id := _act + 1 # (the action's own: each begins by taking the next)
+	match name:
+		"seek_food":
+			await seek_food(args.get("centre", _pos), float(args.get("radius", 1.0)))
+		"feed_on_flower":
+			await feed_on_flower(args.head, args.get("normal", Vector3.UP), float(args.get("sway", 0.0)))
+		"feed_on_insect":
+			await feed_on_insect(args.prey, args.get("at", (args.prey as Node3D).position), args.get("normal", Vector3.UP))
+		"land":
+			await land(args.at, args.get("normal", Vector3.UP))
+		"sting":
+			await sting(args.at)
+		"lay_eggs":
+			await lay_eggs(args.cells, args.get("normal", Vector3.UP), float(args.get("depth", 0.012)))
+		"take_off":
+			var tid := _begin()
+			await _take_off(tid)
+	if _act == id:
+		_p_done = true
+
+
+func _p_act_done(_name: String) -> bool:
+	return _p_done
+
+
+func _p_act_secs(name: String) -> float:
+	match name:
+		"seek_food", "feed_on_flower":
+			return 10.0
+		"feed_on_insect":
+			return 15.0
+	return -1.0
+
+
 ## Lets go of what it holds (it's left where it is).
 func release() -> void:
 	_holding = null
@@ -744,6 +902,8 @@ func _process(dt: float) -> void:
 	if dt <= 0.0:
 		return
 	_t += dt
+	if _pilot:
+		_pilot.tick(dt)
 	for k in _p:
 		_a[k] = lerpf(_a[k], _p[k], 1.0 - exp(-RATES.get(k, 10.0) * dt))
 	if flying:

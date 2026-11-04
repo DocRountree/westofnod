@@ -28,8 +28,14 @@ extends Node3D
 ##   there, its wings crumpled stubs, pumped out to their full size over
 ##   some seconds as it hangs, the abdomen working; then off
 ##
+## Steering (a state machine's: pilot.gd): go (flying, at its height),
+## go_to, face, stop (hovering, if it can; a monarch, which can't, loitering
+## there), act (the species' behaviours), behaviours, is_busy,
+## action_finished.
 ## Its position is set every frame: put it under a node that isn't moved.
 
+signal action_finished(name: String, ok: bool)
+const PilotScript := preload("res://scripts/creatures/pilot.gd")
 const MM := 0.002 ## m drawn per model mm (twice life size)
 const WINGS := preload("res://scripts/creatures/lepidoptera_wings.gd")
 const BroodScript := preload("res://scripts/creatures/brood.gd")
@@ -54,6 +60,8 @@ var fore_hinge := Vector3(0.9, 1.0, -1.2) ## mm: the right forewing's root on th
 var hind_hinge := Vector3(0.9, 1.0, 1.0)
 
 var rng := RandomNumberGenerator.new()
+var _pilot: PilotScript
+var _own_speed := -1.0 # (its max_speed, the pilot's set aside)
 var flying := true
 var _pos := Vector3.ZERO # the body's middle (its parent's space)
 var _vel := Vector3.ZERO
@@ -413,6 +421,8 @@ func _process(dt: float) -> void:
 	if dt <= 0.0 or _body == null:
 		return
 	_t += dt
+	if _pilot:
+		_pilot.tick(dt)
 	if _lay_i >= 0:
 		_lay_think(dt)
 	elif _emerging:
@@ -686,6 +696,106 @@ func _emerge_think(dt: float) -> void:
 					_after.call()
 	# its abdomen swollen with the blood it pumps into its wings, going down
 	_abdomen.scale = Vector3.ONE * lerpf(1.35, 1.0, _grow)
+
+
+# ---- steering: a state machine's (pilot.gd) -------------------------------------
+
+func _pl() -> PilotScript:
+	if _pilot == null:
+		_pilot = PilotScript.new(self)
+		_pilot.finished = action_finished.emit
+	return _pilot
+
+
+func go(direction: Vector3, speed := -1.0, seconds := -1.0) -> void:
+	_pl().go(direction, speed, seconds)
+
+
+func go_to(point: Vector3, speed := -1.0) -> void:
+	_pl().go_to(point, speed)
+
+
+func face(direction: Vector3) -> void:
+	_pl().face(direction)
+
+
+func stop() -> void:
+	_pl().stop()
+
+
+func act(name: String, args := {}) -> bool:
+	return _pl().act(name, args)
+
+
+func behaviours() -> PackedStringArray:
+	return _p_behaviours()
+
+
+func is_busy() -> bool:
+	return _pilot != null and _pilot.busy()
+
+
+func _p_here() -> Vector3:
+	return _pos
+
+
+func _p_heading() -> Vector3:
+	return _heading
+
+
+func _p_steer(point: Vector3, speed: float) -> void:
+	if not flying:
+		take_off()
+	set("_mode", "piloted")
+	_target = point
+	_look = Vector3.ZERO
+	if _own_speed < 0.0:
+		_own_speed = max_speed
+	max_speed = speed if speed > 0.0 else _own_speed
+
+
+func _p_hold() -> void:
+	set("_mode", "piloted")
+	_target = _pos
+	if _own_speed >= 0.0:
+		max_speed = _own_speed
+
+
+func _p_mobile() -> bool:
+	return not _emerging
+
+
+func _p_speed() -> float:
+	return max_speed * 0.6
+
+
+func _p_reach() -> float:
+	return 0.05
+
+
+func _p_behaviours() -> PackedStringArray:
+	return PackedStringArray(["lay"])
+
+
+## (The species' own; this, lay {spots, normals}: one egg to each.)
+func _p_act(name: String, args: Dictionary) -> bool:
+	if name == "lay":
+		var spots: Array = args.get("spots", [])
+		if spots.is_empty():
+			return false
+		lay(spots, args.get("normals", spots.map(func(_x): return Vector3.UP)))
+		return true
+	return false
+
+
+func _p_act_done(name: String) -> bool:
+	if name == "lay":
+		return _lay_i < 0
+	return false
+
+
+func _p_act_secs(name: String) -> float:
+	return -1.0 if name == "lay" else 10.0
 
 
 # ---- helpers for the species ------------------------------------------------

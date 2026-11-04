@@ -201,6 +201,13 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   down). The milk snake lays leathery eggs that hatch (a slit, the young's head out, then the young); the rattler gives
   birth, each young in a clear membrane it wriggles out of. In the life cycle demo (keys R, M, C, W; Y: every
   young creature eats: the larvae, the nymphs, the young snakes).
+- Steering, for a future state machine (`scripts/creatures/pilot.gd`): every creature (`Wasp`, the
+  lepidopterans, `Grasshopper`, `Mantis`, `Snake`, `Larva`; one of a colony: `AntColony.member(i)`) has the same
+  calls: `go(direction, speed, seconds)`, `go_to(point, speed)`, `face(direction)`, `stop()`, `act(name, args)`
+  (`behaviours()` lists its own: eat, lay, hop, fly, strike, watch, groom, coil, bask, feed, land, sting, ...),
+  `is_busy()`, the signal `action_finished(name, ok)`, and `height` (a Callable, the ground's y at x, z: for the
+  walkers and crawlers; the ants' already had it). Driven, a creature sets aside its own wandering, and holds still
+  once an order's done. The life cycle demo's P runs a few creatures through orders one after another this way.
 - Life cycles (not yet in the game): eggs (`scripts/creatures/brood.gd`, `Brood`; `egg.gd`: rice grains, each kind
   its size and colour) laid by the butterflies one to a leaf (the clearwing hovering), by the wasp one to each cell of
   its comb (`Wasp.comb`, `lay_eggs`), by the beetles in a cluster (`AntColony.lay`, a beetle's: tipped tail down; the
