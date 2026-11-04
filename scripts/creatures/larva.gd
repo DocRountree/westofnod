@@ -32,7 +32,7 @@ const MM := 0.002 ## m drawn per mm (twice life size)
 const KINDS := {
 	"monarch": {"style": "crawl", "n": 12, "len": 42.0, "w": 6.5, "shape": [0.75, 1.0, 1.0, 1.0, 0.95, 0.7],
 			"pattern": 1, "base": Color(0.95, 0.94, 0.9), "band_a": Color(0.03, 0.03, 0.03), "band_b": Color(0.96, 0.8, 0.08),
-			"head": Color(0.9, 0.88, 0.8), "head_band": true, "speed": 0.012, "filaments": true, "legs": "caterpillar", "crease": 0.07, "bend": 0.12},
+			"head": Color(0.9, 0.88, 0.8), "proleg": Color(0.08, 0.08, 0.08), "head_band": true, "speed": 0.012, "filaments": true, "legs": "caterpillar", "crease": 0.07, "bend": 0.12},
 	"hemaris": {"style": "crawl", "n": 12, "len": 46.0, "w": 7.5, "shape": [0.7, 1.0, 1.05, 1.05, 1.0, 0.75],
 			"pattern": 2, "base": Color(0.42, 0.6, 0.2), "line": Color(0.85, 0.85, 0.5),
 			"head": Color(0.45, 0.62, 0.25), "speed": 0.012, "horn": true, "legs": "caterpillar", "crease": 0.06, "bend": 0.12},
@@ -73,6 +73,8 @@ var _wait := 0.0
 var _t := 0.0
 var _legs: Array[Node3D] = []
 var _whips: Array[Node3D] = []
+var _feet: Array = [] # a caterpillar's: {i (its segment), side, true (a true leg, else a proleg), foot (where it's planted), planted, leg (its mesh)}
+var _lift: Array[float] = [] # each segment's lift by the wave now (m)
 
 static var _sphere: SphereMesh
 static var _stick: CylinderMesh
@@ -105,6 +107,8 @@ func place(at: Vector3, facing := Vector3.FORWARD) -> void:
 		_dir = Vector3.FORWARD
 	_trail.clear()
 	_target = at
+	for f in _feet:
+		f.foot = Vector3.INF
 
 
 ## Crawling about round centre (within radius), on the level surface there
@@ -262,13 +266,14 @@ func _build() -> void:
 				if not (true_leg or (i >= 6 and i <= 9) or i == n - 1):
 					continue
 				for side: float in [-1.0, 1.0]:
+					# (each foot planted on the ground where it steps, held
+					# there as the body goes on over it: _step_feet; the leg
+					# drawn from its hip on the body to it)
 					var l := MeshInstance3D.new()
 					l.mesh = _sphere
-					var lw := _widths[i]
-					l.scale = Vector3(lw * 0.45, lw * 0.6, lw * 0.5) if not true_leg else Vector3(lw * 0.25, lw * 0.5, lw * 0.25)
-					l.position = Vector3(lw * 0.55 * side, -lw * 0.85, 0.0)
-					l.material_override = dark if true_leg else _mat("body")
-					_holders[i].add_child(l)
+					l.material_override = dark if true_leg else _flat(K.get("proleg", K.base), 0.6)
+					add_child(l)
+					_feet.append({"i": i, "side": side, "true": true_leg, "foot": Vector3.INF, "planted": false, "leg": l})
 		"six", "grub": # (three pairs on the thorax; the lady beetle larva's long, a grub's short)
 			var long: bool = K.legs == "six"
 			for i in [1, 2, 3]:
@@ -406,6 +411,7 @@ func _process(dt: float) -> void:
 	if K.style == "crawl":
 		_crawl(dt)
 	_place_spine()
+	_step_feet()
 	# the filaments waving, the legs stepping
 	for k in _whips.size():
 		var wv := _whips[k]
@@ -460,10 +466,13 @@ func _place_spine() -> void:
 		for i in n:
 			var p := _along_trail((i + 0.5) * sg)
 			var lift := 0.0
+			if i == 0:
+				_lift.clear()
 			if K.get("legs", "") == "caterpillar": # (the wave, tail to head)
 				lift = maxf(sin(_t * TAU * 0.7 * 2.0 + float(i) * 0.7), 0.0) * _widths[i] * _g * 0.35
 			pts.append(p + Vector3.UP * (_widths[i] * _g * 0.95 + lift))
 			ups.append(Vector3.UP)
+			_lift.append(lift)
 		if _mode == "eat": # (the head working side to side, nibbling)
 			pts[0] += (_dir.cross(Vector3.UP) * sin(_t * 3.0) * _widths[0] * 0.8 + Vector3.DOWN * _widths[0] * 0.3 * (0.5 + 0.5 * sin(_t * 6.0))) * _g
 		# no joint bent more than `bend`: each segment laid on from the one
@@ -529,6 +538,47 @@ func _place_spine() -> void:
 		_skin_mat.set_shader_parameter("sx", sx)
 		_skin_mat.set_shader_parameter("sy", sy)
 		_skin_mat.set_shader_parameter("size", _g)
+
+
+## A caterpillar's feet: each planted on the ground where it last stepped,
+## held there while the body goes on over it; lifted (following under its
+## hip, off the ground) while the wave lifts its segment, or once it's been
+## left too far behind, then planted again under its hip, a little ahead;
+## each leg drawn from its hip on the body to its foot.
+func _step_feet() -> void:
+	if _feet.is_empty():
+		return
+	var ground := _pos.y
+	for f in _feet:
+		var i: int = f.i
+		var side: float = f.side
+		var w := _widths[i] * _g
+		var h := _holders[i].transform
+		var right := h.basis.x.normalized()
+		var fwd := -h.basis.z.normalized()
+		var hip := h.origin + right * side * w * 0.5 + Vector3.DOWN * w * 0.55
+		var want := Vector3(hip.x, ground, hip.z) + right * side * w * 0.2 + fwd * w * 0.25
+		var lifted: bool = i < _lift.size() and _lift[i] > w * 0.08
+		var foot: Vector3 = f.foot
+		if foot == Vector3.INF:
+			foot = want
+			f.planted = true
+		elif lifted:
+			# up off the ground, swinging on under its hip
+			foot = foot.lerp(want + Vector3.UP * w * 0.35, 0.35)
+			f.planted = false
+		elif not f.planted or Vector2(foot.x - want.x, foot.z - want.z).length() > w * 1.1:
+			foot = want
+			f.planted = true
+		f.foot = foot
+		# the leg: a fleshy stump (a proleg) or a thin jointed leg, hip to foot
+		var d := foot - hip
+		var l := maxf(d.length(), 1e-5)
+		var y := d / l
+		var x := y.cross(Vector3.FORWARD if absf(y.z) < 0.9 else Vector3.RIGHT).normalized()
+		var z := x.cross(y)
+		var th := w * (0.32 if f["true"] else 0.75)
+		(f.leg as MeshInstance3D).transform = Transform3D(Basis(x * th, y * l * 1.15, z * th), (hip + foot) * 0.5)
 
 
 ## The point d (m) back along the head's trail (straight back past its end).
