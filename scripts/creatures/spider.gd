@@ -8,7 +8,7 @@ extends "res://scripts/creatures/hexapod.gd" # (by path: found whether or not th
 ##   on its spinnerets; its spiderlings, hatched, ride on its back a while
 ## - "fishing": a six-spotted fishing spider (Dolomedes triton): flat and
 ##   broad, its very long legs splayed wide and flat, the knees low, the
-##   body low on the water (each foot dimpling it); olive brown, a cream
+##   body low on the water; olive brown, a cream
 ##   band down each side, white spots paired down the abdomen; its eyes two
 ##   rows of four, both curved back. Runs on water (its ground: the water's
 ##   surface). Its egg sac carried in its jaws, then set down at the
@@ -87,7 +87,6 @@ var _web_head := Vector3.DOWN
 var _path: Array = [] # points to go along, in the web (its parent's space)
 var _path_speed := 0.12
 var _sub := 0 # (spinning a thread: 0 going to its start, 1 laying it)
-var _dimples: Array[MeshInstance3D] = [] # (the fishing spider's: the water dimpled under each foot)
 
 
 func _init(kind_ := "wolf", young_ := false) -> void:
@@ -118,28 +117,6 @@ func _init(kind_ := "wolf", young_ := false) -> void:
 			"r": float(S.leg_r) * (0.9 if p == 2 else 1.0),
 		})
 	legs = L
-
-
-func _ready() -> void:
-	super()
-	if kind == "fishing":
-		# the water's surface dimpled under each foot, a ring of light round it
-		var ring := TorusMesh.new()
-		ring.inner_radius = 0.75
-		ring.outer_radius = 1.0
-		ring.rings = 12
-		ring.ring_segments = 6
-		var m := StandardMaterial3D.new()
-		m.albedo_color = Color(0.85, 0.9, 0.95, 0.4)
-		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-		m.roughness = 0.05
-		for i in legs.size() * 2:
-			var d := MeshInstance3D.new()
-			d.mesh = ring
-			d.material_override = m
-			d.top_level = true # (placed where its foot is, not riding on the body)
-			add_child(d)
-			_dimples.append(d)
 
 
 func _build() -> void:
@@ -509,14 +486,6 @@ func _process(dt: float) -> void:
 		_orb(dt)
 		return
 	super(dt)
-	if not _dimples.is_empty():
-		var parent := get_parent() as Node3D
-		for i in _dimples.size():
-			var d := _dimples[i]
-			d.visible = not airborne and parent != null
-			if d.visible:
-				d.global_position = parent.to_global(_feet[i]) + Vector3.UP * 0.0003
-				d.scale = Vector3(1.0, 0.25, 1.0) * 0.0032 * size * (1.0 + 0.08 * sin(_t * 3.0 + i))
 
 
 ## (A wolf spiderling) riding on its mother's back, then off.
