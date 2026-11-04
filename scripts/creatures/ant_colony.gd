@@ -14,10 +14,9 @@ extends MultiMeshInstance3D
 ## - feed(i, food): to the food (its own place round it), and feeding: head
 ##   down, mandibles working, antennae drumming, front legs on it; now and
 ##   then round to another place at it
-## - lay(i, at): to the spot, and laying there: the gaster curled under
-##   (a beetle tipped tail down), an egg left at its tip every few seconds,
-##   shuffling a little between: a pile of them (Brood's eggs, egg_kind;
-##   an ant's: the queen's, so make one of a colony of one, a bigger)
+## - lay(i, at): a beetle's (lays; not the ants): to the spot, and laying
+##   there, tipped tail down, an egg left at its tip every few seconds,
+##   shuffling a little between: a cluster of them (Brood's, egg_kind)
 ## They keep a little apart from one another. They walk on the ground the
 ## height callable gives (x, z -> y), flat at y 0 without one.
 ##
@@ -37,9 +36,10 @@ var apart := 9.0 ## mm they keep between them
 var shader: Shader = preload("res://shaders/render/ant.gdshader")
 const BroodScript := preload("res://scripts/creatures/brood.gd") # (by path: found whether or not the editor has seen the class yet)
 var colors := {} ## the shader's colours, its own (else an ant's)
+var lays := false ## whether it lays (lay(): a beetle's; the ants don't)
 var egg_kind := "carpenter" ## Brood's
 var egg_back := 5.4 ## mm behind its middle its eggs come out
-var lay_tilt := 0.0 ## rad it tips tail down laying (a beetle's; an ant curls its gaster)
+var lay_tilt := 0.0 ## rad it tips tail down laying
 var eggs: Array[Node3D] = [] ## the eggs laid (in its parent), the oldest gone past a hundred
 
 var height: Callable ## (x, z) -> the ground's y; none: 0
@@ -118,8 +118,10 @@ func wander(i: int, c: Vector3, r: float) -> void:
 	wait[i] = 0.0
 
 
-## Ant i to the spot `at`, and laying there.
+## Beetle i to the spot `at`, and laying there (if it lays: not an ant).
 func lay(i: int, at: Vector3) -> void:
+	if not lays:
+		return
 	task[i] = 3
 	lay_at[i] = at
 	lay_wait[i] = rng.randf_range(1.5, 2.5)

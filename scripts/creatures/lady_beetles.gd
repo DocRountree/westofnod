@@ -23,6 +23,7 @@ func _init() -> void:
 	body_h = 1.15
 	top_speed = 0.035
 	reach = 2.8
+	lays = true
 	egg_kind = "lady"
 	egg_back = 2.9
 	lay_tilt = 0.3

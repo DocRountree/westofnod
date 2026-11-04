@@ -19,8 +19,9 @@ extends Node3D
 ## rippling as they go (waves of their prolegs, tail to head), or stop and
 ## eat (eat(): the head working side to side); the grubs lie curled where
 ## they're put (place), slowly curling and uncurling, wriggling.
-## Larva.new(kind). Put it under a node that isn't moved (it's drawn in its
-## parent's space: its own transform stays identity).
+## Larva.new(kind, size): size its share of its full size (a hatchling's
+## small: grow(to, secs) to grow it). Put it under a node that isn't moved
+## (it's drawn in its parent's space: its own transform stays identity).
 
 const MM := 0.002 ## m drawn per mm (twice life size)
 ## kind: style ("crawl" or "curl"), segments, length and width (mm, life
@@ -53,7 +54,10 @@ var rng := RandomNumberGenerator.new()
 var _holders: Array[Node3D] = [] # each segment's frame (unscaled: its extras ride on it)
 var _shapes: Array[MeshInstance3D] = [] # each segment's body (scaled)
 var _head: Node3D
-var _seg := 0.0 # m: a segment's length
+var _seg := 0.0 # m: a segment's length (full grown)
+var _g := 1.0 # its size now, a share of full grown
+var _g_to := 1.0
+var _g_rate := 0.0
 var _widths: Array[float] = []
 var _pos := Vector3.ZERO # the head's front
 var _dir := Vector3.FORWARD # the way the head goes
@@ -73,8 +77,10 @@ static var _cone: CylinderMesh
 static var _mats := {}
 
 
-func _init(k := "monarch") -> void:
+func _init(k := "monarch", size := 1.0) -> void:
 	kind = k
+	_g = size
+	_g_to = size
 	K = KINDS[k]
 	rng.randomize()
 
@@ -107,6 +113,12 @@ func wander(centre: Vector3, radius: float) -> void:
 	if _trail.is_empty():
 		_pos = centre
 		_target = centre
+
+
+## Growing to `to` (a share of full grown) over secs.
+func grow(to: float, secs: float) -> void:
+	_g_to = to
+	_g_rate = absf(to - _g) / maxf(secs, 0.01)
 
 
 ## Stopping where it is, eating: the head working side to side.
@@ -281,6 +293,7 @@ func _process(dt: float) -> void:
 	if dt <= 0.0 or _holders.is_empty():
 		return
 	_t += dt
+	_g = move_toward(_g, _g_to, _g_rate * dt)
 	if K.style == "crawl":
 		_crawl(dt)
 	_place_spine()
@@ -315,10 +328,10 @@ func _crawl(dt: float) -> void:
 			var surge := 1.0
 			if K.get("legs", "") == "caterpillar":
 				surge = 0.3 + 1.4 * maxf(sin(_t * TAU * 0.7), 0.0)
-			_pos += _dir * speed * surge * dt
+			_pos += _dir * speed * lerpf(0.25, 1.0, _g) * surge * dt
 			_pos.y = _centre.y
 	# the trail: where the head's been, for the body to follow
-	if _trail.is_empty() or _trail[0].distance_to(_pos) > _seg * 0.25:
+	if _trail.is_empty() or _trail[0].distance_to(_pos) > _seg * _g * 0.25:
 		_trail.push_front(_pos)
 		var keep := int(K.n) * 5 + 8
 		if _trail.size() > keep:
@@ -333,14 +346,14 @@ func _place_spine() -> void:
 	var ups: Array[Vector3] = []
 	if K.style == "crawl":
 		for i in n:
-			var p := _along_trail((i + 0.5) * _seg)
+			var p := _along_trail((i + 0.5) * _seg * _g)
 			var lift := 0.0
 			if K.get("legs", "") == "caterpillar": # (the wave, tail to head)
-				lift = maxf(sin(_t * TAU * 0.7 * 2.0 + float(i) * 0.7), 0.0) * _widths[i] * 0.35
-			pts.append(p + Vector3.UP * (_widths[i] * 0.95 + lift))
+				lift = maxf(sin(_t * TAU * 0.7 * 2.0 + float(i) * 0.7), 0.0) * _widths[i] * _g * 0.35
+			pts.append(p + Vector3.UP * (_widths[i] * _g * 0.95 + lift))
 			ups.append(Vector3.UP)
 		if _mode == "eat": # (the head working side to side, nibbling)
-			pts[0] += _dir.cross(Vector3.UP) * sin(_t * 3.0) * _widths[0] * 0.8 + Vector3.DOWN * _widths[0] * 0.3 * (0.5 + 0.5 * sin(_t * 6.0))
+			pts[0] += (_dir.cross(Vector3.UP) * sin(_t * 3.0) * _widths[0] * 0.8 + Vector3.DOWN * _widths[0] * 0.3 * (0.5 + 0.5 * sin(_t * 6.0))) * _g
 	else:
 		# a C, on its side: an arc in the level plane, curling and
 		# uncurling slowly; an ant's larva, its neck crooked
@@ -351,10 +364,10 @@ func _place_spine() -> void:
 			var k := curl / n
 			if K.get("neck", false):
 				k = curl / n * (2.2 if i < 3 else 0.5)
-			pts.append(p + Vector3.UP * _widths[i] * 0.9)
+			pts.append(p + Vector3.UP * _widths[i] * _g * 0.9)
 			ups.append(Vector3.UP)
 			d = d.rotated(Vector3.UP, -k)
-			p -= d * _seg
+			p -= d * _seg * _g
 	for i in n:
 		var p: Vector3 = pts[i]
 		var fwd: Vector3
@@ -364,7 +377,7 @@ func _place_spine() -> void:
 			fwd = (pts[i - 1] - p).normalized()
 		if fwd.length_squared() < 1e-6:
 			fwd = _dir
-		_holders[i].transform = Transform3D(Basis.looking_at(fwd, ups[i]), p)
+		_holders[i].transform = Transform3D(Basis.looking_at(fwd, ups[i]) * Basis.from_scale(Vector3.ONE * _g), p) # (its parts in full-grown size, the whole scaled to its size now)
 		var w := _widths[i]
 		_shapes[i].scale = Vector3(w * 2.0, w * 1.85, _seg * 1.45)
 

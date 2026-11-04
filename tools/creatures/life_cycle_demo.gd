@@ -7,14 +7,18 @@ extends Node3D
 ## hummingbird clearwing: the adult, leaves (it lays hovering), a hornworm,
 ##   a pupa in its cocoon in the litter
 ## paper wasp: the adult and its comb, grubs in some of its cells
-## carpenter ants, red harvesters: a queen each, and larvae
+## carpenter ants, red harvesters: a queen each, a pile of her eggs, and
+##   larvae
 ## June bug: the adult, its white grub, curled, on the soil
 ## convergent lady beetle: the adult on a leaf, its larva about
 ##
 ## 1 every adult lays its eggs (Brood's: the butterflies one to a leaf, the
-##   wasp one to a cell, the queens and beetles a pile or a cluster)
+##   wasp one to a cell, the beetles a cluster; not the ants: their queens'
+##   eggs lie in piles already)
 ## 2 the pupae hatch: the adult out, its wings filling out; then off
 ## 3 new pupae
+## 4 every egg hatches: the larva out, small, growing (a caterpillar eats
+##   its shell first); 5 new ant eggs
 ## Tab / Shift+Tab: the next station   Space slow motion
 ## drag: turn round   wheel: nearer / further
 
@@ -25,6 +29,7 @@ const JuneScript := preload("res://scripts/creatures/june_beetles.gd")
 const LadyScript := preload("res://scripts/creatures/lady_beetles.gd")
 const Flowers := preload("res://tools/creatures/demo_flowers.gd")
 const LarvaScript := preload("res://scripts/creatures/larva.gd")
+const BroodScript := preload("res://scripts/creatures/brood.gd")
 const PupaScript := preload("res://scripts/creatures/pupa.gd")
 
 const NAMES := ["monarch", "hummingbird clearwing", "paper wasp", "carpenter ant (queen)", "red harvester (queen)", "June bug", "convergent lady beetle"]
@@ -48,6 +53,7 @@ var _monarch_leaves: Array = [] # [spot, normal]
 var _moth_leaves: Array = []
 var _cells: Array = [] # the comb's cells' mouths (the plain's)
 var _pupae: Array = []
+var _ant_eggs: Array = []
 
 
 func _station(i: int) -> Vector3:
@@ -174,6 +180,7 @@ func _ant_stations() -> void:
 		add_child(q)
 		q.setup(1, Vector3.ZERO, 0.03)
 		queens.append(q)
+		_ant_pile(k)
 		for j in 5:
 			var l := LarvaScript.new("harvester" if k == 1 else "carpenter")
 			add_child(l)
@@ -205,6 +212,17 @@ func _beetle_stations() -> void:
 	ll.wander(c2 + Vector3(0.0, 0.0045, 0.06), 0.05)
 
 
+## A pile of the queen's eggs, by her.
+func _ant_pile(k: int) -> void:
+	var c := _station(3 + k)
+	for j in 10:
+		var e := BroodScript.egg("harvester" if k == 1 else "carpenter")
+		e.position = c + Vector3(-0.05 + randf_range(-0.01, 0.01), 0.0, 0.05 + randf_range(-0.01, 0.01))
+		e.rotation.y = randf() * TAU
+		add_child(e)
+		_ant_eggs.append(e)
+
+
 func _new_pupae() -> void:
 	for p in _pupae:
 		if is_instance_valid(p):
@@ -229,10 +247,18 @@ func _lay_all() -> void:
 	var c1 := _station(1)
 	moth.lay(_moth_leaves.map(func(l): return l[0]), _moth_leaves.map(func(l): return l[1]), func() -> void: moth.search(c1, 0.4, []))
 	wasp.lay_eggs(_cells.slice(0, 4), Vector3.UP)
-	for q: AntColony in queens:
-		q.lay(0, Vector3(0.0, 0.0, -0.02))
 	june.lay(0, Vector3(-0.05, 0.0, 0.0))
 	lady.lay(0, Vector3(0.02, 0.0, -0.02))
+
+
+func _hatch_eggs() -> void:
+	var all: Array = []
+	for list: Array in [_ant_eggs, monarch.eggs, moth.eggs, wasp.eggs, june.eggs, lady.eggs]:
+		all.append_array(list)
+	for e in all:
+		if is_instance_valid(e):
+			e.call("hatch")
+	_ant_eggs.clear()
 
 
 func _hatch_all() -> void:
@@ -257,6 +283,11 @@ func _unhandled_input(e: InputEvent) -> void:
 				_hatch_all()
 			KEY_3:
 				_new_pupae()
+			KEY_4:
+				_hatch_eggs()
+			KEY_5:
+				for k in 2:
+					_ant_pile(k)
 			KEY_TAB:
 				_at = (_at + (NAMES.size() - 1 if e.shift_pressed else 1)) % NAMES.size()
 				_say()
@@ -273,7 +304,7 @@ func _unhandled_input(e: InputEvent) -> void:
 
 
 func _say() -> void:
-	_label.text = "%s   (Tab / Shift+Tab: the next)\n1 all lay eggs   2 the pupae hatch   3 new pupae   Space slow motion   drag: turn round   wheel: nearer / further" % NAMES[_at]
+	_label.text = "%s   (Tab / Shift+Tab: the next)\n1 all lay eggs   2 the pupae hatch   3 new pupae   4 the eggs hatch   5 new ant eggs   Space slow motion   drag: turn round   wheel: nearer / further" % NAMES[_at]
 
 
 func _process(dt: float) -> void:
