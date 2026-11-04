@@ -65,7 +65,7 @@ func _init(young_ := false) -> void:
 
 func _build() -> void:
 	var grey := Color(0.36, 0.37, 0.4) if not young else Color(0.78, 0.76, 0.72)
-	var plate := _banded(grey, 0.0, 0.0, 0.35, 0.75)
+	var plate := _banded(grey, 0.0, 0.0, 0.35, 0.75) # (the uropods, the face)
 	var under := _mat(grey.darkened(0.3), 0.6)
 	# the plates, a chain from the middle out both ways (each on the next
 	# toward the middle: they curl round it to roll up)
@@ -93,29 +93,43 @@ func _build() -> void:
 		var nd: Node3D = nodes[k]
 		var w := _plate_w(k)
 		var l := _plate_len(k)
-		# a plate: a dome over the body, its back edge lapping the next
-		_part(Vector3(0.0, 0.0, l * 0.15), Vector3(w, w * 0.55, l * 1.55), plate, nd)
+		# a plate: a band arched over the back and down the sides, its
+		# edges flared, its front tucked under the one ahead, its back a
+		# rim lapping the next; spotted (_band)
+		var band := MeshInstance3D.new()
+		band.mesh = _arch(w * 0.5, w * (0.5 if k > 0 else 0.42), l * (1.5 if k < 13 else 1.2), 1.75 if k < 13 else 1.5)
+		band.material_override = _band_mat(grey, w * 0.5, l * 1.5, not young and k > 0 and k < 8)
+		nd.add_child(band)
 		if k > 0 and k < 8:
 			_part(Vector3(0.0, -0.6, 0.0), Vector3(w * 0.8, 0.8, l * 1.2), under, nd) # (its underside)
 		if k != mid:
 			_plates.append(nd)
-	# the head (on the first plate): its eyes, its bent antennae
+	# the head (on the first plate): its rounded front, the eyes (black,
+	# clustered), the small first antennae, the long second ones bent at
+	# their elbow, their flagella in two
 	_head = nodes[0]
-	var eye := _mat(Color(0.05, 0.05, 0.05), 0.2)
+	_part(Vector3(0.0, -0.4, -1.0), Vector3(3.6, 1.8, 1.6), plate, _head)
+	var eye := _mat(Color(0.04, 0.04, 0.04), 0.15)
 	for side: float in [-1.0, 1.0]:
-		_part(Vector3(1.5 * side, 0.6, -0.4), Vector3(0.6, 0.6, 0.6), eye, _head)
+		for k in 3:
+			_part(Vector3((1.45 + 0.18 * (k % 2)) * side, 0.15 + 0.22 * k, -0.6 - 0.12 * k), Vector3.ONE * 0.38, eye, _head)
+		_stick(Vector3(0.5 * side, -0.6, -1.6), Vector3(0.7 * side, -0.9, -2.1), 0.09, plate, _head)
 		var an := Node3D.new()
-		an.position = Vector3(1.0 * side, -0.2, -1.0)
+		an.position = Vector3(1.0 * side, -0.4, -1.4)
 		_head.add_child(an)
-		var ac := _mat(grey.lightened(0.1), 0.5)
-		_stick(Vector3.ZERO, Vector3(1.4 * side, -0.3, -1.6), 0.18, ac, an)
-		_stick(Vector3(1.4 * side, -0.3, -1.6), Vector3(1.8 * side, -1.2, -3.4), 0.14, ac, an)
+		var ac := _mat(grey.lightened(0.12), 0.45)
+		var pts := [Vector3.ZERO, Vector3(0.7 * side, 0.1, -0.9), Vector3(1.3 * side, -0.1, -1.7), Vector3(1.6 * side, -0.7, -2.6), Vector3(1.75 * side, -1.1, -3.3), Vector3(1.85 * side, -1.4, -3.9)]
+		for j in pts.size() - 1:
+			_stick(pts[j], pts[j + 1], 0.2 - 0.025 * j, ac, an)
+			_part(pts[j + 1], Vector3.ONE * (0.36 - 0.04 * j), ac, an) # (its joints)
 		an.set_meta("side", side)
 		_antennae.append(an)
-	# the uropods at the tail
+	# the tail: the telson a blunt triangle, the uropods short and flat
+	# either side of it, flush with the rim
 	var tail: Node3D = nodes[SEGS - 1]
+	_part(Vector3(0.0, 0.7, 0.55), Vector3(1.4, 0.35, 1.1), plate, tail)
 	for side: float in [-1.0, 1.0]:
-		_part(Vector3(0.9 * side, -0.3, 0.6), Vector3(0.9, 0.6, 1.0), plate, tail)
+		_part(Vector3(1.05 * side, -0.05, 0.45), Vector3(0.8, 0.4, 0.9), plate, tail)
 	# the brood pouch (a female's), under her front: swelling with eggs
 	if not young:
 		var pm := _mat(Color(0.88, 0.85, 0.75, 0.75), 0.3)
@@ -128,6 +142,80 @@ func _build() -> void:
 			e.visible = false
 			_eggs.append(e)
 	_build_legs(_mat(grey.lightened(0.25), 0.5), _mat(grey.lightened(0.3), 0.5))
+
+
+static var _pill_shader: Shader
+const ARCH_ROUND := 18 # (a band's: round it)
+const ARCH_ALONG := 5 # (and along it)
+
+
+## A back plate's band (mm): arched over (half width hw, high hh) and down
+## the sides to `reach` (rad from the top), length l along z; its edges
+## flared out a little, its front tucked in (under the one ahead), its back
+## a little proud (lapping the next).
+static func _arch(hw: float, hh: float, l: float, reach: float) -> ArrayMesh:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var y0 := -hh * 0.42
+	var pt := func(i: int, j: int) -> Array:
+		var th := lerpf(-reach, reach, float(i) / ARCH_ROUND)
+		var t := float(j) / ARCH_ALONG # (0 front .. 1 back)
+		var flare := 1.0 + 0.08 * smoothstep(1.1, reach, absf(th))
+		var tuck := lerpf(0.93, 1.03, smoothstep(0.0, 1.0, t))
+		var p := Vector3(sin(th) * hw * flare * tuck, y0 + cos(th) * hh * tuck, (t - 0.5) * l)
+		var n := Vector3(sin(th) / hw, cos(th) / hh, 0.0).normalized()
+		return [p, n]
+	for i in ARCH_ROUND:
+		for j in ARCH_ALONG:
+			var q := [pt.call(i, j), pt.call(i + 1, j), pt.call(i + 1, j + 1), pt.call(i, j + 1)]
+			for e in [0, 2, 1, 0, 3, 2]:
+				var v: Array = q[e]
+				st.set_normal(v[1])
+				st.add_vertex(v[0])
+	return st.commit()
+
+
+## A band's look: glossy slate grey, a pale spot on each side in two rows
+## down the body (spots: a female's), a faint pale line down the middle,
+## its back rim darker; its underside darker still.
+static func _band_mat(base: Color, hw: float, l: float, spots: bool) -> ShaderMaterial:
+	if _pill_shader == null:
+		_pill_shader = Shader.new()
+		_pill_shader.code = """shader_type spatial;
+render_mode cull_disabled;
+uniform vec3 base : source_color;
+uniform vec3 spot : source_color = vec3(0.74, 0.7, 0.52);
+uniform float hw = 3.6;
+uniform float len = 2.0;
+uniform bool spots = true;
+varying vec3 o;
+void vertex() { o = VERTEX; }
+void fragment() {
+	vec3 c = base;
+	float ax = abs(o.x) / hw;
+	if (spots) {
+		float d1 = length(vec2((ax - 0.45) * hw, o.z * 1.3));
+		float d2 = length(vec2((ax - 0.8) * hw, o.z * 1.3));
+		c = mix(c, spot, (1.0 - smoothstep(0.32, 0.5, d1)) * 0.75);
+		c = mix(c, spot, (1.0 - smoothstep(0.26, 0.42, d2)) * 0.55);
+		c = mix(c, spot, (1.0 - smoothstep(0.06, 0.14, ax)) * 0.2);
+	}
+	c *= 1.0 - 0.35 * smoothstep(len * 0.28, len * 0.46, o.z); // (the back rim)
+	c *= 0.96 + 0.04 * sin(o.x * 23.0 + o.z * 11.0); // (its fine texture)
+	if (!FRONT_FACING)
+		c *= 0.45;
+	ALBEDO = c;
+	ROUGHNESS = 0.3;
+	SPECULAR = 0.6;
+}
+"""
+	var m := ShaderMaterial.new()
+	m.shader = _pill_shader
+	m.set_shader_parameter("base", base)
+	m.set_shader_parameter("hw", hw)
+	m.set_shader_parameter("len", l)
+	m.set_shader_parameter("spots", spots)
+	return m
 
 
 func _plate_z(k: int) -> float:

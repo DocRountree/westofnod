@@ -86,6 +86,7 @@ var _web_pos := Vector3.ZERO
 var _web_head := Vector3.DOWN
 var _path: Array = [] # points to go along, in the web (its parent's space)
 var _path_speed := 0.12
+var _sub := 0 # (spinning a thread: 0 going to its start, 1 laying it)
 var _dimples: Array[MeshInstance3D] = [] # (the fishing spider's: the water dimpled under each foot)
 
 
@@ -310,7 +311,8 @@ func spin_orb_at(points: Array, normal := Vector3.ZERO) -> bool:
 			top = p
 	_web_pos = top # (it begins up where the first line goes from)
 	_web_head = Vector3.DOWN
-	_path_speed = 0.5
+	_path_speed = 0.35
+	_sub = 0
 	_mode = "spin_orb"
 	_stage = 0
 	_st = 0.0
@@ -568,16 +570,29 @@ func _orb(dt: float) -> void:
 	var moving := false
 	match _mode:
 		"spin_orb":
+			# each thread laid as it goes: first to where it starts (along
+			# what's spun already: back to the hub for each radius), then
+			# along it, the silk drawn out behind it from there to it; the
+			# thread one of the web's once it's at its end
 			var count: int = w.call("count")
 			var at := clampi(_stage, 0, count - 1)
-			var goal: Vector3 = w.call("point", at)
-			moving = _go_web(goal, _path_speed * (2.0 if at > count * 0.3 else 1.0), dt)
-			if not moving:
-				w.set("built", float(at))
-				_stage += 1
-				if _stage >= count:
-					w.set("built", 1e9)
-					_mode = "hub"
+			var fast := _path_speed * (2.0 if at > count * 0.3 else 1.0)
+			if _sub == 0:
+				w.call("live", Vector3.INF, Vector3.INF)
+				moving = _go_web(w.call("start", at), fast * 1.6, dt)
+				if not moving:
+					_sub = 1
+			else:
+				moving = _go_web(w.call("point", at), fast, dt)
+				w.call("live", w.call("start", at), _web_pos)
+				if not moving:
+					w.set("built", float(at))
+					_stage += 1
+					_sub = 0
+					if _stage >= count:
+						w.call("live", Vector3.INF, Vector3.INF)
+						w.set("built", 1e9)
+						_mode = "hub"
 		"hub":
 			_go_web(w.call("hub"), 0.06, dt)
 			if _web_pos.distance_to(w.call("hub")) < 0.004:
@@ -928,6 +943,9 @@ class OrbWeb extends Node3D:
 	var built := -1.0
 	var _mat: ShaderMaterial
 	var _ends: Array[Vector3] = [] # each thread's end (local)
+	var _starts: Array[Vector3] = [] # and its start
+	var _live: MeshInstance3D # (the thread being laid: from its start to the spider)
+	var _live_mesh: ImmediateMesh
 	var _hub := Vector3.ZERO
 	var _n := Vector3.BACK
 
@@ -993,6 +1011,7 @@ class OrbWeb extends Node3D:
 			for p in [a, b]:
 				lines.set_uv(Vector2(float(order[0]), 0.0))
 				lines.add_vertex(Vector3(p.x, p.y, 0.0))
+			_starts.append(Vector3(a.x, a.y, 0.0))
 			_ends.append(Vector3(b.x, b.y, 0.0))
 			order[0] += 1
 		var F := frame.size()
@@ -1075,6 +1094,7 @@ class OrbWeb extends Node3D:
 				for e2 in [0, 1, 2, 0, 2, 3]:
 					ribbon.set_uv(Vector2(float(order[0]), 0.0))
 					ribbon.add_vertex(q[e2])
+				_starts.append(Vector3((x0 + x1) * 0.5 if i > 0 else 0.0, y0, 0.0))
 				_ends.append(Vector3((x0 + x1) * 0.5, y1, 0.0))
 				order[0] += 1
 		var mesh := lines.commit()
@@ -1083,6 +1103,31 @@ class OrbWeb extends Node3D:
 		mi.mesh = mesh
 		mi.material_override = _mat
 		add_child(mi)
+		_live_mesh = ImmediateMesh.new()
+		_live = MeshInstance3D.new()
+		_live.mesh = _live_mesh
+		var lm := ShaderMaterial.new()
+		lm.shader = _mat.shader
+		lm.set_shader_parameter("opacity", 0.85)
+		_live.material_override = lm
+		add_child(_live)
+
+	## The thread being laid, from a to b (its parent's space); INF: none.
+	func live(a: Vector3, b: Vector3) -> void:
+		_live_mesh.clear_surfaces()
+		if a == Vector3.INF:
+			return
+		var inv := transform.affine_inverse()
+		_live_mesh.surface_begin(Mesh.PRIMITIVE_LINES)
+		_live_mesh.surface_set_uv(Vector2.ZERO)
+		_live_mesh.surface_add_vertex(inv * a)
+		_live_mesh.surface_set_uv(Vector2.ZERO)
+		_live_mesh.surface_add_vertex(inv * b)
+		_live_mesh.surface_end()
+
+	## Where thread i starts (its parent's space).
+	func start(i: int) -> Vector3:
+		return transform * _starts[clampi(i, 0, _starts.size() - 1)]
 
 	func count() -> int:
 		return _ends.size()
