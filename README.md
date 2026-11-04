@@ -178,6 +178,18 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   each steerable (`member(i)`, pilot.gd). `tools/creatures/molly_demo.tscn` (a tank of them; keys: 1 school, 2 graze,
   3 the males display, S scatter, M move the school, P one steered, + / - more or fewer); a few in the life cycle
   demo's pond.
+- `scripts/creatures/fish_school.gd` (`FishSchool`): fish in schools, life size, made and moved as the mollies are
+  (one mesh, every fish an instance, posed by `shaders/render/fish.gdshader`: the body's wave, a tuna's beat all in its
+  tail; the turns; the pectorals; the jaw opening to feed and with each breath), a school a draw call.
+  `FishSchool.new(kind, variant)`: `"chinook"`, a Chinook salmon (at sea dark blue green, silver, white, black spots
+  over its back and both tail lobes; `"spawning"`: dark olive and maroon, humped, the male's hooked jaws);
+  `"rainbow"`, a rainbow trout (olive, spotted black over its back, fins and tail, the pink-red band, white-edged
+  fins; `"steelhead"`: silver, the band faint); `"bluefin"`, an Atlantic bluefin tuna (2 m, metallic navy above,
+  silver below, pale bars, the sickle second dorsal and anal fin, yellow finlets edged black, the keels, the crescent
+  tail). Schooling (apart, along, together; `swim_to`, `scatter`); holding in a stream's current facing upstream
+  (`current`); rising to the surface to sip, a ring spreading on the water (`rise`); the school through a bait ball,
+  mouths open (`feed`); each steerable (`member(i)`). `tools/creatures/fish_demo.tscn` (a water for each; keys: Tab
+  the next, 1 school, 2 rise / feed, 3 scatter, 4 the other variant, P one steered, + / - more or fewer).
 - `scripts/creatures/beetles.gd` (`Beetles`): beetles at twice life size, not yet in the game, the make they
   share: made and moved as the ants are (one mesh, the same shader, the same CPU side), each species its own shape,
   markings, colours and pace, walking, eating at a leaf and flying (the elytra, one
