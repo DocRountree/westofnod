@@ -505,9 +505,9 @@ static func fresh_stump() -> Array:
 
 ## The cut variant of a variant's meshes (its levels of detail: [mesh,
 ## lods]): their bark in bark.gdshader compiled with BARK_CUT, both faces
-## drawn, so a notch (Population.set_notch) is a real hollow and a felled
-## tree's foot (Felling: cut_below) a cut face. For the trees being felled
-## (Population: their chunk's nearest level) and the felled.
+## drawn, so a notch (Population.set_notch) is a real hollow. For the trees
+## being felled (Population: notched ones); the felled are cut and closed on
+## the meshes themselves (Felling, MeshCut), from these.
 static var _cut_meshes := {}
 static var _cut_shader: Shader
 
@@ -532,20 +532,6 @@ static func cut_meshes(variant := 0) -> Array:
 	return _cut_meshes[variant]
 
 
-## A felled tree's own copy of a cut material: cut off below h (its own
-## height), the cut face's rings to radius r. Each felled tree has its own
-## (a handful in the world).
-static func felled_material(mat: ShaderMaterial, h: float, r: float, stripes := Vector2(1.0, 0.0)) -> ShaderMaterial:
-	var key := ["felled", mat, snappedf(h, 0.001), snappedf(r, 0.001), stripes.snapped(Vector2(0.001, 0.001))]
-	if not _bark_mats.has(key):
-		var c := mat.duplicate() as ShaderMaterial
-		c.set_shader_parameter("cut_below", h)
-		c.set_shader_parameter("cut_r", r)
-		c.set_shader_parameter("cut_stripes", stripes)
-		_bark_mats[key] = c # (told the night and the biomes with the rest)
-	return _bark_mats[key]
-
-
 ## The cut variant of a bark material (BARK_CUT): for another species'
 ## cut meshes too (SpeciesTree.cut_meshes).
 static func cut_material(mat: ShaderMaterial) -> ShaderMaterial:
@@ -554,6 +540,15 @@ static func cut_material(mat: ShaderMaterial) -> ShaderMaterial:
 		_cut_shader = Shader.new()
 		_cut_shader.code = src.code.replace("shader_type spatial;", "shader_type spatial;\nrender_mode cull_disabled;\n#define BARK_CUT")
 	return _cut_material(mat)
+
+
+## The bark material a cut variant (_cut_material) was made from (itself if
+## it's none).
+static func uncut_material(mat: ShaderMaterial) -> ShaderMaterial:
+	for key in _bark_mats:
+		if key is Array and key.size() == 2 and key[0] == "cut" and _bark_mats[key] == mat:
+			return key[1]
+	return mat
 
 
 static func _cut_material(mat: ShaderMaterial) -> ShaderMaterial:

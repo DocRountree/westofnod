@@ -582,6 +582,12 @@ func _magnify() -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if Session.debug and event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_F6:
 		aurora.set_forced(not aurora.forced) # debug: an aurora every night
+	# L: every shadow off, or on again (the sun's and the moon's: all the
+	# shadow maps), to see what they cost and what they do
+	if event is InputEventKey and event.pressed and not event.echo and event.physical_keycode == KEY_L and _loaded:
+		atmosphere.shadows = not atmosphere.shadows
+		chat.say("Shadows %s." % ("on" if atmosphere.shadows else "off"), Color(0.75, 0.85, 1.0))
+		get_viewport().set_input_as_handled()
 
 
 func _process(delta: float) -> void:

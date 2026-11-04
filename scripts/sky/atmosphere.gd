@@ -72,6 +72,7 @@ var _lut := PackedFloat32Array()
 var _zenith_transmittance := Vector3.ONE
 var _material: ShaderMaterial
 var haze_now := Color(0.48, 0.62, 0.88)   ## The colour of deep air right now.
+var shadows := true ## The sun's and moon's shadows drawn at all (main.gd: L toggles them, for looking into what they cost).
 
 
 func _ready() -> void:
@@ -209,7 +210,7 @@ func _update_sun() -> void:
 	c /= maxf(c.x, maxf(c.y, maxf(c.z, 1e-6)))
 	sun.light_color = Color(c.x, c.y, c.z) if peak > 0.0 else Color.BLACK
 	sun.light_energy = sun_energy * clampf(lerpf(peak, lum, 0.5), 0.0, 1.0) * up
-	sun.shadow_enabled = up > 0.0
+	sun.shadow_enabled = up > 0.0 and shadows
 	var night := night_amount()
 	# (West of Nod: the haze is the shaders' aerial perspective; main.gd reads
 	# haze_now. The environment's fog is kept for the underwater view.)
@@ -233,6 +234,7 @@ func _update_sun() -> void:
 		moonlight.global_basis = Basis.looking_at(-moon_dir, Vector3.UP if absf(moon_dir.y) < 0.99 else Vector3.FORWARD)
 		moonlight.light_energy = moon_energy * illuminated * moon_up * night
 		moonlight.visible = moonlight.light_energy > 0.001
+		moonlight.shadow_enabled = shadows
 
 
 # --- optical-depth lookup (Lague's AtmosphereTexture.compute, on the CPU) -----

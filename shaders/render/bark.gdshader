@@ -33,13 +33,8 @@ varying vec2 bark_off; // where each tree reads the bark texture from
 // fresh-cut wood, shaded as the cut's two faces.
 varying flat vec4 notch;
 #ifdef BARK_CUT
-// a felled tree (Felling: its own copy of the material,
-// OakTree.felled_material): the trunk below the cut (its own height) is in
-// the stump, not drawn; the cut face is drawn as the notch's are. (Plain
-// uniforms: instance uniforms on every tree's node ran out of room.)
-uniform float cut_below = -1000.0;
-uniform float cut_r = 0.5; // the trunk's radius at the cut (its own units: the rings' scale)
-uniform vec2 cut_stripes = vec2(1.0, 0.0); // the way the axe's strokes follow one another across it (its own xz)
+// (A felled tree isn't drawn by this: its meshes are cut at the cut and
+// closed there, MeshCut, Felling; nothing below it is left to hide.)
 // The cut variant (OakTree.cut_meshes: trees being felled, and felled;
 // both faces drawn): the bark cut away (the notch's wedge, the trunk below
 // the cut) isn't drawn, and the inside seen through the gap is drawn as the
@@ -140,23 +135,10 @@ void fragment() {
 		float q = notch.w - dot(notch_p.xz, d);
 		in_notch = q < notch.y && abs(notch_p.y - notch.z) < 0.5 * (notch.y - q);
 	}
-	// the bark in the notch's mouth or below the cut is cut away: there (and
-	// on the inside, seen through the gap) the line of sight goes on to
-	// where it meets the cut wood. (The mouth's own bark does it: the trunk
-	// is open at its foot, so behind the notch there may be no inside to.)
-	// a felled tree: anything of it seen through the cut across its foot
-	// (within the cut's outline, before the line of sight reaches it) is
-	// behind the cut wood: the trunk's inside, a limb's start in it, a
-	// branch beyond
-	bool behind_cut = false;
-	if (cut_below > -999.0 && cam_obj.y < cut_below) {
-		vec3 dv = notch_p - cam_obj;
-		float tf = length(dv);
-		float tc = (cut_below - cam_obj.y) / max(dv.y / tf, 1e-5);
-		vec3 pc = cam_obj + dv / tf * tc;
-		behind_cut = dv.y > 0.0 && tc < tf && length(pc.xz) < cut_r * 1.15;
-	}
-	if (!FRONT_FACING || in_notch || notch_p.y < cut_below || behind_cut) {
+	// the bark in the notch's mouth is cut away: there (and on the inside,
+	// seen through the gap) the line of sight goes on to where it meets the
+	// cut wood
+	if (!FRONT_FACING || in_notch) {
 		vec3 o = cam_obj;
 		vec3 dir = normalize(notch_p - cam_obj);
 		float best = 1e9;
@@ -191,23 +173,8 @@ void fragment() {
 				}
 			}
 		}
-		if (behind_cut) {
-			float t = (cut_below - o.y) / dir.y;
-			vec3 p = o + dir * t;
-			if (t < best) {
-				best = t;
-				hit = p;
-				// chopped in strokes, as the stump's top (along x)
-				vec2 ps = vec2(dot(p.xz, cut_stripes), dot(p.xz, vec2(-cut_stripes.y, cut_stripes.x)));
-				float band = ps.x * 7.0 + 0.35 * sin(ps.y * 4.6 + 1.1);
-				vec2 sl = (vec2(lc_hash(vec3(floor(band), 17.0, 3.0)), lc_hash(vec3(floor(band), 17.0, 7.0))) - 0.5) * vec2(0.3, 0.45);
-				hn = normalize(vec3(sl.x, -1.0, sl.y));
-				rr = cut_r * 1.2; // (the roots' lobes reach past the mean: the rim's dark only out there)
-				dark = 0.0;
-			}
-		}
 		if (best > 1e8)
-			discard; // (cut away, and nothing cut behind it: through)
+			discard; // (cut away, and nothing cut behind it: through the notch)
 		mat4 M = mat4(mm0, mm1, mm2, mm3);
 		vec4 w = M * vec4(hit, 1.0);
 		// (its depth left the surface's own: written at the cut, nearer, it

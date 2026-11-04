@@ -319,9 +319,8 @@ func _fell(kind: PropKind, variant: int, xf: Transform3D, radius: float, away: V
 		"away": [away.x, away.z], "angle": angle, "cut": cut, "stump_scale": stump_scale, "stump_h": stump_h,
 		"end": [end.x, end.y, end.z], "stripes": [stripes.x, stripes.z], "rested": REST_VERSION,
 	}
-	var node := _model(_felled_meshes(kind, variant))
+	var node := _felled_model(kind, variant, xf, cut, stripes)
 	node.transform = xf
-	_cut_base(node, kind, variant, xf, cut, stripes)
 	if stump_scale > 0.0:
 		var sn := _model(_fresh_stump(kind))
 		sn.transform = Transform3D(_stump_basis(stripes, stump_scale, stump_h), xf.origin)
@@ -524,8 +523,9 @@ func _solid_stump(at: Vector3, top: float, s: float) -> void:
 	main.population.add_fallen(PackedFloat32Array([at.x, at.y, at.z, at.x, at.y + top, at.z, 0.5 * s, 0.5 * s]), [] as Array[PackedFloat32Array])
 
 
-## A felled tree's meshes (every level of detail): the cut variant, so its
-## foot is a cut face (OakTree.cut_meshes).
+## A felled tree's meshes before they're cut (every level of detail: the
+## standing tree's solid ones, not its far card; OakTree.cut_meshes, whose
+## cut bark _felled_model puts back to the plain).
 static func _felled_meshes(kind: PropKind, variant: int) -> Array:
 	if kind.mesh_script and kind.mesh_script.has_method("cut_meshes"):
 		var cm: Array = kind.mesh_script.cut_meshes(variant)
@@ -533,62 +533,62 @@ static func _felled_meshes(kind: PropKind, variant: int) -> Array:
 	return [kind.mesh] + kind.lods
 
 
-## A felled tree's foot: not drawn below the cut (that stays in the stump),
-## closed there by the cut face (bark.gdshader, BARK_CUT: cut_below, cut_r;
-## OakTree.felled_material).
-func _cut_base(node: Node3D, kind: PropKind, variant: int, xf: Transform3D, cut: float, stripes: Vector3) -> void:
+## A felled tree, from its cut up (its own basis and place xf, cut `cut` m
+## up, the axe's strokes across the cut `stripes`): every level of detail's
+## meshes cut across at the cut and only what's above kept (MeshCut.above:
+## clipped there, so nothing of it can be drawn below the cut, whatever the
+## view, the level, the pass), its bark as the standing tree's (no BARK_CUT
+## shader: nothing to hide), each level closed by its own cut face through
+## the outline the cutting left (MeshCut.cap: the fresh end grain, the
+## strokes along `stripes`). The meshes cut are kept for the next tree of
+## the kind cut as high.
+static var _felled_cache := {} # [kind id, variant, cut in its own units (to 5 mm)] -> [[mesh, loops], ...] a level
+
+
+func _felled_model(kind: PropKind, variant: int, xf: Transform3D, cut: float, stripes: Vector3) -> Node3D:
 	var s := xf.basis.get_scale().y
-	var h := cut / s
-	var r := 0.5
-	if kind.mesh_script.has_method("trunk_radius_at"):
-		r = kind.mesh_script.trunk_radius_at(variant, h) # (the rings' scale)
-	# the strokes across the cut, the stump's way (in the tree's own space)
+	var h := snappedf(cut / s, 0.005)
+	var key := [String(kind.id), variant, h]
+	if not _felled_cache.has(key):
+		var levels: Array = []
+		for m: Mesh in _felled_meshes(kind, variant):
+			if m == null:
+				continue
+			var r := MeshCut.above(m, h)
+			var mesh: ArrayMesh = r.mesh
+			for si in mesh.get_surface_count():
+				var mat := mesh.surface_get_material(si) as ShaderMaterial
+				if mat and mat.shader == OakTree._cut_shader:
+					mesh.surface_set_material(si, OakTree.uncut_material(mat))
+			levels.append([mesh, r.loops])
+		_felled_cache[key] = levels
+	var root := Node3D.new()
+	# the strokes' way across the cut, in the tree's own space: the cut
+	# faces built turned so their own x runs along it (bark.gdshader's
+	# fresh_end draws the strokes along x)
 	var sl := xf.basis.inverse() * stripes
-	var sd := Vector2(sl.x, sl.z).normalized() if Vector2(sl.x, sl.z).length() > 1e-4 else Vector2(1.0, 0.0)
-	# (its own copy of each level's cut bark, set to its cut)
-	var cap: ShaderMaterial = null
-	for c2 in node.get_children():
-		var mi := c2 as MeshInstance3D
-		if mi == null or mi.mesh == null:
+	var turn := Basis(Vector3.UP, atan2(-sl.z, sl.x)) if Vector2(sl.x, sl.z).length() > 1e-4 else Basis()
+	var grain: ShaderMaterial = (_fresh_stump(kind)[0] as Mesh).surface_get_material(0)
+	for lv: Array in _felled_cache[key]:
+		var mesh: ArrayMesh = lv[0]
+		var mi := MeshInstance3D.new()
+		mi.mesh = mesh
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		root.add_child(mi)
+		if (lv[1] as Array).is_empty() or grain == null:
 			continue
-		for si in mi.mesh.get_surface_count():
-			var mat := mi.mesh.surface_get_material(si) as ShaderMaterial
-			if mat and mat.shader == OakTree._cut_shader:
-				var fm := OakTree.felled_material(mat, h, r, sd)
-				mi.set_surface_override_material(si, fm)
-				if cap == null:
-					cap = fm
-	# the cut itself, a face across the foot (just inside the wood, beyond
-	# the cut seen from outside: the material draws there the cut it sees
-	# through the trunk's open foot; on this side of it, it drew nothing), so the wood
-	# is there in depth: where the foot sinks into the ground the ground
-	# hides it, not the trunk's inside behind it (with the cut drawn on it)
-	if cap and kind.mesh_script.has_method("trunk_outline_at"):
-		var ring: PackedVector2Array = kind.mesh_script.trunk_outline_at(variant, h)
-		if ring.size() > 4:
-			var mid := ring[0]
-			var y := h + 0.003
-			var verts := PackedVector3Array()
-			for i in range(1, ring.size()):
-				var a := ring[i]
-				var b := ring[1 + i % (ring.size() - 1)]
-				verts.append_array([Vector3(mid.x, y, mid.y), Vector3(a.x, y, a.y), Vector3(b.x, y, b.y)])
-			var norms := PackedVector3Array()
-			norms.resize(verts.size())
-			norms.fill(Vector3.DOWN)
-			var arrays := []
-			arrays.resize(Mesh.ARRAY_MAX)
-			arrays[Mesh.ARRAY_VERTEX] = verts
-			arrays[Mesh.ARRAY_NORMAL] = norms
-			var mesh := ArrayMesh.new()
-			mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
-			var cm := cap.duplicate() as ShaderMaterial
-			cm.set_shader_parameter("lod_range", Vector3(0.0, 1e9, 0.0)) # (at every distance)
-			mesh.surface_set_material(0, cm)
-			var mi := MeshInstance3D.new()
-			mi.mesh = mesh
-			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-			node.add_child(mi)
+		# its cut face, shown over the same span as its level
+		var cm := grain.duplicate() as ShaderMaterial
+		var bark := mesh.surface_get_material(0) as ShaderMaterial
+		if bark and bark.get_shader_parameter("lod_range") != null:
+			cm.set_shader_parameter("lod_range", bark.get_shader_parameter("lod_range"))
+		var ci := MeshInstance3D.new()
+		ci.mesh = MeshCut.cap(lv[1], h, turn, cm)
+		ci.transform = Transform3D(turn, Vector3.ZERO)
+		ci.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		root.add_child(ci)
+	Origin.root.add_child(root)
+	return root
 
 
 ## Meshes drawn as the population draws a kind: every level of detail, each
@@ -662,11 +662,10 @@ func from_list(list: Array) -> void:
 			pivot = lie[1]
 			e["end"] = [pivot.x, pivot.y, pivot.z]
 			e["rested"] = REST_VERSION
-		var node := _model(_felled_meshes(kind, int(kind.get_meta("variant", 0))))
-		node.transform = Transform3D(Basis(Vector3.UP.cross(dir).normalized(), float(e.get("angle", PI * 0.5))) * basis, pivot)
 		var sv: Array = e.get("stripes", e.get("chop", [dir.x, dir.z]))
 		var stripes := Vector3(sv[0], 0.0, sv[1])
-		_cut_base(node, kind, int(kind.get_meta("variant", 0)), Transform3D(basis, origin), float(e.get("cut", 0.0)), stripes)
+		var node := _felled_model(kind, int(kind.get_meta("variant", 0)), Transform3D(basis, origin), float(e.get("cut", 0.0)), stripes)
+		node.transform = Transform3D(Basis(Vector3.UP.cross(dir).normalized(), float(e.get("angle", PI * 0.5))) * basis, pivot)
 		_solid(kind, node.transform, float(e.get("cut", 0.0)))
 		var s := float(e.get("stump_scale", 0.0))
 		if s > 0.0:
