@@ -201,6 +201,19 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   down). The milk snake lays leathery eggs that hatch (a slit, the young's head out, then the young); the rattler gives
   birth, each young in a clear membrane it wriggles out of. In the life cycle demo (keys R, M, C, W; Y: every
   young creature eats: the larvae, the nymphs, the young snakes).
+- `scripts/creatures/spider.gd` (`Spider`, on `hexapod.gd`'s eight-legged gait): a Carolina wolf spider (its egg sac
+  carried on its spinnerets, its spiderlings riding on its back), a six-spotted fishing spider (running on water, its
+  sac carried in its jaws, a nursery web spun over it to hatch in), a grass spider (a funnel weaver: its sheet web laid
+  in sweeps out from its funnel, waiting at the mouth, rushing out at prey and dragging it in) and a yellow garden
+  spider (its orb spun off a branch thread by thread, frame, radii, spiral, the zigzag stabilimentum; at its hub head
+  down; prey wrapped in silk; its brown papery sac hung). Lofted bodies with their marks
+  (`shaders/render/spider.gdshader`), eyes in their families' patterns, chelicerae, palps, spinnerets; silk
+  (`shaders/render/silk.gdshader`) drawn as far as it's spun. Hunting, eating, laying, hatching, spiderlings.
+- `scripts/creatures/isopod.gd` (`Isopod`): a pill bug, overlapping plates over seven pairs of legs; walking, eating
+  leaf litter, rolling into a ball; its eggs carried in a brood pouch that swells, its young (six pairs of legs) walking
+  out from under it.
+- Not yet in the game: `tools/creatures/life_cycle_demo.tscn`'s last five stations (F the spiders hunt, S the web
+  spiders spin, O the pill bugs roll; 1 lay, 4 hatch, Y the young eat).
 - Steering, for a future state machine (`scripts/creatures/pilot.gd`): every creature (`Wasp`, the
   lepidopterans, `Grasshopper`, `Mantis`, `Snake`, `Larva`; one of a colony: `AntColony.member(i)`) has the same
   calls: `go(direction, speed, seconds)`, `go_to(point, speed)`, `face(direction)`, `stop()`, `act(name, args)`

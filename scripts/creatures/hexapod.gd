@@ -1,5 +1,6 @@
 extends Node3D
-## A walking insect built from parts (the grasshopper, the mantis: their
+## A walking arthropod built from parts (the grasshopper, the mantis, the
+## spiders, the pill bug: their
 ## scripts build the bodies and say what they do), drawn at twice life
 ## size (model mm: MM), `size` its share of the adult's (a nymph's small,
 ## growing: grow(to, secs)). The motor under them, every frame:
@@ -33,7 +34,8 @@ var walk_speed := 0.03 ## m/s (the adult's)
 var stride := 7.0 ## mm a foot's left behind before its set steps
 var step_time := 0.14 ## s a set's swing takes
 var legs: Array = [] ## the right side's: {hip, f, t, s, home: Vector2 (x, z), dangle: Vector3, pole: Vector3 (body: the knee's way), walks: bool, r: thickness (mm), knee: Vector3 (body mm: held there on the ground, not reached for: a grasshopper's hind knee)}
-var tripod := [[0, 3, 4], [1, 2, 5]] ## (a leg: its pair * 2, + 1 the right)
+var tripod := [[0, 3, 4], [1, 2, 5]] ## the gait's two sets (a leg: its pair * 2, + 1 the right): six legs' tripods; eight's, the spiders', [[0, 3, 4, 7], [1, 2, 5, 6]]; more, alternating so down the body
+## (any number of pairs: legs' length; the spiders' four, a pill bug's seven)
 
 var size := 1.0
 var nymph := false
@@ -104,7 +106,7 @@ func _ready() -> void:
 	add_child(_body)
 	_build()
 	_place()
-	for i in 6:
+	for i in legs.size() * 2:
 		_feet.append(_home(i))
 		_from.append(_feet[i])
 		_to.append(_feet[i])
@@ -295,7 +297,7 @@ static func _loft(keys: Array, sq := 2.0) -> ArrayMesh:
 ## The legs' meshes (the species calls it, its legs set): femur, tibia,
 ## tarsus, a knee; each leg's colours.
 func _build_legs(femur_mat: Material, tibia_mat: Material) -> void:
-	for i in 6:
+	for i in legs.size() * 2:
 		var L: Dictionary = legs[i / 2]
 		var f := _part(Vector3.ZERO, Vector3.ONE, L.get("femur_mat", femur_mat))
 		var tb := MeshInstance3D.new()
@@ -388,7 +390,7 @@ func _land() -> void:
 	_speed = 0.0
 	_target = _pos
 	_place()
-	for i in 6:
+	for i in legs.size() * 2:
 		_feet[i] = _home(i)
 	_swinging = -1
 	_on_landed()
@@ -464,7 +466,7 @@ func _gait(dt: float) -> void:
 func _pose_legs() -> void:
 	var inv := (transform * _body.transform).affine_inverse()
 	var up := (inv.basis * Vector3.UP).normalized()
-	for i in 6:
+	for i in legs.size() * 2:
 		var L: Dictionary = legs[i / 2]
 		var side := 1.0 if i % 2 == 1 else -1.0
 		var hp: Vector3 = L.hip

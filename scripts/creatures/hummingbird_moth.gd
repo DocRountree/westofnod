@@ -60,8 +60,12 @@ func _build() -> void:
 	var dark := Color(0.04, 0.032, 0.026)
 	# the thorax: big and round, densely furred olive above, cream beneath;
 	# the shoulder flaps (tegulae) a paler olive
-	_part(Vector3(0.0, 0.7, -3.0), Vector3(7.2, 6.6, 8.4), olive, 0.95, null, 0.6)
-	_part(Vector3(0.0, -1.2, -3.0), Vector3(6.0, 4.2, 7.6), cream, 0.95, null, 0.5)
+	# (one smooth furred body, not parts stacked: a loft, its colours by
+	# where on it: _fur)
+	var thorax := MeshInstance3D.new()
+	thorax.mesh = HEX._loft([[-7.6, 0.4, 1.6, 1.5], [-6.6, 0.4, 3.0, 2.9], [-4.6, 0.3, 3.6, 3.3], [-2.0, 0.3, 3.7, 3.4], [0.0, 0.1, 3.4, 3.2], [1.2, 0.0, 2.6, 2.5], [1.8, 0.0, 1.0, 1.0]])
+	thorax.material_override = _fur(olive, cream, burgundy, -100.0, -100.0)
+	_body.add_child(thorax)
 	for side: float in [-1.0, 1.0]:
 		var teg := _part(Vector3(2.4 * side, 2.0, -3.8), Vector3(2.6, 2.2, 5.4), olive_hi, 0.95, null, 0.6)
 		teg.rotation.z = -0.4 * side
@@ -74,14 +78,13 @@ func _build() -> void:
 	# the abdomen: stout, tapering, in segments: olive, then the two
 	# burgundy ones, then olive-yellow; beneath, cream forward, dark
 	# burgundy behind
-	var segs := [[1.6, 6.6, olive], [4.0, 6.5, olive], [6.3, 6.1, burgundy], [8.5, 5.5, burgundy], [10.5, 4.6, olive_hi]]
-	for i in segs.size():
-		var z: float = segs[i][0]
-		var wd: float = segs[i][1]
-		var y := -0.1 - 0.02 * z
-		# (on the abdomen's joint: abdomen_at; it curls under to lay)
-		_part(Vector3(0.0, y + 0.1, z), Vector3(wd, wd * 0.92, 3.0), segs[i][2], 0.95, _abdomen, 0.5)
-		_part(Vector3(0.0, y - wd * 0.22 + 0.1, z), Vector3(wd * 0.8, wd * 0.5, 2.7), cream if i < 2 else burgundy.darkened(0.3), 0.95, _abdomen, 0.4)
+	# (one smooth shell on the abdomen's joint, abdomen_at: it curls under
+	# to lay; the burgundy band across segments four and five, the
+	# segments' joints faint creases)
+	var ab := MeshInstance3D.new()
+	ab.mesh = HEX._loft([[-0.5, 0.0, 2.6, 2.5], [0.6, 0.0, 3.3, 3.1], [3.0, 0.0, 3.35, 3.15], [6.0, -0.15, 3.1, 2.9], [8.5, -0.25, 2.7, 2.5], [10.5, -0.35, 2.2, 2.0], [12.0, -0.4, 1.2, 1.1], [12.6, -0.4, 0.3, 0.3]])
+	ab.material_override = _fur(olive, cream, burgundy, 5.0, 9.6)
+	_abdomen.add_child(ab)
 	# the tail fan: dark in the middle, yellowish at its edges, spread from
 	# the tip (fanned wider to steady it, hovering: _think)
 	_tuft = Node3D.new()
@@ -96,6 +99,48 @@ func _build() -> void:
 	_antennae(Vector3(1.0, 1.9, -9.4), 8.5, 0.8, dark, 0.3, 0.55, true)
 	# pale legs
 	_legs_at(Vector3(0.0, -2.8, -2.6), 4.5, cream.darkened(0.15))
+
+
+const HEX := preload("res://scripts/creatures/hexapod.gd") # (its loft)
+static var _fur_shader: Shader
+
+
+## The furred body's colours: olive above, cream under the front, a
+## burgundy band from band0 to band1 (mm along z), dark burgundy beneath
+## behind it; faint creases at the segments' joints; a soft sheen at the
+## rim (the fur catching the light round its edge).
+static func _fur(olive: Color, cream: Color, burgundy: Color, band0: float, band1: float) -> ShaderMaterial:
+	if _fur_shader == null:
+		_fur_shader = Shader.new()
+		_fur_shader.code = """shader_type spatial;
+uniform vec3 olive : source_color;
+uniform vec3 cream : source_color;
+uniform vec3 burgundy : source_color;
+uniform vec2 band = vec2(-100.0);
+varying vec3 o;
+void vertex() { o = VERTEX; }
+void fragment() {
+	float under = smoothstep(-0.8, -2.0, o.y); // (beneath)
+	vec3 c = mix(olive, cream, under * (1.0 - smoothstep(4.0, 6.0, o.z)));
+	float b = smoothstep(band.x - 0.4, band.x + 0.4, o.z) * (1.0 - smoothstep(band.y - 0.4, band.y + 0.4, o.z));
+	c = mix(c, burgundy, b);
+	c = mix(c, burgundy * 0.7, under * smoothstep(5.0, 6.0, o.z));
+	if (o.z > 0.5) // (the abdomen's segments: faint creases)
+		c *= 1.0 - 0.18 * smoothstep(0.82, 0.98, fract((o.z - 0.5) / 2.3));
+	c *= 0.93 + 0.07 * sin(o.x * 9.0) * sin(o.z * 7.0 + o.y * 5.0); // (the fur's unevenness)
+	ALBEDO = c;
+	ROUGHNESS = 0.95;
+	RIM = 0.6;
+	RIM_TINT = 0.6;
+}
+"""
+	var m := ShaderMaterial.new()
+	m.shader = _fur_shader
+	m.set_shader_parameter("olive", olive)
+	m.set_shader_parameter("cream", cream)
+	m.set_shader_parameter("burgundy", burgundy)
+	m.set_shader_parameter("band", Vector2(band0, band1))
+	return m
 
 
 ## Its behaviours (a state machine's: pilot.gd): search {centre, radius,

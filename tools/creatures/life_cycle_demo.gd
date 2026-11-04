@@ -16,6 +16,9 @@ extends Node3D
 ##   fly to catch
 ## eastern diamondback rattlesnake, eastern milk snake (life size): an adult
 ##   and a young each, a mouse each to eat
+## wolf spider, fishing spider (on a pond), grass spider (its funnel web
+##   spun as it starts), yellow garden spider (its orb spun off a branch),
+##   pill bugs in leaf litter (a female and young)
 ##
 ## 1 every adult lays its eggs (Brood's: the butterflies one to a leaf, the
 ##   wasp one to a cell, the beetles a cluster; not the ants: their queens'
@@ -31,6 +34,10 @@ extends Node3D
 ## Y the young eat: the larvae, the nymphs, the young snakes (each its own
 ##   small meal)
 ## (1 also: the rattlesnake gives birth, the milk snake lays; 4: its eggs hatch)
+## (1 also: the spiders spin their egg sacs, the pill bug's pouch fills;
+##   4: the sacs hatch, the pill bug's young come out)
+## F the spiders hunt (a fly each: on the ground, the water, the sheet, in
+##   the web)   S the web spiders spin anew   O the pill bugs roll up
 ## P steered by the steering layer (pilot.gd), as a state machine would: the
 ##   grasshopper, the mantis, the snakes, the moth, a lady beetle, each
 ##   through a few orders, one after another as each says it's done
@@ -47,7 +54,10 @@ const LarvaScript := preload("res://scripts/creatures/larva.gd")
 const BroodScript := preload("res://scripts/creatures/brood.gd")
 const PupaScript := preload("res://scripts/creatures/pupa.gd")
 
-const NAMES := ["monarch", "hummingbird clearwing", "paper wasp", "carpenter ant (queen)", "red harvester (queen)", "June bug", "convergent lady beetle", "differential grasshopper", "Carolina mantis", "eastern diamondback rattlesnake", "eastern milk snake"]
+const NAMES := ["monarch", "hummingbird clearwing", "paper wasp", "carpenter ant (queen)", "red harvester (queen)", "June bug", "convergent lady beetle", "differential grasshopper", "Carolina mantis", "eastern diamondback rattlesnake", "eastern milk snake",
+		"Carolina wolf spider", "six-spotted fishing spider", "grass spider (funnel weaver)", "yellow garden spider", "pill bug"]
+const SpiderScript := preload("res://scripts/creatures/spider.gd")
+const IsopodScript := preload("res://scripts/creatures/isopod.gd")
 const SnakeScript := preload("res://scripts/creatures/snake.gd")
 const HopperScript := preload("res://scripts/creatures/grasshopper.gd")
 const MantisScript := preload("res://scripts/creatures/mantis.gd")
@@ -80,6 +90,9 @@ var _prey: Node3D
 var rattler: SnakeScript
 var milk: SnakeScript
 var _mice := [null, null]
+var spiders: Array = [] # wolf, fishing, funnel, garden
+var pillbug: IsopodScript
+const POND := 0.002 # m: the pond's surface over the plain
 const MOTH_PUPA := Vector3(0.2, 0.002, -0.2) # (off the clearwing's station)
 const MOTH_PUPA_TURN := 0.6
 var _moth_perch := Vector3.ZERO # (a stem by its pupa, to climb and hang from)
@@ -88,7 +101,7 @@ var _moth_perch_n := Vector3.BACK
 
 func _station(i: int) -> Vector3:
 	# (the snakes, life size, given more room)
-	return Vector3(i * GAP + (1.2 if i >= 9 else 0.0) + (1.8 if i >= 10 else 0.0), 0.0, 0.0)
+	return Vector3(i * GAP + (1.2 if i >= 9 else 0.0) + (1.8 if i >= 10 else 0.0) + (1.6 if i >= 11 else 0.0), 0.0, 0.0)
 
 
 func _ready() -> void:
@@ -106,7 +119,7 @@ func _ready() -> void:
 	sun.shadow_enabled = true
 	sun.directional_shadow_max_distance = 4.0
 	add_child(sun)
-	_box(Vector3(GAP * 5.0 + 1.5, -0.005, 0.0), Vector3(GAP * 11.0 + 5.0, 0.01, 3.0), Color(0.36, 0.4, 0.22))
+	_box(Vector3(GAP * 8.0 + 2.3, -0.005, 0.0), Vector3(GAP * 16.0 + 6.5, 0.01, 3.0), Color(0.36, 0.4, 0.22))
 	cam = Camera3D.new()
 	cam.near = 0.002
 	cam.far = 60.0
@@ -123,6 +136,8 @@ func _ready() -> void:
 	_hopper_station()
 	_mantis_station()
 	_snake_stations()
+	_spider_stations()
+	_isopod_station()
 	_new_pupae()
 	_focus = _station(0) + Vector3(0.0, 0.08, 0.0)
 	_say()
@@ -333,6 +348,95 @@ func _new_mouse(k: int) -> Node3D:
 	return m
 
 
+func _spider_stations() -> void:
+	var kinds := ["wolf", "fishing", "funnel", "argiope"]
+	for k in 4:
+		var c := _station(11 + k)
+		var sp := SpiderScript.new(kinds[k])
+		add_child(sp)
+		spiders.append(sp)
+		match kinds[k]:
+			"fishing": # (a pond: it runs on the water)
+				var pond := _box(c + Vector3(0.0, POND * 0.5, 0.0), Vector3(0.7, POND, 0.6), Color(0.16, 0.28, 0.32))
+				(pond.material_override as StandardMaterial3D).roughness = 0.05
+				sp.place(c + Vector3(0.0, POND, 0.0), 0.5)
+				sp.height = func(_x: float, _z: float) -> float: return POND
+				sp.wander(c + Vector3(0.0, POND, 0.0), 0.2)
+			"funnel": # (its web spun as it starts)
+				sp.place(c + Vector3(0.12, 0.0, 0.0), 0.0)
+				sp.spin_funnel(c, 0.14)
+			"argiope": # (a branch over the plain, stems below: its orb spun between them)
+				_box(c + Vector3(-0.35, 0.3, -0.05), Vector3(0.03, 0.6, 0.03), Color(0.35, 0.27, 0.18))
+				_box(c + Vector3(-0.05, 0.58, -0.05), Vector3(0.6, 0.02, 0.02), Color(0.35, 0.27, 0.18))
+				for x: float in [-0.2, 0.22]:
+					_box(c + Vector3(x, 0.08, -0.05), Vector3(0.005, 0.16, 0.005), Color(0.36, 0.42, 0.2))
+				sp.place(c, 0.0)
+				sp.spin_orb(c + Vector3(0.0, 0.57, -0.05), c + Vector3(-0.2, 0.15, -0.05), c + Vector3(0.22, 0.14, -0.05))
+			_:
+				sp.place(c, 0.0)
+				sp.wander(c, 0.25)
+		var yg := SpiderScript.new(kinds[k], true)
+		add_child(yg)
+		var yc := c + Vector3(-0.2, POND if kinds[k] == "fishing" else 0.0, 0.25)
+		yg.place(yc, 1.0)
+		if kinds[k] == "fishing":
+			yg.height = func(_x: float, _z: float) -> float: return POND
+		yg.wander(yc, 0.08)
+
+
+func _isopod_station() -> void:
+	var c := _station(15)
+	for k in 10:
+		var leaf := Beetles.leaf()
+		leaf.position = c + Vector3(randf_range(-0.12, 0.12), 0.0002 * k, randf_range(-0.12, 0.12))
+		leaf.rotation.y = randf() * TAU
+		leaf.scale = Vector3(0.7, 1.0, 0.7)
+		(leaf.get_child(0) as MeshInstance3D).material_override = _plain(Color(0.42, 0.3, 0.16).lerp(Color(0.28, 0.2, 0.11), randf()))
+		add_child(leaf)
+	pillbug = IsopodScript.new()
+	add_child(pillbug)
+	pillbug.place(c, 0.3)
+	pillbug.wander(c, 0.12)
+	for k in 2:
+		var y := IsopodScript.new(true)
+		add_child(y)
+		y.place(c + Vector3(0.06 * (k * 2 - 1), 0.0, 0.08), randf() * TAU)
+		y.grow(0.5, 60.0)
+		y.wander(c + Vector3(0.0, 0.0, 0.08), 0.06)
+
+
+## A fly for each spider to hunt: on the ground before the wolf spider, on
+## the water before the fishing spider, landed on the grass spider's sheet,
+## caught in the garden spider's web.
+func _spiders_hunt() -> void:
+	for sp in spiders:
+		var f := MantisScript.fly_prey()
+		add_child(f)
+		var p: Vector3 = sp.get("_pos")
+		match sp.kind:
+			"funnel":
+				var w: Node3D = sp.web
+				if not is_instance_valid(w):
+					f.queue_free()
+					continue
+				var a := randf() * TAU
+				var at := w.position + Vector3(cos(a), 0.0, sin(a)) * 0.07
+				at.y = w.call("surface_y", at.x, at.z)
+				f.position = at
+			"argiope":
+				var w: Node3D = sp.web
+				if not is_instance_valid(w):
+					f.queue_free()
+					continue
+				var n: int = w.call("count")
+				f.position = w.call("point", int(n * randf_range(0.45, 0.85)))
+				f.rotation = Vector3(PI * 0.5, 0.0, 0.0)
+			_:
+				var a := randf() * TAU
+				f.position = p + Vector3(cos(a), 0.0, sin(a)) * 0.15
+		sp.hunt(f)
+
+
 ## The young eat: the larvae where they are; the grasshopper nymphs at a
 ## leaf; the mantis nymphs at a small fly; the young snakes a small mouse.
 func _young_eat() -> void:
@@ -353,6 +457,14 @@ func _young_eat() -> void:
 			f.position = (c as Node3D).position + Vector3(randf_range(-0.03, 0.03), 0.001, randf_range(0.02, 0.04))
 			add_child(f)
 			c.call("strike", f.position + Vector3(0.0, 0.003, 0.0), f)
+		elif sc == SpiderScript and c.get("young") and c.get("_mother") == null:
+			var f := MantisScript.fly_prey()
+			f.scale = Vector3.ONE * 0.35
+			f.position = (c as Node3D).get("_pos") + Vector3(randf_range(-0.03, 0.03), 0.0, randf_range(0.02, 0.04))
+			add_child(f)
+			c.call("hunt", f)
+		elif sc == IsopodScript and c.get("young"):
+			c.call("eat", (c as Node3D).get("_pos") + Vector3(randf_range(-0.01, 0.01), 0.0, randf_range(-0.01, 0.01)))
 		elif sc == SnakeScript and c.get("young"):
 			var m := SnakeScript.mouse(0.35)
 			var a := randf() * TAU
@@ -452,6 +564,9 @@ func _lay_all() -> void:
 	mantis.lay(_stem_foot + Vector3(0.0, 0.006, 0.0))
 	rattler.lay(5) # (born, each in its membrane)
 	milk.lay(6)
+	for sp in spiders:
+		sp.lay()
+	pillbug.lay()
 
 
 func _hatch_eggs() -> void:
@@ -466,6 +581,11 @@ func _hatch_eggs() -> void:
 	for p in hopper.pods + mantis.oothecae:
 		if is_instance_valid(p):
 			p.call("hatch")
+	for sp in spiders: # (the spiders' sacs, carried or left)
+		for sac in sp.sacs:
+			if is_instance_valid(sac):
+				sac.call("hatch")
+	pillbug.hatch()
 
 
 func _hatch_all() -> void:
@@ -536,6 +656,22 @@ func _unhandled_input(e: InputEvent) -> void:
 				_young_eat()
 			KEY_P:
 				_pilot_demo()
+			KEY_F:
+				_spiders_hunt()
+			KEY_S:
+				for k in [2, 3]:
+					var sp = spiders[k] # (a Spider: its web, its kind)
+					var c := _station(11 + k)
+					if is_instance_valid(sp.web):
+						sp.web.queue_free()
+					if sp.kind == "funnel":
+						sp.spin_funnel(c, 0.14)
+					else:
+						sp.spin_orb(c + Vector3(0.0, 0.57, -0.05), c + Vector3(-0.2, 0.15, -0.05), c + Vector3(0.22, 0.14, -0.05))
+			KEY_O:
+				for c in get_children():
+					if c.get_script() == IsopodScript:
+						c.call("roll", 5.0)
 			KEY_5:
 				for k in 2:
 					_ant_pile(k)
@@ -561,7 +697,7 @@ func _go(i: int) -> void:
 
 
 func _say() -> void:
-	_label.text = "%s   (Tab / Shift+Tab: the next)\n1 all lay eggs   2 the pupae hatch   3 new pupae   4 the eggs hatch   5 new ant eggs\n6 grasshopper hops   7 flies   8 eats   9 mantis strikes the fly   0 flies   G grooms\nR rattlesnake eats   M milk snake eats   C snakes coil   W off again   Y the young eat   P steered   Space slow motion   drag: turn round   wheel: nearer / further" % NAMES[_at]
+	_label.text = "%s   (Tab / Shift+Tab: the next)\n1 all lay eggs   2 the pupae hatch   3 new pupae   4 the eggs hatch   5 new ant eggs\n6 grasshopper hops   7 flies   8 eats   9 mantis strikes the fly   0 flies   G grooms\nR rattlesnake eats   M milk snake eats   C snakes coil   W off again   Y the young eat   P steered\nF the spiders hunt   S the web spiders spin anew   O the pill bugs roll up   Space slow motion   drag: turn round   wheel: nearer / further" % NAMES[_at]
 
 
 func _process(dt: float) -> void:
