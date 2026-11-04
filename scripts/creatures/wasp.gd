@@ -556,36 +556,39 @@ static func caterpillar() -> Node3D:
 	return root
 
 
-## A small paper comb, for it to lay in (twice life size): seven
-## six-sided cells of grey paper, their mouths up (a real comb hangs mouth
-## down: turned up here, to see in), 6 mm across, 7 mm deep. Its origin at
+## A small paper comb, for it to lay in (twice life size): seven round
+## cells of grey paper, packed, flaring a little to their mouths, each its
+## own height and shade, their mouths up (a real comb hangs mouth down:
+## turned up here, to see in), about 6 mm across, 7 mm deep. Its origin at
 ## its foot. Returns [the comb, its cells' mouths (the comb's space)].
 static func comb() -> Array:
 	var root := Node3D.new()
-	var paper := StandardMaterial3D.new()
-	paper.albedo_color = Color(0.55, 0.52, 0.47)
-	paper.roughness = 0.95
-	paper.cull_mode = BaseMaterial3D.CULL_DISABLED
-	var cell := CylinderMesh.new()
-	var r := 3.0 * MM / cos(PI / 6.0) # (its corners' radius: 6 mm across the flats)
-	cell.top_radius = r
-	cell.bottom_radius = r
-	cell.height = 7.0 * MM
-	cell.radial_segments = 6
-	cell.rings = 1
-	cell.cap_top = false
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 7
 	var mouths := []
 	var spots := [Vector2.ZERO]
 	for k in 6:
-		var a := PI / 6.0 + k * PI / 3.0
-		spots.append(Vector2(cos(a), sin(a)) * 6.0 * MM)
+		var a := k * PI / 3.0
+		spots.append(Vector2(cos(a), sin(a)) * 6.2 * MM)
 	for p: Vector2 in spots:
+		var cell := CylinderMesh.new()
+		var deep := rng.randf_range(6.3, 7.4) * MM
+		cell.top_radius = 3.2 * MM
+		cell.bottom_radius = 2.7 * MM
+		cell.height = deep
+		cell.radial_segments = 14
+		cell.rings = 2
+		cell.cap_top = false
+		var paper := StandardMaterial3D.new()
+		paper.albedo_color = Color(0.55, 0.52, 0.47).darkened(rng.randf_range(0.0, 0.15))
+		paper.roughness = 0.95
+		paper.cull_mode = BaseMaterial3D.CULL_DISABLED
 		var mi := MeshInstance3D.new()
 		mi.mesh = cell
 		mi.material_override = paper
-		mi.position = Vector3(p.x, cell.height * 0.5, p.y)
+		mi.position = Vector3(p.x, deep * 0.5, p.y)
 		root.add_child(mi)
-		mouths.append(Vector3(p.x, cell.height, p.y))
+		mouths.append(Vector3(p.x, deep, p.y))
 	return [root, mouths]
 
 

@@ -187,8 +187,9 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   its size and colour) laid by the butterflies one to a leaf (the clearwing hovering), by the wasp one to each cell of
   its comb (`Wasp.comb`, `lay_eggs`), by the beetles in a cluster (`AntColony.lay`, a beetle's: tipped tail down; the
   ants don't lay: their queens' eggs lie in piles); every egg hatches (`hatch`: rocking, the larva out, small,
-  growing up; a caterpillar eats its shell first, any other's collapses and fades). Their larvae (`larva.gd`, `Larva`: a chain of segments on the
-  CPU, painted by `shaders/render/larva.gdshader`): the monarch's banded caterpillar with its filaments, the
+  growing up; a caterpillar eats its shell first, any other's collapses and fades). Their larvae (`larva.gd`, `Larva`: one smooth skin bent along
+  a spine the CPU moves, by `shaders/render/larva.gdshader`, its creases shallow; a crawler bending at most a little
+  a joint; the grubs lying on their sides, legs in): the monarch's banded caterpillar with its filaments, the
   clearwing's hornworm, the lady beetle's crawling "alligator", the June bug's C-curled white grub, the wasp's and
   the ants' grubs; caterpillars rippling as they crawl, grubs curling and uncurling. The lepidopterans' pupae
   (`pupa.gd`, `Pupa`): the monarch's jade, gold-dotted chrysalis, the clearwing's brown pupa in its cocoon; they
