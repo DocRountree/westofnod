@@ -169,6 +169,17 @@ maple` (or `sycamore`; `pair`, `pair2` for the standing trees nearer).
   interlacing in diamonds. Its textures: `python3
   tools/trees/bake_walnut_textures.py` (`walnut_leaves.png`,
   `walnut_bark.png`); `preview.gd ... walnut`.
+- Tulip tree (`tulip_tree.gd`, *Liriodendron tulipifera*), in the game:
+  `props/tulip.tres`: the tallest of the broadleaves, a dead straight trunk
+  running up through the crown (in a stand a very long clean bole, a small
+  crown high up; in the open a tall narrow oval, a spire when young); short
+  alternate limbs ascending then spreading; leaves on long slender stalks,
+  four-lobed, the tip cut off square in a shallow notch, bright green; now
+  and then a tulip-shaped flower, greenish yellow banded orange, or an
+  upright brown cone of seeds at a twig's end; grey bark in narrow
+  interlacing ridges, the furrows paler. Its textures: `python3
+  tools/trees/bake_tulip_textures.py` (`tulip_leaves.png`,
+  `tulip_bark.png`); `preview.gd ... tulip`.
 
 All in the game (`props/*.tres`), choppable as the oak (their cut
 variants), with the oak's far-off cards (`ImpostorBaker`); not yet the
@@ -185,6 +196,9 @@ per hectare, shared among their variants as the oak's):
   taiga or the swamp (`strict`, `not_in_swamp`); no dead walnuts standing
   and no fallen logs of their own (weight 0: only the trees an axe fells). Its walnuts hang on the
   grown trees and are picked as the pawpaw's (`Foraging`).
+- `tulip.tres`: the forest 3, the prairie 0.25 (sparse), nowhere else: not
+  in the swamp nor on its mud, and none where the ground has any share of
+  another biome (`strict`, `not_in_swamp`, `never_in`).
 - `lodgepole.tres` and `bald_cypress.tres`: the taiga 17 and 9 (together
   as thick as the oaks in the forest), thinning out up the mountains to
   none past 1350 m; the forest 0.6 and 0.4; none on the prairie or in the

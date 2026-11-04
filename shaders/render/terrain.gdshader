@@ -155,13 +155,13 @@ void fragment() {
 	// past where the trees are drawn (OakTree.VIEW, 600 m), their canopy
 	// painted on the ground, as much of it as the trees there would cover
 	// (from their density by biome: data/population/props/, as Population
-	// places them: the forest's oaks, maples and walnuts, the taiga's pines and
+	// places them: the forest's oaks, maples, walnuts and tulip trees, the taiga's pines and
 	// cypresses, the prairie's few, the swamp's sycamores): crowns lit on
 	// top, shadow between, fading to their mean once a pixel is wider than
 	// a crown
 	float far_trees = smoothstep(520.0, 640.0, distance(world_pos, CAMERA_POSITION_WORLD + world_origin));
 	if (far_trees > 0.0) {
-		float broad = (forest * 0.57 + prairie * 0.055 + swamp * 0.05) * (1.0 - smoothstep(575.0, 1150.0, h)); // (the broadleaves thinning up the mountains: their .tres, Population)
+		float broad = (forest * 0.62 + prairie * 0.06 + swamp * 0.05) * (1.0 - smoothstep(575.0, 1150.0, h)); // (the broadleaves thinning up the mountains: their .tres, Population)
 		float conifer = taiga * 0.38 * (1.0 - smoothstep(675.0, 1350.0, h)); // (the conifers: lodgepole.tres, bald_cypress.tres)
 		float cover = (broad + conifer) * (1.0 - rocky) * (1.0 - m.a) * step(0.4, h);
 		float crowns = vnoise(p / 5.0) * 0.55 + vnoise(p / 13.0 + 4.1) * 0.45;
