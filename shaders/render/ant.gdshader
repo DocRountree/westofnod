@@ -54,6 +54,11 @@ uniform float shell_gloss = 0.9;
 uniform vec3 mark_a : source_color = vec3(0.02);
 uniform vec3 mark_b : source_color = vec3(0.9, 0.88, 0.84);
 uniform float sweep = 1.0;
+// the cuticle: rugose (0 smooth .. 1: the head and the mesosoma finely
+// ridged lengthwise, a harvester's), the gaster's own tint and gloss
+uniform float rugose = 0.0;
+uniform vec3 gaster_tint = vec3(1.0);
+uniform float gaster_gloss = 0.45;
 uniform vec3 elytra_pivots[2]; // their hinges, at their bases
 uniform vec3 wing_pivots[2];
 uniform vec3 elytra_open = vec3(0.9, -0.35, 0.3);
@@ -62,6 +67,7 @@ uniform float fly_hz = 22.0; // (drawn: a real beat's too fast to see)
 uniform vec3 wing_color : source_color = vec3(0.45, 0.35, 0.25); // how much the antennae sweep and drum (an ant's 1)
 
 varying flat int part;
+varying vec3 rest; // where it is on the ant at rest (m): for its sculpture
 varying float band_z;
 varying flat float banded;
 
@@ -78,6 +84,7 @@ void turn(inout vec3 v, inout vec3 n, vec3 o, vec3 a, float ang) {
 
 void vertex() {
 	part = int(round(CUSTOM0.x));
+	rest = VERTEX;
 	int seg = int(round(CUSTOM0.y));
 	band_z = CUSTOM0.z;
 	banded = CUSTOM0.w;
@@ -184,6 +191,18 @@ void fragment() {
 	if (part == 15) {
 		c = vec3(0.03);
 		gloss = 1.0;
+	}
+	if (part == 14) {
+		c *= gaster_tint;
+		gloss = gaster_gloss;
+	}
+	if (rugose > 0.0 && (part == 0 || part == 1)) {
+		// fine ridges running lengthwise, wavering, fading where they'd
+		// be finer than a pixel
+		float k = rest.x * 22000.0 + sin(rest.z * 5000.0) * 1.2 + sin(rest.y * 9000.0) * 0.6;
+		float fade = clamp(1.0 - fwidth(k) / 2.5, 0.0, 1.0);
+		c *= 1.0 - rugose * 0.3 * fade * (0.5 + 0.5 * sin(k));
+		gloss = mix(gloss, 0.2, rugose);
 	}
 	if (banded > 0.5) // (the gaster's segments edged with their fine golden hairs)
 		c = mix(c, band_color, smoothstep(0.33, 0.37, band_z));

@@ -25,7 +25,7 @@ void fragment() {
 		float ends = pow(abs(UV.y * 2.0 - 1.0), 4.0);
 		float a = mix(0.07, 0.2, ends) * smoothstep(1.0, 0.85, UV.x) * smoothstep(0.05, 0.2, UV.x);
 		// (a clearwing's: mostly its brown border and olive base, smeared)
-		ALBEDO = pattern == 1 ? mix(vec3(0.17, 0.06, 0.03), vec3(0.4, 0.38, 0.16), smoothstep(0.5, 0.15, UV.x)) : vec3(0.85, 0.42, 0.08);
+		ALBEDO = pattern == 1 ? mix(vec3(0.1, 0.035, 0.018), vec3(0.24, 0.23, 0.09), smoothstep(0.5, 0.15, UV.x)) : vec3(0.85, 0.42, 0.08);
 		ALPHA = a * opacity;
 	} else {
 		vec4 t = texture(wings, UV + (FRONT_FACING ? vec2(0.0) : under));

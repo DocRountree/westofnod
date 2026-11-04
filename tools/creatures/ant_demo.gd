@@ -1,13 +1,17 @@
 extends Node3D
-## A plain to watch ants (AntColony) on, their two animations on keys:
+## A plain to watch ants on, black carpenter ants (AntColony) or red
+## harvesters (HarvesterAnts), their two animations on keys:
 ## godot --path . res://tools/creatures/ant_demo.tscn
 ##
 ## 1 all wandering about   2 all to the crumbs, feeding   3 half and half
 ## + / - more or fewer ants (a colony, every one drawn by the shader)
+## 4 the other kind (carpenter ants / red harvesters)
 ## Space slow motion   drag: turn round   wheel: nearer / further
 ## For the scale, a pawpaw and a black-eyed Susan lying by (Items).
 
+const HarvesterScript := preload("res://scripts/creatures/harvester_ants.gd")
 var colony: AntColony
+var _harvesters := false
 var cam: Camera3D
 var _yaw := 0.7
 var _pitch := -0.6
@@ -66,10 +70,13 @@ func _ready() -> void:
 func _make() -> void:
 	if colony:
 		colony.queue_free()
-	colony = AntColony.new()
+	if _harvesters:
+		colony = HarvesterScript.new()
+	else:
+		colony = AntColony.new()
 	add_child(colony)
 	colony.setup(_count, Vector3.ZERO, 0.22)
-	_label.text = "%d ants   1 wander   2 feed on the crumbs   3 half and half   + / - more or fewer   Space slow motion   drag: turn round   wheel: nearer / further" % _count
+	_label.text = ("%d red harvesters" if _harvesters else "%d carpenter ants") % _count + "   1 wander   2 feed on the crumbs   3 half and half   + / - more or fewer   4 the other kind   Space slow motion   drag: turn round   wheel: nearer / further"
 
 
 func _unhandled_input(e: InputEvent) -> void:
@@ -84,6 +91,9 @@ func _unhandled_input(e: InputEvent) -> void:
 						colony.wander(i, Vector3.ZERO, 0.22)
 					else:
 						colony.feed(i, CRUMBS[i % CRUMBS.size()])
+			KEY_4:
+				_harvesters = not _harvesters
+				_make()
 			KEY_EQUAL, KEY_PLUS, KEY_KP_ADD:
 				_count = mini(_count * 2, 1280)
 				_make()

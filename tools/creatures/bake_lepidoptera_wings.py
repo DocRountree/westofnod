@@ -22,7 +22,8 @@ rows of white dots, the inner margin black; beneath, paler, the forewing's
 apex buff, the hindwing a pale buff orange, its veins black edged with
 white. The clearwing's (Hemaris thysbe): glassy cells, a reddish brown
 border toothed inward along the veins, a dark bar closing the cell, the
-base olive and furred, the hindwing's inner margin red-brown.
+base olive and furred, the hindwing's inner margin red-brown (a dark
+moth: its browns near black, its olive deep).
 
 python3 tools/creatures/bake_lepidoptera_wings.py
 """
@@ -58,10 +59,10 @@ UNDER_ORANGE = c("e3913a")
 BUFF = c("dcae62")
 HIND_BUFF = c("e0b468")
 VEIN_HALO = c("f4dfb2")
-BROWN = c("5e2412")  # the clearwing's border
-VEIN_BROWN = c("4a1e10")
-OLIVE = c("7a7232")
-GLASS = c("dcdacb")
+BROWN = c("3a160b")  # the clearwing's border
+VEIN_BROWN = c("2c1209")
+OLIVE = c("4a4520")
+GLASS = c("b9b6a6")
 
 # ---- the outlines (mm; right wing; the hinge at 0; x out, z back) -----------
 # each walks from the base out along the costa (the leading edge), round the

@@ -159,12 +159,14 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
 - `scripts/player.gd`, `scripts/hud.gd`.
 - `tools/shot.tscn` is a scripted fly-through that saves screenshots.
 - `scripts/creatures/ant_colony.gd`: ants (`AntColony`, black carpenter ants at twice
-  life size), not yet in the game: one mesh, every ant an instance of it, posed by its
+  life size; `harvester_ants.gd`, `HarvesterAnts`: red harvesters, rust red, a big squarish ridged head, toothed
+  mandibles, the beard of hairs under it, propodeal spines, a two-noded waist, a glossy gaster), not yet in the game:
+  their bodies smooth shells lofted along them (the gaster's segments lapping), one mesh, every ant an instance of it, posed by its
   shader (`shaders/render/ant.gdshader`: a tripod gait, the antennae sweeping, the
   head, mandibles and gaster) from the clock and each ant's speed and feeding, so a
   colony is one draw call; the CPU only moves them along (wandering, or to food and
   feeding, keeping apart). `tools/creatures/ant_demo.tscn` (keys: 1 wander, 2 feed on
-  the crumbs, 3 half and half, + / - more or fewer).
+  the crumbs, 3 half and half, + / - more or fewer, 4 the other kind).
 - `scripts/creatures/beetles.gd` (`Beetles`): beetles at twice life size, not yet in the game, the make they
   share: made and moved as the ants are (one mesh, the same shader, the same CPU side), each species its own shape,
   markings, colours and pace, walking, eating at a leaf and flying (the elytra, one

@@ -49,11 +49,11 @@ func _init() -> void:
 
 
 func _build() -> void:
-	var olive := Color(0.46, 0.46, 0.19)
-	var olive_hi := Color(0.6, 0.57, 0.26) # (the fur's paler tips, over the shoulders)
-	var cream := Color(0.86, 0.8, 0.52)
-	var burgundy := Color(0.33, 0.08, 0.08)
-	var dark := Color(0.07, 0.055, 0.045)
+	var olive := Color(0.27, 0.28, 0.1)
+	var olive_hi := Color(0.38, 0.37, 0.15) # (the fur's paler tips, over the shoulders)
+	var cream := Color(0.56, 0.5, 0.3)
+	var burgundy := Color(0.2, 0.045, 0.045)
+	var dark := Color(0.04, 0.032, 0.026)
 	# the thorax: big and round, densely furred olive above, cream beneath;
 	# the shoulder flaps (tegulae) a paler olive
 	_part(Vector3(0.0, 0.7, -3.0), Vector3(7.2, 6.6, 8.4), olive, 0.95, null, 0.6)
