@@ -334,8 +334,7 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   dark tubes) and `prickly_pear.gd` (`PricklyPear`: obovate pads off one another's rims, glochid tufts and pale spines
   in diagonal rows, the oldest pads woody; wine-red tunas, yellow flowers). Four variants each, three levels of
   detail (`build(v)`, `build_lods(v)`); `tools/plants/preview.gd` renders them (`xvfb-run godot --path .
-  --resolution 1600x900 --script res://tools/plants/preview.gd -- <out_dir> [joshua | sanpedro | pear]`),; the
-  life cycle demo has the Joshua trees (the cacti left out).
+  --resolution 1600x900 --script res://tools/plants/preview.gd -- <out_dir> [joshua | sanpedro | pear]`),; none of them are in the life cycle demo.
 - Mating (every species but the ants: their workers don't; `hexapod.gd`'s `mate(partner)` for the walkers, each
   species saying how): a male of each (`male`, set before it's added; told apart only where it must be: the male
   spiders smaller with the swollen bulbs of their palps, the garden spider's male a quarter her size, tan and slender;

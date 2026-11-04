@@ -137,8 +137,8 @@ func _build() -> void:
 	var body := _coat(0)
 	var face := _coat(1)
 	var sp := int(S.species)
-	var fl := float(S.get("fur", [22.0, 20.0, 25.0, 40.0, 45.0, 55.0][sp])) # (its coat's length, mm)
-	var tl := float(S.get("tail_fur", [55.0, 25.0, 55.0, 70.0, 40.0, 45.0][sp]))
+	var fl := float(S.get("fur", [22.0, 20.0, 25.0, 40.0, 45.0, 55.0, 60.0][sp])) # (its coat's length, mm)
+	var tl := float(S.get("tail_fur", [55.0, 25.0, 55.0, 70.0, 40.0, 45.0, 45.0][sp]))
 	if young:
 		fl *= 0.6
 		tl *= 0.5
