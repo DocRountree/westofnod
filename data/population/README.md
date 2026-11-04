@@ -121,8 +121,8 @@ maple` (or `sycamore`; `pair`, `pair2` for the standing trees nearer).
   (`whorls`: one leader to the top, whorls of short, level branches up it,
   each as long as the crown's `profile` there): in a stand a tall, ramrod
   bare pole with snapped branch `stubs` and a short narrow crown on top; in
-  the open a narrow cone; yellow-green needles in pairs, bottlebrush tufts,
-  small lopsided cones; thin orange-brown to grey scaly bark; the dead ones
+  the open a narrow cone; yellow-green needles in pairs, bottlebrush tufts
+  (no cones); thin orange-brown to grey scaly bark; the dead ones
   silver-grey snags.
 - Bald cypress (`bald_cypress.gd`, *Taxodium distichum*), a conifer of the
   swamp: a swollen, buttressed foot (`flare`), `knees` of root standing up
@@ -188,7 +188,8 @@ per hectare, shared among their variants as the oak's):
 - `lodgepole.tres` and `bald_cypress.tres`: the taiga 17 and 9 (together
   as thick as the oaks in the forest), thinning out up the mountains to
   none past 1350 m; the forest 0.6 and 0.4; none on the prairie or in the
-  swamp.
+  swamp; the bald cypress not even at the prairie's blended edges
+  (`PropKind.never_in`: none where the ground has any share of it).
 - `sycamore.tres`: the swamp's only, 5 (sparse; not straying out of it): the
   living and saplings more at its edges, fewer in its middle (x1.8 to
   x0.35), the dead the other way (x0.3 to x3: `PropKind.swamp_depth`, by

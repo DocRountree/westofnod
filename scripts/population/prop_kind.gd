@@ -56,11 +56,23 @@ const CLUMP_MAX := 13.0 ## The most a clump packs them in (x the density).
 var _clump_by_biome := PackedFloat32Array()
 
 
-## Resolves clump's names too.
+## Biomes it never stands in, not even at their blended edges: none where
+## the ground has any share of one (WorldData.biome_bits_at: the bald
+## cypress, none on the prairie).
+@export var never_in := []
+var never_bits := 0 ## (never_in as biome bits)
+
+
+## Resolves clump's names too (and never_in's).
 func resolve_clump(names: Array) -> void:
 	_clump_by_biome.resize(names.size() + 1)
 	for i in _clump_by_biome.size():
 		_clump_by_biome[i] = float(clump.get(names[i], 0.0)) if i < names.size() else 0.0
+	never_bits = 0
+	for b in never_in:
+		var i := names.find(b)
+		if i >= 0 and i < 31:
+			never_bits |= 1 << i
 
 
 ## How much more (or less) common it is at (x, z) in biome b than its

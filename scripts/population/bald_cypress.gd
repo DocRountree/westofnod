@@ -54,7 +54,7 @@ const SETTINGS := {
 	# the lodgepoles, a few in the forest): straying only where it grows
 	# (never onto the prairie, nor into the swamp)
 	"props": {
-		"all": {"strict": true, "not_in_swamp": true},
+		"all": {"strict": true, "not_in_swamp": true, "never_in": ["prairie"]}, # (none on the prairie, nor at its edges)
 		"tree": {"foot": 0.6},
 		"dead": {"foot": 0.6},
 	},

@@ -6,8 +6,8 @@ TreeBuilder reads them the same):
   512 px each; tiles 0-3 sprigs (0.5 m across), 4-7 clumps (1 m). Transparent
   pixels carry the colour of the nearest needle.
   - Lodgepole: a shoot (and a side shoot or two) clothed toward its end in
-    yellow-green needles, in pairs, 4-7 cm, angled forward, a bottlebrush;
-    now and then a cluster of small, lopsided brown cones at its base.
+    yellow-green needles, in pairs, 4-7 cm, angled forward, a bottlebrush
+    (no cones).
   - Bald cypress: a twig with feathery branchlets one by one along it, each
     with flat, soft, light green needles, 1-2 cm, in two rows (flat sprays).
 - lodgepole_bark.png: tileable, 0.6 m square: thin, small scales, orange-
@@ -59,28 +59,6 @@ def needle_tuft(rgba, cover, p0, p1, size, start=0.35):
             draw_line(rgba, cover, (bx, by), e, 0.0011 * size, 0.0004 * size, jitter(PINE, 0.08))
 
 
-def pine_cones(rgba, cover, x, y, ang, size):
-    for k in range(int(rng.integers(1, 4))):
-        b = ang + rng.uniform(-1.4, 1.4)
-        l = rng.uniform(0.035, 0.05) * size
-        w = l * 0.38
-        cx, cy = x + math.cos(b) * l * 0.55, y + math.sin(b) * l * 0.55
-        h, wd, _ = rgba.shape
-        xa, xb = int(max(cx - l, 0)), int(min(cx + l, wd))
-        ya, yb = int(max(cy - l, 0)), int(min(cy + l, h))
-        yy, xx = np.mgrid[ya:yb, xa:xb].astype(np.float32)
-        u = ((xx - cx) * math.cos(b) + (yy - cy) * math.sin(b)) / (l * 0.5)
-        v = (-(xx - cx) * math.sin(b) + (yy - cy) * math.cos(b)) / w
-        lop = 1.0 + 0.25 * np.clip(u, -1, 1)  # (lopsided: fuller on one side)
-        on = u * u + (v / np.where(v > 0, lop, 1.0)) ** 2 <= 1.0
-        scales = 0.75 + 0.25 * np.sin(u * 9.0 + np.abs(v) * 6.0) ** 2
-        c = np.array([0.42, 0.29, 0.17], np.float32)
-        sub = rgba[ya:yb, xa:xb]
-        sub[on, :3] = (c[None, None, :] * scales[..., None])[on]
-        sub[on, 3] = 1.0
-        cover[ya:yb, xa:xb] |= on
-
-
 def pine_sprig(rgba, cover, ox, oy, size, ang0):
     twig_c = [0.42, 0.32, 0.2]
     L = rng.uniform(0.3, 0.38) * size
@@ -96,8 +74,6 @@ def pine_sprig(rgba, cover, ox, oy, size, ang0):
         l = rng.uniform(0.14, 0.2) * size
         e = (base[0] + math.cos(b) * l, base[1] + math.sin(b) * l)
         shoots.append((base, base, e))
-    if rng.uniform() < 0.45:
-        pine_cones(rgba, cover, ox + (end[0] - ox) * 0.2, oy + (end[1] - oy) * 0.2, a, size)
     for s0, s1, s2 in shoots:
         draw_line(rgba, cover, s0, s1, 0.004 * size, 0.0035 * size, twig_c)
         draw_line(rgba, cover, s1, s2, 0.0035 * size, 0.0025 * size, twig_c)
