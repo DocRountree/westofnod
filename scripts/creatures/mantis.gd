@@ -51,10 +51,15 @@ var _abdomen: Node3D
 var _teg: Array[Node3D] = []
 var _hind: Array[Node3D] = []
 var _fore: Array = [] # each side: [coxa, femur, tibia] pivots
-# the forelegs' pose (rad: the coxa forward, the femur from it, the tibia
-# closed on the femur), each side, what's asked and as it is
-var _ask := [Vector3(0.45, 2.55, 2.85), Vector3(0.45, 2.55, 2.85)]
-var _now := [Vector3(0.45, 2.55, 2.85), Vector3(0.45, 2.55, 2.85)]
+# the forelegs' pose (rad, each joint on the last, forward from straight
+# down; the prothorax raised _pro_pitch under them all: the coxa, the femur
+# from it, the tibia closed back on the femur), each side, what's asked and
+# as it is. At rest: the coxae hanging nearly straight down from the
+# prothorax's front, the femurs angled forward and up under the head, the
+# tibiae folded back along them
+const FORE_REST := Vector3(-0.25, 1.95, 2.8)
+var _ask := [FORE_REST, FORE_REST]
+var _now := [FORE_REST, FORE_REST]
 var _fore_rate := 8.0
 var _pro_pitch := 0.5
 var _chew := 0.0
@@ -270,7 +275,7 @@ func lay(at: Vector3) -> void:
 
 
 func _rest_fore() -> void:
-	_ask = [Vector3(0.45, 2.55, 2.85), Vector3(0.45, 2.55, 2.85)]
+	_ask = [FORE_REST, FORE_REST]
 	_fore_rate = 8.0
 
 
@@ -312,7 +317,7 @@ func _think(dt: float) -> void:
 				1: # drawing back, ready
 					_pro_pitch = 0.3
 					_lift = -1.0
-					_ask = [Vector3(0.3, 2.7, 2.9), Vector3(0.3, 2.7, 2.9)]
+					_ask = [Vector3(-0.35, 2.25, 2.9), Vector3(-0.35, 2.25, 2.9)] # (drawn up and back, ready)
 					if _st > 0.5:
 						_stage = 2
 						_st = 0.0
@@ -320,12 +325,12 @@ func _think(dt: float) -> void:
 					_fore_rate = 40.0
 					_pro_pitch = 0.1
 					_lift = 1.5
-					_ask = [Vector3(1.35, 0.9, 0.5), Vector3(1.35, 0.9, 0.5)]
+					_ask = [Vector3(0.9, 0.4, 0.4), Vector3(0.9, 0.4, 0.4)] # (shot out forward and down, open)
 					if _st > 0.09:
 						_stage = 3
 						_st = 0.0
 				3: # snapped shut, drawn in, holding it at its mouth
-					_ask = [Vector3(0.95, 2.1, 2.95), Vector3(0.95, 2.1, 2.95)]
+					_ask = [Vector3(0.2, 1.4, 2.95), Vector3(0.2, 1.4, 2.95)] # (shut, drawn in to its mouth)
 					_fore_rate = 18.0
 					_lift = 0.0
 					_pro_pitch = 0.4
@@ -352,8 +357,8 @@ func _think(dt: float) -> void:
 		"groom":
 			# each foreleg drawn through the mouth in turn
 			var side_i := 0 if fmod(_st, 6.0) < 3.0 else 1
-			_ask = [Vector3(0.45, 2.55, 2.85), Vector3(0.45, 2.55, 2.85)]
-			_ask[side_i] = Vector3(0.15, 2.95, 2.5 + 0.2 * sin(_st * 5.0))
+			_ask = [FORE_REST, FORE_REST]
+			_ask[side_i] = Vector3(0.4, 1.7, 2.6 + 0.2 * sin(_st * 5.0)) # (brought up to its mouth)
 			_chew = 0.7
 			if _st > 12.0:
 				stalk(_pos, 0.15)
