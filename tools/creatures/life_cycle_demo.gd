@@ -1299,8 +1299,18 @@ func _unhandled_input(e: InputEvent) -> void:
 			_dist = minf(_dist / 0.85, 40.0)
 
 
-## Whether n's flag (a property) is set: false if it hasn't that one (a
-## monarch has no young, a hare no nymph).
+## Whether n's young: a larva (the butterflies', the moth's, the wasp's,
+## the ants', the beetles' young: Larva), a pupa, a nymph (the grasshopper's,
+## the mantis's), or a young one of the rest (a spiderling, a leveret, a
+## cub: young).
+func _young(n: Object) -> bool:
+	var sc: Variant = n.get_script() if n != null else null
+	return sc == LarvaScript or sc == PupaScript or _flag(n, "young") or _flag(n, "nymph")
+
+
+## Whether n's flag (a property) is set: false if it hasn't that one (each
+## kind keeps its young its own way: a Larva is one, a nymph flags itself
+## nymph, the others young).
 func _flag(n: Object, name: String) -> bool:
 	if n == null or not is_instance_valid(n):
 		return false
@@ -1365,7 +1375,7 @@ func _act_here(act: String) -> void:
 ## A partner for c (its kind, the other sex, grown, at the station).
 func _partner(c: Node, all: Array) -> Node:
 	for o in all:
-		if o != c and o.get_script() == c.get_script() and _flag(o, "male") != _flag(c, "male") and not _flag(o, "young") and not _flag(o, "nymph") and not _flag(o, "dead"):
+		if o != c and o.get_script() == c.get_script() and _flag(o, "male") != _flag(c, "male") and not _young(o) and not _flag(o, "dead"):
 			return o
 	return null
 
@@ -1373,7 +1383,7 @@ func _partner(c: Node, all: Array) -> Node:
 func _do(c: Node, act: String, all: Array) -> void:
 	var sc: Script = c.get_script()
 	var p := _where(c)
-	var young := _flag(c, "young") or _flag(c, "nymph")
+	var young := _young(c)
 	var st := _station(_at)
 	# hatching: an egg, a pod, an egg case, a sac, a pupa
 	if act == "hatch":
