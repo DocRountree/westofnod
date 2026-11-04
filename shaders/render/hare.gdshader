@@ -8,6 +8,9 @@ instance uniform float shell = 0.0;
 instance uniform float fur_obj = 0.0;
 instance uniform float fur_dens = 1.0;
 uniform vec3 comb = vec3(0.0, -0.35, 0.55);
+uniform vec3 bare_a = vec3(0.0, -1e6, 0.0); // (bare round these: the eyes)
+uniform vec3 bare_b = vec3(0.0, -1e6, 0.0);
+uniform float bare_r = 0.0;
 
 // A snowshoe hare's summer coat (Hare): brown, grizzled (each hair banded),
 // darker along the back, the belly and chin white; the big hind feet paler
@@ -44,6 +47,8 @@ float vn(vec3 p) {
 }
 
 void fragment() {
+	if (shell > 0.0 && (length(o - bare_a) < bare_r || length(o - bare_b) < bare_r)) // (no fur over its eyes)
+		discard;
 	if (shell > 0.0) { // (a hair here, or none: thinning to its tip)
 		vec3 q = o * fur_dens;
 		vec3 f = fract(q) - 0.5;

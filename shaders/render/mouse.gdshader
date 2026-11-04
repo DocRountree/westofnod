@@ -8,6 +8,9 @@ instance uniform float shell = 0.0;
 instance uniform float fur_obj = 0.0;
 instance uniform float fur_dens = 1.0;
 uniform vec3 comb = vec3(0.0, -0.35, 0.55);
+uniform vec3 bare_a = vec3(0.0, -1e6, 0.0); // (bare round these: the eyes)
+uniform vec3 bare_b = vec3(0.0, -1e6, 0.0);
+uniform float bare_r = 0.0;
 
 // A deer mouse's fur (Mouse): its back brown, grizzled (a juvenile's grey),
 // darker along the spine; its belly white, the line between them sharp (the
@@ -39,6 +42,8 @@ float fh31(vec3 p) { return fract(sin(dot(p, vec3(12.9898, 78.233, 37.719))) * 4
 
 void fragment() {
 	if (shell > 0.0 && shell > fur * 1.01) // (a newborn's bare: its fur coming in)
+		discard;
+	if (shell > 0.0 && (length(p_obj - bare_a) < bare_r || length(p_obj - bare_b) < bare_r)) // (no fur over its eyes)
 		discard;
 	if (shell > 0.0) { // (a hair here, or none: thinning to its tip)
 		vec3 q = p_obj * fur_dens;

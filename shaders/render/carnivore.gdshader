@@ -8,6 +8,9 @@ instance uniform float shell = 0.0;
 instance uniform float fur_obj = 0.0;
 instance uniform float fur_dens = 1.0;
 uniform vec3 comb = vec3(0.0, -0.35, 0.55);
+uniform vec3 bare_a = vec3(0.0, -1e6, 0.0); // (bare round these: the eyes)
+uniform vec3 bare_b = vec3(0.0, -1e6, 0.0);
+uniform float bare_r = 0.0;
 
 // The coats of the carnivores (Carnivore: RedFox, Bobcat), each part its own
 // material, the species and the part saying how it's painted, by where on
@@ -73,6 +76,8 @@ float spots(vec3 p, float cell, float r) {
 }
 
 void fragment() {
+	if (shell > 0.0 && (length(o - bare_a) < bare_r || length(o - bare_b) < bare_r)) // (no fur over its eyes)
+		discard;
 	if (shell > 0.0) { // (a hair here, or none: thinning to its tip)
 		vec3 q = o * fur_dens;
 		vec3 f = fract(q) - 0.5;

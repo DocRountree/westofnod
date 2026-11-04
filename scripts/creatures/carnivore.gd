@@ -174,14 +174,22 @@ func _build() -> void:
 		_stick(Vector3(float(j0[2]) * 0.85 * side, float(j0[1]) + float(j0[3]) * 0.7, float(j0[0])), Vector3(float(j1[2]) * 0.8 * side, float(j1[1]) + float(j1[3]) * 0.6, float(j1[0])), 1.6, _mat(Color(0.08, 0.06, 0.05), 0.5), _jaw)
 	_part(Vector3(0.0, 4.0, -20.0), Vector3(30.0, 4.0, 60.0) * float(S.get("mouth", 1.0)), _mat(Color(0.55, 0.3, 0.3), 0.5), _jaw)
 	var E: Dictionary = S.eye
+	# (each eye set on the head's surface, bulging from it; the fur bare
+	# round it)
+	var es: Vector3 = E.size
+	var eat: Vector3 = E.at
+	eat.x = _surface_x(S.head, eat.z, eat.y) - es.x * 0.12
+	face.set_shader_parameter("bare_a", Vector3(-eat.x, eat.y, eat.z))
+	face.set_shader_parameter("bare_b", Vector3(eat.x, eat.y, eat.z))
+	face.set_shader_parameter("bare_r", es.y * 0.85)
 	for side: float in [-1.0, 1.0]:
-		var at: Vector3 = E.at
+		var at: Vector3 = eat
 		var em := _mat(E.color, 0.04)
 		em.clearcoat_enabled = true # (the cornea's wet gloss)
 		em.clearcoat = 1.0
 		var e := _part(Vector3(at.x * side, at.y, at.z), E.size, em, _head)
 		_eyes.append(e)
-		_part(Vector3(at.x * side * 0.93, at.y, at.z), (E.size as Vector3) * Vector3(1.0, 1.18, 1.18), _mat(Color(0.06, 0.05, 0.04), 0.6), _head) # (its rim, dark)
+		_part(Vector3((at.x - es.x * 0.2) * side, at.y, at.z), es * Vector3(1.0, 1.16, 1.16), _mat(Color(0.06, 0.05, 0.04), 0.6), _head) # (its rim, dark, just behind it)
 		var pu := _part(Vector3((at.x + float((E.size as Vector3).x) * 0.42) * side, at.y, at.z - 1.0), Vector3(2.0, float((E.size as Vector3).y) * float(E.get("slit", 0.4)), float((E.size as Vector3).z) * 0.35), _mat(Color(0.02, 0.02, 0.02), 0.02), _head)
 		pu.rotation.y = 0.0
 		var lid := _part(Vector3(at.x * side, at.y, at.z) * 1.0, (E.size as Vector3) * 1.08, face, _head)

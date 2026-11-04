@@ -112,8 +112,9 @@ func _build() -> void:
 	_head.position = Vector3(0.0, 5.5, -30.0)
 	_body.add_child(_head)
 	var hm := MeshInstance3D.new()
-	hm.mesh = _loft([[3.0, 0.0, 5.5, 5.5], [-3.0, 1.2, 9.5, 9.0], [-9.0, 1.0, 9.0, 8.0], [-15.0, -0.2, 6.8, 6.2], [-20.0, -1.2, 4.6, 4.4],
-			[-23.5, -1.8, 2.8, 2.7], [-25.0, -2.0, 1.2, 1.2]], 2.0)
+	var head_keys := [[3.0, 0.0, 5.5, 5.5], [-3.0, 1.2, 9.5, 9.0], [-9.0, 1.0, 9.0, 8.0], [-15.0, -0.2, 6.8, 6.2], [-20.0, -1.2, 4.6, 4.4],
+			[-23.5, -1.8, 2.8, 2.7], [-25.0, -2.0, 1.2, 1.2]]
+	hm.mesh = _loft(head_keys, 2.0)
 	hm.material_override = _fur_mat
 	_head.add_child(hm)
 	_fur_shells(hm, 1.6, 5, 0.3)
@@ -123,9 +124,15 @@ func _build() -> void:
 	var eye := _mat(Color(0.02, 0.015, 0.015), 0.02)
 	eye.clearcoat_enabled = true # (wet, glossy, bulging)
 	eye.clearcoat = 1.0
+	# (each set on the head's surface, big, bulging well out of it; the fur
+	# bare round it)
+	var ex := _surface_x(head_keys, -11.0, 3.4) + 0.3
+	_fur_mat.set_shader_parameter("bare_a", Vector3(-ex, 3.4, -11.0))
+	_fur_mat.set_shader_parameter("bare_b", Vector3(ex, 3.4, -11.0))
+	_fur_mat.set_shader_parameter("bare_r", 3.2)
 	for side: float in [-1.0, 1.0]:
-		_eyes.append(_part(Vector3(6.6 * side, 3.4, -11.0), Vector3(3.8, 4.2, 4.6), eye, _head))
-		var lid := _part(Vector3(6.4 * side, 3.4, -11.0), Vector3(4.1, 4.5, 4.9), _fur_mat, _head)
+		_eyes.append(_part(Vector3(ex * side, 3.4, -11.0), Vector3(3.8, 4.2, 4.6), eye, _head))
+		var lid := _part(Vector3((ex - 0.2) * side, 3.4, -11.0), Vector3(4.1, 4.5, 4.9), _fur_mat, _head)
 		_lids.append(lid)
 	# the ears: big, round, thin, nearly bare: furred outside, pink in
 	for side: float in [-1.0, 1.0]:

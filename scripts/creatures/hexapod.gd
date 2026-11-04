@@ -281,6 +281,23 @@ void fragment() {
 	return m
 
 
+## How far out to its side a loft (keys as _loft's) reaches at (z, y): its
+## surface there (mm), for something set on it (an eye).
+static func _surface_x(keys: Array, z: float, y: float) -> float:
+	var K := keys.size()
+	for k in K - 1:
+		var a: Array = keys[k]
+		var b: Array = keys[k + 1]
+		if (z - float(a[0])) * (z - float(b[0])) <= 0.0:
+			var f := clampf((z - float(a[0])) / (float(b[0]) - float(a[0])) if absf(float(b[0]) - float(a[0])) > 1e-5 else 0.0, 0.0, 1.0)
+			var yc := lerpf(a[1], b[1], f)
+			var hw := lerpf(a[2], b[2], f)
+			var hh := lerpf(a[3], b[3], f)
+			var u := clampf((y - yc) / maxf(hh, 1e-3), -1.0, 1.0)
+			return hw * sqrt(1.0 - u * u)
+	return float((keys[0] as Array)[2])
+
+
 ## A smooth body lofted through keys ([z, y, half width, half height] each,
 ## mm), round (sq 2) or squarer; a mesh in mm.
 static func _loft(keys: Array, sq := 2.0) -> ArrayMesh:
