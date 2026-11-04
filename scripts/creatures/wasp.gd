@@ -761,8 +761,12 @@ func _mate_go(id: int) -> void:
 	if bool(_mate.get("flying")):
 		_mate_end()
 		return
-	# the pounce: onto her back
+	# the pounce: onto her back (his feet from where they're drawn, dangling:
+	# the ground's, left from when he last stood, may be anywhere)
 	_ride_from = global_transform
+	for i in 6:
+		_feet_now[i] = _feet_drawn[i]
+		_feet[i] = _feet_drawn[i]
 	_ride_k = 0.0
 	_riding = true
 	flying = false
