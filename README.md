@@ -191,6 +191,16 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   flying; building a foam egg case on a stem, whose nymphs come out along its seam, let down on threads). Their
   nymphs small, wingless (the mantis's abdomen curled up), growing. Not yet in the game:
   `tools/creatures/life_cycle_demo.tscn`'s last two stations (keys 6-0, G).
+- `scripts/creatures/snake.gd` (`Snake`): snakes, life size, not yet in the game: the eastern diamondback
+  rattlesnake (broad triangular head, heat pits, slit pupils, the stripe through the eye, dark diamonds edged in
+  cream, keeled scales, a banded tail and its rattle; a newborn only a button) and the eastern milk snake (narrow head,
+  black-edged red-brown saddles on grey tan, a checkered belly, the pale V on its nape, glossy; a hatchling bright
+  red). One skin bent along a spine (`shaders/render/snake.gdshader`), the body following its head's sinuous path
+  (lateral undulation), the tongue flicking; coiling; eating a mouse (the rattler coils, rattles, strikes and lets go,
+  waits, swallows; the milk snake strikes, constricts in its coils, swallows: the jaws gaping, the meal a bulge going
+  down). The milk snake lays leathery eggs that hatch (a slit, the young's head out, then the young); the rattler gives
+  birth, each young in a clear membrane it wriggles out of. In the life cycle demo (keys R, M, C, W; Y: every
+  young creature eats: the larvae, the nymphs, the young snakes).
 - Life cycles (not yet in the game): eggs (`scripts/creatures/brood.gd`, `Brood`; `egg.gd`: rice grains, each kind
   its size and colour) laid by the butterflies one to a leaf (the clearwing hovering), by the wasp one to each cell of
   its comb (`Wasp.comb`, `lay_eggs`), by the beetles in a cluster (`AntColony.lay`, a beetle's: tipped tail down; the

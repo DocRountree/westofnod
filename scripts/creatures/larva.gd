@@ -130,7 +130,8 @@ func grow(to: float, secs: float) -> void:
 	_g_rate = absf(to - _g) / maxf(secs, 0.01)
 
 
-## Stopping where it is, eating: the head working side to side.
+## Stopping where it is, eating: the head working side to side, nodding,
+## the jaws going (a grub where it lies). wander() sets it going again.
 func eat() -> void:
 	_mode = "eat"
 
@@ -468,6 +469,9 @@ func _process(dt: float) -> void:
 		_crawl(dt)
 	_place_spine()
 	_step_feet(dt)
+	# eating: the head nodding to its food, the jaws working (a grub's at
+	# the roots it lies in, or what's brought it)
+	_head.rotation = Vector3(0.22 * sin(_t * 6.0) - 0.1, 0.12 * sin(_t * 3.0), 0.0) if _mode == "eat" else Vector3.ZERO
 	# the filaments waving, the legs stepping
 	for k in _whips.size():
 		var wv := _whips[k]

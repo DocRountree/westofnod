@@ -14,6 +14,8 @@ extends Node3D
 ## differential grasshopper: the adult (a female) and a nymph, a leaf to eat
 ## Carolina mantis: the adult (a female) and a nymph, a stem to lay on, a
 ##   fly to catch
+## eastern diamondback rattlesnake, eastern milk snake (life size): an adult
+##   and a young each, a mouse each to eat
 ##
 ## 1 every adult lays its eggs (Brood's: the butterflies one to a leaf, the
 ##   wasp one to a cell, the beetles a cluster; not the ants: their queens'
@@ -24,6 +26,11 @@ extends Node3D
 ##   its shell first); 5 new ant eggs
 ## 6 the grasshopper hops   7 it flies   8 it eats at its leaf
 ## 9 the mantis strikes at the fly (and eats it)   0 it flies   G it grooms
+## R the rattlesnake eats its mouse   M the milk snake eats its   C the
+##   snakes coil up (W: off again)
+## Y the young eat: the larvae, the nymphs, the young snakes (each its own
+##   small meal)
+## (1 also: the rattlesnake gives birth, the milk snake lays; 4: its eggs hatch)
 ## Tab / Shift+Tab: the next station   Space slow motion
 ## drag: turn round   wheel: nearer / further
 
@@ -37,7 +44,8 @@ const LarvaScript := preload("res://scripts/creatures/larva.gd")
 const BroodScript := preload("res://scripts/creatures/brood.gd")
 const PupaScript := preload("res://scripts/creatures/pupa.gd")
 
-const NAMES := ["monarch", "hummingbird clearwing", "paper wasp", "carpenter ant (queen)", "red harvester (queen)", "June bug", "convergent lady beetle", "differential grasshopper", "Carolina mantis"]
+const NAMES := ["monarch", "hummingbird clearwing", "paper wasp", "carpenter ant (queen)", "red harvester (queen)", "June bug", "convergent lady beetle", "differential grasshopper", "Carolina mantis", "eastern diamondback rattlesnake", "eastern milk snake"]
+const SnakeScript := preload("res://scripts/creatures/snake.gd")
 const HopperScript := preload("res://scripts/creatures/grasshopper.gd")
 const MantisScript := preload("res://scripts/creatures/mantis.gd")
 const GAP := 0.9 # m between stations
@@ -66,6 +74,9 @@ var mantis: MantisScript
 var _hopper_leaf := Vector3.ZERO
 var _stem_foot := Vector3.ZERO # (where the mantis builds its egg case)
 var _prey: Node3D
+var rattler: SnakeScript
+var milk: SnakeScript
+var _mice := [null, null]
 const MOTH_PUPA := Vector3(0.2, 0.002, -0.2) # (off the clearwing's station)
 const MOTH_PUPA_TURN := 0.6
 var _moth_perch := Vector3.ZERO # (a stem by its pupa, to climb and hang from)
@@ -73,7 +84,8 @@ var _moth_perch_n := Vector3.BACK
 
 
 func _station(i: int) -> Vector3:
-	return Vector3(i * GAP, 0.0, 0.0)
+	# (the snakes, life size, given more room)
+	return Vector3(i * GAP + (1.2 if i >= 9 else 0.0) + (1.8 if i >= 10 else 0.0), 0.0, 0.0)
 
 
 func _ready() -> void:
@@ -91,7 +103,7 @@ func _ready() -> void:
 	sun.shadow_enabled = true
 	sun.directional_shadow_max_distance = 4.0
 	add_child(sun)
-	_box(Vector3(GAP * 4.0, -0.005, 0.0), Vector3(GAP * 9.0 + 1.0, 0.01, 2.0), Color(0.36, 0.4, 0.22))
+	_box(Vector3(GAP * 5.0 + 1.5, -0.005, 0.0), Vector3(GAP * 11.0 + 5.0, 0.01, 3.0), Color(0.36, 0.4, 0.22))
 	cam = Camera3D.new()
 	cam.near = 0.002
 	cam.far = 60.0
@@ -107,6 +119,7 @@ func _ready() -> void:
 	_beetle_stations()
 	_hopper_station()
 	_mantis_station()
+	_snake_stations()
 	_new_pupae()
 	_focus = _station(0) + Vector3(0.0, 0.08, 0.0)
 	_say()
@@ -286,6 +299,65 @@ func _mantis_station() -> void:
 	_new_prey()
 
 
+func _snake_stations() -> void:
+	for k in 2:
+		var c := _station(9 + k)
+		var kind := "rattler" if k == 0 else "milk"
+		var sn := SnakeScript.new(kind)
+		add_child(sn)
+		sn.place(c + Vector3(0.3, 0.0, 0.0), Vector3.LEFT)
+		sn.wander(c, 0.7 if k == 0 else 0.55)
+		var yg := SnakeScript.new(kind, true)
+		add_child(yg)
+		yg.place(c + Vector3(-0.3, 0.0, 0.5), Vector3.RIGHT)
+		yg.wander(c + Vector3(-0.3, 0.0, 0.5), 0.3)
+		if k == 0:
+			rattler = sn
+		else:
+			milk = sn
+		_new_mouse(k)
+
+
+## A mouse at a snake's station, for it to eat.
+func _new_mouse(k: int) -> Node3D:
+	if is_instance_valid(_mice[k]):
+		return _mice[k]
+	var m := SnakeScript.mouse()
+	m.position = _station(9 + k) + Vector3(-0.35, 0.0, -0.45)
+	m.rotation.y = randf() * TAU
+	add_child(m)
+	_mice[k] = m
+	return m
+
+
+## The young eat: the larvae where they are; the grasshopper nymphs at a
+## leaf; the mantis nymphs at a small fly; the young snakes a small mouse.
+func _young_eat() -> void:
+	for c in get_children():
+		var sc: Script = c.get_script()
+		if sc == LarvaScript:
+			c.call("eat")
+		elif sc == HopperScript and c.get("nymph"):
+			var at: Vector3 = (c as Node3D).position + Vector3(randf_range(-0.03, 0.03), 0.0, randf_range(-0.03, 0.03))
+			var leaf := Beetles.leaf()
+			leaf.position = Vector3(at.x, 0.0, at.z)
+			leaf.scale = Vector3(0.5, 1.0, 0.5)
+			add_child(leaf)
+			c.call("feed", Vector3(at.x, 0.001, at.z))
+		elif sc == MantisScript and c.get("nymph"):
+			var f := MantisScript.fly_prey()
+			f.scale = Vector3.ONE * 0.4
+			f.position = (c as Node3D).position + Vector3(randf_range(-0.03, 0.03), 0.001, randf_range(0.02, 0.04))
+			add_child(f)
+			c.call("strike", f.position + Vector3(0.0, 0.003, 0.0), f)
+		elif sc == SnakeScript and c.get("young"):
+			var m := SnakeScript.mouse(0.35)
+			var a := randf() * TAU
+			m.position = (c as Node3D).get("_pos") + Vector3(cos(a), 0.0, sin(a)) * 0.15
+			add_child(m)
+			c.call("eat", m)
+
+
 ## A fly on the mantis's leaf, for it to catch.
 func _new_prey() -> void:
 	if is_instance_valid(_prey):
@@ -325,11 +397,13 @@ func _lay_all() -> void:
 	lady.lay(0, Vector3(0.02, 0.0, -0.02))
 	hopper.lay(_station(7) + Vector3(0.05, 0.0, -0.08))
 	mantis.lay(_stem_foot + Vector3(0.0, 0.006, 0.0))
+	rattler.lay(5) # (born, each in its membrane)
+	milk.lay(6)
 
 
 func _hatch_eggs() -> void:
 	var all: Array = []
-	for list: Array in [_ant_eggs, monarch.eggs, moth.eggs, wasp.eggs, june.eggs, lady.eggs]:
+	for list: Array in [_ant_eggs, monarch.eggs, moth.eggs, wasp.eggs, june.eggs, lady.eggs, milk.eggs]:
 		all.append_array(list)
 	for e in all:
 		if is_instance_valid(e):
@@ -393,12 +467,25 @@ func _unhandled_input(e: InputEvent) -> void:
 				mantis.groom()
 				_at = 8
 				_say()
+			KEY_R:
+				rattler.eat(_new_mouse(0))
+				_go(9)
+			KEY_M:
+				milk.eat(_new_mouse(1))
+				_go(10)
+			KEY_C:
+				rattler.coil()
+				milk.coil()
+			KEY_W:
+				rattler.wander(_station(9), 0.7)
+				milk.wander(_station(10), 0.55)
+			KEY_Y:
+				_young_eat()
 			KEY_5:
 				for k in 2:
 					_ant_pile(k)
 			KEY_TAB:
-				_at = (_at + (NAMES.size() - 1 if e.shift_pressed else 1)) % NAMES.size()
-				_say()
+				_go((_at + (NAMES.size() - 1 if e.shift_pressed else 1)) % NAMES.size())
 			KEY_SPACE:
 				Engine.time_scale = 0.2 if Engine.time_scale > 0.5 else 1.0
 	elif e is InputEventMouseMotion and e.button_mask != 0:
@@ -411,8 +498,15 @@ func _unhandled_input(e: InputEvent) -> void:
 			_dist = minf(_dist / 0.85, 6.0)
 
 
+## To station i (the camera further off for the snakes).
+func _go(i: int) -> void:
+	_at = i
+	_dist = 2.2 if i >= 9 else minf(_dist, 0.8)
+	_say()
+
+
 func _say() -> void:
-	_label.text = "%s   (Tab / Shift+Tab: the next)\n1 all lay eggs   2 the pupae hatch   3 new pupae   4 the eggs hatch   5 new ant eggs\n6 grasshopper hops   7 flies   8 eats   9 mantis strikes the fly   0 flies   G grooms   Space slow motion   drag: turn round   wheel: nearer / further" % NAMES[_at]
+	_label.text = "%s   (Tab / Shift+Tab: the next)\n1 all lay eggs   2 the pupae hatch   3 new pupae   4 the eggs hatch   5 new ant eggs\n6 grasshopper hops   7 flies   8 eats   9 mantis strikes the fly   0 flies   G grooms\nR rattlesnake eats   M milk snake eats   C snakes coil   W off again   Y the young eat   Space slow motion   drag: turn round   wheel: nearer / further" % NAMES[_at]
 
 
 func _process(dt: float) -> void:
