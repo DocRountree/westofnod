@@ -283,6 +283,16 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   claws; black, cinnamon, brown or blond, now and then a white chest blaze) and `brown_bear.gd` (`BrownBear`, *Ursus
   arctos*: massive, the shoulder hump, a dished face, a broad muzzle, small round ears, long pale claws; brown,
   grizzled or blond, darker legs).
+- `scripts/creatures/bison.gd` (`Bison`, *Bison bison*, on the hunters' make, a grazer's ways): life size (a bull
+  3 m long, 1.8 m at the hump, a cow a little smaller); the great hump, the huge head carried low, short black horns
+  curving up and in, the beard; long dark shaggy wool on the head, hump, shoulders and forelegs, the hindquarters
+  browner, short (`carnivore.gdshader`'s species 6); small wide-set eyes, barred pupils; slender legs on cloven
+  black hooves; a thin tufted tail. Grazing (head down, cropping, chewing, stepping on); lying chewing its cud (its
+  rest); wallowing (horning the ground, down and rolling on its side and back, legs kicking, a cloud of dust, up and
+  a shake); a bull's bellow and sparring (head to head, horns locked, pushing back and forth); stampeding at a
+  gallop, tail up; a cow's calf born in the open (red orange, no hump or horns), licked, struggling up, suckling at
+  her udder, following her, at play (a run and a buck); mating (the bull tending her, his chin on her rump, then on
+  her, briefly). The life cycle demo's last station: two bulls, two cows, a calf.
 - `scripts/creatures/hare.gd` (`Hare`, on `hexapod.gd`'s motor, its gait its own): a snowshoe hare (*Lepus
   americanus*), life size, in its summer coat (`shaders/render/hare.gdshader`: brown, grizzled, darker along the back,
   white beneath, the hind feet paler, the ears black tipped); long spoon ears turning, laid back, pricked; big eyes
@@ -324,8 +334,8 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   dark tubes) and `prickly_pear.gd` (`PricklyPear`: obovate pads off one another's rims, glochid tufts and pale spines
   in diagonal rows, the oldest pads woody; wine-red tunas, yellow flowers). Four variants each, three levels of
   detail (`build(v)`, `build_lods(v)`); `tools/plants/preview.gd` renders them (`xvfb-run godot --path .
-  --resolution 1600x900 --script res://tools/plants/preview.gd -- <out_dir> [joshua | sanpedro | pear]`), and the
-  life cycle demo's last station has them all.
+  --resolution 1600x900 --script res://tools/plants/preview.gd -- <out_dir> [joshua | sanpedro | pear]`),; the
+  life cycle demo has the Joshua trees (the cacti left out).
 - Mating (every species but the ants: their workers don't; `hexapod.gd`'s `mate(partner)` for the walkers, each
   species saying how): a male of each (`male`, set before it's added; told apart only where it must be: the male
   spiders smaller with the swollen bulbs of their palps, the garden spider's male a quarter her size, tan and slender;

@@ -11,6 +11,8 @@ uniform vec3 comb = vec3(0.0, -0.35, 0.55);
 uniform vec3 bare_a = vec3(0.0, -1e6, 0.0); // (bare round these: the eyes)
 uniform vec3 bare_b = vec3(0.0, -1e6, 0.0);
 uniform float bare_r = 0.0;
+uniform float fur_front = 0.0; // (its fur longer before front_z: a bison's shaggy front, x this much more)
+uniform float front_z = -400.0;
 
 // The coats of the carnivores (Carnivore: RedFox, Bobcat), each part its own
 // material, the species and the part saying how it's painted, by where on
@@ -20,8 +22,8 @@ uniform float bare_r = 0.0;
 //   darker along the back; its chin, throat, chest and belly white; its
 //   lower legs black (its stockings); its ears' backs black; its tail
 //   rufous, dark grizzled, its tip white
-// species 2, a coyote; 3, a grey wolf; 4, a black bear; 5, a brown bear
-//   (below)
+// species 2, a coyote; 3, a grey wolf; 4, a black bear; 5, a brown bear;
+//   6, a bison (below)
 // species 1, a bobcat: tawny buff to grey brown, spotted and barred dark
 //   (the legs barred), its belly white, spotted black; the face's ruff
 //   barred; the ears' backs black, a white spot in each, their tufts black;
@@ -48,7 +50,7 @@ void vertex() {
 	o = VERTEX;
 	no = NORMAL;
 	if (shell > 0.0)
-		VERTEX += (NORMAL + comb * shell) * fur_obj * shell;
+		VERTEX += (NORMAL + comb * shell) * fur_obj * shell * (1.0 + fur_front * (1.0 - smoothstep(front_z - 250.0, front_z + 250.0, VERTEX.z)));
 }
 
 float h31(vec3 p) { return fract(sin(dot(p, vec3(12.9898, 78.233, 37.719))) * 43758.5453); }
@@ -108,6 +110,25 @@ void fragment() {
 			c = mix(red * 0.9, vec3(0.2, 0.12, 0.07), 0.35 * vn(o * 0.4)) * grizzle;
 			c = mix(c, white, smoothstep(0.82, 0.92, along));
 		}
+	} else if (species == 6) {
+		// 6 an American bison: its head, beard, hump, shoulders and forelegs
+		// dark chocolate brown, the wool there long and shaggy; behind its
+		// shoulders lighter, browner, short; its belly no paler; a calf
+		// red orange (a "red dog")
+		vec3 fore = young ? vec3(0.55, 0.3, 0.14) : vec3(0.16, 0.11, 0.07);
+		vec3 hind = young ? vec3(0.6, 0.34, 0.16) : vec3(0.36, 0.25, 0.15);
+		float front = 1.0 - smoothstep(front_z - 250.0, front_z + 250.0, o.z);
+		if (part == 1 || part == 5)
+			front = 1.0;
+		c = mix(hind, fore, front) * (0.85 + 0.3 * vn(o * 0.08) * vn(o * 0.03 + 5.0));
+		if (part == 3 || part == 2)
+			c = fore * 0.9;
+		if (part == 4) // (its hooves: black)
+			c = vec3(0.05, 0.045, 0.04);
+		if (part == 7) // (its horns: black, glossy)
+			c = vec3(0.04, 0.035, 0.03);
+		if (part == 6)
+			c = mix(hind, fore, smoothstep(0.6, 0.9, along));
 	} else if (species >= 4) {
 		// 4 a black bear: glossy black (or cinnamon, brown, blond), its
 		// muzzle tan, now and then a white blaze on its chest; 5 a brown
