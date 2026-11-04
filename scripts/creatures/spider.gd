@@ -70,7 +70,7 @@ const SPECIES := {
 	# splayed wide and flat, the knees low; its eyes two curved rows)
 	"fishing": {"pattern": 1, "ceph": Vector3(9.0, 4.5, 2.2), "abd": Vector3(12.5, 3.8, 2.8), "leg": Vector3(14.0, 16.5, 17.0), "pairs": [1.0, 1.06, 0.84, 1.02],
 			"femur": Color(0.3, 0.27, 0.2), "tibia": Color(0.27, 0.24, 0.17), "body_h": 3.0, "speed": 0.12, "eyes": "pisaurid", "leg_r": 0.55, "young": 0.15,
-			"sprawl": 1.2, "knee_up": 0.45, "flat": true},
+			"sprawl": 1.2, "knee_up": 0.6, "knee_out": 1.1, "flat": true, "sector": 16.0},
 	"funnel": {"pattern": 2, "ceph": Vector3(7.5, 2.9, 2.2), "abd": Vector3(8.5, 3.2, 2.7), "leg": Vector3(7.5, 8.5, 9.5), "pairs": [1.0, 0.92, 0.84, 1.1],
 			"femur": Color(0.5, 0.4, 0.28), "tibia": Color(0.42, 0.33, 0.22), "body_h": 3.8, "speed": 0.12, "eyes": "rows", "leg_r": 0.42, "young": 0.2, "spinnerets": 3.2},
 	"argiope": {"pattern": 3, "ceph": Vector3(8.5, 3.6, 2.6), "abd": Vector3(17.0, 6.2, 5.2), "leg": Vector3(10.5, 11.5, 12.0), "pairs": [1.0, 0.98, 0.62, 0.95],
@@ -150,7 +150,7 @@ func _init(kind_ := "wolf", young_ := false) -> void:
 			"f": lg.x * k, "t": lg.y * k, "s": lg.z * k * 0.8,
 			"home": Vector2(sin(h) * reach, _ceph_c.z - cos(h) * reach),
 			"dangle": Vector3(sin(a) * reach * 0.45, -2.0, _ceph_c.z - cos(a) * reach * 0.45),
-			"pole": Vector3(sin(a) * 0.5, float(S.get("knee_up", 1.0)), -cos(a) * 0.3),
+			"pole": Vector3(sin(a) * float(S.get("knee_out", 0.5)), float(S.get("knee_up", 1.0)), -cos(a) * 0.3),
 			"r": float(S.leg_r) * (0.9 if p == 2 else 1.0),
 		})
 	legs = L
@@ -710,6 +710,39 @@ func _orb(dt: float) -> void:
 		_pose_foot[i] = Vector3(hm.x * side, -body_h * 0.9, hm.y + step)
 	_pose(dt)
 	_pose_legs()
+
+
+## Its gait (the walker's); then each foot kept in its own sector round
+## the body (S.sector, degrees either side of its home's way: a fishing
+## spider's long legs never crossing their neighbours') and within its reach.
+func _gait(dt: float) -> void:
+	super(dt)
+	if float(S.get("sector", 0.0)) <= 0.0:
+		return
+	for i in legs.size() * 2:
+		_feet[i] = _in_sector(i, _feet[i])
+		_to[i] = _in_sector(i, _to[i]) # (where it's stepping to, too)
+
+
+## A foot's place (its parent's space) kept in leg i's sector and reach.
+func _in_sector(i: int, at: Vector3) -> Vector3:
+	var w := deg_to_rad(float(S.get("sector", 0.0)))
+	var to_world := transform * _body.transform
+	var p := i / 2
+	var side := 1.0 if i % 2 == 1 else -1.0
+	var lg: Vector3 = S.leg
+	var f := to_world.affine_inverse() * at
+	var rel := Vector2(f.x * side, -(f.z - _ceph_c.z)) # (out to its side, forward)
+	var a := atan2(rel.x, rel.y)
+	var h := deg_to_rad(HOME[p])
+	var ca := clampf(a, h - w, h + w)
+	var reach := (lg.x + lg.y) * float(S.pairs[p]) * float(S.get("sprawl", 1.0))
+	var r := clampf(rel.length(), reach * 0.55, reach * 1.02)
+	if absf(ca - a) < 1e-4 and absf(r - rel.length()) < 1e-3:
+		return at
+	var wpos := to_world * Vector3(sin(ca) * r * side, f.y, _ceph_c.z - cos(ca) * r)
+	wpos.y = at.y
+	return wpos
 
 
 ## The ground at (x, z): its funnel web's sheet, while it's on it (the
