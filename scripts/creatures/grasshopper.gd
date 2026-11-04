@@ -248,7 +248,10 @@ func _think(dt: float) -> void:
 				_crouch = minf(_crouch + dt * 6.0, 1.0)
 				if _st > 0.22:
 					_crouch = 0.0
-					_leap(_at, 0.8)
+					# (springing well past where it aimed, steeply)
+					var on := _at - _pos
+					on.y = 0.0
+					_leap(_pos + on * 1.35, 0.92)
 					_stage = 1
 		"fly":
 			if _stage == 0:

@@ -367,7 +367,7 @@ func _unhandled_input(e: InputEvent) -> void:
 				_hatch_eggs()
 			KEY_6:
 				var a := randf() * TAU
-				hopper.hop(_station(7) + Vector3(cos(a), 0.0, sin(a)) * 0.15)
+				hopper.hop(_station(7) + Vector3(cos(a), 0.0, sin(a)) * 0.2)
 				_at = 7
 				_say()
 			KEY_7:

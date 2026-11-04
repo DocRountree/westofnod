@@ -37,11 +37,12 @@ const KINDS := {
 			"pattern": 2, "base": Color(0.42, 0.6, 0.2), "line": Color(0.85, 0.85, 0.5),
 			"head": Color(0.45, 0.62, 0.25), "speed": 0.012, "horn": true, "legs": "caterpillar", "crease": 0.06, "bend": 0.12},
 	"lady": {"style": "crawl", "n": 10, "len": 10.0, "w": 2.6, "shape": [0.8, 1.0, 0.95, 0.75, 0.5, 0.3],
-			"pattern": 3, "base": Color(0.16, 0.16, 0.18), "band_b": Color(0.95, 0.45, 0.08), "spots": [3, 6],
-			"head": Color(0.05, 0.05, 0.06), "speed": 0.02, "legs": "six", "gloss": 0.3, "crease": 0.1, "bend": 0.22, "tubercles": true},
+			"pattern": 3, "base": Color(0.14, 0.14, 0.16), "band_b": Color(0.95, 0.45, 0.08), "spots": [1, 4],
+			"head": Color(0.04, 0.04, 0.05), "speed": 0.02, "legs": "six", "gloss": 0.3, "crease": 0.18, "bend": 0.22, "tubercles": true},
 	"june": {"style": "curl", "n": 11, "len": 35.0, "w": 9.0, "shape": [0.75, 0.85, 0.9, 0.95, 1.05, 1.2],
 			"pattern": 4, "base": Color(0.93, 0.9, 0.82), "dark_tail": Color(0.42, 0.38, 0.32),
-			"head": Color(0.62, 0.38, 0.15), "curl": 3.6, "legs": "grub", "crease": 0.12, "mandibles": true},
+			"head": Color(0.66, 0.4, 0.14), "curl": 3.6, "legs": "grub", "crease": 0.12, "mandibles": true,
+			"head_scale": 1.35, "wrinkle": 0.22, "annulets": 3.0, "spiracles": true, "bristles": true},
 	"wasp": {"style": "curl", "n": 9, "len": 15.0, "w": 5.5, "shape": [0.65, 0.9, 1.0, 1.0, 0.95, 0.7],
 			"pattern": 4, "base": Color(0.95, 0.93, 0.86), "head": Color(0.75, 0.62, 0.4), "curl": 2.4, "crease": 0.08},
 	"carpenter": {"style": "curl", "n": 8, "len": 8.0, "w": 3.6, "shape": [0.4, 0.55, 0.85, 1.0, 1.0, 0.85],
@@ -189,7 +190,7 @@ func _build() -> void:
 	# the head capsule, ahead of the first segment
 	_head = Node3D.new()
 	_holders[0].add_child(_head)
-	var hw := _widths[0] * 0.9
+	var hw := _widths[0] * 0.9 * float(K.get("head_scale", 1.0))
 	var hm := MeshInstance3D.new()
 	hm.mesh = _sphere
 	hm.scale = Vector3(hw * 2.0, hw * 1.9, hw * 1.7)
@@ -205,6 +206,28 @@ func _build() -> void:
 			b.material_override = _flat(Color(0.03, 0.03, 0.03), 0.4)
 			_head.add_child(b)
 	var dark := _flat(Color(0.05, 0.05, 0.05), 0.4)
+	if K.get("head_scale", 1.0) > 1.0: # (a white grub's head: big, hard, glossy; short antennae)
+		hm.material_override = _flat(K.head, 0.25)
+		for side: float in [-1.0, 1.0]:
+			var an := MeshInstance3D.new()
+			an.mesh = _stick
+			an.scale = Vector3(hw * 0.08, hw * 0.55, hw * 0.08)
+			an.position = hm.position + Vector3(hw * 0.55 * side, hw * 0.1, -hw * 0.6)
+			an.rotation = Vector3(-0.9, 0.0, -0.6 * side)
+			an.material_override = _flat(K.head.darkened(0.3), 0.4)
+			_head.add_child(an)
+	if K.get("bristles", false): # (sparse short brown bristles over its back)
+		var br := _flat(Color(0.55, 0.42, 0.25), 0.6)
+		for i in range(1, n):
+			for side: float in [-1.0, 1.0]:
+				var b := MeshInstance3D.new()
+				b.mesh = _stick
+				var bw := _widths[i]
+				b.scale = Vector3(bw * 0.025, bw * 0.3, bw * 0.025)
+				b.position = Vector3(bw * 0.35 * side, bw * 0.97, 0.0)
+				b.rotation = Vector3(0.6, 0.0, -0.4 * side)
+				b.material_override = br
+				_holders[i].add_child(b)
 	if K.get("mandibles", false): # (a grub's dark jaws)
 		for side: float in [-1.0, 1.0]:
 			var mj := MeshInstance3D.new()
@@ -213,17 +236,35 @@ func _build() -> void:
 			mj.position = hm.position + Vector3(hw * 0.3 * side, -hw * 0.35, -hw * 0.75)
 			mj.material_override = _flat(Color(0.18, 0.1, 0.05), 0.3)
 			_head.add_child(mj)
-	if K.get("tubercles", false): # (a lady beetle larva's: a pair of spiny bumps on each segment's back)
+	if K.get("tubercles", false):
+		# a lady beetle larva's: on each segment three pairs of spiny bumps
+		# (on its back, its shoulders, its sides), black; orange on the
+		# pronotum's margins (1), on the first abdominal segment's
+		# shoulders (4) and the fourth's back (7)
+		var orange := _flat(Color(0.95, 0.45, 0.08), 0.4)
 		for i in range(1, n - 1):
-			for side: float in [-1.0, 1.0]:
-				var tb := MeshInstance3D.new()
-				tb.mesh = _cone
-				var tw := _widths[i]
-				tb.scale = Vector3(tw * 0.3, tw * 0.45, tw * 0.3)
-				tb.position = Vector3(tw * 0.5 * side, tw * 0.95, 0.0)
-				tb.rotation = Vector3(0.0, 0.0, -0.4 * side)
-				tb.material_override = dark
-				_holders[i].add_child(tb)
+			var tw := _widths[i]
+			for row in 3:
+				var at: Vector2 = [Vector2(0.28, 0.95), Vector2(0.66, 0.72), Vector2(0.96, 0.15)][row]
+				for side: float in [-1.0, 1.0]:
+					var tb := MeshInstance3D.new()
+					tb.mesh = _cone
+					var big := 1.25 if row < 2 else 0.9
+					tb.scale = Vector3(tw * 0.22, tw * 0.38, tw * 0.22) * big
+					tb.position = Vector3(tw * at.x * side, tw * at.y, 0.0)
+					tb.rotation = Vector3(0.0, 0.0, -atan2(at.x, at.y) * side)
+					var lit: bool = (i == 1 and row == 2) or (i == 4 and row == 1) or (i == 7 and row == 0)
+					tb.material_override = orange if lit else dark
+					_holders[i].add_child(tb)
+					if row < 2: # (its bristles, a few out of each)
+						for k in 2:
+							var b := MeshInstance3D.new()
+							b.mesh = _stick
+							b.scale = Vector3(tw * 0.03, tw * 0.3, tw * 0.03)
+							b.position = tb.position + Vector3(0.0, tw * 0.3, 0.0)
+							b.rotation = Vector3(0.5 * (k * 2 - 1), 0.0, -0.5 * side)
+							b.material_override = dark
+							_holders[i].add_child(b)
 	# the monarch caterpillar's filaments: a pair behind its head, a pair
 	# near its tail, black, long and supple
 	if K.get("filaments", false):
@@ -273,23 +314,38 @@ func _build() -> void:
 					l.mesh = _sphere
 					l.material_override = dark if true_leg else _flat(K.get("proleg", K.base), 0.6)
 					add_child(l)
-					_feet.append({"i": i, "side": side, "true": true_leg, "foot": Vector3.INF, "planted": false, "leg": l})
-		"six", "grub": # (three pairs on the thorax; the lady beetle larva's long, a grub's short)
-			var long: bool = K.legs == "six"
+					_feet.append({"i": i, "side": side, "true": true_leg, "foot": Vector3.INF, "planted": false, "leg": l, "from": Vector3.ZERO, "swing": -1.0})
+		"six": # (the lady beetle larva's: three pairs, long, black; each foot planted where it steps: _step_feet)
+			for i in [1, 2, 3]:
+				for side: float in [-1.0, 1.0]:
+					var fm := MeshInstance3D.new()
+					fm.mesh = _sphere
+					fm.material_override = dark
+					add_child(fm)
+					var tb := MeshInstance3D.new()
+					tb.mesh = _sphere
+					tb.material_override = dark
+					add_child(tb)
+					_feet.append({"i": i, "side": side, "true": true, "foot": Vector3.INF, "planted": false, "leg": fm, "shin": tb, "from": Vector3.ZERO, "swing": -1.0, "reach": 1.9})
+		"grub": # (a white grub's: three pairs, jointed, brownish, held curled forward, paddling slowly)
+			var leg_c := _flat(Color(0.62, 0.45, 0.24), 0.45)
 			for i in [1, 2, 3]:
 				for side: float in [-1.0, 1.0]:
 					var hip := Node3D.new()
 					var lw := _widths[i]
-					hip.position = Vector3(lw * 0.7 * side, -lw * 0.4, 0.0)
+					hip.position = Vector3(lw * 0.55 * side, -lw * 0.6, 0.0)
 					_holders[i].add_child(hip)
-					var length := lw * (2.6 if long else 1.1)
-					var l := MeshInstance3D.new()
-					l.mesh = _stick
-					l.scale = Vector3(lw * 0.18, length, lw * 0.18)
-					l.position = Vector3(length * 0.45 * side, -length * 0.2, 0.0)
-					l.rotation = Vector3(0.0, 0.0, -1.2 * side)
-					l.material_override = dark if long else _flat(Color(0.6, 0.42, 0.2), 0.4)
-					hip.add_child(l)
+					var a := Vector3.ZERO
+					var dirs := [Vector3(0.5 * side, -0.8, -0.2), Vector3(0.1 * side, -0.6, -0.8), Vector3(-0.2 * side, 0.1, -0.9)]
+					var lens := [0.5, 0.55, 0.4]
+					for k in 3:
+						var b := a + (dirs[k] as Vector3).normalized() * lw * float(lens[k])
+						var sg := MeshInstance3D.new()
+						sg.mesh = _sphere
+						sg.transform = _seg_xf(a, b, lw * (0.13 - 0.025 * k))
+						sg.material_override = leg_c
+						hip.add_child(sg)
+						a = b
 					hip.set_meta("side", side)
 					hip.set_meta("pair", i)
 					_legs.append(hip)
@@ -379,7 +435,7 @@ func _mat(which: String) -> ShaderMaterial:
 	m.shader = preload("res://shaders/render/larva.gdshader")
 	m.set_shader_parameter("pattern", 0 if which == "head" else int(K.pattern))
 	m.set_shader_parameter("base", K.head if which == "head" else (K.dark_tail if which == "tail" else K.base))
-	for p in ["line", "band_a", "band_b", "gloss"]:
+	for p in ["line", "band_a", "band_b", "gloss", "wrinkle", "annulets", "spiracles"]:
 		if K.has(p):
 			m.set_shader_parameter(p, K[p])
 	m.set_shader_parameter("spot", which == "spot")
@@ -411,18 +467,16 @@ func _process(dt: float) -> void:
 	if K.style == "crawl":
 		_crawl(dt)
 	_place_spine()
-	_step_feet()
+	_step_feet(dt)
 	# the filaments waving, the legs stepping
 	for k in _whips.size():
 		var wv := _whips[k]
 		var r0: Vector3 = wv.get_meta("rest")
 		wv.rotation = r0 + Vector3(0.12 * sin(_t * 1.7 + k * 0.9), 0.0, 0.18 * sin(_t * 2.3 + k * 1.3))
-	var going := 1.0 if _mode == "wander" and _pos.distance_to(_target) > 0.004 else 0.0
-	for l in _legs:
+	for l in _legs: # (a grub's, paddling slowly)
 		var side: float = l.get_meta("side")
 		var pair: int = l.get_meta("pair")
-		var ph := _t * 9.0 + (PI if (pair + (1 if side > 0.0 else 0)) % 2 == 0 else 0.0)
-		l.rotation = Vector3(0.0, 0.45 * sin(ph) * going * side, 0.0)
+		l.rotation = Vector3(0.25 * sin(_t * 1.6 + pair * 1.1 + (0.0 if side > 0.0 else 1.5)), 0.0, 0.0)
 
 
 func _crawl(dt: float) -> void:
@@ -548,12 +602,15 @@ func _place_spine() -> void:
 		_skin_mat.set_shader_parameter("size", _g)
 
 
-## A caterpillar's feet: each planted on the ground where it last stepped,
-## held there while the body goes on over it; lifted (following under its
-## hip, off the ground) while the wave lifts its segment, or once it's been
-## left too far behind, then planted again under its hip, a little ahead;
-## each leg drawn from its hip on the body to its foot.
-func _step_feet() -> void:
+## The feet (a caterpillar's, the lady beetle larva's): each planted on
+## the ground where it last stepped, held there while the body goes on over
+## it; once left too far behind (or, a caterpillar's, as the wave lifts its
+## segment) lifted and swung on to under its hip, a little ahead, and set
+## down again; its neighbours (the same side, the next segment; the other
+## side, the same one) not stepping at once. Each leg drawn from its hip to
+## its foot (a proleg a stump; a true leg thin; the lady beetle larva's in
+## two, its knee up and out).
+func _step_feet(dt: float) -> void:
 	if _feet.is_empty():
 		return
 	var ground := _pos.y
@@ -565,28 +622,56 @@ func _step_feet() -> void:
 		var right := h.basis.x.normalized()
 		var fwd := -h.basis.z.normalized()
 		var hip := h.origin + right * side * w * 0.5 + Vector3.DOWN * w * 0.55
-		var want := Vector3(hip.x, ground, hip.z) + right * side * w * 0.2 + fwd * w * 0.25
-		var lifted: bool = i < _lift.size() and _lift[i] > w * 0.08
+		var reach: float = f.get("reach", 0.2)
+		var want := Vector3(hip.x, ground, hip.z) + right * side * w * reach + fwd * w * 0.25
 		var foot: Vector3 = f.foot
 		if foot == Vector3.INF:
 			foot = want
-			f.planted = true
-		elif lifted:
-			# up off the ground, swinging on under its hip
-			foot = foot.lerp(want + Vector3.UP * w * 0.35, 0.35)
-			f.planted = false
-		elif not f.planted or Vector2(foot.x - want.x, foot.z - want.z).length() > w * 1.1:
-			foot = want
-			f.planted = true
+			f.swing = -1.0
+		elif float(f.swing) >= 0.0:
+			# swinging: up and over, set down at its new place
+			f.swing = float(f.swing) + dt / 0.11
+			var k := minf(float(f.swing), 1.0)
+			foot = (f.from as Vector3).lerp(want, k * k * (3.0 - 2.0 * k)) + Vector3.UP * sin(PI * k) * w * 0.5
+			if k >= 1.0:
+				f.swing = -1.0
+				foot = want
+		else:
+			var lifted: bool = i < _lift.size() and _lift[i] > w * 0.08
+			var left := Vector2(foot.x - want.x, foot.z - want.z).length() > w * (0.9 if f["true"] else 1.1)
+			if (lifted or left) and not _neighbour_stepping(f):
+				f.from = foot
+				f.swing = 0.0
 		f.foot = foot
-		# the leg: a fleshy stump (a proleg) or a thin jointed leg, hip to foot
-		var d := foot - hip
-		var l := maxf(d.length(), 1e-5)
-		var y := d / l
-		var x := y.cross(Vector3.FORWARD if absf(y.z) < 0.9 else Vector3.RIGHT).normalized()
-		var z := x.cross(y)
-		var th := w * (0.32 if f["true"] else 0.75)
-		(f.leg as MeshInstance3D).transform = Transform3D(Basis(x * th, y * l * 1.15, z * th), (hip + foot) * 0.5)
+		var leg := f.leg as MeshInstance3D
+		if f.has("shin"): # (two parts: the knee up and out between)
+			var knee := (hip + foot) * 0.5 + Vector3.UP * w * 0.7 + right * side * w * 0.3
+			leg.transform = _seg_xf(hip, knee, w * 0.16)
+			(f.shin as MeshInstance3D).transform = _seg_xf(knee, foot, w * 0.12)
+		else:
+			var th := w * (0.32 if f["true"] else 0.75)
+			leg.transform = _seg_xf(hip, foot, th * 0.5, 1.15)
+
+
+## Whether a foot next to f is in the air (so f waits).
+func _neighbour_stepping(f: Dictionary) -> bool:
+	for g in _feet:
+		if g == f or float(g.swing) < 0.0:
+			continue
+		var same_side: bool = g.side == f.side
+		if (same_side and absi(int(g.i) - int(f.i)) <= 1) or (not same_side and g.i == f.i):
+			return true
+	return false
+
+
+## A part stretched from a to b (a unit sphere or stick), r thick.
+static func _seg_xf(a: Vector3, b: Vector3, r: float, stretch := 1.0) -> Transform3D:
+	var d := b - a
+	var l := maxf(d.length(), 1e-6)
+	var y := d / l
+	var x := y.cross(Vector3.FORWARD if absf(y.z) < 0.9 else Vector3.RIGHT).normalized()
+	var z := x.cross(y)
+	return Transform3D(Basis(x * r * 2.0, y * l * stretch, z * r * 2.0), (a + b) * 0.5)
 
 
 ## The point d (m) back along the head's trail (straight back past its end).

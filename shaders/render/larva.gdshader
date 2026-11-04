@@ -26,6 +26,9 @@ uniform vec3 band_b : source_color = vec3(0.96, 0.82, 0.1);
 uniform vec3 tail : source_color = vec3(0.4, 0.36, 0.3);
 uniform bool spot = false;
 uniform float gloss = 0.4;
+uniform float wrinkle = 0.08; // (a grub's creases: how deep)
+uniform float annulets = 4.0; // (a segment's folds)
+uniform bool spiracles = false;
 uniform bool skinned = false;
 uniform vec3 sp[16];
 uniform vec3 sx[16];
@@ -95,7 +98,10 @@ void fragment() {
 		if (spotted)
 			c = mix(c, band_b, smoothstep(0.75, 0.85, side) * step(-0.1, o.y));
 	} else if (pattern == 4) {
-		c *= 0.92 + 0.08 * cos(o.z * 25.0); // (finely creased across)
+		// creased across: each segment folded into annulets
+		c *= 1.0 - wrinkle * (0.5 + 0.5 * cos((o.z + 0.5) * 6.2832 * annulets));
+		if (spiracles) // (a brown breathing hole low on each side)
+			c = mix(c, vec3(0.42, 0.25, 0.1), 1.0 - smoothstep(0.045, 0.07, length(vec2(o.z + 0.1, (o.y + 0.08) * 1.4))) * step(0.85, side) * 1.0);
 		SSS_STRENGTH = 0.3;
 	} else {
 		c = mix(c, line, smoothstep(0.88, 0.93, side) * (1.0 - smoothstep(0.96, 1.0, side)) * step(0.0, o.y));
