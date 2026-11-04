@@ -38,6 +38,8 @@ const SPINE := 32
 const Z0 := -24.0 # mm: the neck (the spine's first point)
 const Z1 := 130.0 # the tail's tip
 const SEG := (Z1 - Z0) / (SPINE - 1)
+const TAIL_BEND := 0.14 # rad: the most a tail joint bends (a segment's)
+const TURN_IN_PLACE := 0.9 # rad/s: the most it turns standing (its tail swung round behind it)
 const SHOULDER := -18.0
 const PELVIS := 16.0
 const VENT := 20.0
@@ -464,6 +466,33 @@ func _after_mate() -> void:
 	wander(_pos, 0.15)
 
 
+# --- the motor: its walk, its turns no tighter than its tail can follow ---------
+
+func _walk(dt: float) -> void:
+	var to := _target - _pos
+	to.y = 0.0
+	var d := to.length()
+	var want := 0.0
+	# (going, it turns only as its tail can follow: at most TAIL_BEND a
+	# tail segment's length gone; standing, slowly, its tail swinging round)
+	var can := maxf(TAIL_BEND / maxf(SEG * MM * size, 1e-5) * _speed * 0.9, TURN_IN_PLACE) * dt
+	if _turn_to != INF:
+		var tt := wrapf(_turn_to - _yaw, -PI, PI)
+		_yaw += clampf(tt, -can, can)
+		if absf(tt) < 0.02:
+			_turn_to = INF
+	elif d > 0.002 * size:
+		var a := atan2(-to.x, -to.z)
+		var turn := wrapf(a - _yaw, -PI, PI)
+		_yaw += clampf(turn, -can, can)
+		var pace := _pace if _pace > 0.0 else walk_speed * lerpf(0.35, 1.0, size)
+		want = minf(pace, d * 4.0) * clampf(1.0 - absf(turn) / 1.6, 0.0, 1.0)
+	_speed = move_toward(_speed, want, dt * 2.0)
+	_pos += Vector3(-sin(_yaw), 0.0, -cos(_yaw)) * _speed * dt
+	ground_y = _ground(_pos.x, _pos.z)
+	_pos.y = ground_y
+
+
 # --- the pose -----------------------------------------------------------------
 
 func _pose(dt: float) -> void:
@@ -576,6 +605,23 @@ func _spine(_dt: float) -> void:
 			q.y = lerpf(q.y, g, smoothstep(VENT + 20.0, VENT + 45.0, z))
 			p = inv * q
 		_sp[i] = p
+	# no tail joint bent more than TAIL_BEND: each segment laid on from the
+	# one before it, its way turned no further than that from that one's (so
+	# it curves smoothly from its hips, never kinked; as a caterpillar's)
+	var iv := int(ceil((VENT - Z0) / SEG))
+	var way := Vector2(_sp[iv - 1].x - _sp[iv - 2].x, _sp[iv - 1].z - _sp[iv - 2].z)
+	way = way.normalized() if way.length() > 1e-5 else Vector2(0.0, 1.0)
+	for i in range(iv, SPINE):
+		var d := _sp[i] - _sp[i - 1]
+		var dn := Vector2(d.x, d.z)
+		dn = dn.normalized() if dn.length() > 1e-5 else way
+		var ang := way.angle_to(dn)
+		if absf(ang) > TAIL_BEND:
+			dn = way.rotated(signf(ang) * TAIL_BEND)
+		var dy := clampf(d.y, -SEG * 0.95, SEG * 0.95)
+		var flat := sqrt(maxf(SEG * SEG - dy * dy, 0.0))
+		_sp[i] = Vector3(_sp[i - 1].x + dn.x * flat, _sp[i - 1].y + dy, _sp[i - 1].z + dn.y * flat)
+		way = dn
 	for i in SPINE:
 		var back := (_sp[mini(i + 1, SPINE - 1)] - _sp[maxi(i - 1, 0)]).normalized()
 		var xr := Vector3.UP.cross(back)
