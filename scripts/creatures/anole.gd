@@ -609,19 +609,19 @@ func _spine(_dt: float) -> void:
 	# one before it, its way turned no further than that from that one's (so
 	# it curves smoothly from its hips, never kinked; as a caterpillar's)
 	var iv := int(ceil((VENT - Z0) / SEG))
-	var way := Vector2(_sp[iv - 1].x - _sp[iv - 2].x, _sp[iv - 1].z - _sp[iv - 2].z)
-	way = way.normalized() if way.length() > 1e-5 else Vector2(0.0, 1.0)
+	var tway := Vector2(_sp[iv - 1].x - _sp[iv - 2].x, _sp[iv - 1].z - _sp[iv - 2].z)
+	tway = tway.normalized() if tway.length() > 1e-5 else Vector2(0.0, 1.0)
 	for i in range(iv, SPINE):
 		var d := _sp[i] - _sp[i - 1]
 		var dn := Vector2(d.x, d.z)
-		dn = dn.normalized() if dn.length() > 1e-5 else way
-		var ang := way.angle_to(dn)
+		dn = dn.normalized() if dn.length() > 1e-5 else tway
+		var ang := tway.angle_to(dn)
 		if absf(ang) > TAIL_BEND:
-			dn = way.rotated(signf(ang) * TAIL_BEND)
+			dn = tway.rotated(signf(ang) * TAIL_BEND)
 		var dy := clampf(d.y, -SEG * 0.95, SEG * 0.95)
 		var flat := sqrt(maxf(SEG * SEG - dy * dy, 0.0))
 		_sp[i] = Vector3(_sp[i - 1].x + dn.x * flat, _sp[i - 1].y + dy, _sp[i - 1].z + dn.y * flat)
-		way = dn
+		tway = dn
 	for i in SPINE:
 		var back := (_sp[mini(i + 1, SPINE - 1)] - _sp[maxi(i - 1, 0)]).normalized()
 		var xr := Vector3.UP.cross(back)
