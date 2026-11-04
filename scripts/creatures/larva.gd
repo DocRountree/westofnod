@@ -42,7 +42,7 @@ const KINDS := {
 	"lady": {"style": "crawl", "n": 10, "len": 10.0, "w": 2.6, "shape": [0.8, 1.0, 0.95, 0.75, 0.5, 0.3],
 			"pattern": 3, "base": Color(0.14, 0.14, 0.16), "band_b": Color(0.95, 0.45, 0.08), "spots": [1, 4],
 			"head": Color(0.04, 0.04, 0.05), "speed": 0.02, "legs": "six", "gloss": 0.3, "crease": 0.18, "bend": 0.22, "tubercles": true},
-	"june": {"style": "curl", "n": 11, "len": 35.0, "w": 9.0, "shape": [0.75, 0.85, 0.9, 0.95, 1.05, 1.2],
+	"june": {"style": "curl", "n": 11, "len": 35.0, "w": 9.0, "shape": [0.75, 0.85, 0.9, 0.95, 1.1, 1.3], "round_tail": true,
 			"pattern": 4, "base": Color(0.93, 0.9, 0.82), "dark_tail": Color(0.42, 0.38, 0.32),
 			"head": Color(0.66, 0.4, 0.14), "curl": 3.6, "legs": "grub", "crease": 0.12, "mandibles": true,
 			"head_scale": 1.35, "wrinkle": 0.22, "annulets": 3.0, "spiracles": true, "bristles": true},
@@ -374,13 +374,18 @@ func _tube() -> ArrayMesh:
 	const ROUND := 14
 	var crease: float = K.get("crease", 0.06)
 	var flat_belly: bool = K.get("legs", "") == "caterpillar"
+	var round_tail: bool = K.get("round_tail", false)
 	var radius := func(s: float) -> float:
 		var c := clampf(s, 0.0, n - 1.0)
 		var i := mini(int(c), n - 2) if n > 1 else 0
 		var f := c - i
 		var w := lerpf(_widths[i], _widths[mini(i + 1, n - 1)], f) if n > 1 else _widths[0]
-		# rounded shut at the ends
-		var e := minf(s + 0.5, n - 0.5 - s) / 0.5
+		# rounded shut at the ends (a June grub's swollen rear end a full
+		# dome: its cap as long as it's wide)
+		var cap := 0.5
+		if round_tail and s > n * 0.5:
+			cap = maxf(w / maxf(_seg, 1e-6), 0.5)
+		var e := minf((s + 0.5) / 0.5, (n - 0.5 - s) / cap)
 		if e < 1.0:
 			w *= sqrt(maxf(1.0 - (1.0 - e) * (1.0 - e), 0.0))
 		# the creases at the joints

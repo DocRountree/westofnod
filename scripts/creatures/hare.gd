@@ -110,6 +110,10 @@ func _build() -> void:
 			[78.0, 20.0, 70.0, 74.0], [122.0, 24.0, 64.0, 64.0], [148.0, 22.0, 42.0, 44.0], [158.0, 18.0, 12.0, 12.0]], 2.0)
 	_torso.material_override = fur
 	_body.add_child(_torso)
+	_fur_shells(_torso, 9.0 if not young else 5.0, 9)
+	for side: float in [-1.0, 1.0]: # (its haunches, its shoulders, round under the fur)
+		_fur_shells(_part(Vector3(40.0 * side, 10.0, 105.0), Vector3(50.0, 110.0, 120.0), fur), 9.0, 8)
+		_fur_shells(_part(Vector3(30.0 * side, -5.0, -92.0), Vector3(36.0, 80.0, 70.0), fur), 8.0, 7)
 	# the head: blunt, the eyes high on its sides, the split lip, the nose
 	_head = Node3D.new()
 	_head.position = Vector3(0.0, 48.0, -140.0)
@@ -118,9 +122,15 @@ func _build() -> void:
 	hm.mesh = _loft([[18.0, 0.0, 30.0, 30.0], [-8.0, 8.0, 40.0, 38.0], [-40.0, 6.0, 38.0, 34.0], [-66.0, -3.0, 29.0, 26.0], [-86.0, -9.0, 19.0, 18.0], [-96.0, -11.0, 9.0, 9.0]], 2.0)
 	hm.material_override = head_fur
 	_head.add_child(hm)
-	var eye := _mat(Color(0.08, 0.05, 0.03), 0.05)
+	_fur_shells(hm, 4.0, 6)
+	var eye := _mat(Color(0.08, 0.05, 0.03), 0.03)
+	eye.clearcoat_enabled = true # (big, dark, wet)
+	eye.clearcoat = 1.0
+	var ring := _coat_mat(0, 0.75) # (the pale ring round each eye)
 	for side: float in [-1.0, 1.0]:
 		_part(Vector3(31.0 * side, 16.0, -42.0), Vector3(16.0, 19.0, 20.0), eye, _head)
+		_part(Vector3(29.5 * side, 16.0, -42.0), Vector3(17.0, 24.0, 25.0), ring, _head)
+		_fur_shells(_part(Vector3(9.0 * side, -9.0, -80.0), Vector3(20.0, 18.0, 24.0), head_fur, _head), 3.0, 4) # (its whisker pads)
 		_part(Vector3(28.0 * side, 16.0, -42.0), Vector3(19.0, 22.0, 23.0), head_fur, _head) # (its lids round it)
 	_nose = Node3D.new()
 	_nose.position = Vector3(0.0, -8.0, -94.0)
@@ -155,12 +165,13 @@ func _build() -> void:
 		em.mesh = _ear_mesh()
 		em.material_override = ear
 		e.add_child(em)
+		_fur_shells(em, 1.5, 3)
 		_ear_nodes.append(e)
 	# the tail: a powder puff
 	_tail = Node3D.new()
 	_tail.position = Vector3(0.0, 34.0, 156.0)
 	_body.add_child(_tail)
-	_part(Vector3(0.0, 4.0, 10.0), Vector3(40.0, 34.0, 34.0), tail, _tail)
+	_fur_shells(_part(Vector3(0.0, 4.0, 10.0), Vector3(40.0, 34.0, 34.0), tail, _tail), 14.0, 8)
 	_build_legs(leg_fur, leg_fur)
 	# the feet: furred pads, the hind ones the snowshoes
 	for i in 4:

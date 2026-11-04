@@ -183,6 +183,28 @@ func _part(at: Vector3, size_: Vector3, mat: Material, parent: Node3D = null) ->
 	return mi
 
 
+## Fur on mi (a mammal's: its material's shader takes the fur's instance
+## uniforms: shell, fur_obj, fur_dens): shells of it, each a copy a little
+## further out along its normals, its hairs thinning to their tips;
+## len_mm the hairs' length (mm, the body's), spacing between them.
+func _fur_shells(mi: MeshInstance3D, len_mm: float, shells := 8, spacing := -1.0) -> void:
+	if mi == null or len_mm <= 0.0:
+		return
+	var sc := mi.transform.basis.get_scale()
+	var avg := maxf((absf(sc.x) + absf(sc.y) + absf(sc.z)) / 3.0, 1e-4)
+	var sp := spacing if spacing > 0.0 else clampf(len_mm * 0.12, 0.25, 4.0)
+	mi.set_instance_shader_parameter("fur_dens", avg / sp)
+	for k in range(1, shells + 1):
+		var sh := MeshInstance3D.new()
+		sh.mesh = mi.mesh
+		sh.material_override = mi.material_override
+		sh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		mi.add_child(sh)
+		sh.set_instance_shader_parameter("shell", float(k) / shells)
+		sh.set_instance_shader_parameter("fur_obj", len_mm / avg)
+		sh.set_instance_shader_parameter("fur_dens", avg / sp)
+
+
 ## A stick (mm) from a to b, r thick, under parent.
 func _stick(a: Vector3, b: Vector3, r: float, mat: Material, parent: Node3D = null) -> MeshInstance3D:
 	var mi := MeshInstance3D.new()

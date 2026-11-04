@@ -62,7 +62,7 @@ func _build_extra() -> void:
 			var len_ := cl * (1.4 if i < 2 else 0.9) / 100.0
 			_stick(Vector3(x, -0.1, 0.42), Vector3(x * 1.1, -0.35, 0.42 + len_), 0.035, claw, paw)
 	for h: Array in S.get("hump", []): # (a brown bear's shoulder hump)
-		_part(h[0], h[1], _coat(0), _body)
+		_fur_shells(_part(h[0], h[1], _coat(0), _body), float(S.get("fur", 55.0)), 10)
 
 
 ## A berry bush (a huckleberry's: about 80 cm, twiggy, small leaves, dark

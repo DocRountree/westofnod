@@ -72,6 +72,7 @@ var _fur_mat: ShaderMaterial
 var _tail_mat: ShaderMaterial
 var _paw_mat: StandardMaterial3D
 var _fur_set := -1.0
+var _toes: Array[Node3D] = []
 
 
 func _init(young_ := false) -> void:
@@ -103,6 +104,9 @@ func _build() -> void:
 			[12.0, 4.0, 14.0, 12.0], [24.0, 4.0, 13.5, 11.5], [33.0, 3.0, 10.0, 9.0], [38.5, 2.0, 5.0, 5.0], [40.0, 1.5, 1.2, 1.2]], 2.0)
 	_torso.material_override = _fur_mat
 	_body.add_child(_torso)
+	_fur_shells(_torso, 3.0, 7, 0.35) # (its fur: soft, dense)
+	for side: float in [-1.0, 1.0]: # (its haunches, round under the fur)
+		_fur_shells(_part(Vector3(9.0 * side, 2.0, 22.0), Vector3(12.0, 18.0, 20.0), _fur_mat), 3.0, 6, 0.35)
 	# the head, on its neck
 	_head = Node3D.new()
 	_head.position = Vector3(0.0, 5.5, -30.0)
@@ -112,8 +116,13 @@ func _build() -> void:
 			[-23.5, -1.8, 2.8, 2.7], [-25.0, -2.0, 1.2, 1.2]], 2.0)
 	hm.material_override = _fur_mat
 	_head.add_child(hm)
+	_fur_shells(hm, 1.6, 5, 0.3)
+	for side: float in [-1.0, 1.0]: # (its whisker pads, plump either side of its nose)
+		_fur_shells(_part(Vector3(2.8 * side, -2.0, -20.5), Vector3(4.6, 4.0, 5.5), _fur_mat, _head), 0.8, 3, 0.25)
 	# the eyes: big, black, bulging, glossy (a pup's shut: lids of skin over them)
-	var eye := _mat(Color(0.02, 0.015, 0.015), 0.04)
+	var eye := _mat(Color(0.02, 0.015, 0.015), 0.02)
+	eye.clearcoat_enabled = true # (wet, glossy, bulging)
+	eye.clearcoat = 1.0
 	for side: float in [-1.0, 1.0]:
 		_eyes.append(_part(Vector3(6.6 * side, 3.4, -11.0), Vector3(3.8, 4.2, 4.6), eye, _head))
 		var lid := _part(Vector3(6.4 * side, 3.4, -11.0), Vector3(4.1, 4.5, 4.9), _fur_mat, _head)
@@ -124,11 +133,25 @@ func _build() -> void:
 		ear.position = Vector3(5.5 * side, 8.0, -4.0)
 		_head.add_child(ear)
 		ear.set_meta("side", side)
-		_part(Vector3(1.5 * side, 4.8, 0.3), Vector3(9.5, 11.0, 1.4), _mat(Color(0.5, 0.4, 0.34), 0.7, 0.3), ear)
-		_part(Vector3(1.4 * side, 4.6, -0.35), Vector3(7.5, 8.8, 0.6), pink, ear)
+		# (thin, nearly bare, grey brown outside, its rim paler; within pink,
+		# the light through it)
+		var outer := _mat(Color(0.42, 0.36, 0.33), 0.6, 0.2)
+		outer.backlight_enabled = true
+		outer.backlight = Color(0.5, 0.3, 0.28)
+		_part(Vector3(1.5 * side, 4.8, 0.3), Vector3(9.5, 11.0, 1.0), outer, ear)
+		_part(Vector3(1.5 * side, 4.8, 0.3), Vector3(10.2, 11.7, 0.7), _mat(Color(0.7, 0.64, 0.6), 0.7), ear) # (its rim)
+		var inner := _mat(Color(0.86, 0.62, 0.6), 0.45)
+		inner.backlight_enabled = true
+		inner.backlight = Color(0.7, 0.35, 0.32)
+		_part(Vector3(1.4 * side, 4.6, -0.3), Vector3(7.5, 8.8, 0.5), inner, ear)
 		_ears.append(ear)
 	# the nose, the whiskers fanned from the muzzle, the incisors, the jaw
-	_part(Vector3(0.0, -1.7, -25.2), Vector3(2.8, 2.2, 2.0), _mat(Color(0.82, 0.5, 0.5), 0.3), _head)
+	var nose := _mat(Color(0.82, 0.5, 0.5), 0.2)
+	nose.clearcoat_enabled = true
+	nose.clearcoat = 0.8
+	_part(Vector3(0.0, -1.7, -25.2), Vector3(2.8, 2.2, 2.0), nose, _head)
+	for side: float in [-1.0, 1.0]: # (its nostrils)
+		_part(Vector3(0.6 * side, -1.6, -26.0), Vector3(0.6, 0.5, 0.4), _mat(Color(0.3, 0.12, 0.12), 0.6), _head)
 	var wh := _mat(Color(0.85, 0.83, 0.8), 0.5)
 	var dk := _mat(Color(0.12, 0.1, 0.09), 0.5)
 	for side: float in [-1.0, 1.0]:
@@ -161,12 +184,25 @@ func _build() -> void:
 		_tail.append(n)
 		prev = n
 	_build_legs(_fur_mat, _fur_mat)
-	_fur(true)
+	# its feet's toes: long, pink, thin (four before, five behind), each its
+	# little claw
+	for i in 4:
+		var t := Node3D.new()
+		_body.add_child(t)
+		var hind := i >= 2
+		for k in (5 if hind else 4):
+			var a := deg_to_rad(-40.0 + (80.0 / (4.0 if hind else 3.0)) * k)
+			var l := (5.5 if hind else 3.6) * (0.75 + 0.25 * sin(PI * float(k) / (4.0 if hind else 3.0)))
+			var d := Vector3(sin(a), 0.0, -cos(a))
+			_stick(Vector3.ZERO, d * l, 0.45, _paw_mat, t)
+			_stick(d * l, d * (l + 0.8) + Vector3(0.0, -0.3, 0.0), 0.15, _mat(Color(0.85, 0.82, 0.75), 0.4), t)
+		_toes.append(t)
+	_grow_fur(true)
 
 
 ## The fur as it grows in (a pup's): its share by size, grey then brown;
 ## the eyes open, the ears up.
-func _fur(force := false) -> void:
+func _grow_fur(force := false) -> void:
 	var g := clampf((size - 0.16) / 0.12, 0.0, 1.0) if young else 1.0
 	var adult := clampf((size - 0.38) / 0.1, 0.0, 1.0) if young else 1.0
 	var k := g + adult * 2.0
@@ -525,7 +561,7 @@ func _after_mate() -> void:
 # --- the pose -----------------------------------------------------------------
 
 func _pose(dt: float) -> void:
-	_fur()
+	_grow_fur()
 	_sit = move_toward(_sit, _sit_to, dt * 3.0)
 	var s := _sit * _sit * (3.0 - 2.0 * _sit)
 	# up on its haunches: nose up, the body lifted so the rump stays down
@@ -621,6 +657,12 @@ func _pose_legs() -> void:
 		ts.transform = _seg(heel, foot, r * (0.55 if hind else 0.6))
 		ts.material_override = _paw_mat
 		(m[3] as MeshInstance3D).transform = Transform3D(Basis().scaled(Vector3.ONE * r * 1.5), knee)
+		if i < _toes.size(): # (its toes splayed from the foot, along it)
+			var along := (foot - heel)
+			along -= up * along.dot(up)
+			var z := along.normalized() if along.length() > 1e-4 else -fwd
+			var xx := z.cross(up).normalized()
+			_toes[i].transform = Transform3D(Basis(xx, up, -z), foot)
 
 
 # --- steering (pilot.gd): its behaviours ----------------------------------------

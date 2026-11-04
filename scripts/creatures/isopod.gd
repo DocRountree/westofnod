@@ -68,7 +68,7 @@ func _init(young_ := false) -> void:
 
 
 func _build() -> void:
-	var grey := Color(0.36, 0.37, 0.4) if not young else Color(0.78, 0.76, 0.72)
+	var grey := Color(0.58, 0.59, 0.61) if not young else Color(0.8, 0.78, 0.75) # (slate grey, not black)
 	var plate := _banded(grey, 0.0, 0.0, 0.35, 0.75) # (the uropods, the face)
 	var under := _mat(grey.darkened(0.3), 0.6)
 	# the plates, a chain from the middle out both ways (each on the next
@@ -204,10 +204,10 @@ void fragment() {
 		c = mix(c, spot, (1.0 - smoothstep(0.26, 0.42, d2)) * 0.55);
 		c = mix(c, spot, (1.0 - smoothstep(0.06, 0.14, ax)) * 0.2);
 	}
-	c *= 1.0 - 0.35 * smoothstep(len * 0.28, len * 0.46, o.z); // (the back rim)
+	c *= 1.0 - 0.22 * smoothstep(len * 0.28, len * 0.46, o.z); // (the back rim)
 	c *= 0.96 + 0.04 * sin(o.x * 23.0 + o.z * 11.0); // (its fine texture)
-	if (!FRONT_FACING)
-		c *= 0.45;
+	if (!FRONT_FACING) // (seen from within: its underside, a little darker)
+		c *= 0.8;
 	ALBEDO = c;
 	ROUGHNESS = 0.3;
 	SPECULAR = 0.6;

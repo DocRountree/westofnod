@@ -40,6 +40,7 @@ const GRAZE := 1
 const DISPLAY := 2
 const PILOT := 3
 const HOLD := 4
+const TAKEN := 5 # (caught: out of the school)
 
 var tank_min := Vector3(-0.5, 0.02, -0.5) ## the water (its own space): the bottom's corner
 var tank_max := Vector3(0.5, 0.45, 0.5) ## and the surface's
@@ -132,6 +133,37 @@ func scatter(from: Vector3) -> void:
 	_scare_from = from
 
 
+## Fish i out of the school (caught: a fishing spider's): a fish of its
+## own in its place (its parent's space), still, the instance gone.
+func take(i: int) -> Node3D:
+	var mi := MeshInstance3D.new()
+	mi.mesh = multimesh.mesh
+	var m := (material_override as ShaderMaterial).duplicate() as ShaderMaterial
+	mi.material_override = m
+	var parent := get_parent() as Node3D
+	parent.add_child(mi)
+	mi.global_transform = global_transform * multimesh.get_instance_transform(i)
+	task[i] = TAKEN
+	multimesh.set_instance_transform(i, Transform3D(Basis.from_scale(Vector3.ONE * 1e-4), pos[i]))
+	pos[i] = tank_min - Vector3.ONE * 50.0 # (out of the others' way)
+	return mi
+
+
+## The fish nearest p (its parent's space; not taken), or -1.
+func nearest(p: Vector3) -> int:
+	var best := -1
+	var bd := INF
+	var lp := to_local(get_parent().to_global(p)) if is_inside_tree() else p
+	for i in pos.size():
+		if task[i] == TAKEN:
+			continue
+		var d := pos[i].distance_to(lp)
+		if d < bd:
+			bd = d
+			best = i
+	return best
+
+
 ## Fish i back with the school (whatever it was doing).
 func rejoin(i: int) -> void:
 	task[i] = SCHOOL
@@ -191,9 +223,11 @@ func _process(dt: float) -> void:
 			grid[k] = []
 		grid[k].append(i)
 	for i in n:
-		_steer(i, dt, grid)
+		if task[i] != TAKEN:
+			_steer(i, dt, grid)
 	for i in n:
-		_place(i, dt)
+		if task[i] != TAKEN:
+			_place(i, dt)
 
 
 ## Fish i's steering: its neighbours (apart, along with them, with them),

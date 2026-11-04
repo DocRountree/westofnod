@@ -9,7 +9,8 @@ extends "res://scripts/creatures/hexapod.gd" # (by path: found whether or not th
 ## (shaders/render/anole.gdshader). Its body and tail one skin bent along a
 ## spine: its trunk swinging from side to side as it runs (the shoulders
 ## one way, the hips the other), its tail waving after it, lying along the
-## ground; four sprawling legs (hexapod.gd's motor, trotting: the diagonals
+## ground (laid along where its hips have been, as a snake's body follows
+## its head: not swung round with it as it turns); four sprawling legs (hexapod.gd's motor, trotting: the diagonals
 ## together), the knees and elbows up, long thin toes splayed (the hind
 ## foot's fourth longest). A male's dewlap: a fan of pink skin under his
 ## throat, flared to display (his, only: hers is none to see; otherwise the
@@ -528,6 +529,14 @@ func _spine(_dt: float) -> void:
 	var inv := to_world.affine_inverse()
 	var mid := (SHOULDER + PELVIS) * 0.5
 	var L := PELVIS - SHOULDER
+	# (where its hips have been: the trail its tail lies along; not while
+	# it's carried on her, mating, nor in the air)
+	var trailing := _twist <= 0.01 and not airborne and not (_mate_role == "male" and _mate_stage in ["mount", "joined", "part"])
+	var vent := to_world * Vector3(A * sin(_phase) * sin(PI * (VENT - mid) / L), 0.0, VENT)
+	if trailing:
+		_lay_trail(vent, to_world)
+	else:
+		_trail.clear()
 	for i in SPINE:
 		var z := Z0 + i * SEG
 		var x := 0.0
@@ -547,8 +556,21 @@ func _spine(_dt: float) -> void:
 				x -= 6.0 * bell
 				y -= 6.5 * bell
 		var p := Vector3(x, y, z)
-		# (on the ground, whatever its tilt: its tail laid on it)
-		if z > VENT + 20.0 and _twist <= 0.5:
+		# (its tail laid along where its hips have been, on the ground, as a
+		# snake's body follows its head: not swung round with it as it
+		# turns; a little wave along it, swimming its way)
+		if z > VENT and trailing:
+			var d := (z - VENT) * MM * size
+			var tr := _along_trail(d)
+			var q: Vector3 = tr[0]
+			var way: Vector3 = tr[1]
+			var side := way.cross(Vector3.UP).normalized()
+			var u := (z - VENT) / (Z1 - VENT)
+			q += side * (1.5 + 3.0 * moving) * u * sin(_phase * 0.5 - u * TAU * 1.2) * MM * size
+			q.y = _ground(q.x, q.z) + _girth(z).y * 0.9 * MM * size
+			var w := smoothstep(VENT, VENT + 22.0, z)
+			p = p.lerp(inv * q, w)
+		elif z > VENT + 20.0 and _twist <= 0.5:
 			var q := to_world * p
 			var g := _ground(q.x, q.z) + _girth(z).y * 0.9 * MM * size
 			q.y = lerpf(q.y, g, smoothstep(VENT + 20.0, VENT + 45.0, z))
@@ -563,6 +585,46 @@ func _spine(_dt: float) -> void:
 	_skin_mat.set_shader_parameter("sp", _sp)
 	_skin_mat.set_shader_parameter("sx", _sx)
 	_skin_mat.set_shader_parameter("sy", _sy)
+
+
+var _trail: Array[Vector3] = [] # (where its hips have been: its parent's space, the newest first)
+
+
+## Its hips' trail: begun straight out behind it; a point more each time
+## they've gone a little way.
+func _lay_trail(vent: Vector3, to_world: Transform3D) -> void:
+	var step := SEG * MM * size * 0.5
+	if not _trail.is_empty() and _trail[0].distance_to(vent) > (Z1 - VENT) * MM * size: # (put somewhere new: begun again)
+		_trail.clear()
+	if _trail.is_empty():
+		var back := (to_world.basis * Vector3.BACK).normalized()
+		back.y = 0.0
+		back = back.normalized()
+		for k in int((Z1 - VENT) / (SEG * 0.5)) + 4:
+			_trail.append(vent + back * step * k)
+		return
+	if _trail[0].distance_to(vent) > step:
+		_trail.push_front(vent)
+		while _trail.size() > int((Z1 - VENT) / (SEG * 0.5)) + 8:
+			_trail.pop_back()
+
+
+## The point d (m) back along the trail from its hips, and the way it runs
+## there (toward the tail).
+func _along_trail(d: float) -> Array:
+	var vent: Vector3 = (transform * _body.transform) * Vector3(0.0, 0.0, VENT)
+	var prev := vent
+	var left := d
+	var way := (transform.basis * Vector3.BACK).normalized()
+	for q: Vector3 in _trail:
+		var l := prev.distance_to(q)
+		if l > 1e-7:
+			way = (q - prev) / l
+		if l >= left and l > 1e-7:
+			return [prev.lerp(q, left / l), way]
+		left -= l
+		prev = q
+	return [prev + way * left, way]
 
 
 ## A point along the spine at z (the body's mm), and its frame's right.

@@ -213,7 +213,7 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   head and raptorial forelegs; stalking with its rocking sway, watching, striking a fly and eating it, grooming,
   flying; building a foam egg case on a stem, whose nymphs come out along its seam, let down on threads). Their
   nymphs small, wingless (the mantis's abdomen curled up), growing. Not yet in the game:
-  `tools/creatures/life_cycle_demo.tscn`'s last two stations (keys 6-0, G).
+  `tools/creatures/life_cycle_demo.tscn`'s stations.
 - `scripts/creatures/snake.gd` (`Snake`): snakes, life size, not yet in the game: the eastern diamondback
   rattlesnake (broad triangular head, heat pits, slit pupils, the stripe through the eye, dark diamonds edged in
   cream, keeled scales, a banded tail and its rattle; a newborn only a button) and the eastern milk snake (narrow head,
@@ -222,8 +222,7 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   (lateral undulation), the tongue flicking; coiling; eating a mouse (the rattler coils, rattles, strikes and lets go,
   waits, swallows; the milk snake strikes, constricts in its coils, swallows: the jaws gaping, the meal a bulge going
   down). The milk snake lays leathery eggs that hatch (a slit, the young's head out, then the young); the rattler gives
-  birth, each young in a clear membrane it wriggles out of. In the life cycle demo (keys R, M, C, W; Y: every
-  young creature eats: the larvae, the nymphs, the young snakes).
+  birth, each young in a clear membrane it wriggles out of. In the life cycle demo.
 - `scripts/creatures/spider.gd` (`Spider`, on `hexapod.gd`'s eight-legged gait): a Carolina wolf spider (its egg sac
   carried on its spinnerets, its spiderlings riding on its back), a six-spotted fishing spider (running on water, its
   sac carried in its jaws, a nursery web spun over it to hatch in), a grass spider (a funnel weaver: its sheet web laid
@@ -304,10 +303,15 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   egg in it, covered over (`Anole.AnoleEgg`: a slit, the hatchling out); mating (his display, then on her, his jaws
   on her nape, his tail twisted under hers).
 - `scripts/creatures/scorpion.gd` (`Scorpion`, on `hexapod.gd`'s eight-legged gait, twice life size): an Arizona
-  bark scorpion (*Centruroides sculpturatus*): straw yellow, slender; carapace and eyes, the mesosoma's tergites,
-  the five-segmented tail (coiled to its side at rest, arched over its back walking) and the telson's curved sting,
-  long slender pedipalps and chelae, chelicerae, pectines. Ambushing, creeping, seizing prey in its chelae and
-  stinging it, tearing at it (`Scorpion.cricket()`); live birth (up on her legs, her forelegs a basket, the white
+  bark scorpion (*Centruroides sculpturatus*): straw yellow, slender, its cuticle glossy and a little translucent; the
+  carapace a low trapezoid, notched before, furrowed, its eyes; the mesosoma's seven tergites overlapping, keeled, the
+  pale membrane between; the five-segmented tail, its segments narrow jointed and keeled at their edges (coiled to its
+  side at rest, arched over its back walking), the telson's bulb, its tooth, its long curved sting; long slender
+  keeled pedipalps, the chelae's long curved fingers; chelicerae, the pectines' combs, claws at its feet. Ambushing,
+  creeping, seizing prey in its chelae, drawing it in and stinging it, tearing at it (`Scorpion.cricket()`); its
+  strike (`strike(at)`, `sting(at)`: up on its legs, chelae raised, the tail cocked up and back, whipped forward over
+  its back, the tail's joints bent to bring the sting to its mark, driven in, held, the bulb pumping, a drop of venom
+  at its tip, drawn out); live birth (up on her legs, her forelegs a basket, the white
   scorplings climbing onto her back and carried, then down and away, yellowing as they grow); mating, the promenade a
   deux (juddering, his chelae holding hers, to and fro, a sting at her pedipalp, his spermatophore laid and her drawn
   over it, then he's off).
@@ -338,10 +342,17 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   wasp's pouncing on her back, stroking her antennae; the snakes', the male crawling up along her back, chin rubbing,
   their tails twisted together; the mice's, the male following her, mounting from behind, thrusting in bouts, then
   washing. `act("mate", {partner})` for any of them (pilot.gd).
-- Not yet in the game: `tools/creatures/life_cycle_demo.tscn`'s last sixteen stations (F the spiders hunt, S the web
-  spiders spin, O the pill bugs roll; E the mice eat, Q wash; H the anoles and scorpions hunt, D the anoles display; B the hares browse, U sit up, T thump,
-  X flee, N nurse; J the fox and bobcat hunt, L sleep, I groom, Z mark, A sit, V their young play;
-  . the coyotes and wolves howl; , the bears forage, ; browse, / stand, ' rub; K every pair mates; 1 lay and give birth, 4 hatch, Y the young eat; the last, the desert's plants).
+- `tools/creatures/life_cycle_demo.tscn`: every creature not yet in the game, a station each (Tab / Shift+Tab the
+  next). The keys are the same for all of them and act only on those at the station in view: 1 lay eggs / give birth,
+  2 hatch / come out, 3 new pupae, E eat, H hunt, K mate, G groom, Z sleep / rest, F fly / hop, X alarm (flee, roll up,
+  coil, sting, scatter), D display / call, V the young play, N nurse, B forage, S spin a web, M mark, A sit, W back to
+  their own ways, P steered (pilot.gd); each creature doing it its own way (the hunters' prey set before them, the
+  fishing spider's a molly come up from the pond).
+- Fur (`hexapod.gd`'s `_fur_shells`): the mammals' coats in shells, copies of each furred part a little further out
+  along its normals, their hairs thinning to the tips, combed down and back, darker at the roots (the mouse's,
+  the hare's and the hunters' shaders take it); with it their bodies fuller: shoulder and haunch muscle, the
+  whisker pads, glossy dark-rimmed eyes, nostrils, the lips' line, toe pads and claws, rounded lower legs; the
+  mouse's thin translucent ears, its pink toes, its tail's rings.
 - Steering, for a future state machine (`scripts/creatures/pilot.gd`): every creature (`Wasp`, the
   lepidopterans, `Grasshopper`, `Mantis`, `Snake`, `Larva`; one of a colony: `AntColony.member(i)`) has the same
   calls: `go(direction, speed, seconds)`, `go_to(point, speed)`, `face(direction)`, `stop()`, `act(name, args)`
@@ -363,8 +374,7 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   spiked, in a ragged cocoon in the litter. They ripen (the monarch's going clear, its wings showing through),
   wriggle, split, and are left empty skins; the adult pushes out (the monarch head first, down; the clearwing out of
   its cocoon), turns or climbs to hang, its abdomen swollen, its crumpled wings hanging down and pumped out to full
-  size, dried, opened and closed (`Lepidoptera.emerge`); then flies. `tools/creatures/life_cycle_demo.tscn`, a station each (keys: 1 all lay, 2 the pupae hatch, 3 new
-  pupae, 4 the eggs hatch, 5 new ant eggs, Tab the next).
+  size, dried, opened and closed (`Lepidoptera.emerge`); then flies. `tools/creatures/life_cycle_demo.tscn`, a station each.
 - `scripts/creatures/lepidoptera.gd` (`Lepidoptera`): a butterfly or moth at twice life size, not yet in the game: built
   from parts (furred where the species is), its wings cut to their real outlines and painted, veins, borders and
   spots, above and beneath (`tools/creatures/bake_lepidoptera_wings.py` bakes `data/creatures/lepidoptera_wings.png`

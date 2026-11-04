@@ -16,7 +16,8 @@ extends "res://scripts/creatures/hexapod.gd" # (by path: found whether or not th
 ##   its side), then walking slowly a little way, its tail up in a loose
 ##   arch over its back
 ## - hunt(prey): still, waiting, then creeping to it, the chelae shot out
-##   and closed on it, the tail arched over and the sting driven in, again;
+##   and closed on it, drawn in, the tail cocked and whipped over and the
+##   sting driven in (strike(at): the tail finding its mark), again;
 ##   then held to its mouth, the chelicerae tearing at it till it's gone
 ## - birth(n): (a female's) up on her legs, her forelegs cupped under her
 ##   (the birth basket), the scorplings born one by one into it and
@@ -27,6 +28,13 @@ extends "res://scripts/creatures/hexapod.gd" # (by path: found whether or not th
 ##   together, he leading, backing; a sting into her pedipalp's joint; he
 ##   lays his spermatophore on the ground, a slender stalk, and draws her
 ##   over it, then lets go and hurries off
+## - sting(at): turned to it, up on its legs, its chelae raised and open,
+##   the tail cocked; then the strike: whipped forward over its back, the
+##   sting driven in, held, the bulb pumping, a drop of venom at its tip
+## Its body: the carapace a low trapezoid, notched before, furrowed; the
+## mesosoma's seven tergites overlapping, keeled, the pale membrane between;
+## the pectines' combs; the tail's segments narrow jointed, keeled at their
+## edges; the cuticle glossy, a little translucent; claws at its feet.
 ## Steering (pilot.gd): act hunt {prey}, sting {at}, birth {n} (a
 ## female's), mate {partner}.
 
@@ -76,6 +84,12 @@ var _spermatophore: Node3D
 var _tail: Array[Node3D] = []
 var _palps: Array = [] # each side: [femur, patella, chela, finger]
 var _chel: Array[Node3D] = []
+var _claws: Array[Node3D] = []
+var _vesicle: MeshInstance3D
+var _venom: MeshInstance3D
+# the sting: its strike's time (-1: none), where it strikes (its parent's space)
+var _sting_t := -1.0
+var _sting_at := Vector3.ZERO
 var _mats: Array = [] # [material, its colour grown]
 
 
@@ -102,58 +116,99 @@ func _init(young_ := false) -> void:
 
 func _paint(c: Color, rough := 0.35) -> Material:
 	var m := _mat(Color(0.93, 0.92, 0.86) if young else c, rough)
+	m.clearcoat_enabled = true # (its cuticle: glossy, a little translucent)
+	m.clearcoat = 0.6
+	m.clearcoat_roughness = 0.2
+	m.backlight_enabled = true
+	m.backlight = Color(0.35, 0.25, 0.08)
 	_mats.append([m, c])
 	return m
 
 
 func _build() -> void:
 	var body := _paint(STRAW, 0.3)
-	var dark := _paint(STRAW.darkened(0.25), 0.3)
-	var red := _paint(Color(0.5, 0.25, 0.12), 0.25)
-	var black := _mat(Color(0.03, 0.03, 0.03), 0.1)
-	# the carapace: low, squarish, its front notched
-	var cara := MeshInstance3D.new()
-	cara.mesh = _loft([[-8.6, 0.0, 2.6, 1.0], [-7.8, 0.3, 3.3, 1.5], [-4.5, 0.6, 3.7, 1.9], [-1.0, 0.6, 3.9, 2.0], [0.3, 0.5, 3.6, 1.8]], 2.6)
-	cara.material_override = body
-	_body.add_child(cara)
-	_part(Vector3(0.0, 2.3, -5.4), Vector3(1.8, 0.8, 1.6), body) # (the eyes' mound)
+	var plate := _paint(STRAW.darkened(0.12), 0.25)
+	var dark := _paint(STRAW.darkened(0.32), 0.3)
+	var joint := _paint(STRAW.darkened(0.45), 0.4)
+	var membrane := _paint(Color(0.86, 0.82, 0.68), 0.6)
+	var red := _paint(Color(0.5, 0.25, 0.12), 0.2)
+	var tip := _paint(Color(0.22, 0.08, 0.04), 0.15)
+	var black := _mat(Color(0.02, 0.02, 0.02), 0.05)
+	# the carapace: low, a trapezoid (narrow before, broad behind), its
+	# front edge notched, a furrow down its middle; the median eyes on their
+	# mound, the lateral eyes three at each front corner
+	_mesh_on(_loft([[-8.8, 0.0, 2.1, 0.9], [-8.0, 0.35, 2.8, 1.35], [-5.5, 0.6, 3.35, 1.75], [-2.0, 0.6, 3.85, 1.85], [0.3, 0.5, 4.0, 1.7]], 3.2), body, _body)
+	_part(Vector3(0.0, 1.3, -8.85), Vector3(0.9, 0.6, 0.5), joint) # (the notch)
+	_stick(Vector3(0.0, 2.35, -4.6), Vector3(0.0, 2.3, -0.6), 0.12, joint) # (the furrow)
+	_part(Vector3(0.0, 2.25, -5.4), Vector3(1.8, 0.8, 1.6), body) # (the eyes' mound)
 	for side: float in [-1.0, 1.0]:
-		_part(Vector3(0.55 * side, 2.6, -5.4), Vector3.ONE * 0.75, black) # (a median eye)
+		_part(Vector3(0.55 * side, 2.55, -5.4), Vector3(0.75, 0.75, 0.75), black)
 		for k in 3:
-			_part(Vector3((2.8 - 0.25 * k) * side, 1.05, -7.9 + 0.5 * k), Vector3.ONE * 0.4, black) # (the lateral eyes)
-	# the mesosoma: seven tergites (the bands), broad and flat
-	var meso := MeshInstance3D.new()
-	meso.mesh = _loft([[0.0, 0.4, 3.6, 1.9], [3.0, 0.5, 4.1, 2.1], [9.0, 0.5, 4.4, 2.2], [14.0, 0.4, 3.9, 2.0], [17.0, 0.3, 2.8, 1.7], [18.6, 0.3, 1.8, 1.4]], 2.5)
-	meso.material_override = _band(STRAW, 2.65)
-	_body.add_child(meso)
-	# the pectines under it: two little combs
+			_part(Vector3((2.75 - 0.25 * k) * side, 1.0, -7.9 + 0.5 * k), Vector3.ONE * 0.38, black)
+	# the mesosoma: the pale membrane between its plates, and over it the
+	# seven tergites, each overlapping the next, its back edge darker, keeled
+	_mesh_on(_loft([[-0.2, 0.25, 3.4, 1.55], [9.0, 0.25, 4.15, 1.75], [17.0, 0.25, 2.6, 1.4], [18.8, 0.25, 1.6, 1.2]], 2.4), membrane, _body)
+	var plen := [2.3, 2.4, 2.6, 2.7, 2.8, 2.9, 3.6]
+	var pw := [3.75, 4.1, 4.35, 4.45, 4.35, 3.95, 2.9]
+	var z := 0.0
+	for k in 7:
+		var l: float = plen[k]
+		var w0: float = pw[k]
+		var w1: float = pw[mini(k + 1, 6)] if k < 6 else 1.9
+		var h0 := w0 * 0.47
+		var h1 := w1 * 0.47
+		var keys := [[z - 0.45, 0.5, w0 * 0.96, h0 * 0.94], [z + 0.25, 0.6, w0, h0], [z + l - 0.3, 0.6, lerpf(w0, w1, 0.6), lerpf(h0, h1, 0.6)], [z + l, 0.55, lerpf(w0, w1, 0.6) * 0.98, lerpf(h0, h1, 0.6) * 0.95]]
+		_mesh_on(_loft(keys, 2.7), _band(STRAW.darkened(0.1), l + 0.45, z - 0.45), _body)
+		# (its keels: one down its middle, and on the last four)
+		var top := 0.6 + h0 * 0.98
+		_stick(Vector3(0.0, top, z + 0.3), Vector3(0.0, top - 0.05, z + l - 0.3), 0.14, dark)
+		if k == 6:
+			for side: float in [-1.0, 1.0]:
+				for c in 2:
+					var x := (0.6 + 0.7 * c) * side
+					_stick(Vector3(x, top - 0.2 - 0.25 * c, z + 0.4), Vector3(x * 0.7, top - 0.35 - 0.25 * c, z + l - 0.2), 0.11, dark)
+		z += l
+	# beneath: the genital operculum, the pectines (combs of teeth)
+	_part(Vector3(0.0, -1.85, 1.0), Vector3(2.2, 0.4, 1.6), plate)
 	for side: float in [-1.0, 1.0]:
-		_stick(Vector3(0.6 * side, -1.6, 2.6), Vector3(2.6 * side, -1.8, 3.6), 0.35, body)
-	# the tail: five long segments, keeled, the fifth darker; the telson
+		var a := Vector3(0.7 * side, -1.75, 2.2)
+		var b := Vector3(2.9 * side, -1.95, 3.6)
+		_stick(a, b, 0.28, membrane)
+		for k in 12:
+			var q := a.lerp(b, float(k) / 11.0)
+			_stick(q, q + Vector3(0.15 * side, -0.25, 0.75), 0.07, membrane)
+	# the tail: five long segments, each a narrow-jointed box keeled at its
+	# edges (the fifth the longest, darker); the telson's bulb, the tooth
+	# under it, the long curved sting, dark at its tip
 	var prev: Node3D = _body
 	for k in SEGS.size():
 		var n := Node3D.new()
-		n.position = Vector3(0.0, 0.3, 18.2) if k == 0 else Vector3(0.0, 0.0, SEGS[k - 1])
+		n.position = Vector3(0.0, 0.3, 18.6) if k == 0 else Vector3(0.0, 0.0, SEGS[k - 1])
 		prev.add_child(n)
 		var l: float = SEGS[k]
-		var w := 1.95 - 0.08 * k
-		var seg := MeshInstance3D.new()
-		seg.mesh = _loft([[0.0, 0.0, w * 0.8, w * 0.75], [0.5, 0.0, w, w * 0.9], [l - 0.7, 0.0, w * 0.97, w * 0.88], [l, 0.0, w * 0.78, w * 0.72]], 2.4)
-		seg.material_override = dark if k == 4 else body
-		n.add_child(seg)
+		var w := 1.95 - 0.07 * k
+		var h := w * 0.92
+		var mat: Material = dark if k == 4 else body
+		_mesh_on(_loft([[0.0, 0.0, w * 0.62, h * 0.6], [0.55, 0.0, w, h], [l - 0.65, 0.0, w * 0.97, h * 0.96], [l, 0.0, w * 0.66, h * 0.62]], 3.0), mat, n)
+		_part(Vector3(0.0, 0.0, 0.0), Vector3(w * 1.2, h * 1.15, 0.6), joint, n) # (the joint's ring)
+		for side: float in [-1.0, 1.0]: # (the keels: dorsal and lateral, granular)
+			_stick(Vector3(w * 0.55 * side, h * 0.85, 0.6), Vector3(w * 0.5 * side, h * 0.8, l - 0.6), 0.13, joint if k == 4 else dark, n)
+			_stick(Vector3(w * 0.98 * side, 0.0, 0.6), Vector3(w * 0.95 * side, 0.0, l - 0.6), 0.11, dark, n)
+			_stick(Vector3(w * 0.55 * side, -h * 0.85, 0.6), Vector3(w * 0.5 * side, -h * 0.8, l - 0.6), 0.1, dark, n)
 		_tail.append(n)
 		prev = n
 	var tel := Node3D.new()
 	tel.position = Vector3(0.0, 0.0, SEGS[4])
 	prev.add_child(tel)
-	_part(Vector3(0.0, -0.2, 1.8), Vector3(2.4, 2.2, 3.8), body, tel) # (the bulb)
-	_part(Vector3(0.0, -0.9, 2.3), Vector3(0.8, 0.8, 0.9), dark, tel) # (the tooth under it)
-	var tip := Vector3(0.0, -0.4, 3.6)
-	var mid := Vector3(0.0, -1.3, 5.0)
-	_stick(tip, mid, 0.42, red, tel) # (the sting, curved down)
-	_stick(mid, Vector3(0.0, -2.7, 5.4), 0.25, red, tel)
+	_vesicle = _part(Vector3(0.0, -0.3, 1.9), Vector3(2.3, 2.1, 3.7), body, tel)
+	_part(Vector3(0.0, -1.25, 3.0), Vector3(0.6, 0.9, 0.7), dark, tel) # (the tooth under the sting)
+	var pts := [Vector3(0.0, -0.5, 3.5), Vector3(0.0, -1.0, 4.7), Vector3(0.0, -1.9, 5.5), Vector3(0.0, -3.0, 5.75)]
+	for k in 3:
+		_stick(pts[k], pts[k + 1], lerpf(0.42, 0.13, float(k) / 2.0), red if k < 2 else tip, tel)
+	_venom = _part(Vector3(0.0, -3.15, 5.75), Vector3.ONE * 0.5, _venom_mat(), tel)
+	_venom.visible = false
 	_tail.append(tel)
-	# the chelicerae
+	# the chelicerae: little pincers under the carapace's front
 	for side: float in [-1.0, 1.0]:
 		var ch := Node3D.new()
 		ch.position = Vector3(0.7 * side, 0.0, -8.6)
@@ -162,32 +217,75 @@ func _build() -> void:
 		_stick(Vector3(0.0, 0.0, -1.2), Vector3(-0.2 * side, -0.1, -2.0), 0.18, red, ch)
 		ch.set_meta("side", side)
 		_chel.append(ch)
-	# the pedipalps: long, slender; the chela's hand and its long fingers
+	# the pedipalps: long, slender (a bark scorpion's): the trochanter, the
+	# femur, the patella, keeled; the chela, its slim hand and its long
+	# fingers, curved, reddish, the movable one hinged
 	for side: float in [-1.0, 1.0]:
 		var fm := Node3D.new()
 		fm.position = Vector3(2.4 * side, -0.2, -7.6)
 		_body.add_child(fm)
-		_stick(Vector3.ZERO, Vector3(0.0, 0.0, -7.0), 0.55, body, fm)
+		_part(Vector3(0.0, 0.0, 0.0), Vector3(1.4, 1.2, 1.4), body, fm) # (the trochanter)
+		_part(Vector3(0.0, 0.0, -3.6), Vector3(1.05, 0.95, 7.6), body, fm)
+		_stick(Vector3(0.0, 0.45, -0.8), Vector3(0.0, 0.42, -6.6), 0.08, dark, fm)
 		var pt := Node3D.new()
 		pt.position = Vector3(0.0, 0.0, -7.0)
 		fm.add_child(pt)
-		_part(Vector3.ZERO, Vector3.ONE * 1.1, body, pt)
-		_stick(Vector3.ZERO, Vector3(0.0, 0.0, -7.2), 0.65, body, pt)
+		_part(Vector3.ZERO, Vector3.ONE * 1.15, joint, pt)
+		_part(Vector3(0.0, 0.0, -3.6), Vector3(1.25, 1.15, 7.3), body, pt)
+		_stick(Vector3(0.0, 0.5, -0.8), Vector3(0.0, 0.48, -6.6), 0.08, dark, pt)
 		var cl := Node3D.new()
 		cl.position = Vector3(0.0, 0.0, -7.2)
 		pt.add_child(cl)
-		_part(Vector3(0.0, 0.0, -2.4), Vector3(1.9, 1.7, 5.0), body, cl) # (the hand)
-		_stick(Vector3(0.35 * side, 0.0, -4.6), Vector3(0.15 * side, 0.0, -10.4), 0.32, red, cl) # (the fixed finger)
+		_part(Vector3(0.0, 0.0, -2.2), Vector3(1.7, 1.55, 4.6), plate, cl) # (the hand)
+		var f1 := [Vector3(0.3 * side, 0.0, -4.2), Vector3(0.38 * side, 0.0, -7.4), Vector3(0.12 * side, 0.0, -10.4)]
+		_stick(f1[0], f1[1], 0.33, red, cl)
+		_stick(f1[1], f1[2], 0.22, tip, cl)
 		var fg := Node3D.new()
-		fg.position = Vector3(-0.45 * side, 0.0, -4.6)
+		fg.position = Vector3(-0.4 * side, 0.0, -4.2)
 		cl.add_child(fg)
-		_stick(Vector3.ZERO, Vector3(0.1 * side, 0.0, -6.0), 0.3, red, fg) # (the movable finger)
+		_stick(Vector3.ZERO, Vector3(0.06 * side, 0.0, -3.4), 0.3, red, fg)
+		_stick(Vector3(0.06 * side, 0.0, -3.4), Vector3(0.3 * side, 0.0, -6.3), 0.2, tip, fg)
 		_palps.append([fm, pt, cl, fg])
 	_build_legs(body, body)
+	# its legs' claws: a pair at each foot, hooked
+	for i in legs.size() * 2:
+		var c := Node3D.new()
+		_body.add_child(c)
+		for side: float in [-1.0, 1.0]:
+			_stick(Vector3.ZERO, Vector3(0.25 * side, -0.25, 0.6), 0.07, dark, c)
+		_claws.append(c)
 
 
-func _band(c: Color, seg: float) -> Material:
-	var m := _banded(Color(0.93, 0.92, 0.86) if young else c, seg, 0.4, 0.06, 0.6)
+func _mesh_on(m: Mesh, mat: Material, parent: Node3D) -> MeshInstance3D:
+	var mi := MeshInstance3D.new()
+	mi.mesh = m
+	mi.material_override = mat
+	parent.add_child(mi)
+	return mi
+
+
+func _venom_mat() -> StandardMaterial3D:
+	var m := StandardMaterial3D.new()
+	m.albedo_color = Color(0.95, 0.95, 0.85, 0.7)
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.roughness = 0.05
+	return m
+
+
+## Its legs (the walker's), and a pair of claws at each foot.
+func _pose_legs() -> void:
+	super()
+	for i in _claws.size():
+		var ts := _leg_mesh[i][2] as MeshInstance3D
+		var foot := ts.transform * Vector3(0.0, 0.5, 0.0)
+		var along := ts.transform.basis.y.normalized()
+		var x := along.cross(Vector3.UP).normalized() if absf(along.y) < 0.95 else Vector3.RIGHT
+		var y := x.cross(along).normalized()
+		_claws[i].transform = Transform3D(Basis(x, y, along), foot)
+
+
+func _band(c: Color, seg: float, z0 := 0.4) -> Material:
+	var m := _banded(Color(0.93, 0.92, 0.86) if young else c, seg, z0, 0.06, 0.6)
 	_mats.append([m, c])
 	return m
 
@@ -309,12 +407,22 @@ func _think(dt: float) -> void:
 				0:
 					_target = _pos
 					_turn_to = atan2(-to.x, -to.z)
-					if _st > 0.6:
+					if _st > 0.6 and _turn_to == INF:
 						_stage = 1
 						_st = 0.0
-				1:
-					_jab(_st)
-					if _st > 2.5:
+				1: # (the threat: up on its legs, its chelae raised and open)
+					_lift = move_toward(_lift, 1.2, dt * 3.0)
+					_palp_ask = [PALP_REACH, PALP_REACH]
+					_tail_ask = COCK
+					_tail_rate = 6.0
+					if _st > 0.6:
+						strike(_dance_at + Vector3.UP * 0.004 * size)
+						_stage = 2
+						_st = 0.0
+				2:
+					_palp_ask = [PALP_REACH, PALP_REACH]
+					if not striking() and _st > 0.3:
+						_lift = 0.0
 						wander(_pos, 0.08)
 		"birth":
 			_birth(dt)
@@ -325,14 +433,102 @@ func _think(dt: float) -> void:
 				wander(_pos, 0.08)
 
 
-## The tail over and the sting driven forward, twice.
-func _jab(t: float) -> void:
-	_tail_ask = TAIL_STING
-	_tail_rate = 10.0
-	var k := fmod(t, 1.0)
-	if k > 0.5 and k < 0.7: # (driven in)
-		_tail_ask = [[-0.8, 0.0], [-0.8, 0.0], [-0.78, 0.0], [-0.72, 0.0], [-0.55, 0.0], [-0.5, 0.0]]
-		_tail_rate = 30.0
+## A sting at `at` (its parent's space): the tail cocked, drawn up and back
+## over its body, the sting poised; then whipped forward, over, driven
+## into its mark (the tail finding it: its joints bent to bring the sting
+## there); held in, the bulb pumping, a drop of venom at its tip; drawn out,
+## and back. (Whatever the tail was doing set aside till it's done.)
+func strike(at: Vector3) -> void:
+	_sting_t = 0.0
+	_sting_at = at
+
+
+## Whether it's striking now.
+func striking() -> bool:
+	return _sting_t >= 0.0
+
+
+const COCK := [[-0.9, 0.0], [-0.85, 0.0], [-0.75, 0.0], [-0.55, 0.0], [-0.35, 0.0], [-1.0, 0.0]] # (cocked: up, drawn back, the sting poised over its back)
+var _strike_k := [] # (the tail's joints as the strike asks)
+var _strike_rate := 6.0
+
+
+## (The strike's pose, each frame: false if it isn't striking.)
+func _strike_pose(dt: float) -> bool:
+	if _sting_t < 0.0:
+		if _venom:
+			_venom.visible = false
+		if _vesicle:
+			_vesicle.scale = Vector3(2.3, 2.1, 3.7)
+		return false
+	_sting_t += dt
+	var t := _sting_t
+	var inv := (transform * _body.transform).affine_inverse()
+	var mark := inv * _sting_at
+	if t < 0.55: # (cocked: up and back, the chelae raised before it)
+		_strike_k = COCK
+		_strike_rate = 8.0
+	elif t < 0.7: # (whipped forward, over: to just short of it)
+		_strike_k = _tail_ik(mark + Vector3(0.0, 2.5, 0.0))
+		_strike_rate = 45.0
+	elif t < 1.5: # (driven in, held, pumping; a drop at its tip)
+		_strike_k = _tail_ik(mark + Vector3(0.0, -0.4 + 0.3 * sin(t * 30.0), 0.0))
+		_strike_rate = 30.0
+		if _vesicle:
+			var pump := 1.0 + 0.12 * sin(t * 25.0)
+			_vesicle.scale = Vector3(2.3, 2.1, 3.7) * Vector3(pump, pump, 1.0)
+		if _venom:
+			_venom.visible = true
+			_venom.scale = Vector3.ONE * clampf((t - 0.75) / 0.6, 0.05, 1.0) * 0.55
+	elif t < 1.9: # (drawn out, back up)
+		_strike_k = COCK
+		_strike_rate = 10.0
+	else:
+		_sting_t = -1.0
+		return false
+	return true
+
+
+## The tail's joints bending it so its sting reaches `mark` (the body's
+## mm): the plane of it turned toward it at its root, then each joint bent
+## in that plane, tip to root, over and over, toward it (cyclic coordinate
+## descent), each within what its joint allows.
+func _tail_ik(mark: Vector3) -> Array:
+	var base := Vector3(0.0, 0.3, 18.6)
+	var rel := mark - base
+	var phi := atan2(-rel.x, -rel.z) if Vector2(rel.x, rel.z).length() > 1e-3 else 0.0
+	var u := Vector3(sin(phi), 0.0, cos(phi))
+	var tgt := Vector2(rel.dot(u), rel.y)
+	var lens: Array[float] = []
+	for k in SEGS.size():
+		lens.append(float(SEGS[k]))
+	var tip := Vector2(5.75, -3.0) # (the sting's tip, in the telson's own)
+	lens.append(tip.length())
+	var off := atan2(tip.y, tip.x)
+	var th: Array[float] = []
+	for j in 6:
+		th.append(-float((_tail_k[j] as Array)[0]))
+	var lo := [-0.3, -0.3, -0.3, -0.3, -0.3, -0.4]
+	var hi := [1.35, 1.35, 1.3, 1.3, 1.3, 1.4]
+	for it in 12:
+		for j in range(5, -1, -1):
+			# (where each joint is, and the tip, as it's bent now)
+			var p := Vector2.ZERO
+			var a := 0.0
+			var pj := Vector2.ZERO
+			for k in 6:
+				if k == j:
+					pj = p
+				a += th[k]
+				var dir := a + (off if k == 5 else 0.0)
+				p += Vector2(cos(dir), sin(dir)) * lens[k]
+			var cur := atan2(p.y - pj.y, p.x - pj.x)
+			var want := atan2(tgt.y - pj.y, tgt.x - pj.x)
+			th[j] = clampf(th[j] + wrapf(want - cur, -PI, PI), float(lo[j]), float(hi[j]))
+	var out := []
+	for j in 6:
+		out.append([-th[j], phi if j == 0 else 0.0])
+	return out
 
 
 func _hunt(dt: float) -> void:
@@ -367,11 +563,13 @@ func _hunt(dt: float) -> void:
 				_held = true
 				_stage = 3
 				_st = 0.0
-		3: # stung, again
-			_palp_ask = [PALP_REACH, PALP_REACH]
+		3: # stung, again (drawn in toward it, the tail over, driven into it in its chelae)
+			_palp_ask = [PALP_HOLD, PALP_HOLD]
+			_palp_rate = 4.0
 			_grip = 1.0
-			_jab(_st)
-			if _st > 2.0:
+			if not striking() and (_st < 0.1 or (_st > 2.0 and _st < 2.2)):
+				strike(_prey.global_position)
+			if _st > 4.2 and not striking():
 				_stage = 4
 				_st = 0.0
 		4: # held to its mouth, the chelicerae tearing at it
@@ -610,12 +808,14 @@ func _pose(dt: float) -> void:
 				(e[0] as StandardMaterial3D).albedo_color = c
 			else:
 				(e[0] as ShaderMaterial).set_shader_parameter("base", c)
-	# the tail, easing to what's asked
+	# the tail: easing to what's asked; striking, its sting to its mark
+	var striking := _strike_pose(dt)
 	for j in _tail.size():
 		var now: Array = _tail_k[j]
-		var ask: Array = _tail_ask[j]
-		var a := lerpf(float(now[0]), float(ask[0]), 1.0 - exp(-_tail_rate * dt))
-		var r := lerpf(float(now[1]), float(ask[1]), 1.0 - exp(-_tail_rate * dt))
+		var ask: Array = _tail_ask[j] if not striking else _strike_k[j]
+		var rate := _tail_rate if not striking else _strike_rate
+		var a := lerpf(float(now[0]), float(ask[0]), 1.0 - exp(-rate * dt))
+		var r := lerpf(float(now[1]), float(ask[1]), 1.0 - exp(-rate * dt))
 		_tail_k[j] = [a, r]
 		_tail[j].rotation = Vector3(a, r, 0.0)
 	# the pedipalps

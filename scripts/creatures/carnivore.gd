@@ -136,33 +136,65 @@ func _mesh(m: Mesh, mat: Material, parent: Node3D) -> MeshInstance3D:
 func _build() -> void:
 	var body := _coat(0)
 	var face := _coat(1)
+	var sp := int(S.species)
+	var fl := float(S.get("fur", [22.0, 20.0, 25.0, 40.0, 45.0, 55.0][sp])) # (its coat's length, mm)
+	var tl := float(S.get("tail_fur", [55.0, 25.0, 55.0, 70.0, 40.0, 45.0][sp]))
+	if young:
+		fl *= 0.6
+		tl *= 0.5
 	_torso = _mesh(_loft(S.body, 2.0), body, _body)
+	_fur_shells(_torso, fl, 10)
+	# the muscle over its shoulder blades and its haunches
+	var F: Dictionary = S.fore
+	var H: Dictionary = S.hind
+	for side: float in [-1.0, 1.0]:
+		var fh: Vector3 = F.hip
+		var hh: Vector3 = H.hip
+		var sh := _part(Vector3(fh.x * side * 0.85, fh.y + float(F.a) * 0.3, fh.z + 10.0), Vector3(float(F.r) * 3.4, float(F.a) * 0.85, float(F.r) * 4.6), body)
+		_fur_shells(sh, fl * 0.9, 8)
+		var ha := _part(Vector3(hh.x * side * 0.9, hh.y + float(H.a) * 0.15, hh.z + 15.0), Vector3(float(H.r) * 3.8, float(H.a) * 0.9, float(H.r) * 5.0), body)
+		_fur_shells(ha, fl * 0.9, 8)
 	# the neck, rising from the chest; the head on it
 	_neck = Node3D.new()
 	_neck.position = S.neck_at
 	_body.add_child(_neck)
-	_mesh(_loft(S.neck, 2.0), body, _neck)
+	_fur_shells(_mesh(_loft(S.neck, 2.0), body, _neck), fl * 1.15, 10)
 	_head = Node3D.new()
 	_head.position = S.head_at
 	_neck.add_child(_head)
-	_mesh(_loft(S.head, 2.0), face, _head)
+	_fur_shells(_mesh(_loft(S.head, 2.0), face, _head), fl * 0.4, 6)
 	_jaw = Node3D.new()
 	_jaw.position = S.jaw_at
 	_head.add_child(_jaw)
-	_mesh(_loft(S.jaw, 2.0), face, _jaw)
+	_fur_shells(_mesh(_loft(S.jaw, 2.0), face, _jaw), fl * 0.35, 5)
+	var jk: Array = S.jaw
+	for side: float in [-1.0, 1.0]: # (the lips' dark line)
+		var j0: Array = jk[0]
+		var j1: Array = jk[jk.size() - 1]
+		_stick(Vector3(float(j0[2]) * 0.85 * side, float(j0[1]) + float(j0[3]) * 0.7, float(j0[0])), Vector3(float(j1[2]) * 0.8 * side, float(j1[1]) + float(j1[3]) * 0.6, float(j1[0])), 1.6, _mat(Color(0.08, 0.06, 0.05), 0.5), _jaw)
 	_part(Vector3(0.0, 4.0, -20.0), Vector3(30.0, 4.0, 60.0) * float(S.get("mouth", 1.0)), _mat(Color(0.55, 0.3, 0.3), 0.5), _jaw)
 	var E: Dictionary = S.eye
 	for side: float in [-1.0, 1.0]:
 		var at: Vector3 = E.at
-		var e := _part(Vector3(at.x * side, at.y, at.z), E.size, _mat(E.color, 0.05), _head)
+		var em := _mat(E.color, 0.04)
+		em.clearcoat_enabled = true # (the cornea's wet gloss)
+		em.clearcoat = 1.0
+		var e := _part(Vector3(at.x * side, at.y, at.z), E.size, em, _head)
 		_eyes.append(e)
+		_part(Vector3(at.x * side * 0.93, at.y, at.z), (E.size as Vector3) * Vector3(1.0, 1.18, 1.18), _mat(Color(0.06, 0.05, 0.04), 0.6), _head) # (its rim, dark)
 		var pu := _part(Vector3((at.x + float((E.size as Vector3).x) * 0.42) * side, at.y, at.z - 1.0), Vector3(2.0, float((E.size as Vector3).y) * float(E.get("slit", 0.4)), float((E.size as Vector3).z) * 0.35), _mat(Color(0.02, 0.02, 0.02), 0.02), _head)
 		pu.rotation.y = 0.0
 		var lid := _part(Vector3(at.x * side, at.y, at.z) * 1.0, (E.size as Vector3) * 1.08, face, _head)
 		lid.visible = false
 		_lids.append(lid)
 	var N: Dictionary = S.nose
-	_part(N.at, N.size, _mat(N.color, 0.3), _head)
+	var nose := _mat(N.color, 0.25)
+	nose.clearcoat_enabled = true # (the leather moist)
+	nose.clearcoat = 0.7
+	_part(N.at, N.size, nose, _head)
+	var ns: Vector3 = N.size
+	for side: float in [-1.0, 1.0]: # (the nostrils)
+		_part((N.at as Vector3) + Vector3(ns.x * 0.22 * side, ns.y * 0.02, -ns.z * 0.4), Vector3(ns.x * 0.22, ns.y * 0.3, ns.z * 0.25), _mat(Color(0.01, 0.01, 0.01), 0.6), _head)
 	_stick(Vector3(0.0, float((N.at as Vector3).y) - 12.0, float((N.at as Vector3).z) + 8.0), Vector3(0.0, float((N.at as Vector3).y) - 20.0, float((N.at as Vector3).z) + 12.0), 2.0, _mat(Color(0.12, 0.08, 0.06), 0.4), _head) # (the philtrum)
 	# whiskers
 	var wd := _mat(Color(0.9, 0.9, 0.88), 0.5)
@@ -181,7 +213,7 @@ func _build() -> void:
 		en.position = Vector3(at.x * side, at.y, at.z)
 		_head.add_child(en)
 		en.set_meta("side", side)
-		_mesh(_ear_mesh(float(R.len), float(R.width), float(R.get("point", 1.0))), ear_m, en)
+		_fur_shells(_mesh(_ear_mesh(float(R.len), float(R.width), float(R.get("point", 1.0))), ear_m, en), fl * 0.2, 4)
 		if R.get("tuft", 0.0) > 0.0:
 			_stick(Vector3(0.0, float(R.len) * 0.95, 0.0), Vector3(-3.0 * side, float(R.len) + float(R.tuft), 2.0), 2.2, _coat(7), en)
 		_ear_nodes.append(en)
@@ -189,7 +221,7 @@ func _build() -> void:
 	for r: Array in S.get("ruff", []):
 		for side: float in [-1.0, 1.0]:
 			var at: Vector3 = r[0]
-			_part(Vector3(at.x * side, at.y, at.z), r[1], face, _head)
+			_fur_shells(_part(Vector3(at.x * side, at.y, at.z), r[1], face, _head), fl * 1.3, 8)
 	# the tail: a chain from the rump
 	var T: Dictionary = S.tail
 	var prev: Node3D = _body
@@ -199,7 +231,7 @@ func _build() -> void:
 		n.position = T.base if k == 0 else Vector3(0.0, 0.0, float(T.seg))
 		prev.add_child(n)
 		var r: float = radii[k]
-		_part(Vector3(0.0, 0.0, float(T.seg) * 0.5), Vector3(r * 2.0, r * 1.9, float(T.seg) * 1.5), _coat(6, (k + 0.5) / float(T.n)), n)
+		_fur_shells(_part(Vector3(0.0, 0.0, float(T.seg) * 0.5), Vector3(r * 2.0, r * 1.9, float(T.seg) * 1.5), _coat(6, (k + 0.5) / float(T.n)), n), tl, 10)
 		_tail.append(n)
 		prev = n
 	# the legs: upper, lower, metapodial, the paw
@@ -210,9 +242,16 @@ func _build() -> void:
 		mm.mesh = _cyl
 		mm.material_override = _coat(3)
 		_body.add_child(mm)
+		mm.mesh = _sphere # (rounded, not a rod)
 		var pw := _part(Vector3.ZERO, Vector3.ONE, paw)
+		for k in 4: # (its toes' pads, and their claws)
+			var x := (float(k) - 1.5) * 0.24
+			_part(Vector3(x, -0.15, 0.36 - absf(x) * 0.3), Vector3(0.26, 0.6, 0.32), paw, pw)
+			if not bool(S.get("plantigrade", false)):
+				_stick(Vector3(x, -0.2, 0.5 - absf(x) * 0.3), Vector3(x * 1.05, -0.45, 0.62 - absf(x) * 0.3), 0.025, _mat(Color(0.12, 0.1, 0.08), 0.3), pw)
 		_legx.append([mm, pw])
 		(_leg_mesh[i][2] as MeshInstance3D).visible = false # (the walker's tarsus: the paw here)
+		(_leg_mesh[i][1] as MeshInstance3D).mesh = _sphere # (the lower leg rounded, tapering)
 	_build_extra()
 
 

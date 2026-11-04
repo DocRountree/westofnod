@@ -37,44 +37,21 @@ extends Node3D
 ##   den, berry bushes, a tree to rub on
 ## (every station a male too, but the ants': the female's partner)
 ##
-## 1 every adult lays its eggs (Brood's: the butterflies one to a leaf, the
-##   wasp one to a cell, the beetles a cluster; not the ants: their queens'
-##   eggs lie in piles already)
-## 2 the pupae hatch: the adult out, its wings filling out; then off
-## 3 new pupae
-## 4 every egg hatches: the larva out, small, growing (a caterpillar eats
-##   its shell first); 5 new ant eggs
-## 6 the grasshopper hops   7 it flies   8 it eats at its leaf
-## 9 the mantis strikes at the fly (and eats it)   0 it flies   G it grooms
-## R the rattlesnake eats its mouse   M the milk snake eats its   C the
-##   snakes coil up (W: off again)
-## Y the young eat: the larvae, the nymphs, the young snakes (each its own
-##   small meal)
-## (1 also: the rattlesnake gives birth, the milk snake lays; 4: its eggs hatch)
-## (1 also: the spiders spin their egg sacs, the pill bug's pouch fills;
-##   4: the sacs hatch, the pill bug's young come out)
-## F the spiders hunt (a fly each: on the ground, the water, the sheet, in
-##   the web)   S the web spiders spin anew   O the pill bugs roll up
-## P steered by the steering layer (pilot.gd), as a state machine would: the
-##   grasshopper, the mantis, the snakes, the moth, a lady beetle, each
-##   through a few orders, one after another as each says it's done
-## K they mate, each pair its own way (the male mantis eaten, the garden
-##   spider's male dead on her; the spiders' males first charging their
-##   palps at a sperm web)
-## E the mice eat (a seed each)   Q they wash   H the anoles and the
-##   scorpions hunt (a fly, a cricket)   D the anoles display (1 also: the
-##   anole lays an egg, the scorpion gives birth, her young onto her back;
-##   4: the anole's eggs hatch; Y: their young hunt; K: they mate too)   (1 also: the mouse gives
-##   birth in her nest; Y: her young, once they're about, eat)
-## B the hares browse   U they sit up, alert   T they thump, then freeze
-##   X they flee   N she nurses her leverets   (Q: the hares groom too;
-##   1: the hare gives birth; K: they mate; Y: the leverets eat)
-## J the fox and the bobcat hunt (a mouse, a hare)   L they lie down and
-##   sleep   I they groom   Z they mark   A they sit   V their young play
-##   (1: they give birth in their dens; N: they nurse; K: they mate)
-## . the coyotes and the wolves howl
-## , the bears forage (digging)   ; they browse the berries   / they stand
-##   up   ' they rub on the tree
+## THE KEYS (the same for every creature, acting only on those at the
+## station in view; Tab / Shift+Tab: the next): 1 lay eggs / give birth,
+## 2 hatch / come out, 3 new pupae, E eat, H hunt, K mate, G groom, Z sleep /
+## rest, F fly / hop, X alarm (flee, roll up, coil, sting, scatter), D display
+## / call (a dewlap, a thump, a howl, standing up), V the young play, N nurse,
+## B forage, S spin a web, M mark (a bear: rubbing on its tree), A sit, W back
+## to their own ways, P steered (pilot.gd: the grasshopper, the mantis, the
+## snakes, the moth, a lady beetle, the male mouse through a few orders).
+## Each does it its own way: E the larvae chew, the hunters' prey is set
+## before them (the fishing spider's a molly up from the pond), the bears
+## strip berries; K each pair its own (the male mantis eaten, the garden
+## spider's male dead on her; the spiders' males first charging their palps
+## at a sperm web); X the snakes coil, the pill bugs roll, the hares flee, the
+## scorpions sting, the mollies scatter; D the anoles' dewlap, the hares'
+## thump, the dogs' howl, the bears standing up.
 ## Tab / Shift+Tab: the next station   Space slow motion
 ## drag: turn round   wheel: nearer / further
 
@@ -171,6 +148,7 @@ var wolf_m: Node3D
 var _coy_den: Node3D
 var _wolf_den: Node3D
 var _hares := {} # station -> its hare (to be hunted)
+var _pond_mollies: Node3D
 var bears: Array = [] # [female, male, another] each kind: black, brown
 var _bear_dens: Array = []
 var _bushes: Array = [] # each kind's
@@ -469,7 +447,9 @@ func _spider_stations() -> void:
 				mollies.tank_max = c + Vector3(POND_W - 0.03, POND - 0.02, POND_D - 0.03)
 				add_child(mollies)
 				mollies.setup(14, c + Vector3(0.0, POND - 0.12, 0.0), 0.08)
+				_pond_mollies = mollies
 				sp.place(c + Vector3(0.0, POND, 0.0), 0.5)
+				sp.shore = c + Vector3(POND_W * 0.8, POND, 0.1) # (where it takes a fish to eat)
 				sp.height = func(_x: float, _z: float) -> float: return POND
 				sp.wander(c + Vector3(0.0, POND, 0.0), 0.2)
 			"funnel": # (its web spun as it starts)
@@ -898,6 +878,24 @@ func _bear_station(kind: int) -> void:
 	bears.append(trio)
 
 
+## The fishing spider's catch: a molly of the pond's school, come up near
+## the surface by the spider; then its rush and its lunge.
+func _spider_fish() -> void:
+	var sp: Node3D = spiders[1]
+	if not is_instance_valid(_pond_mollies):
+		return
+	var i: int = _pond_mollies.call("nearest", sp.get("_pos"))
+	if i < 0:
+		return
+	var fish: Node3D = _pond_mollies.call("take", i)
+	var a := randf() * TAU
+	var at: Vector3 = (sp.get("_pos") as Vector3) + Vector3(cos(a), 0.0, sin(a)) * 0.14
+	at.y = POND - 0.008
+	var tw := create_tween()
+	tw.tween_property(fish, "position", at, 2.0)
+	tw.tween_callback(Callable(sp, "hunt").bind(fish))
+
+
 ## The anoles and the scorpions hunt: a fly on the ground before each
 ## anole, a cricket before each scorpion (the young: small ones).
 func _lizards_hunt(young_only := false) -> void:
@@ -1270,167 +1268,23 @@ func _hatch_all() -> void:
 				a.call("search", c, 0.4, []))
 
 
+## The keys: one for each thing they all do, for those at the station in
+## view only (Tab: the next).
+const KEYS := {
+	KEY_1: "lay", KEY_2: "hatch", KEY_3: "pupae", KEY_E: "eat", KEY_H: "hunt", KEY_K: "mate",
+	KEY_G: "groom", KEY_Z: "sleep", KEY_F: "fly", KEY_X: "alarm", KEY_D: "display", KEY_V: "play",
+	KEY_N: "nurse", KEY_B: "forage", KEY_S: "spin", KEY_M: "mark", KEY_A: "sit", KEY_W: "wander",
+}
+
+
 func _unhandled_input(e: InputEvent) -> void:
 	if e is InputEventKey and e.pressed and not e.echo:
+		if KEYS.has(e.keycode):
+			_act_here(KEYS[e.keycode])
+			return
 		match e.keycode:
-			KEY_1:
-				_lay_all()
-			KEY_2:
-				_hatch_all()
-			KEY_3:
-				_new_pupae()
-			KEY_4:
-				_hatch_eggs()
-			KEY_6:
-				var a := randf() * TAU
-				hopper.hop(_station(7) + Vector3(cos(a), 0.0, sin(a)) * 0.2)
-				_at = 7
-				_say()
-			KEY_7:
-				var a := randf() * TAU
-				hopper.fly(_station(7) + Vector3(cos(a), 0.0, sin(a)) * 0.35)
-				_at = 7
-				_say()
-			KEY_8:
-				hopper.feed(_hopper_leaf + Vector3(0.0, 0.002, 0.0))
-				_at = 7
-				_say()
-			KEY_9:
-				_new_prey()
-				mantis.strike(_prey.position + Vector3(0.0, 0.006, 0.0), _prey)
-				_at = 8
-				_say()
-			KEY_0:
-				var a := randf() * TAU
-				mantis.fly(_station(8) + Vector3(cos(a), 0.0, sin(a)) * 0.3)
-				_at = 8
-				_say()
-			KEY_G:
-				mantis.groom()
-				_at = 8
-				_say()
-			KEY_R:
-				rattler.eat(_new_mouse(0))
-				_go(9)
-			KEY_M:
-				milk.eat(_new_mouse(1))
-				_go(10)
-			KEY_C:
-				rattler.coil()
-				milk.coil()
-			KEY_W:
-				rattler.wander(_station(9), 0.7)
-				milk.wander(_station(10), 0.55)
-			KEY_Y:
-				_young_eat()
-				_lizards_hunt(true)
 			KEY_P:
 				_pilot_demo()
-			KEY_F:
-				_spiders_hunt()
-			KEY_S:
-				for k in [2, 3]:
-					var sp = spiders[k] # (a Spider: its web, its kind)
-					var c := _station(11 + k)
-					if is_instance_valid(sp.web):
-						sp.web.queue_free()
-					if sp.kind == "funnel":
-						sp.spin_funnel(c, 0.14)
-					else:
-						_spin_orb(sp, randi())
-			KEY_K:
-				_mate_all()
-			KEY_J:
-				fox_f.call("hunt", _fox_mouse())
-				fox_m.call("hunt", _fox_mouse())
-				cat_f.call("hunt", _new_cat_hare())
-				coy_f.call("hunt", _station_mouse(23))
-				coy_m.call("hunt", _station_hare(23))
-				wolf_f.call("hunt", _station_hare(24))
-				wolf_m.call("hunt", _station_hare(24))
-				_go(21)
-			KEY_COMMA:
-				for k in bears.size():
-					for b: Node3D in bears[k]:
-						b.call("forage", _station(25 + k), 2.5)
-				_go(25)
-			KEY_SEMICOLON:
-				for k in bears.size():
-					for j in 3:
-						bears[k][j].call("browse", _bushes[k][j % _bushes[k].size()])
-				_go(25)
-			KEY_SLASH:
-				for k in bears.size():
-					for b: Node3D in bears[k]:
-						b.call("stand", randf_range(4.0, 7.0))
-				_go(25)
-			KEY_APOSTROPHE:
-				for k in bears.size():
-					bears[k][1].call("rub", _rub_trees[k])
-				_go(25)
-			KEY_PERIOD:
-				for c: Node3D in [coy_f, coy_m, wolf_f, wolf_m]:
-					c.call("howl", randf_range(5.0, 8.0))
-			KEY_L:
-				for c: Node3D in [fox_f, fox_m, cat_f, cat_m, coy_f, coy_m, wolf_f, wolf_m] + bears[0] + bears[1]:
-					c.call("sleep", 20.0)
-			KEY_I:
-				for c: Node3D in [fox_f, fox_m, cat_f, cat_m, coy_f, coy_m, wolf_f, wolf_m] + bears[0] + bears[1]:
-					c.call("groom")
-			KEY_Z:
-				for c: Node3D in [fox_f, fox_m, cat_f, cat_m, coy_f, coy_m, wolf_f, wolf_m] + bears[0] + bears[1]:
-					c.call("mark")
-			KEY_A:
-				for c: Node3D in [fox_f, fox_m, cat_f, cat_m, coy_f, coy_m, wolf_f, wolf_m] + bears[0] + bears[1]:
-					c.call("sit", 8.0)
-			KEY_V:
-				for c in get_children():
-					if c.get_script() in [FoxScript, BobcatScript, CoyoteScript, WolfScript, BlackBearScript, BrownBearScript] and c.get("young"):
-						c.call("play")
-			KEY_B:
-				for h: HareScript in [hare_f, hare_m]:
-					h.eat(_hare_food_near(h.get("_pos"), h == hare_m))
-				_go(20)
-			KEY_U:
-				hare_f.alert()
-				hare_m.alert()
-				_go(20)
-			KEY_T:
-				hare_f.thump()
-				hare_m.thump()
-				_go(20)
-			KEY_X:
-				for h: HareScript in [hare_f, hare_m]:
-					h.flee(_station(20) + Vector3(-0.6, 0.0, 0.5))
-				_go(20)
-			KEY_N:
-				hare_f.nurse()
-				for c: Node3D in [fox_f, cat_f, coy_f, wolf_f, bears[0][0], bears[1][0]]:
-					c.call("nurse")
-				_go(20)
-			KEY_H:
-				_lizards_hunt()
-			KEY_D:
-				anole_f.display()
-				anole_m.display()
-				_go(17)
-			KEY_E:
-				for mo: MouseScript in [mouse_f, mouse_m]:
-					mo.eat(_seed_near(mo.get("_pos")))
-				_go(16)
-			KEY_Q:
-				mouse_f.groom()
-				mouse_m.groom()
-				hare_f.groom()
-				hare_m.groom()
-				_go(16)
-			KEY_O:
-				for c in get_children():
-					if c.get_script() == IsopodScript:
-						c.call("roll", 5.0)
-			KEY_5:
-				for k in 2:
-					_ant_pile(k)
 			KEY_TAB:
 				_go((_at + (NAMES.size() - 1 if e.shift_pressed else 1)) % NAMES.size())
 			KEY_SPACE:
@@ -1442,7 +1296,364 @@ func _unhandled_input(e: InputEvent) -> void:
 		if e.button_index == MOUSE_BUTTON_WHEEL_UP:
 			_dist = maxf(_dist * 0.85, 0.03)
 		elif e.button_index == MOUSE_BUTTON_WHEEL_DOWN:
-			_dist = minf(_dist / 0.85, 6.0)
+			_dist = minf(_dist / 0.85, 40.0)
+
+
+## Where a creature (or a colony, an egg) is: its own place, its parent's space.
+func _where(n: Node) -> Vector3:
+	if n is MultiMeshInstance3D:
+		var mm := n as MultiMeshInstance3D
+		return mm.global_transform * mm.custom_aabb.get_center()
+	var p: Variant = n.get("_pos")
+	if p is Vector3:
+		return p
+	return (n as Node3D).global_position if n is Node3D else Vector3.INF
+
+
+## Which station a point's at (the nearest).
+func _station_of(p: Vector3) -> int:
+	var best := 0
+	var bd := INF
+	for i in NAMES.size():
+		var d := absf(_station(i).x - p.x)
+		if d < bd:
+			bd = d
+			best = i
+	return best
+
+
+## Everything at the station in view (the creatures, their colonies, their
+## eggs and pupae).
+func _here() -> Array:
+	var out := []
+	for c in get_children():
+		if c.get_script() == null or not (c is Node3D):
+			continue
+		var p := _where(c)
+		if p != Vector3.INF and _station_of(p) == _at:
+			out.append(c)
+	return out
+
+
+## The thing done, by everything at the station in view that does it.
+func _act_here(act: String) -> void:
+	var all := _here()
+	match act:
+		"pupae":
+			if _at <= 1:
+				_new_pupae()
+			return
+		"lay":
+			if _at == 3 or _at == 4: # (the queens' eggs: a new pile)
+				_ant_pile(_at - 3)
+		"alarm":
+			if _at == 12 and is_instance_valid(_pond_mollies):
+				_pond_mollies.call("scatter", _station(12) + Vector3(0.0, POND, 0.0))
+	for c in all:
+		_do(c, act, all)
+
+
+## A partner for c (its kind, the other sex, grown, at the station).
+func _partner(c: Node, all: Array) -> Node:
+	for o in all:
+		if o != c and o.get_script() == c.get_script() and bool(o.get("male")) != bool(c.get("male")) and not bool(o.get("young")) and not bool(o.get("nymph")) and not bool(o.get("dead")):
+			return o
+	return null
+
+
+func _do(c: Node, act: String, all: Array) -> void:
+	var sc: Script = c.get_script()
+	var p := _where(c)
+	var young := bool(c.get("young")) or bool(c.get("nymph"))
+	var st := _station(_at)
+	# hatching: an egg, a pod, an egg case, a sac, a pupa
+	if act == "hatch":
+		if sc == PupaScript:
+			var k := _at
+			c.call("eclose", func(a: Node3D) -> void:
+				if a.has_method("fly"):
+					a.call("fly", _station(k), 0.4)
+				else:
+					a.call("search", _station(k), 0.4, []))
+		elif c.has_method("hatch") and not (c is AntColony):
+			c.call("hatch")
+		elif sc == SpiderScript: # (its sacs, carried or left)
+			for sac in c.get("sacs"):
+				if is_instance_valid(sac):
+					sac.call("hatch")
+		elif sc == HopperScript or sc == MantisScript: # (its pods, its egg cases)
+			for pod in c.get("pods" if sc == HopperScript else "oothecae"):
+				if is_instance_valid(pod):
+					pod.call("hatch")
+		return
+	if act == "mate":
+		if c is Beetles:
+			c.call("mate", 1, 0)
+		elif bool(c.get("male")) and not young and c.has_method("mate"):
+			var q := _partner(c, all)
+			if q:
+				c.call("mate", q)
+		return
+	# the colonies
+	if c is Beetles or c is AntColony:
+		var col := c as AntColony
+		var n := col.pos.size()
+		for i in n:
+			match act:
+				"eat":
+					col.feed(i, Vector3(0.02 * i, 0.0, 0.03))
+				"lay":
+					if col.lays:
+						col.lay(i, Vector3(-0.03, 0.0, 0.01 * i))
+				"fly":
+					if c is Beetles:
+						(c as Beetles).fly(i, Vector3.ZERO, 0.3, 0.25)
+				"wander":
+					col.wander(i, Vector3.ZERO, 0.06)
+		return
+	if sc == MolliesScript:
+		if act == "eat":
+			for i in (c.get("pos") as PackedVector3Array).size():
+				c.call("graze", i)
+		elif act == "display":
+			for i in (c.get("pos") as PackedVector3Array).size():
+				c.call("display", i)
+		elif act == "wander":
+			for i in (c.get("pos") as PackedVector3Array).size():
+				c.call("rejoin", i)
+		return
+	match act:
+		"wander":
+			if sc == MonarchScript:
+				c.call("fly", st, 0.4)
+			elif sc == MothScript:
+				c.call("search", st, 0.4, [])
+			elif sc == Wasp:
+				c.call("seek_food", st, 0.5)
+			elif sc == MantisScript:
+				c.call("stalk", p, 0.15)
+			elif sc == SpiderScript and c.get("kind") in ["funnel", "argiope"] and not young:
+				pass # (at its web)
+			elif c.has_method("wander"):
+				c.call("wander", st if not c.has_method("forage") else st, 0.25 if not (c.has_method("forage") or sc == SnakeScript) else 1.2)
+		"lay":
+			if young or bool(c.get("male")):
+				return
+			if sc == MonarchScript:
+				c.call("lay", _monarch_leaves.map(func(l): return l[0]), _monarch_leaves.map(func(l): return l[1]), Callable(c, "fly").bind(st, 0.4))
+			elif sc == MothScript:
+				c.call("lay", _moth_leaves.map(func(l): return l[0]), _moth_leaves.map(func(l): return l[1]), Callable(c, "search").bind(st, 0.4, []))
+			elif sc == Wasp:
+				c.call("lay_eggs", _cells.slice(0, 4), Vector3.UP)
+			elif sc == HopperScript:
+				c.call("lay", st + Vector3(0.05, 0.0, -0.08))
+			elif sc == MantisScript:
+				c.call("lay", _stem_foot + Vector3(0.0, 0.006, 0.0))
+			elif sc == SnakeScript:
+				c.call("lay", 5 if c.get("kind") == "rattler" else 6)
+			elif sc == SpiderScript or sc == IsopodScript:
+				c.call("lay")
+			elif sc == AnoleScript:
+				c.call("lay", st + Vector3(0.08, 0.0, -0.06))
+			elif sc == MouseScript:
+				c.call("birth", 4, _nest)
+			elif sc == ScorpionScript:
+				c.call("birth", 12)
+			elif sc == HareScript:
+				c.call("birth", 4)
+			elif c.has_method("birth"): # (the hunters: in their dens)
+				c.call("birth", 4, c.get("home_den"))
+		"eat", "hunt":
+			_feed(c, act, young, p, st)
+		"groom":
+			if c.has_method("groom"):
+				c.call("groom")
+			elif sc == Wasp:
+				c.call("land", st + Vector3(0.1, 0.0, 0.08))
+		"sleep":
+			if c.has_method("sleep"):
+				c.call("sleep", 20.0)
+			elif sc == HareScript:
+				c.call("freeze", 12.0) # (still in its form)
+			elif sc == SnakeScript:
+				c.call("coil")
+			elif sc == IsopodScript:
+				c.call("roll", 8.0)
+		"fly":
+			if sc == MonarchScript:
+				c.call("fly", st, 0.6)
+			elif sc == MothScript:
+				c.call("search", st, 0.5, [])
+			elif sc == Wasp:
+				c.call("seek_food", st, 0.6)
+			elif sc == HopperScript:
+				var a := randf() * TAU
+				c.call("hop" if young else "fly", st + Vector3(cos(a), 0.0, sin(a)) * (0.2 if young else 0.35))
+			elif sc == MantisScript and not young:
+				var a := randf() * TAU
+				c.call("fly", st + Vector3(cos(a), 0.0, sin(a)) * 0.3)
+		"alarm":
+			if sc == SnakeScript:
+				c.call("coil")
+			elif sc == IsopodScript:
+				c.call("roll", 5.0)
+			elif sc == HareScript:
+				c.call("flee", p + Vector3(randf_range(-1, 1), 0.0, randf_range(-1, 1)).normalized() * 0.5)
+			elif sc == ScorpionScript and not young:
+				var a := randf() * TAU
+				c.call("sting", p + Vector3(cos(a), 0.0, sin(a)) * 0.03)
+			elif sc == MouseScript:
+				c.call("wander", p, 0.6)
+		"display":
+			if sc == AnoleScript:
+				c.call("display")
+			elif sc == HareScript:
+				c.call("thump")
+			elif c.has_method("howl"):
+				c.call("howl", randf_range(5.0, 8.0))
+			elif c.has_method("stand"):
+				c.call("stand", randf_range(4.0, 7.0))
+			elif sc == MantisScript:
+				c.call("watch", p + Vector3(0.0, 0.05, 0.2))
+		"play":
+			if c.has_method("play"):
+				c.call("play")
+		"nurse":
+			if c.has_method("nurse"):
+				c.call("nurse")
+		"forage":
+			if c.has_method("forage"):
+				c.call("forage", st, 2.5)
+		"spin":
+			if sc == SpiderScript and not young:
+				var k := spiders.find(c)
+				if k == 2 or k == 3:
+					if is_instance_valid(c.get("web")):
+						(c.get("web") as Node).queue_free()
+					if k == 2:
+						c.call("spin_funnel", _station(13), 0.14)
+					else:
+						_spin_orb(c, randi())
+		"mark":
+			if c.has_method("rub"):
+				var k := bears.find(_bear_trio_of(c))
+				if k >= 0:
+					c.call("rub", _rub_trees[k])
+			elif c.has_method("mark"):
+				c.call("mark")
+		"sit":
+			if c.has_method("sit"):
+				c.call("sit", 8.0)
+			elif sc == HareScript:
+				c.call("alert")
+			elif sc == MouseScript:
+				c.call("groom")
+
+
+func _bear_trio_of(c: Node) -> Array:
+	for t: Array in bears:
+		if t.has(c):
+			return t
+	return []
+
+
+## Something to eat (or hunt), its own kind of food, set before it.
+func _feed(c: Node, act: String, young: bool, p: Vector3, st: Vector3) -> void:
+	var sc: Script = c.get_script()
+	var a := randf() * TAU
+	var near := Vector3(cos(a), 0.0, sin(a))
+	if sc == LarvaScript:
+		c.call("eat")
+	elif sc == HopperScript:
+		if young:
+			var leaf := Beetles.leaf()
+			leaf.position = Vector3(p.x, 0.0, p.z) + near * 0.03
+			leaf.scale = Vector3(0.5, 1.0, 0.5)
+			add_child(leaf)
+			c.call("feed", leaf.position + Vector3.UP * 0.001)
+		else:
+			c.call("feed", _hopper_leaf + Vector3(0.0, 0.002, 0.0))
+	elif sc == MantisScript:
+		var f := MantisScript.fly_prey()
+		f.scale = Vector3.ONE * (0.4 if young else 1.0)
+		f.position = p + near * (0.03 if young else 0.06) + Vector3.UP * 0.002
+		add_child(f)
+		c.call("strike", f.position + Vector3(0.0, 0.004, 0.0), f)
+	elif sc == SnakeScript:
+		var m := SnakeScript.mouse(0.35 if young else 1.0)
+		m.position = p + near * (0.15 if young else 0.4)
+		add_child(m)
+		c.call("eat", m)
+	elif sc == SpiderScript:
+		if c == spiders[1] and not young:
+			_spider_fish()
+			return
+		var f := MantisScript.fly_prey()
+		add_child(f)
+		match c.get("kind"):
+			"funnel":
+				var w: Node3D = c.get("web")
+				if young or not is_instance_valid(w):
+					f.position = p + near * 0.04
+				else:
+					var at := w.position + near * 0.07
+					at.y = w.call("surface_y", at.x, at.z)
+					f.position = at
+			"argiope":
+				var w: Node3D = c.get("web")
+				if young or not is_instance_valid(w):
+					f.position = p + near * 0.04
+				else:
+					var n: int = w.call("count")
+					f.position = w.call("point", int(n * randf_range(0.45, 0.85)))
+					f.rotation = Vector3(PI * 0.5, 0.0, 0.0)
+			_:
+				f.position = p + near * (0.04 if young else 0.15)
+		if young:
+			f.scale = Vector3.ONE * 0.35
+		c.call("hunt", f)
+	elif sc == IsopodScript:
+		c.call("eat", p + near * 0.01)
+	elif sc == MouseScript:
+		if not young or float(c.get("size")) >= 0.25:
+			c.call("eat", _seed_near(p))
+	elif sc == AnoleScript or sc == ScorpionScript:
+		if c.get("_mother") != null:
+			return
+		var f: Node3D
+		if sc == AnoleScript:
+			f = MantisScript.fly_prey()
+			f.scale = Vector3.ONE * (0.25 if young else 0.5)
+			f.position = p + near * (0.05 if young else 0.12)
+		else:
+			f = ScorpionScript.cricket()
+			f.scale = Vector3.ONE * (0.3 if young else 1.0)
+			f.position = p + near * (0.04 if young else 0.1)
+		add_child(f)
+		c.call("hunt", f)
+	elif sc == HareScript:
+		c.call("eat", _hare_food_near(p, act == "hunt" and not young)) # (H: the willow shoot, sitting up)
+	elif sc == Wasp:
+		var cat := Wasp.caterpillar()
+		var at := st + Vector3(-0.12, 0.004, 0.1)
+		cat.position = at
+		add_child(cat)
+		c.call("feed_on_insect", cat, at, Vector3.UP)
+	elif c.has_method("browse") and act == "eat": # (a bear: berries)
+		var k := bears.find(_bear_trio_of(c))
+		if k >= 0:
+			c.call("browse", _bushes[k][randi() % (_bushes[k] as Array).size()])
+	elif c.has_method("hunt") and not young: # (the hunters: their prey here)
+		if sc == FoxScript:
+			c.call("hunt", _fox_mouse())
+		elif sc == BobcatScript:
+			c.call("hunt", _new_cat_hare())
+		elif sc == CoyoteScript:
+			c.call("hunt", _station_mouse(23) if randf() < 0.5 else _station_hare(23))
+		elif sc == WolfScript:
+			c.call("hunt", _station_hare(24))
+		else: # (a bear, hunting: the hare here, or a new one)
+			c.call("hunt", _station_hare(_at))
 
 
 ## To station i (the camera further off for the snakes).
@@ -1453,7 +1664,7 @@ func _go(i: int) -> void:
 
 
 func _say() -> void:
-	_label.text = "%s   (Tab / Shift+Tab: the next)\n1 all lay eggs   2 the pupae hatch   3 new pupae   4 the eggs hatch   5 new ant eggs\n6 grasshopper hops   7 flies   8 eats   9 mantis strikes the fly   0 flies   G grooms\nR rattlesnake eats   M milk snake eats   C snakes coil   W off again   Y the young eat   P steered\nF the spiders hunt   S the web spiders spin anew   O the pill bugs roll up   K they mate   E the mice eat   Q they wash\nH the anoles and scorpions hunt   D the anoles display   B the hares browse   U sit up   T thump   X flee   N nurse\nJ the fox and bobcat hunt   L sleep   I groom   Z mark   A sit   V the young play   . the coyotes and wolves howl\n, the bears forage   ; browse   / stand up   ' rub   Space slow motion   drag: turn round   wheel: nearer / further" % NAMES[_at]
+	_label.text = "%s   (Tab / Shift+Tab: the next station; the keys act on those here)\n1 lay eggs / give birth   2 hatch / come out   3 new pupae   E eat   H hunt   K mate   G groom   Z sleep / rest\nF fly / hop   X alarm (flee, roll up, coil, sting)   D display / call   V the young play   N nurse   B forage\nS spin a web   M mark   A sit   W back to their own ways   P steered   Space slow motion   drag: turn round   wheel: nearer / further" % NAMES[_at]
 
 
 func _process(dt: float) -> void:

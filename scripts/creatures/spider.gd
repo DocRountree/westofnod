@@ -11,7 +11,9 @@ extends "res://scripts/creatures/hexapod.gd" # (by path: found whether or not th
 ##   body low on the water; olive brown, a cream
 ##   band down each side, white spots paired down the abdomen; its eyes two
 ##   rows of four, both curved back. Runs on water (its ground: the water's
-##   surface). Its egg sac carried in its jaws, then set down at the
+##   surface); catching small fish (a molly) come up near the surface, a
+##   rush across the water and a lunge, dragged ashore (shore) and eaten.
+##   Its egg sac carried in its jaws, then set down at the
 ##   water's edge for the spiderlings to come out of
 ## - "funnel": a grass spider (Agelenopsis): a funnel weaver; spins a sheet
 ##   web on the ground with a funnel retreat at its side, waits at the
@@ -37,7 +39,11 @@ extends "res://scripts/creatures/hexapod.gd" # (by path: found whether or not th
 ## - spin_funnel(at, radius) (the funnel weaver's): the sheet laid in sweeps
 ##   out from the funnel; then waiting at its mouth
 ## - spin_orb(top, left, right) (the garden spider's): the orb spun between
-##   them (top: on a branch), thread by thread; then at the hub, head down
+##   them (top: on a branch), thread by thread; then at the hub, head down.
+##   Never through the air: it goes along the threads it's spun (the way
+##   along them found, OrbWeb.route), or, where there are none yet, on a
+##   dragline it pays out as it goes (OrbWeb.add_dragline); out to its prey
+##   and back to the hub along them too
 ## - mate(her) (a male's: Spider.new(kind) with male set before it's
 ##   added: smaller (the garden spider's a quarter her size, tan, slender),
 ##   the ends of his palps swollen into their bulbs; otherwise as she is):
@@ -103,6 +109,9 @@ var _web_head := Vector3.DOWN
 var _path: Array = [] # points to go along, in the web (its parent's space)
 var _path_speed := 0.12
 var _sub := 0 # (spinning a thread: 0 going to its start, 1 laying it)
+var shore := Vector3.INF ## (a fishing spider's: where it takes a fish it's caught, to eat)
+var _dragging := false # (going where there's no silk yet: on a dragline it pays out)
+var _drag_from := Vector3.ZERO
 # mating
 var _charged := false # (a male's palps filled from his sperm web)
 var _sperm: Node3D # (his sperm web)
@@ -263,6 +272,7 @@ func hunt(prey: Node3D) -> void:
 	_held = false
 	_stage = 0
 	_st = 0.0
+	_path.clear()
 	_mode = "orb_hunt" if _in_orb else "hunt"
 
 
@@ -329,6 +339,8 @@ func spin_orb_at(points: Array, normal := Vector3.ZERO) -> bool:
 		if p.y > top.y:
 			top = p
 	_web_pos = top # (it begins up where the first line goes from)
+	_path.clear()
+	_dragging = false
 	_web_head = Vector3.DOWN
 	_path_speed = 0.35
 	_sub = 0
@@ -438,6 +450,8 @@ func _think(dt: float) -> void:
 					var home_to := Vector3.INF
 					if kind == "funnel" and is_instance_valid(web):
 						home_to = web.call("mouth")
+					elif kind == "fishing" and shore != Vector3.INF: # (a fish: dragged ashore to eat)
+						home_to = shore
 					if home_to != Vector3.INF and _pos.distance_to(home_to) > 0.008:
 						_target = home_to
 						_pace = walk_speed
@@ -592,15 +606,30 @@ func _orb(dt: float) -> void:
 			var at := clampi(_stage, 0, count - 1)
 			var fast := _path_speed * (2.0 if at > count * 0.3 else 1.0)
 			if _sub == 0:
-				w.call("live", Vector3.INF, Vector3.INF)
-				moving = _go_web(w.call("start", at), fast * 1.6, dt)
+				# (to its start along the silk there is; where there's none
+				# yet to walk on, on a dragline it pays out as it goes)
+				var to: Vector3 = w.call("start", at)
+				if _path.is_empty() and not _dragging:
+					if _web_pos.distance_to(to) > 0.002:
+						_path = w.call("route", _web_pos, to)
+						if _path.is_empty():
+							_dragging = true
+							_drag_from = _web_pos
+							_path = [to]
+				moving = _follow_web(fast * 1.6, dt)
+				w.call("live", _drag_from if _dragging else Vector3.INF, _web_pos)
 				if not moving:
+					if _dragging:
+						w.call("add_dragline", _drag_from, _web_pos)
+						_dragging = false
+					w.call("live", Vector3.INF, Vector3.INF)
 					_sub = 1
 			else:
 				moving = _go_web(w.call("point", at), fast, dt)
 				w.call("live", w.call("start", at), _web_pos)
 				if not moving:
 					w.set("built", float(at))
+					w.call("add_thread", at)
 					_stage += 1
 					_sub = 0
 					if _stage >= count:
@@ -608,7 +637,11 @@ func _orb(dt: float) -> void:
 						w.set("built", 1e9)
 						_mode = "hub"
 		"hub":
-			_go_web(w.call("hub"), 0.06, dt)
+			if _path.is_empty() and _web_pos.distance_to(w.call("hub")) > 0.004:
+				_path = w.call("route", _web_pos, w.call("hub"))
+				if _path.is_empty():
+					_path = [w.call("hub")]
+			_follow_web(0.06, dt)
 			if _web_pos.distance_to(w.call("hub")) < 0.004:
 				_web_head = _web_head.lerp(Vector3.DOWN, 1.0 - exp(-4.0 * dt)).normalized()
 		"orb_hunt":
@@ -616,8 +649,11 @@ func _orb(dt: float) -> void:
 				_mode = "hub"
 			else:
 				match _stage:
-					0: # out to it along the web
-						if not _go_web(_prey.position, 0.2, dt):
+					0: # out to it along the web (along its threads)
+						if _path.is_empty():
+							_path = w.call("route", _web_pos, _prey.position)
+							_path.append(_prey.position)
+						if not _follow_web(0.2, dt):
 							_stage = 1
 							_st = 0.0
 					1: # wrapping it: turning it over and over in silk
@@ -643,7 +679,10 @@ func _orb(dt: float) -> void:
 							_stage = 2
 							_st = 0.0
 					2: # back to the hub with it
-						if not _go_web(w.call("hub"), 0.12, dt):
+						if _path.is_empty():
+							_path = w.call("route", _web_pos, w.call("hub"))
+							_path.append(w.call("hub"))
+						if not _follow_web(0.12, dt):
 							_stage = 3
 							_st = 0.0
 					3: # eating it at the hub, head down
@@ -681,6 +720,15 @@ func _ground(x: float, z: float) -> float:
 		if y > -1e8:
 			return y
 	return super(x, z)
+
+
+## Along its path (points on the web's threads) at speed: whether it's still going.
+func _follow_web(speed: float, dt: float) -> bool:
+	while not _path.is_empty():
+		if _go_web(_path[0], speed, dt):
+			return true
+		_path.pop_front()
+	return false
 
 
 ## Along the web toward goal at speed: whether it's still going.
@@ -1413,6 +1461,154 @@ class OrbWeb extends Node3D:
 		_live_mesh.surface_set_uv(Vector2.ZERO)
 		_live_mesh.surface_add_vertex(inv * b)
 		_live_mesh.surface_end()
+
+	# --- the silk to walk on: every thread spun, as a graph ---------------------
+	var _gp: Array[Vector3] = [] # (its points, local)
+	var _gadj: Array = [] # (each point's neighbours along the silk)
+	var _gseg: Array = [] # (each thread: [a, b, its points along it: [t, id]])
+	var _drags: Array = [] # (draglines: [a, b], local)
+	var _drag_mesh: ImmediateMesh
+	const EPS := 0.0015
+
+	## Thread i spun: on the silk to walk on.
+	func add_thread(i: int) -> void:
+		if i >= 0 and i < _starts.size():
+			_gadd(_starts[i], _ends[i])
+
+	## A dragline paid out from a to b (its parent's space): silk too.
+	func add_dragline(a: Vector3, b: Vector3) -> void:
+		var inv := transform.affine_inverse()
+		var la := inv * a
+		var lb := inv * b
+		_drags.append([la, lb])
+		if _drag_mesh == null:
+			_drag_mesh = ImmediateMesh.new()
+			var mi := MeshInstance3D.new()
+			mi.mesh = _drag_mesh
+			var lm := ShaderMaterial.new()
+			lm.shader = _mat.shader
+			lm.set_shader_parameter("opacity", 0.6)
+			mi.material_override = lm
+			add_child(mi)
+		_drag_mesh.clear_surfaces()
+		_drag_mesh.surface_begin(Mesh.PRIMITIVE_LINES)
+		for d: Array in _drags:
+			for p: Vector3 in d:
+				_drag_mesh.surface_set_uv(Vector2.ZERO)
+				_drag_mesh.surface_add_vertex(p)
+		_drag_mesh.surface_end()
+		_gadd(la, lb)
+
+	func _link(i: int, j: int) -> void:
+		if i == j:
+			return
+		if not (_gadj[i] as Array).has(j):
+			(_gadj[i] as Array).append(j)
+		if not (_gadj[j] as Array).has(i):
+			(_gadj[j] as Array).append(i)
+
+	func _unlink(i: int, j: int) -> void:
+		(_gadj[i] as Array).erase(j)
+		(_gadj[j] as Array).erase(i)
+
+	## (The point at p: one there already, or a new one, set into whatever
+	## thread it lies on.)
+	func _gnode(p: Vector3) -> int:
+		for k in _gp.size():
+			if _gp[k].distance_to(p) < EPS:
+				return k
+		var id := _gp.size()
+		_gp.append(p)
+		_gadj.append([])
+		for s: Array in _gseg:
+			var a: Vector3 = s[0]
+			var b: Vector3 = s[1]
+			var ab := b - a
+			var t := (p - a).dot(ab) / maxf(ab.length_squared(), 1e-12)
+			if t <= 0.0 or t >= 1.0 or (a + ab * t).distance_to(p) > EPS:
+				continue
+			var ids: Array = s[2]
+			var j := 0
+			while j < ids.size() and float(ids[j][0]) < t:
+				j += 1
+			if j > 0 and j < ids.size():
+				_unlink(int(ids[j - 1][1]), int(ids[j][1]))
+			if j > 0:
+				_link(int(ids[j - 1][1]), id)
+			if j < ids.size():
+				_link(id, int(ids[j][1]))
+			ids.insert(j, [t, id])
+		return id
+
+	func _gadd(a: Vector3, b: Vector3) -> void:
+		_gnode(a)
+		_gnode(b)
+		var ab := b - a
+		var L2 := maxf(ab.length_squared(), 1e-12)
+		var ids := []
+		for k in _gp.size():
+			var t := (_gp[k] - a).dot(ab) / L2
+			if t >= -1e-4 and t <= 1.0001 and (a + ab * t).distance_to(_gp[k]) < EPS:
+				ids.append([t, k])
+		ids.sort_custom(func(x: Array, y: Array) -> bool: return float(x[0]) < float(y[0]))
+		for j in ids.size() - 1:
+			_link(int(ids[j][1]), int(ids[j + 1][1]))
+		_gseg.append([a, b, ids])
+
+	## The way along the silk from a to b (its parent's space): the points to
+	## go through, b last; empty if there's no way (no silk there yet).
+	func route(a: Vector3, b: Vector3) -> Array:
+		var inv := transform.affine_inverse()
+		var la := inv * a
+		var lb := inv * b
+		var from := -1
+		var to := -1
+		var fd := EPS * 4.0
+		var td := EPS * 4.0
+		for k in _gp.size():
+			var d1 := _gp[k].distance_to(la)
+			var d2 := _gp[k].distance_to(lb)
+			if d1 < fd:
+				fd = d1
+				from = k
+			if d2 < td:
+				td = d2
+				to = k
+		if from < 0 or to < 0:
+			return []
+		# (the shortest way: Dijkstra's, near enough for a web)
+		var dist := {from: 0.0}
+		var prev := {}
+		var open := [from]
+		var done := {}
+		while not open.is_empty():
+			var best := 0
+			for k in open.size():
+				if float(dist[open[k]]) < float(dist[open[best]]):
+					best = k
+			var u: int = open[best]
+			open.remove_at(best)
+			if u == to:
+				break
+			done[u] = true
+			for v: int in _gadj[u]:
+				if done.has(v):
+					continue
+				var nd := float(dist[u]) + _gp[u].distance_to(_gp[v])
+				if not dist.has(v) or nd < float(dist[v]):
+					if not dist.has(v):
+						open.append(v)
+					dist[v] = nd
+					prev[v] = u
+		if not dist.has(to):
+			return []
+		var path := []
+		var k := to
+		while k != from:
+			path.push_front(transform * _gp[k])
+			k = prev[k]
+		path.append(b)
+		return path
 
 	## Where thread i starts (its parent's space).
 	func start(i: int) -> Vector3:
