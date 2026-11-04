@@ -554,9 +554,11 @@ func _pose_legs() -> void:
 		out -= up * out.dot(up)
 		out = out.normalized() if out.length() > 1e-4 else Vector3(side, 0.0, 0.0)
 		var s: float = L.s
-		var ankle := foot + (-out * 0.85 + up * 0.5).normalized() * s
+		var ankle := foot + (-out * 0.85 + up * float(L.get("ankle_up", 0.5))).normalized() * s
 		var pl: Vector3 = L.get("pole", Vector3(0.6, 1.0, 0.0))
 		var pole := Vector3(pl.x * side, pl.y, pl.z)
+		if L.has("pole_out"): # (the knee up in the leg's own plane, hip to foot: seen from above, one line)
+			pole = up + out * float(L.pole_out)
 		var knee: Vector3
 		if L.has("knee") and not airborne:
 			# (held where it is on the body as it walks: the femur still,

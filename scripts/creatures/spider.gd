@@ -70,7 +70,7 @@ const SPECIES := {
 	# splayed wide and flat, the knees low; its eyes two curved rows)
 	"fishing": {"pattern": 1, "ceph": Vector3(9.0, 4.5, 2.2), "abd": Vector3(12.5, 3.8, 2.8), "leg": Vector3(14.0, 16.5, 17.0), "pairs": [1.0, 1.06, 0.84, 1.02],
 			"femur": Color(0.3, 0.27, 0.2), "tibia": Color(0.27, 0.24, 0.17), "body_h": 3.0, "speed": 0.12, "eyes": "pisaurid", "leg_r": 0.55, "young": 0.15,
-			"sprawl": 1.2, "knee_up": 0.6, "knee_out": 1.1, "flat": true, "sector": 16.0},
+			"sprawl": 1.62, "knee_up": 0.6, "knee_out": 1.1, "flat": true, "sector": 16.0},
 	"funnel": {"pattern": 2, "ceph": Vector3(7.5, 2.9, 2.2), "abd": Vector3(8.5, 3.2, 2.7), "leg": Vector3(7.5, 8.5, 9.5), "pairs": [1.0, 0.92, 0.84, 1.1],
 			"femur": Color(0.5, 0.4, 0.28), "tibia": Color(0.42, 0.33, 0.22), "body_h": 3.8, "speed": 0.12, "eyes": "rows", "leg_r": 0.42, "young": 0.2, "spinnerets": 3.2},
 	"argiope": {"pattern": 3, "ceph": Vector3(8.5, 3.6, 2.6), "abd": Vector3(17.0, 6.2, 5.2), "leg": Vector3(10.5, 11.5, 12.0), "pairs": [1.0, 0.98, 0.62, 0.95],
@@ -153,6 +153,10 @@ func _init(kind_ := "wolf", young_ := false) -> void:
 			"pole": Vector3(sin(a) * float(S.get("knee_out", 0.5)), float(S.get("knee_up", 1.0)), -cos(a) * 0.3),
 			"r": float(S.leg_r) * (0.9 if p == 2 else 1.0),
 		})
+		if bool(S.get("flat", false)): # (a fishing spider's: each leg in its own plane, the knee up; its femur slim; the metatarsus lying low to the water)
+			L[p]["pole_out"] = 0.25
+			L[p]["femur_r"] = 1.1
+			L[p]["ankle_up"] = 0.22
 	legs = L
 
 
