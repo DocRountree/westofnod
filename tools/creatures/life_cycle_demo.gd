@@ -26,6 +26,8 @@ extends Node3D
 ##   pear and a young San Pedro by them
 ## the desert's plants (life size, not in the game yet): every Joshua
 ##   tree, San Pedro cactus and prickly pear there is
+## snowshoe hare (life size, its summer coat): a female, a male, clover, a
+##   willow shoot
 ## (every station a male too, but the ants': the female's partner)
 ##
 ## 1 every adult lays its eggs (Brood's: the butterflies one to a leaf, the
@@ -57,6 +59,9 @@ extends Node3D
 ##   anole lays an egg, the scorpion gives birth, her young onto her back;
 ##   4: the anole's eggs hatch; Y: their young hunt; K: they mate too)   (1 also: the mouse gives
 ##   birth in her nest; Y: her young, once they're about, eat)
+## B the hares browse   U they sit up, alert   T they thump, then freeze
+##   X they flee   N she nurses her leverets   (Q: the hares groom too;
+##   1: the hare gives birth; K: they mate; Y: the leverets eat)
 ## Tab / Shift+Tab: the next station   Space slow motion
 ## drag: turn round   wheel: nearer / further
 
@@ -72,7 +77,7 @@ const PupaScript := preload("res://scripts/creatures/pupa.gd")
 
 const NAMES := ["monarch", "hummingbird clearwing", "paper wasp", "carpenter ant (queen)", "red harvester (queen)", "June bug", "convergent lady beetle", "differential grasshopper", "Carolina mantis", "eastern diamondback rattlesnake", "eastern milk snake",
 		"Carolina wolf spider", "six-spotted fishing spider", "grass spider (funnel weaver)", "yellow garden spider", "pill bug", "deer mouse",
-		"green anole", "Arizona bark scorpion", "the desert's plants (not in the game yet)"]
+		"green anole", "Arizona bark scorpion", "the desert's plants (not in the game yet)", "snowshoe hare"]
 const SpiderScript := preload("res://scripts/creatures/spider.gd")
 const IsopodScript := preload("res://scripts/creatures/isopod.gd")
 const SnakeScript := preload("res://scripts/creatures/snake.gd")
@@ -80,6 +85,7 @@ const HopperScript := preload("res://scripts/creatures/grasshopper.gd")
 const MantisScript := preload("res://scripts/creatures/mantis.gd")
 const MouseScript := preload("res://scripts/creatures/mouse.gd")
 const MolliesScript := preload("res://scripts/creatures/mollies.gd")
+const HareScript := preload("res://scripts/creatures/hare.gd")
 const AnoleScript := preload("res://scripts/creatures/anole.gd")
 const ScorpionScript := preload("res://scripts/creatures/scorpion.gd")
 const JoshuaScript := preload("res://scripts/population/joshua_tree.gd")
@@ -126,6 +132,9 @@ var anole_f: AnoleScript
 var anole_m: AnoleScript
 var scorp_f: ScorpionScript
 var scorp_m: ScorpionScript
+var hare_f: HareScript
+var hare_m: HareScript
+var _hare_food: Array = []
 const POND := -0.004 # m: the pond's surface, a little below the plain's
 const POND_W := 0.42 # (its half width, x)
 const POND_D := 0.36 # (its half depth, z)
@@ -137,7 +146,7 @@ var _moth_perch_n := Vector3.BACK
 
 func _station(i: int) -> Vector3:
 	# (the snakes, life size, given more room)
-	return Vector3(i * GAP + (1.2 if i >= 9 else 0.0) + (1.8 if i >= 10 else 0.0) + (1.6 if i >= 11 else 0.0) + (3.0 if i >= 19 else 0.0), 0.0, 0.0)
+	return Vector3(i * GAP + (1.2 if i >= 9 else 0.0) + (1.8 if i >= 10 else 0.0) + (1.6 if i >= 11 else 0.0) + (3.0 if i >= 19 else 0.0) + (16.0 if i >= 20 else 0.0), 0.0, 0.0)
 
 
 func _ready() -> void:
@@ -158,7 +167,7 @@ func _ready() -> void:
 	add_child(sun)
 	# the plain, a hole left in it for the fishing spider's pond
 	var x0 := -0.95
-	var x1 := GAP * 20.0 + 22.0
+	var x1 := GAP * 21.0 + 42.0
 	var pc := _station(12)
 	var grass := Color(0.36, 0.4, 0.22)
 	_box(Vector3((x0 + pc.x - POND_W) * 0.5, -0.005, 0.0), Vector3(pc.x - POND_W - x0, 0.01, 3.0), grass)
@@ -187,6 +196,7 @@ func _ready() -> void:
 	_anole_station()
 	_scorpion_station()
 	_desert_station()
+	_hare_station()
 	_male_partners()
 	_new_pupae()
 	_focus = _station(0) + Vector3(0.0, 0.08, 0.0)
@@ -622,6 +632,53 @@ func _desert_station() -> void:
 		add_child(mi)
 
 
+## The hares: a female and a male, in their summer coats; clover about, a
+## willow shoot.
+func _hare_station() -> void:
+	var c := _station(20)
+	_box(c + Vector3(0.0, 0.0006, 0.0), Vector3(2.4, 0.002, 2.0), Color(0.34, 0.42, 0.2))
+	for k in 5:
+		_new_clover()
+	var tw := HareScript.twig()
+	tw.position = c + Vector3(0.5, 0.0, -0.5)
+	add_child(tw)
+	_hare_food.append(tw)
+	hare_f = HareScript.new()
+	add_child(hare_f)
+	hare_f.place(c, 0.6)
+	hare_f.wander(c, 0.6)
+	hare_m = HareScript.new()
+	hare_m.male = true
+	add_child(hare_m)
+	hare_m.place(c + Vector3(-0.5, 0.0, 0.4), 2.0)
+	hare_m.wander(c, 0.7)
+
+
+func _new_clover() -> Node3D:
+	var c := _station(20)
+	var cl := HareScript.clover()
+	cl.position = c + Vector3(randf_range(-0.9, 0.9), 0.0, randf_range(-0.8, 0.8))
+	add_child(cl)
+	_hare_food.append(cl)
+	return cl
+
+
+## The nearest of the hares' food to p (the willow shoot, if high; clover
+## else, a new clump if there's none left).
+func _hare_food_near(p: Vector3, high: bool) -> Node3D:
+	var best: Node3D = null
+	for f in _hare_food:
+		if not is_instance_valid(f) or f.has_meta("high") != high or f.has_meta("taken"):
+			continue
+		if best == null or (f as Node3D).position.distance_to(p) < best.position.distance_to(p):
+			best = f
+	if best == null:
+		best = _new_clover()
+	if not high:
+		best.set_meta("taken", true)
+	return best
+
+
 ## The anoles and the scorpions hunt: a fly on the ground before each
 ## anole, a cricket before each scorpion (the young: small ones).
 func _lizards_hunt(young_only := false) -> void:
@@ -732,6 +789,7 @@ func _mate_all() -> void:
 		pairs.append([sm, spiders[k]])
 	pairs.append([anole_m, anole_f])
 	pairs.append([scorp_m, scorp_f])
+	pairs.append([hare_m, hare_f])
 	for pr: Array in pairs:
 		if is_instance_valid(pr[0]) and is_instance_valid(pr[1]):
 			pr[0].call("mate", pr[1])
@@ -834,6 +892,8 @@ func _young_eat() -> void:
 			c.call("eat", (c as Node3D).get("_pos") + Vector3(randf_range(-0.01, 0.01), 0.0, randf_range(-0.01, 0.01)))
 		elif sc == MouseScript and c.get("young") and float(c.get("size")) >= 0.25:
 			c.call("eat", _seed_near((c as Node3D).get("_pos")))
+		elif sc == HareScript and c.get("young"):
+			c.call("eat", _hare_food_near((c as Node3D).get("_pos"), false))
 		elif sc == SnakeScript and c.get("young"):
 			var m := SnakeScript.mouse(0.35)
 			var a := randf() * TAU
@@ -944,6 +1004,7 @@ func _lay_all() -> void:
 	mouse_f.birth(4, _nest)
 	anole_f.lay(_station(17) + Vector3(0.08, 0.0, -0.06))
 	scorp_f.birth(12)
+	hare_f.birth(4)
 
 
 func _hatch_eggs() -> void:
@@ -1048,6 +1109,25 @@ func _unhandled_input(e: InputEvent) -> void:
 						_spin_orb(sp, randi())
 			KEY_K:
 				_mate_all()
+			KEY_B:
+				for h: HareScript in [hare_f, hare_m]:
+					h.eat(_hare_food_near(h.get("_pos"), h == hare_m))
+				_go(20)
+			KEY_U:
+				hare_f.alert()
+				hare_m.alert()
+				_go(20)
+			KEY_T:
+				hare_f.thump()
+				hare_m.thump()
+				_go(20)
+			KEY_X:
+				for h: HareScript in [hare_f, hare_m]:
+					h.flee(_station(20) + Vector3(-0.6, 0.0, 0.5))
+				_go(20)
+			KEY_N:
+				hare_f.nurse()
+				_go(20)
 			KEY_H:
 				_lizards_hunt()
 			KEY_D:
@@ -1061,6 +1141,8 @@ func _unhandled_input(e: InputEvent) -> void:
 			KEY_Q:
 				mouse_f.groom()
 				mouse_m.groom()
+				hare_f.groom()
+				hare_m.groom()
 				_go(16)
 			KEY_O:
 				for c in get_children():
@@ -1086,12 +1168,12 @@ func _unhandled_input(e: InputEvent) -> void:
 ## To station i (the camera further off for the snakes).
 func _go(i: int) -> void:
 	_at = i
-	_dist = 2.2 if i == 9 or i == 10 else (16.0 if i == 19 else minf(_dist, 0.8))
+	_dist = 2.2 if i == 9 or i == 10 else (16.0 if i == 19 else (2.4 if i == 20 else minf(_dist, 0.8)))
 	_say()
 
 
 func _say() -> void:
-	_label.text = "%s   (Tab / Shift+Tab: the next)\n1 all lay eggs   2 the pupae hatch   3 new pupae   4 the eggs hatch   5 new ant eggs\n6 grasshopper hops   7 flies   8 eats   9 mantis strikes the fly   0 flies   G grooms\nR rattlesnake eats   M milk snake eats   C snakes coil   W off again   Y the young eat   P steered\nF the spiders hunt   S the web spiders spin anew   O the pill bugs roll up   K they mate   E the mice eat   Q they wash\nH the anoles and scorpions hunt   D the anoles display   Space slow motion   drag: turn round   wheel: nearer / further" % NAMES[_at]
+	_label.text = "%s   (Tab / Shift+Tab: the next)\n1 all lay eggs   2 the pupae hatch   3 new pupae   4 the eggs hatch   5 new ant eggs\n6 grasshopper hops   7 flies   8 eats   9 mantis strikes the fly   0 flies   G grooms\nR rattlesnake eats   M milk snake eats   C snakes coil   W off again   Y the young eat   P steered\nF the spiders hunt   S the web spiders spin anew   O the pill bugs roll up   K they mate   E the mice eat   Q they wash\nH the anoles and scorpions hunt   D the anoles display   B the hares browse   U sit up   T thump   X flee   N nurse   Space slow motion   drag: turn round   wheel: nearer / further" % NAMES[_at]
 
 
 func _process(dt: float) -> void:

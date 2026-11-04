@@ -231,6 +231,17 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   haunches, turning it in its forepaws, nibbling it away; washing its face. The female gives birth in her grass nest
   (`Mouse.nest()`), licking each pup clean, then nursing; the pups born pink, hairless, eyes shut, ears folded,
   wriggling where they lie; growing, furred grey, eyes open, up and about, brown as they grow up.
+- `scripts/creatures/hare.gd` (`Hare`, on `hexapod.gd`'s motor, its gait its own): a snowshoe hare (*Lepus
+  americanus*), life size, in its summer coat (`shaders/render/hare.gdshader`: brown, grizzled, darker along the back,
+  white beneath, the hind feet paler, the ears black tipped); long spoon ears turning, laid back, pricked; big eyes
+  high on its sides, the split lip and twitching nose, whiskers, a powder-puff tail; slender forelegs, the huge flat
+  furred hind feet. Hopping (the hind feet pushing off together, a moment in the air, the forefeet down one then the
+  other, the hind feet swung past them to land ahead; slow or bounding, quick to get going); still, hunched in its
+  form. Browsing clover (`Hare.clover()`) or sitting up to a willow shoot (`Hare.twig()`), the jaw grinding side to
+  side; grooming (licking its paws, washing its face, drawing an ear down); sitting up alert; thumping; freezing flat,
+  ears back; fleeing in zigzag bounds. The female gives birth in her form, licks each leveret, nurses them standing
+  over them, leaves them hidden and still (`nurse()`: back to nurse); the leverets born furred, eyes open, hopping soon,
+  growing. Mating: he chases her round, she leaping up; on her from behind, briefly; she leaps away.
 - `scripts/creatures/anole.gd` (`Anole`): a green anole (*Anolis carolinensis*), life size: leaf green above,
   white beneath, finely pebbled, turning brown (still a long while) and green again (`shaders/render/anole.gdshader`:
   its body and tail one skin bent along a spine, the trunk swinging side to side with its stride, the tail waving
@@ -274,9 +285,9 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   wasp's pouncing on her back, stroking her antennae; the snakes', the male crawling up along her back, chin rubbing,
   their tails twisted together; the mice's, the male following her, mounting from behind, thrusting in bouts, then
   washing. `act("mate", {partner})` for any of them (pilot.gd).
-- Not yet in the game: `tools/creatures/life_cycle_demo.tscn`'s last nine stations (F the spiders hunt, S the web
-  spiders spin, O the pill bugs roll; E the mice eat, Q wash; H the anoles and scorpions hunt, D the anoles display;
-  K every pair mates; 1 lay and give birth, 4 hatch, Y the young eat; the last, the desert's plants).
+- Not yet in the game: `tools/creatures/life_cycle_demo.tscn`'s last ten stations (F the spiders hunt, S the web
+  spiders spin, O the pill bugs roll; E the mice eat, Q wash; H the anoles and scorpions hunt, D the anoles display; B the hares browse, U sit up, T thump,
+  X flee, N nurse; K every pair mates; 1 lay and give birth, 4 hatch, Y the young eat; the last, the desert's plants).
 - Steering, for a future state machine (`scripts/creatures/pilot.gd`): every creature (`Wasp`, the
   lepidopterans, `Grasshopper`, `Mantis`, `Snake`, `Larva`; one of a colony: `AntColony.member(i)`) has the same
   calls: `go(direction, speed, seconds)`, `go_to(point, speed)`, `face(direction)`, `stop()`, `act(name, args)`
