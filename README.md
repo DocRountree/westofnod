@@ -292,7 +292,22 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   a shake); a bull's bellow and sparring (head to head, horns locked, pushing back and forth); stampeding at a
   gallop, tail up; a cow's calf born in the open (red orange, no hump or horns), licked, struggling up, suckling at
   her udder, following her, at play (a run and a buck); mating (the bull tending her, his chin on her rump, then on
-  her, briefly). The life cycle demo's last station: two bulls, two cows, a calf.
+  her, briefly). The life cycle demo's bison station: two bulls, two cows, a calf.
+- `scripts/creatures/deer.gd` (`Deer`, *Odocoileus virginianus*, on the hunters' make, a browser's ways): a
+  white-tailed deer, life size (a doe 90 cm at the shoulder, a buck a little bigger); slender and deep chested on
+  long thin legs, small cloven hooves with dewclaws; the long neck carried high, a narrow tapering head, big dark
+  eyes, big mobile ears; the long broad tail, white beneath. Its coat by season (`Deer.new(young, "summer" |
+  "winter")`, `carnivore.gdshader`'s species 7): summer red brown, winter grey brown; white belly, chin, muzzle band,
+  eye rings and throat patch. A buck's antlers (`antlers`: points a side): the beams sweeping out, back and forward,
+  the tines rising off them, the brow tines; in velvet in summer, hard and pale in winter. A fawn red and white
+  spotted. Grazing and browsing (heads up now and then, chewing, looking round, the tail flicking); bedding down,
+  chewing its cud, dozing; alert (head high, stamping a forefoot, the tail half up); fleeing in long bounds, the
+  white flag up and waving; grooming (licking, a hind hoof scratching its neck); a buck's rub on a sapling and his
+  scrape (pawing, then the licking branch), his snort wheeze and lip curl, sparring (antlers locked, twisting,
+  pushing); a doe's twin fawns, licked, up on their feet, then hidden flat in the grass apart; nursing (the fawns
+  come to her, butting, tails wagging), the fawns at play (running in circles, bucking); mating (the buck tending
+  her, his head low, then mounting briefly). The life cycle demo's last station: a summer doe with twins and a buck
+  in velvet; two winter bucks and a winter doe; a shrub to browse (B), a sapling to rub (M).
 - `scripts/creatures/hare.gd` (`Hare`, on `hexapod.gd`'s motor, its gait its own): a snowshoe hare (*Lepus
   americanus*), life size, in its summer coat (`shaders/render/hare.gdshader`: brown, grizzled, darker along the back,
   white beneath, the hind feet paler, the ears black tipped); long spoon ears turning, laid back, pricked; big eyes

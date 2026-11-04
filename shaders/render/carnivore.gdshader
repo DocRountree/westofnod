@@ -23,7 +23,7 @@ uniform float front_z = -400.0;
 //   lower legs black (its stockings); its ears' backs black; its tail
 //   rufous, dark grizzled, its tip white
 // species 2, a coyote; 3, a grey wolf; 4, a black bear; 5, a brown bear;
-//   6, a bison (below)
+//   6, a bison; 7, a white-tailed deer (below)
 // species 1, a bobcat: tawny buff to grey brown, spotted and barred dark
 //   (the legs barred), its belly white, spotted black; the face's ruff
 //   barred; the ears' backs black, a white spot in each, their tufts black;
@@ -129,6 +129,68 @@ void fragment() {
 			c = vec3(0.04, 0.035, 0.03);
 		if (part == 6)
 			c = mix(hind, fore, smoothstep(0.6, 0.9, along));
+	} else if (species == 7) {
+		// 7 a white-tailed deer: summer (phase 0) red brown, darker down the
+		// spine; winter (1) grey brown; white beneath, inside its legs, its
+		// chin, a band behind its nose, a ring round each eye, its throat
+		// patch (part 8, the neck), its tail beneath and its fringe; its
+		// nose and the top of its muzzle dark; its ears edged dark, white
+		// furred within; its hooves black. A fawn red, spotted white in rows
+		// down its back and sides. A buck's antlers (part 7): in velvet
+		// (summer) brown and soft; hard (winter) pale, polished, their tips
+		// paler still.
+		bool winter = phase == 1 && !young;
+		vec3 coat = winter ? vec3(0.42, 0.36, 0.29) : vec3(0.6, 0.33, 0.15);
+		vec3 spine = winter ? vec3(0.3, 0.26, 0.21) : vec3(0.44, 0.24, 0.11);
+		float gz = 0.9 + 0.2 * vn(o * 0.15) * vn(o * 0.05 + 4.0);
+		c = mix(coat, spine, smoothstep(0.6, 0.98, ny)) * gz;
+		float belly = 1.0 - smoothstep(-0.85, -0.6, ny);
+		c = mix(c, white, belly);
+		if (part == 0) {
+			// (the white under its tail, between its hams)
+			c = mix(c, white, smoothstep(430.0, 520.0, o.z) * (1.0 - smoothstep(-0.2, 0.3, ny)));
+			if (young) { // (a fawn's spots: two rows down each side of its spine, more scattered below)
+				float sp = spots(o * vec3(1.0, 1.0, 0.8), 70.0, 0.34);
+				float band = smoothstep(0.05, 0.4, ny) * (1.0 - smoothstep(0.93, 0.99, ny));
+				c = mix(c, white * 0.97, sp * band);
+			}
+		}
+		if (part == 8) { // (the neck: its throat patch, white, up under its jaw)
+			c = mix(c, white, (1.0 - smoothstep(-0.65, -0.3, ny)) * (1.0 - smoothstep(-280.0, -200.0, o.z)) * 0.95);
+			c = mix(c, coat * 0.95, (1.0 - smoothstep(-0.75, -0.45, ny)) * smoothstep(-200.0, -120.0, o.z)); // (no white belly down its neck)
+			if (young) {
+				float sp = spots(o, 60.0, 0.3);
+				c = mix(c, white * 0.97, sp * smoothstep(0.3, 0.6, ny) * 0.6);
+			}
+		}
+		if (part == 1) { // (the face)
+			c = mix(coat, spine, smoothstep(0.4, 0.95, ny)) * gz;
+			float ring = max(1.0 - smoothstep(bare_r * 1.05, bare_r * 1.4, length(o - bare_a)), 1.0 - smoothstep(bare_r * 1.05, bare_r * 1.4, length(o - bare_b)));
+			c = mix(c, white, ring * 0.9);
+			float band = smoothstep(muzzle_z - 30.0, muzzle_z - 12.0, o.z) * (1.0 - smoothstep(muzzle_z + 10.0, muzzle_z + 30.0, o.z));
+			c = mix(c, white, band * 0.9);
+			c = mix(c, vec3(0.12, 0.08, 0.06), (1.0 - smoothstep(muzzle_z - 40.0, muzzle_z - 25.0, o.z)) * smoothstep(-0.2, 0.4, ny)); // (the nose's top dark)
+			c = mix(c, vec3(0.2, 0.13, 0.08), smoothstep(-60.0, -170.0, o.z) * smoothstep(0.75, 0.95, ny) * 0.6); // (the darker forehead line)
+			c = mix(c, white, 1.0 - smoothstep(-0.6, -0.25, ny)); // (its chin)
+		}
+		if (part == 2 || part == 3) { // (its legs: tan, white inside)
+			c = mix(coat * 1.08, spine, 0.15) * gz;
+			if (part == 3)
+				c = mix(c, white * 0.95, 0.25);
+		}
+		if (part == 4) // (its hooves)
+			c = vec3(0.07, 0.065, 0.06);
+		if (part == 5) // (its ears: backed with its coat, edged dark; white furred within)
+			c = o.z > 0.0 ? mix(coat * 0.9, vec3(0.1, 0.08, 0.06), smoothstep(ear_len * 0.85, ear_len, o.y)) : mix(white * 0.88, vec3(0.1, 0.08, 0.06), smoothstep(ear_len * 0.9, ear_len, o.y));
+		if (part == 6) { // (its tail: brown above, a dark line; white beneath and its fringe)
+			c = mix(white, mix(coat, spine * 0.8, 0.6), smoothstep(0.1, 0.55, ny));
+		}
+		if (part == 7) { // (antlers)
+			if (phase == 0)
+				c = vec3(0.36, 0.27, 0.2) * (0.9 + 0.2 * vn(o * 0.3));
+			else
+				c = mix(vec3(0.5, 0.42, 0.32), vec3(0.85, 0.8, 0.7), 0.4 + 0.4 * vn(o * 0.08)) * (0.85 + 0.25 * vn(o * 0.6));
+		}
 	} else if (species >= 4) {
 		// 4 a black bear: glossy black (or cinnamon, brown, blond), its
 		// muzzle tan, now and then a white blaze on its chest; 5 a brown

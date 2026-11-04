@@ -137,8 +137,8 @@ func _build() -> void:
 	var body := _coat(0)
 	var face := _coat(1)
 	var sp := int(S.species)
-	var fl := float(S.get("fur", [22.0, 20.0, 25.0, 40.0, 45.0, 55.0, 60.0][sp])) # (its coat's length, mm)
-	var tl := float(S.get("tail_fur", [55.0, 25.0, 55.0, 70.0, 40.0, 45.0, 45.0][sp]))
+	var fl: float = float(S.fur) if S.has("fur") else [22.0, 20.0, 25.0, 40.0, 45.0, 55.0][sp] # (its coat's length, mm)
+	var tl: float = float(S.tail_fur) if S.has("tail_fur") else [55.0, 25.0, 55.0, 70.0, 40.0, 45.0][sp]
 	if young:
 		fl *= 0.6
 		tl *= 0.5
@@ -943,12 +943,12 @@ func _pose(dt: float) -> void:
 		var lie_lift := (float(S.lie_h) - body_h * (1.0 - 0.45 * _crouch)) * l
 		_lift = bob * (1.0 - maxf(s, l)) + sit_lift * (1.0 - l) + lie_lift
 		_pitch = pitch + float(S.sit_pitch) * s * (1.0 - l) - 0.25 * _stretch * sin(PI * minf(_stretch * 1.5, 1.0))
-		_roll = lerpf(_roll, 1.15 * _side * l + 0.25 * _curl * l, 1.0 - exp(-3.0 * dt)) if _mode not in ["play", "roll_over"] else _roll
+		_roll = lerpf(_roll, 1.15 * _side * l + 0.25 * _curl * l, 1.0 - exp(-3.0 * dt)) if _mode not in ["play", "roll_over", "wallow"] else _roll
 		# (its feet, sitting: the forefeet straight down before it, the
 		# hind folded; lying: the forelegs out before it, the hind under it)
 		for i in 4:
 			if not (s > 0.02 or l > 0.02):
-				if _pose_foot[i] != null and _mode not in ["groom", "mark"]:
+				if _pose_foot[i] != null and _mode not in ["groom", "mark", "alert"]:
 					_pose_foot[i] = null
 				continue
 			var L: Dictionary = legs[i / 2]

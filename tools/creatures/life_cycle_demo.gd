@@ -32,6 +32,9 @@ extends Node3D
 ## black bear, brown bear (life size): a female, a male and another (their
 ##   colour phases: black, cinnamon, brown; brown, grizzled, blond), her
 ##   den, berry bushes, a tree to rub on
+## American bison (life size): two bulls, two cows, a calf, a dust wallow
+## white-tailed deer (life size): a doe with twin fawns and a buck in velvet
+##   (summer); two bucks and a doe (winter); a shrub, a sapling to rub
 ## (every station a male too, but the ants': the female's partner)
 ##
 ## THE KEYS (the same for every creature, acting only on those at the
@@ -64,7 +67,7 @@ const PupaScript := preload("res://scripts/creatures/pupa.gd")
 
 const NAMES := ["monarch", "hummingbird clearwing", "paper wasp", "carpenter ant (queen)", "red harvester (queen)", "June bug", "convergent lady beetle", "differential grasshopper", "Carolina mantis", "eastern diamondback rattlesnake", "eastern milk snake",
 		"Carolina wolf spider", "six-spotted fishing spider", "grass spider (funnel weaver)", "yellow garden spider", "pill bug", "deer mouse",
-		"green anole", "Arizona bark scorpion", "snowshoe hare", "red fox", "bobcat", "coyote", "grey wolf", "American black bear", "brown bear (grizzly)", "American bison"]
+		"green anole", "Arizona bark scorpion", "snowshoe hare", "red fox", "bobcat", "coyote", "grey wolf", "American black bear", "brown bear (grizzly)", "American bison", "white-tailed deer"]
 const SpiderScript := preload("res://scripts/creatures/spider.gd")
 const IsopodScript := preload("res://scripts/creatures/isopod.gd")
 const SnakeScript := preload("res://scripts/creatures/snake.gd")
@@ -84,6 +87,7 @@ const BrownBearScript := preload("res://scripts/creatures/brown_bear.gd")
 const AnoleScript := preload("res://scripts/creatures/anole.gd")
 const ScorpionScript := preload("res://scripts/creatures/scorpion.gd")
 const BisonScript := preload("res://scripts/creatures/bison.gd")
+const DeerScript := preload("res://scripts/creatures/deer.gd")
 const GAP := 0.9 # m between stations
 
 var cam: Camera3D
@@ -142,6 +146,8 @@ var wolf_f: Node3D
 var wolf_m: Node3D
 var _coy_den: Node3D
 var _wolf_den: Node3D
+var _deer_shrub := Vector3.ZERO # (the deer's: to browse)
+var _deer_sapling := Vector3.ZERO # (to rub)
 var _hares := {} # station -> its hare (to be hunted)
 var _pond_mollies: Node3D
 var bears: Array = [] # [female, male, another] each kind: black, brown
@@ -159,7 +165,7 @@ var _moth_perch_n := Vector3.BACK
 
 func _station(i: int) -> Vector3:
 	# (the snakes, life size, given more room)
-	return Vector3(i * GAP + (1.2 if i >= 9 else 0.0) + (1.8 if i >= 10 else 0.0) + (1.6 if i >= 11 else 0.0) + (3.0 if i >= 19 else 0.0) + (4.0 if i >= 20 else 0.0) + (4.0 if i >= 21 else 0.0) + (4.0 if i >= 22 else 0.0) + (5.0 if i >= 23 else 0.0) + (6.0 if i >= 24 else 0.0) + (7.0 if i >= 25 else 0.0) + (9.0 if i >= 26 else 0.0), 0.0, 0.0)
+	return Vector3(i * GAP + (1.2 if i >= 9 else 0.0) + (1.8 if i >= 10 else 0.0) + (1.6 if i >= 11 else 0.0) + (3.0 if i >= 19 else 0.0) + (4.0 if i >= 20 else 0.0) + (4.0 if i >= 21 else 0.0) + (4.0 if i >= 22 else 0.0) + (5.0 if i >= 23 else 0.0) + (6.0 if i >= 24 else 0.0) + (7.0 if i >= 25 else 0.0) + (9.0 if i >= 26 else 0.0) + (9.0 if i >= 27 else 0.0), 0.0, 0.0)
 
 
 func _ready() -> void:
@@ -180,7 +186,7 @@ func _ready() -> void:
 	add_child(sun)
 	# the plain, a hole left in it for the fishing spider's pond
 	var x0 := -0.95
-	var x1 := GAP * 26.0 + 80.0
+	var x1 := GAP * 27.0 + 92.0
 	var pc := _station(12)
 	var grass := Color(0.36, 0.4, 0.22)
 	_box(Vector3((x0 + pc.x - POND_W) * 0.5, -0.005, 0.0), Vector3(pc.x - POND_W - x0, 0.01, 3.0), grass)
@@ -216,6 +222,7 @@ func _ready() -> void:
 	_bear_station(0)
 	_bear_station(1)
 	_bison_station()
+	_deer_station()
 	_male_partners()
 	_new_pupae()
 	_focus = _station(0) + Vector3(0.0, 0.08, 0.0)
@@ -866,6 +873,38 @@ func _bison_station() -> void:
 			ones.append(y)
 
 
+## The deer: in summer, a doe with her twin fawns (spotted) and a buck in
+## velvet; in winter coats, two bucks (hard antlers, to spar) and a doe; a
+## shrub to browse, a sapling to rub.
+func _deer_station() -> void:
+	var c := _station(27)
+	_box(c + Vector3(0.0, 0.0006, 0.0), Vector3(7.0, 0.002, 4.6), Color(0.38, 0.44, 0.22))
+	var shrub := UrsidScript.berry_bush()
+	shrub.position = c + Vector3(-1.6, 0.0, -1.5)
+	add_child(shrub)
+	_deer_shrub = shrub.position
+	_deer_sapling = c + Vector3(2.3, 0.0, -1.6)
+	_box(_deer_sapling + Vector3(0.0, 0.8, 0.0), Vector3(0.05, 1.6, 0.05), Color(0.36, 0.28, 0.2))
+	var herd := [[false, "summer", Vector3(-1.8, 0.0, 0.8)], [true, "summer", Vector3(0.6, 0.0, 1.4)],
+			[true, "winter", Vector3(-0.4, 0.0, -0.8)], [true, "winter", Vector3(2.4, 0.0, -0.2)], [false, "winter", Vector3(1.2, 0.0, 0.3)]]
+	for h: Array in herd:
+		var d: Node3D = DeerScript.new(false, h[1])
+		d.set("male", h[0])
+		add_child(d)
+		var at: Vector3 = c + (h[2] as Vector3)
+		d.call("place", at, randf() * TAU)
+		d.call("graze", at, 1.5)
+		if not h[0] and h[1] == "summer": # (her twins)
+			var ones: Array[Node3D] = d.get("young_ones")
+			for k in 2:
+				var y: Node3D = DeerScript.new(true, "summer")
+				add_child(y)
+				y.call("place", at + Vector3(0.6 + 0.5 * k, 0.0, 0.5 - 0.9 * k), randf() * TAU)
+				y.set("_mother", d)
+				y.set("_mode", "follow")
+				ones.append(y)
+
+
 ## The fishing spider's catch: a molly of the pond's school, come up near
 ## the surface by the spider; then its rush and its lunge.
 func _spider_fish() -> void:
@@ -1439,11 +1478,11 @@ func _do(c: Node, act: String, all: Array) -> void:
 				c.call("seek_food", st, 0.5)
 			elif sc == MantisScript:
 				c.call("stalk", p, 0.15)
-			elif sc == BisonScript:
+			elif sc == BisonScript or sc == DeerScript:
 				if young:
 					c.set("_mode", "follow")
 				else:
-					c.call("graze", p, 3.0)
+					c.call("graze", p, 3.0 if sc == BisonScript else 2.0)
 			elif sc == SpiderScript and c.get("kind") in ["funnel", "argiope"] and not young:
 				pass # (at its web)
 			elif c.has_method("wander"):
@@ -1471,6 +1510,8 @@ func _do(c: Node, act: String, all: Array) -> void:
 				c.call("birth", 4, _nest)
 			elif sc == ScorpionScript:
 				c.call("birth", 12)
+			elif sc == DeerScript:
+				c.call("birth", 2)
 			elif sc == HareScript:
 				c.call("birth", 4)
 			elif c.has_method("birth"): # (the hunters: in their dens)
@@ -1516,6 +1557,8 @@ func _do(c: Node, act: String, all: Array) -> void:
 				c.call("sting", p + Vector3(cos(a), 0.0, sin(a)) * 0.03)
 			elif sc == MouseScript:
 				c.call("wander", p, 0.6)
+			elif sc == DeerScript:
+				c.call("flee", p + Vector3(randf_range(-1, 1), 0.0, randf_range(-1, 1)).normalized() * 3.0)
 			elif sc == BisonScript:
 				c.call("stampede", p + Vector3(randf_range(-1, 1), 0.0, randf_range(-1, 1)).normalized() * 3.0)
 		"display":
@@ -1526,6 +1569,8 @@ func _do(c: Node, act: String, all: Array) -> void:
 			elif sc == BisonScript:
 				if _flag(c, "male") and not young:
 					c.call("bellow")
+			elif sc == DeerScript:
+				c.call("snort" if _flag(c, "male") and not young else "alert")
 			elif c.has_method("howl"):
 				c.call("howl", randf_range(5.0, 8.0))
 			elif c.has_method("stand"):
@@ -1539,7 +1584,9 @@ func _do(c: Node, act: String, all: Array) -> void:
 			if c.has_method("nurse"):
 				c.call("nurse")
 		"forage":
-			if c.has_method("forage"):
+			if sc == DeerScript and not young:
+				c.call("browse", _deer_shrub, 0.6)
+			elif c.has_method("forage"):
 				c.call("forage", st, 2.5)
 		"spin":
 			if sc == SpiderScript and not young:
@@ -1552,7 +1599,10 @@ func _do(c: Node, act: String, all: Array) -> void:
 					else:
 						_spin_orb(c, randi())
 		"mark":
-			if c.has_method("rub"):
+			if sc == DeerScript:
+				if _flag(c, "male") and not young:
+					c.call("mark", _deer_sapling)
+			elif c.has_method("rub"):
 				var k := bears.find(_bear_trio_of(c))
 				if k >= 0:
 					c.call("rub", _rub_trees[k])
@@ -1658,12 +1708,13 @@ func _feed(c: Node, act: String, young: bool, p: Vector3, st: Vector3) -> void:
 		cat.position = at
 		add_child(cat)
 		c.call("feed_on_insect", cat, at, Vector3.UP)
-	elif sc == BisonScript:
+	elif sc == BisonScript or sc == DeerScript:
 		if act == "eat":
-			c.call("graze", p, 3.0)
-		elif _flag(c, "male") and not young: # (H: a bull sparring with the other)
+			if not young:
+				c.call("graze", p, 3.0 if sc == BisonScript else 2.0)
+		elif _flag(c, "male") and not young: # (H: a bull, a buck, sparring with another)
 			for o in _here():
-				if o != c and o.get_script() == BisonScript and _flag(o, "male") and not _young(o):
+				if o != c and o.get_script() == sc and _flag(o, "male") and not _young(o) and (sc == BisonScript or o.get("season") == c.get("season")):
 					c.call("spar", o)
 					break
 	elif c.has_method("browse") and act == "eat": # (a bear: berries)
@@ -1686,7 +1737,7 @@ func _feed(c: Node, act: String, young: bool, p: Vector3, st: Vector3) -> void:
 ## To station i (the camera further off for the snakes).
 func _go(i: int) -> void:
 	_at = i
-	_dist = 2.2 if i == 9 or i == 10 else (2.4 if i == 19 else ((9.0 if i >= 26 else (7.5 if i >= 24 else (5.0 if i >= 22 else 3.6))) if i >= 20 else minf(_dist, 0.8)))
+	_dist = 2.2 if i == 9 or i == 10 else (2.4 if i == 19 else ((6.0 if i >= 27 else (9.0 if i >= 26 else (7.5 if i >= 24 else (5.0 if i >= 22 else 3.6)))) if i >= 20 else minf(_dist, 0.8)))
 	_say()
 
 
