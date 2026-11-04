@@ -183,6 +183,14 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   black-eyed Susan, a yampah and a cattail on the plank), each animation on a key (`godot --path . res://tools/creatures/wasp_demo.tscn`);
   and every other creature beside it, each at its own place (the hummingbird moth and the monarch round a patch of the
   game's flowers, milkweeds among coneflowers, Susans, fleabane, asters and yampah, and a stone, ants round a crumb, June bugs and lady beetles round their leaves), their animations on keys too, Tab following each in turn.
+- `scripts/creatures/hexapod.gd`: a walking insect built from parts (feet planted in a tripod gait, legs reaching
+  hip to foot; leaps, flights, falls on a thread), under `grasshopper.gd` (`Grasshopper`: a differential
+  grasshopper, its herringboned hind legs; walking, hopping, flying, eating; laying an egg pod in the soil, which
+  hatches nymphs up out of the ground) and `mantis.gd` (`Mantis`: a Carolina mantis, its raised prothorax, turning
+  head and raptorial forelegs; stalking with its rocking sway, watching, striking a fly and eating it, grooming,
+  flying; building a foam egg case on a stem, whose nymphs come out along its seam, let down on threads). Their
+  nymphs small, wingless (the mantis's abdomen curled up), growing. Not yet in the game:
+  `tools/creatures/life_cycle_demo.tscn`'s last two stations (keys 6-0, G).
 - Life cycles (not yet in the game): eggs (`scripts/creatures/brood.gd`, `Brood`; `egg.gd`: rice grains, each kind
   its size and colour) laid by the butterflies one to a leaf (the clearwing hovering), by the wasp one to each cell of
   its comb (`Wasp.comb`, `lay_eggs`), by the beetles in a cluster (`AntColony.lay`, a beetle's: tipped tail down; the

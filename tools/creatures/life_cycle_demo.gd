@@ -11,6 +11,9 @@ extends Node3D
 ##   larvae
 ## June bug: the adult, its white grub, curled, on the soil
 ## convergent lady beetle: the adult on a leaf, its larva about
+## differential grasshopper: the adult (a female) and a nymph, a leaf to eat
+## Carolina mantis: the adult (a female) and a nymph, a stem to lay on, a
+##   fly to catch
 ##
 ## 1 every adult lays its eggs (Brood's: the butterflies one to a leaf, the
 ##   wasp one to a cell, the beetles a cluster; not the ants: their queens'
@@ -19,6 +22,8 @@ extends Node3D
 ## 3 new pupae
 ## 4 every egg hatches: the larva out, small, growing (a caterpillar eats
 ##   its shell first); 5 new ant eggs
+## 6 the grasshopper hops   7 it flies   8 it eats at its leaf
+## 9 the mantis strikes at the fly (and eats it)   0 it flies   G it grooms
 ## Tab / Shift+Tab: the next station   Space slow motion
 ## drag: turn round   wheel: nearer / further
 
@@ -32,7 +37,9 @@ const LarvaScript := preload("res://scripts/creatures/larva.gd")
 const BroodScript := preload("res://scripts/creatures/brood.gd")
 const PupaScript := preload("res://scripts/creatures/pupa.gd")
 
-const NAMES := ["monarch", "hummingbird clearwing", "paper wasp", "carpenter ant (queen)", "red harvester (queen)", "June bug", "convergent lady beetle"]
+const NAMES := ["monarch", "hummingbird clearwing", "paper wasp", "carpenter ant (queen)", "red harvester (queen)", "June bug", "convergent lady beetle", "differential grasshopper", "Carolina mantis"]
+const HopperScript := preload("res://scripts/creatures/grasshopper.gd")
+const MantisScript := preload("res://scripts/creatures/mantis.gd")
 const GAP := 0.9 # m between stations
 
 var cam: Camera3D
@@ -54,6 +61,11 @@ var _moth_leaves: Array = []
 var _cells: Array = [] # the comb's cells' mouths (the plain's)
 var _pupae: Array = []
 var _ant_eggs: Array = []
+var hopper: HopperScript
+var mantis: MantisScript
+var _hopper_leaf := Vector3.ZERO
+var _stem_foot := Vector3.ZERO # (where the mantis builds its egg case)
+var _prey: Node3D
 const MOTH_PUPA := Vector3(0.2, 0.002, -0.2) # (off the clearwing's station)
 const MOTH_PUPA_TURN := 0.6
 var _moth_perch := Vector3.ZERO # (a stem by its pupa, to climb and hang from)
@@ -79,7 +91,7 @@ func _ready() -> void:
 	sun.shadow_enabled = true
 	sun.directional_shadow_max_distance = 4.0
 	add_child(sun)
-	_box(Vector3(GAP * 3.0, -0.005, 0.0), Vector3(GAP * 7.0 + 1.0, 0.01, 2.0), Color(0.36, 0.4, 0.22))
+	_box(Vector3(GAP * 4.0, -0.005, 0.0), Vector3(GAP * 9.0 + 1.0, 0.01, 2.0), Color(0.36, 0.4, 0.22))
 	cam = Camera3D.new()
 	cam.near = 0.002
 	cam.far = 60.0
@@ -93,6 +105,8 @@ func _ready() -> void:
 	_wasp_station()
 	_ant_stations()
 	_beetle_stations()
+	_hopper_station()
+	_mantis_station()
 	_new_pupae()
 	_focus = _station(0) + Vector3(0.0, 0.08, 0.0)
 	_say()
@@ -234,6 +248,53 @@ func _ant_pile(k: int) -> void:
 		_ant_eggs.append(e)
 
 
+func _hopper_station() -> void:
+	var c := _station(7)
+	_box(c + Vector3(0.0, 0.0005, 0.0), Vector3(0.4, 0.002, 0.4), Color(0.4, 0.32, 0.2)) # (bare soil, to lay in)
+	Flowers.clump(self, "susan", Vector2(c.x - 0.25, c.z - 0.2), 0.7, Color(0.42, 0.38, 0.28))
+	var leaf := Beetles.leaf()
+	_hopper_leaf = c + Vector3(0.15, 0.0, 0.1)
+	leaf.position = _hopper_leaf
+	leaf.scale = Vector3(1.5, 1.0, 1.5)
+	add_child(leaf)
+	hopper = HopperScript.new()
+	add_child(hopper)
+	hopper.place(c, 0.5)
+	hopper.wander(c, 0.2)
+	var ny := HopperScript.new(true, 0.3)
+	add_child(ny)
+	ny.place(c + Vector3(-0.1, 0.0, 0.12), 2.0)
+	ny.wander(c + Vector3(-0.1, 0.0, 0.12), 0.1)
+
+
+func _mantis_station() -> void:
+	var c := _station(8)
+	# a stem, to build the egg case on
+	_stem_foot = c + Vector3(0.12, 0.0, -0.12)
+	_box(_stem_foot + Vector3(0.0, 0.1, 0.0), Vector3(0.005, 0.2, 0.005), Color(0.4, 0.34, 0.2))
+	var leaf := Beetles.leaf()
+	leaf.position = c + Vector3(-0.12, 0.0, 0.1)
+	add_child(leaf)
+	mantis = MantisScript.new()
+	add_child(mantis)
+	mantis.place(c, 0.3)
+	mantis.stalk(c, 0.15)
+	var ny := MantisScript.new(true, 0.3)
+	add_child(ny)
+	ny.place(c + Vector3(0.1, 0.0, 0.15), 1.0)
+	ny.stalk(c + Vector3(0.1, 0.0, 0.15), 0.08)
+	_new_prey()
+
+
+## A fly on the mantis's leaf, for it to catch.
+func _new_prey() -> void:
+	if is_instance_valid(_prey):
+		return
+	_prey = MantisScript.fly_prey()
+	_prey.position = _station(8) + Vector3(-0.12, 0.002, 0.1)
+	add_child(_prey)
+
+
 func _new_pupae() -> void:
 	for p in _pupae:
 		if is_instance_valid(p):
@@ -262,6 +323,8 @@ func _lay_all() -> void:
 	wasp.lay_eggs(_cells.slice(0, 4), Vector3.UP)
 	june.lay(0, Vector3(-0.05, 0.0, 0.0))
 	lady.lay(0, Vector3(0.02, 0.0, -0.02))
+	hopper.lay(_station(7) + Vector3(0.05, 0.0, -0.08))
+	mantis.lay(_stem_foot + Vector3(0.0, 0.006, 0.0))
 
 
 func _hatch_eggs() -> void:
@@ -272,6 +335,10 @@ func _hatch_eggs() -> void:
 		if is_instance_valid(e):
 			e.call("hatch")
 	_ant_eggs.clear()
+	# the grasshopper's pods and the mantis's egg cases: their nymphs out
+	for p in hopper.pods + mantis.oothecae:
+		if is_instance_valid(p):
+			p.call("hatch")
 
 
 func _hatch_all() -> void:
@@ -298,6 +365,34 @@ func _unhandled_input(e: InputEvent) -> void:
 				_new_pupae()
 			KEY_4:
 				_hatch_eggs()
+			KEY_6:
+				var a := randf() * TAU
+				hopper.hop(_station(7) + Vector3(cos(a), 0.0, sin(a)) * 0.15)
+				_at = 7
+				_say()
+			KEY_7:
+				var a := randf() * TAU
+				hopper.fly(_station(7) + Vector3(cos(a), 0.0, sin(a)) * 0.35)
+				_at = 7
+				_say()
+			KEY_8:
+				hopper.feed(_hopper_leaf + Vector3(0.0, 0.002, 0.0))
+				_at = 7
+				_say()
+			KEY_9:
+				_new_prey()
+				mantis.strike(_prey.position + Vector3(0.0, 0.006, 0.0), _prey)
+				_at = 8
+				_say()
+			KEY_0:
+				var a := randf() * TAU
+				mantis.fly(_station(8) + Vector3(cos(a), 0.0, sin(a)) * 0.3)
+				_at = 8
+				_say()
+			KEY_G:
+				mantis.groom()
+				_at = 8
+				_say()
 			KEY_5:
 				for k in 2:
 					_ant_pile(k)
@@ -317,7 +412,7 @@ func _unhandled_input(e: InputEvent) -> void:
 
 
 func _say() -> void:
-	_label.text = "%s   (Tab / Shift+Tab: the next)\n1 all lay eggs   2 the pupae hatch   3 new pupae   4 the eggs hatch   5 new ant eggs   Space slow motion   drag: turn round   wheel: nearer / further" % NAMES[_at]
+	_label.text = "%s   (Tab / Shift+Tab: the next)\n1 all lay eggs   2 the pupae hatch   3 new pupae   4 the eggs hatch   5 new ant eggs\n6 grasshopper hops   7 flies   8 eats   9 mantis strikes the fly   0 flies   G grooms   Space slow motion   drag: turn round   wheel: nearer / further" % NAMES[_at]
 
 
 func _process(dt: float) -> void:

@@ -19,6 +19,7 @@ const EGGS := {
 	"lady": [1.2, 0.5, Color(0.98, 0.72, 0.12), true], # (yellow-orange, stood on end in clusters)
 	"monarch": [1.2, 0.9, Color(0.93, 0.9, 0.74), true], # (cream, one to a leaf)
 	"hemaris": [1.0, 0.9, Color(0.72, 0.85, 0.6), false], # (glassy pale green, one at a time)
+	"grasshopper": [4.5, 1.1, Color(0.8, 0.66, 0.4), true], # (tan, long, packed upright in a pod in the soil: Grasshopper.Pod)
 }
 ## kind: the hatchling's size (a share of full grown), seconds to grow up
 const HATCHLING := {

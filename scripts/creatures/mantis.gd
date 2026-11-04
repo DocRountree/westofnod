@@ -1,0 +1,556 @@
+class_name Mantis
+extends "res://scripts/creatures/hexapod.gd" # (by path: found whether or not the editor has seen the class yet)
+## A Carolina mantis (Stagmomantis carolina), drawn at twice life size (an
+## adult female about 110 mm long): grey-green to brown, mottled; the
+## prothorax long and narrow, held raised; the head a triangle that turns
+## to look, big eyes at its corners, fine antennae; the raptorial forelegs
+## folded up before it (coxa, a spined femur, the tibia closing back on it
+## like a jackknife); four long thin walking legs; the abdomen broad, flat,
+## the forewings over it (shorter than it: a female's), a dark spot on
+## each, the hindwings smoky under them. A nymph (Mantis.new(true, size)):
+## wingless, slender, its abdomen held curled up over its back; growing.
+## Not yet in the game (tools/creatures/life_cycle_demo.tscn).
+##
+## - stalk(centre, radius): stepping slowly about, rocking side to side
+##   like a leaf in the wind, stopping to watch, the head turning
+## - watch(point): still, its head following point
+## - strike(target, prey): turning to it, up within reach, drawing back,
+##   and the forelegs shooting out and snapping shut; prey (a Node3D:
+##   Mantis.fly_prey()) caught, held to its mouth and eaten; then grooming
+## - groom(): drawing each foreleg through its mouth, cleaning it
+## - fly(to): the forewings up, the hindwings out and whirring, off and
+##   down at `to` (the adult's)
+## - lay(at): an egg case (an ootheca: Ootheca) built at `at` (a point on a
+##   stem behind it, low): the abdomen's tip on it, working side to side,
+##   the foam growing; later hatching (Ootheca.hatch): nymphs out along
+##   its seam, each let down on a thread, and off
+
+const LEGS := [
+	# (the forelegs: raptorial, posed by hand, not walked: these unused)
+	{"hip": Vector3(1.3, -0.8, -12.0), "f": 4.0, "t": 4.0, "s": 2.0, "home": Vector2(4.0, -16.0), "dangle": Vector3(2.0, -3.0, -14.0), "walks": false, "r": 0.3},
+	{"hip": Vector3(1.6, -0.9, -3.0), "f": 12.0, "t": 11.0, "s": 6.0, "home": Vector2(15.0, -6.0), "dangle": Vector3(6.0, -7.0, -4.0), "pole": Vector3(0.45, 1.0, -0.2), "r": 0.38},
+	{"hip": Vector3(1.8, -0.9, -0.5), "f": 14.0, "t": 13.0, "s": 7.0, "home": Vector2(14.0, 10.0), "dangle": Vector3(6.0, -7.0, 8.0), "pole": Vector3(0.5, 1.0, 0.25), "r": 0.38},
+]
+
+var oothecae: Array[Node3D] = [] ## the egg cases it's built (in its parent)
+var _mode := "idle"
+var _centre := Vector3.ZERO
+var _radius := 0.2
+var _wait := 0.0
+var _st := 0.0
+var _stage := 0
+var _at := Vector3.ZERO
+var _look := Vector3.INF # (its parent's space)
+var _prey: Node3D
+var _held := false
+var _pro: Node3D # the prothorax (raised)
+var _head: Node3D
+var _jaws: Array[Node3D] = []
+var _antennae: Array[Node3D] = []
+var _abdomen: Node3D
+var _teg: Array[Node3D] = []
+var _hind: Array[Node3D] = []
+var _fore: Array = [] # each side: [coxa, femur, tibia] pivots
+# the forelegs' pose (rad: the coxa forward, the femur from it, the tibia
+# closed on the femur), each side, what's asked and as it is
+var _ask := [Vector3(0.45, 2.55, 2.85), Vector3(0.45, 2.55, 2.85)]
+var _now := [Vector3(0.45, 2.55, 2.85), Vector3(0.45, 2.55, 2.85)]
+var _fore_rate := 8.0
+var _pro_pitch := 0.5
+var _chew := 0.0
+var _wings := 0.0
+var _ooth: Node3D
+var _sw := 0.0
+
+
+func _init(nymph_ := false, size_ := 1.0) -> void:
+	super(nymph_, size_)
+	legs = LEGS
+	tripod = [[2, 5], [3, 4]]
+	body_h = 7.5
+	walk_speed = 0.02
+	stride = 9.0
+	step_time = 0.2
+
+
+func _build() -> void:
+	var green := Color(0.47, 0.5, 0.3) if not nymph else Color(0.55, 0.5, 0.36)
+	var body := _mat(green, 0.55)
+	var pale := _mat(green.lightened(0.15), 0.55)
+	var eye := _mat(Color(0.55, 0.6, 0.42), 0.15)
+	# the prothorax, long and narrow, raised from its joint
+	_pro = Node3D.new()
+	_pro.position = Vector3(0.0, 0.8, -4.0)
+	_body.add_child(_pro)
+	_pro.add_child(_mesh(_loft([[0.6, 0.0, 0.4, 0.4], [0.0, 0.0, 1.6, 1.4], [-2.0, 0.0, 1.8, 1.5], [-4.5, 0.1, 1.15, 1.1], [-10.0, 0.2, 1.0, 1.0], [-14.0, 0.2, 1.5, 1.25], [-16.5, 0.2, 1.0, 0.9], [-17.2, 0.2, 0.3, 0.3]]), body))
+	# the head: a triangle, the eyes at its corners; it turns to look
+	_head = Node3D.new()
+	_head.position = Vector3(0.0, 0.6, -17.0)
+	_pro.add_child(_head)
+	_part(Vector3(0.0, 0.5, -1.2), Vector3(6.0, 4.2, 3.0), body, _head)
+	_part(Vector3(0.0, -1.2, -1.8), Vector3(2.6, 2.6, 1.8), pale, _head)
+	for side: float in [-1.0, 1.0]:
+		_part(Vector3(2.8 * side, 1.1, -1.4), Vector3(2.4, 3.2, 2.6), eye, _head)
+		var j := Node3D.new()
+		j.position = Vector3(0.5 * side, -2.4, -2.2)
+		_head.add_child(j)
+		_part(Vector3(0.0, -0.3, -0.2), Vector3(0.9, 1.0, 0.8), _mat(Color(0.2, 0.15, 0.08), 0.4), j)
+		j.set_meta("side", side)
+		_jaws.append(j)
+		var an := Node3D.new()
+		an.position = Vector3(0.6 * side, 1.7, -2.4)
+		_head.add_child(an)
+		var p := Vector3.ZERO
+		var d := Vector3(0.35 * side, 0.6, -0.72).normalized()
+		for k in 10:
+			var q := p + d * (1.7 if not nymph else 1.2)
+			_stick(p, q, 0.13, _mat(Color(0.35, 0.3, 0.2), 0.5), an)
+			p = q
+			d = (d + Vector3(0.02 * side, -0.02, 0.03)).normalized()
+		_antennae.append(an)
+	# the raptorial forelegs, from the prothorax's front: coxa, femur (its
+	# spines), tibia (its hook), tarsus
+	for side: float in [-1.0, 1.0]:
+		var cx := Node3D.new()
+		cx.position = Vector3(1.2 * side, -1.0, -14.0)
+		_pro.add_child(cx)
+		_stick(Vector3.ZERO, Vector3(0.0, -8.0, 0.0), 0.75, body, cx)
+		var fm := Node3D.new()
+		fm.position = Vector3(0.0, -8.0, 0.0)
+		cx.add_child(fm)
+		_part(Vector3(0.0, -5.5, 0.0), Vector3(1.8, 11.5, 1.4), body, fm)
+		for k in 5: # (its spines, along its inner edge)
+			var sp := Vector3(0.0, -2.0 - k * 1.9, 0.6)
+			_stick(sp, sp + Vector3(0.0, -0.5, 1.0), 0.12, _mat(Color(0.15, 0.12, 0.08), 0.4), fm)
+		var tb := Node3D.new()
+		tb.position = Vector3(0.0, -11.0, 0.0)
+		fm.add_child(tb)
+		_stick(Vector3.ZERO, Vector3(0.0, -6.0, 0.0), 0.45, body, tb)
+		_stick(Vector3(0.0, -6.0, 0.0), Vector3(0.0, -6.0, 1.2), 0.2, body, tb) # (its hook)
+		_stick(Vector3(0.0, -5.0, 0.0), Vector3(0.0, -8.5, -1.5), 0.2, body, tb) # (the tarsus)
+		_fore.append([cx, fm, tb])
+	# the thorax behind it, the abdomen broad and flat (a nymph's curled up)
+	_part(Vector3(0.0, 0.3, -1.6), Vector3(3.6, 3.0, 8.0), body)
+	_abdomen = Node3D.new()
+	_abdomen.position = Vector3(0.0, 0.3, 2.0)
+	_body.add_child(_abdomen)
+	var ab := [[0.0, 0.0, 0.6, 0.6], [1.0, 0.0, 2.8, 2.0], [6.0, 0.1, 3.6, 2.4], [12.0, 0.1, 3.6, 2.4], [18.0, -0.1, 2.8, 2.0], [23.0, -0.3, 1.6, 1.2], [25.5, -0.3, 0.4, 0.4]]
+	if nymph:
+		ab = [[0.0, 0.0, 0.5, 0.5], [1.0, 0.0, 1.8, 1.6], [6.0, 0.1, 2.2, 1.8], [12.0, 0.1, 2.0, 1.7], [17.0, 0.0, 1.3, 1.1], [19.5, 0.0, 0.3, 0.3]]
+	_abdomen.add_child(_mesh(_loft(ab), pale))
+	# the wings: the adult's forewings flat over the abdomen, a dark spot on
+	# each; the hindwings, smoky, folded away under them
+	if not nymph:
+		for side: float in [-1.0, 1.0]:
+			var h := Node3D.new()
+			h.position = Vector3(0.7 * side, 2.0, -4.5)
+			_body.add_child(h)
+			h.set_meta("side", side)
+			_part(Vector3(1.1 * side, 0.0, 10.5), Vector3(4.6, 0.3, 21.0), _mat(Color(0.5, 0.5, 0.33), 0.5), h)
+			_part(Vector3(1.6 * side, 0.2, 7.5), Vector3(1.3, 0.35, 1.5), _mat(Color(0.18, 0.15, 0.1), 0.5), h)
+			_teg.append(h)
+			var hw := Node3D.new()
+			hw.position = Vector3(0.7 * side, 1.6, -3.5)
+			_body.add_child(hw)
+			hw.set_meta("side", side)
+			var mem := _mat(Color(0.42, 0.36, 0.3, 0.55), 0.3)
+			mem.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+			mem.cull_mode = BaseMaterial3D.CULL_DISABLED
+			_part(Vector3(11.0 * side, 0.0, 8.0), Vector3(22.0, 0.15, 19.0), mem, hw)
+			_hind.append(hw)
+	_build_legs(body, body)
+	for i in [0, 1]: # (the unused walking forelegs: hidden)
+		for m: MeshInstance3D in _leg_mesh[i]:
+			m.visible = false
+
+
+func _mesh(m: Mesh, mat: Material) -> MeshInstance3D:
+	var mi := MeshInstance3D.new()
+	mi.mesh = m
+	mi.material_override = mat
+	return mi
+
+
+## A fly for it to catch (twice life size, ~16 mm): a black body, clear
+## wings; its origin where it stands.
+static func fly_prey() -> Node3D:
+	var root := Node3D.new()
+	var s := SphereMesh.new()
+	s.radius = 0.5
+	s.height = 1.0
+	s.radial_segments = 10
+	s.rings = 6
+	var black := StandardMaterial3D.new()
+	black.albedo_color = Color(0.05, 0.05, 0.06)
+	black.roughness = 0.35
+	var wing := StandardMaterial3D.new()
+	wing.albedo_color = Color(0.85, 0.88, 0.9, 0.35)
+	wing.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	for p in [[Vector3(0.0, 0.004, 0.0), Vector3(0.007, 0.006, 0.013)], [Vector3(0.0, 0.005, -0.008), Vector3(0.006, 0.005, 0.005)]]:
+		var mi := MeshInstance3D.new()
+		mi.mesh = s
+		mi.position = p[0]
+		mi.scale = p[1]
+		mi.material_override = black
+		root.add_child(mi)
+	for side: float in [-1.0, 1.0]:
+		var w := MeshInstance3D.new()
+		w.mesh = s
+		w.position = Vector3(0.005 * side, 0.007, 0.004)
+		w.scale = Vector3(0.006, 0.0005, 0.011)
+		w.rotation.y = 0.4 * side
+		w.material_override = wing
+		root.add_child(w)
+	return root
+
+
+# --- what it does --------------------------------------------------------------
+
+func stalk(centre: Vector3, radius: float) -> void:
+	_mode = "stalk"
+	_centre = centre
+	_radius = radius
+	_wait = 0.0
+
+
+func watch(point: Vector3) -> void:
+	_mode = "watch"
+	_look = point
+	_target = _pos
+
+
+func strike(target: Vector3, prey: Node3D = null) -> void:
+	_mode = "strike"
+	_at = target
+	_prey = prey
+	_held = false
+	_stage = 0
+	_st = 0.0
+
+
+func groom() -> void:
+	_mode = "groom"
+	_st = 0.0
+	_target = _pos
+
+
+func fly(to: Vector3) -> void:
+	if nymph:
+		return
+	_mode = "fly"
+	_at = to
+	_stage = 0
+	_st = 0.0
+
+
+func lay(at: Vector3) -> void:
+	if nymph:
+		return
+	_mode = "lay"
+	_at = at
+	_stage = 0
+	_st = 0.0
+
+
+func _rest_fore() -> void:
+	_ask = [Vector3(0.45, 2.55, 2.85), Vector3(0.45, 2.55, 2.85)]
+	_fore_rate = 8.0
+
+
+func _think(dt: float) -> void:
+	_wait -= dt
+	_st += dt
+	_chew = 0.0
+	var moving := _speed > 0.003
+	# rocking like a leaf in the wind as it goes (and a little standing)
+	_sw += dt * (2.2 if moving else 0.8)
+	_sway = sin(_sw) * (0.09 if moving else 0.025)
+	match _mode:
+		"stalk":
+			_rest_fore()
+			if _wait <= 0.0:
+				var a := rng.randf() * TAU
+				if rng.randf() < 0.45:
+					_target = _pos
+					_look = _pos + Vector3(cos(a), 0.0, sin(a)) * 0.1 + Vector3.UP * rng.randf_range(0.0, 0.05)
+				else:
+					_target = _centre + Vector3(cos(a), 0.0, sin(a)) * sqrt(rng.randf()) * _radius
+					_look = Vector3.INF
+				_wait = rng.randf_range(2.5, 6.0)
+		"watch":
+			_rest_fore()
+			_target = _pos
+		"strike":
+			var reach := 20.0 * MM * size # (from its middle, the forelegs out)
+			match _stage:
+				0: # turning to it, up within reach, watching it
+					_look = _at
+					var to := _at - _pos
+					to.y = 0.0
+					_target = _at - to.normalized() * reach if to.length() > reach * 1.1 else _pos
+					if to.length() <= reach * 1.15 and _speed < 0.004:
+						_turn_to = atan2(-to.x, -to.z)
+						_stage = 1
+						_st = 0.0
+				1: # drawing back, ready
+					_pro_pitch = 0.3
+					_lift = -1.0
+					_ask = [Vector3(0.3, 2.7, 2.9), Vector3(0.3, 2.7, 2.9)]
+					if _st > 0.5:
+						_stage = 2
+						_st = 0.0
+				2: # out! (a tenth of a second)
+					_fore_rate = 40.0
+					_pro_pitch = 0.1
+					_lift = 1.5
+					_ask = [Vector3(1.35, 0.9, 0.5), Vector3(1.35, 0.9, 0.5)]
+					if _st > 0.09:
+						_stage = 3
+						_st = 0.0
+				3: # snapped shut, drawn in, holding it at its mouth
+					_ask = [Vector3(0.95, 2.1, 2.95), Vector3(0.95, 2.1, 2.95)]
+					_fore_rate = 18.0
+					_lift = 0.0
+					_pro_pitch = 0.4
+					if _prey and not _held and _st > 0.05:
+						_held = true
+					if _st > 0.6:
+						_stage = 4 if _prey else 5
+						_st = 0.0
+				4: # eating it
+					_chew = 1.0
+					_look = Vector3.INF
+					if _prey:
+						var k := clampf(1.0 - _st / 9.0, 0.05, 1.0)
+						_prey.scale = Vector3.ONE * k
+					if _st > 9.0:
+						if _prey:
+							_prey.queue_free()
+						_prey = null
+						_held = false
+						groom()
+				5:
+					_rest_fore()
+					stalk(_pos, 0.15)
+		"groom":
+			# each foreleg drawn through the mouth in turn
+			var side_i := 0 if fmod(_st, 6.0) < 3.0 else 1
+			_ask = [Vector3(0.45, 2.55, 2.85), Vector3(0.45, 2.55, 2.85)]
+			_ask[side_i] = Vector3(0.15, 2.95, 2.5 + 0.2 * sin(_st * 5.0))
+			_chew = 0.7
+			if _st > 12.0:
+				stalk(_pos, 0.15)
+		"fly":
+			match _stage:
+				0:
+					_wings = minf(_wings + dt * 3.0, 1.0)
+					if _st > 0.5:
+						_steer = Vector3(_at.x, ground_y + 0.12, _at.z)
+						_steer_speed = 0.6
+						airborne = true
+						_alt = 0.002
+						_stage = 1
+				1:
+					var d := Vector2(_at.x - _pos.x, _at.z - _pos.z).length()
+					_steer = Vector3(_at.x, ground_y + clampf(d * 0.5, 0.0, 0.15), _at.z)
+					if d < 0.04:
+						_steer = Vector3.INF
+						_slow_fall = true
+						_stage = 2
+		"lay":
+			match _stage:
+				0: # to stand with its back to the stem, its abdomen's tip on it
+					var back := 26.0 * MM * size
+					var away := _pos - _at
+					away.y = 0.0
+					away = away.normalized() if away.length() > 1e-4 else Vector3.FORWARD
+					_target = _at + away * back
+					if _pos.distance_to(_target) < 0.004 and _speed < 0.004:
+						_turn_to = atan2(-away.x, -away.z) # (its head away from the stem, its tail to it)
+						_stage = 1
+						_st = 0.0
+				1: # the abdomen's tip down on it, working side to side, the foam growing
+					_abdomen.rotation.y = 0.18 * sin(_st * 3.0)
+					if _ooth == null:
+						_ooth = Ootheca.new()
+						_ooth.maker = get_script()
+						get_parent().add_child(_ooth)
+						_ooth.position = _at
+						_ooth.rotation.y = _yaw
+						oothecae.append(_ooth)
+					_ooth.set("built", clampf(_st / 8.0, 0.02, 1.0))
+					if _st > 8.0:
+						_abdomen.rotation.y = 0.0
+						_ooth = null
+						stalk(_pos, 0.15)
+
+
+func _on_landed() -> void:
+	_steer = Vector3.INF
+	_wings = 0.0
+	if _mode == "fly":
+		stalk(_pos, 0.15)
+
+
+## Let down from p on a thread (a hatchling, from its egg case): falling
+## slowly, its legs out.
+func drop(p: Vector3) -> void:
+	_pos = Vector3(p.x, ground_y, p.z)
+	_alt = maxf(p.y - ground_y - body_h * MM * size, 0.001)
+	airborne = true
+	_slow_fall = true
+	_vel = Vector3.ZERO
+	_place()
+
+
+func _pose(dt: float) -> void:
+	_pro.rotation.x = -_pro_pitch # (raised: its front up)
+	_pro_pitch = lerpf(_pro_pitch, 0.5, 1.0 - exp(-2.0 * dt)) if _mode != "strike" else _pro_pitch
+	# the head following what it watches
+	var yaw_to := 0.0
+	var pitch_to := 0.0
+	if _look != Vector3.INF:
+		var hp := _out(_pro.position + Vector3(0.0, 0.0, -17.0))
+		var d := _look - hp
+		var local := transform.basis.inverse() * d
+		yaw_to = clampf(atan2(-local.x, -local.z), -1.2, 1.2)
+		pitch_to = clampf(atan2(local.y, Vector2(local.x, local.z).length()), -0.9, 0.6)
+	_head.rotation = _head.rotation.lerp(Vector3(pitch_to + _pro_pitch * 0.8 - 0.3 * _chew, yaw_to, 0.0), 1.0 - exp(-6.0 * dt))
+	for j in _jaws:
+		var side: float = j.get_meta("side")
+		j.rotation.y = side * 0.4 * _chew * (0.5 + 0.5 * sin(_t * 11.0))
+	for k in _antennae.size():
+		_antennae[k].rotation = Vector3(0.1 * sin(_t * 1.1 + k * 2.0), 0.12 * sin(_t * 0.7 + k), 0.0)
+	# the forelegs, easing to what's asked
+	for s in 2:
+		var now: Vector3 = _now[s]
+		now = now.lerp(_ask[s], 1.0 - exp(-_fore_rate * dt))
+		_now[s] = now
+		var parts: Array = _fore[s]
+		(parts[0] as Node3D).rotation.x = now.x
+		(parts[1] as Node3D).rotation.x = now.y
+		(parts[2] as Node3D).rotation.x = now.z
+	# the prey, held in the forelegs at its mouth
+	if _held and _prey:
+		var tb: Node3D = _fore[0][2]
+		_prey.global_position = tb.global_transform * Vector3(0.0, -3.5, 0.0)
+	# the abdomen: a nymph's curled up over its back
+	_abdomen.rotation.x = -0.75 if nymph else 0.0
+	# the wings
+	var beat := sin(_t * TAU * 20.0)
+	for h in _teg:
+		var side: float = h.get_meta("side")
+		h.rotation = Vector3(-0.5 * _wings, 0.0, side * 1.1 * _wings)
+	for h in _hind:
+		var side: float = h.get_meta("side")
+		h.scale = Vector3(lerpf(0.05, 1.0, _wings), 1.0, lerpf(0.5, 1.0, _wings))
+		h.rotation = Vector3(0.0, 0.0, side * (0.2 + 0.8 * beat) * _wings)
+		h.visible = _wings > 0.02
+
+
+## A mantis's egg case (an ootheca), built by lay() on a stem: a rounded
+## block of tan foam, ridged across, a seam down its front (built: how far
+## along, 0..1). hatch(): the nymphs out along the seam one after another,
+## each let down on a silk thread, and off stalking, small, to grow.
+class Ootheca extends Node3D:
+	const MM := 0.002
+	var maker: Script # (the mantis's script: its nymphs)
+	var built := 1.0
+	var nymphs: Array[Node3D] = []
+	var _parts: Array[MeshInstance3D] = []
+	var _left := 0
+	var _t := 0.0
+	var _threads: Array = [] # [nymph, thread mesh, from]
+
+	func _ready() -> void:
+		var foam := StandardMaterial3D.new()
+		foam.albedo_color = Color(0.72, 0.62, 0.45)
+		foam.roughness = 0.95
+		var ridge := StandardMaterial3D.new()
+		ridge.albedo_color = Color(0.62, 0.52, 0.37)
+		ridge.roughness = 0.95
+		var s := SphereMesh.new()
+		s.radius = 0.5
+		s.height = 1.0
+		s.radial_segments = 12
+		s.rings = 7
+		# (laid up the stem from its foot: built upward, y)
+		var body := MeshInstance3D.new()
+		body.mesh = s
+		body.material_override = foam
+		add_child(body)
+		_parts.append(body)
+		for k in 7:
+			var r := MeshInstance3D.new()
+			r.mesh = s
+			r.material_override = ridge
+			add_child(r)
+			_parts.append(r)
+		var seam := MeshInstance3D.new()
+		seam.mesh = s
+		seam.material_override = ridge
+		add_child(seam)
+		_parts.append(seam)
+		_shape()
+
+	func _shape() -> void:
+		var h := 22.0 * built
+		_parts[0].scale = Vector3(13.0, h, 10.0) * MM
+		_parts[0].position = Vector3(0.0, h * 0.5 + 2.0, 0.0) * MM
+		for k in 7:
+			var y := (2.0 + h * (k + 0.5) / 7.0)
+			_parts[1 + k].scale = Vector3(13.6, 0.9, 10.5) * MM * (0.0 if (k + 0.5) / 7.0 > built + 0.05 else 1.0)
+			_parts[1 + k].position = Vector3(0.0, y, 0.0) * MM
+		_parts[8].scale = Vector3(2.0, h * 0.95, 1.0) * MM
+		_parts[8].position = Vector3(0.0, h * 0.5 + 2.0, -4.8) * MM
+
+	## Hatching: n nymphs out along its seam, one by one, let down on threads.
+	func hatch(n := 8) -> void:
+		if _left > 0 or maker == null:
+			return
+		_left = n
+		_t = 0.0
+
+	func _process(dt: float) -> void:
+		_shape()
+		_t += dt
+		if _left > 0 and _t > 0.6:
+			_t = 0.0
+			_left -= 1
+			var parent := get_parent() as Node3D
+			var ny: Node3D = maker.new(true, 0.18)
+			parent.add_child(ny)
+			var from := global_transform * (Vector3(randf_range(-1.0, 1.0), 6.0 + randf() * 14.0, -5.5) * MM)
+			from = parent.to_local(from)
+			ny.set("ground_y", position.y)
+			ny.call("place", Vector3(from.x, position.y, from.z), randf() * TAU)
+			ny.call("drop", from)
+			ny.call("stalk", Vector3(from.x, position.y, from.z), 0.12)
+			ny.call("grow", 0.6, 90.0)
+			nymphs.append(ny)
+			var th := MeshInstance3D.new()
+			var cyl := CylinderMesh.new()
+			cyl.top_radius = 0.5
+			cyl.bottom_radius = 0.5
+			cyl.height = 1.0
+			cyl.radial_segments = 3
+			th.mesh = cyl
+			var silk := StandardMaterial3D.new()
+			silk.albedo_color = Color(0.95, 0.95, 0.95, 0.6)
+			silk.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+			th.material_override = silk
+			parent.add_child(th)
+			_threads.append([ny, th, from])
+		# the threads, from the seam down to each falling nymph, gone once it's down
+		for k in range(_threads.size() - 1, -1, -1):
+			var e: Array = _threads[k]
+			var ny: Node3D = e[0]
+			var th: MeshInstance3D = e[1]
+			if not is_instance_valid(ny) or not bool(ny.get("airborne")):
+				th.queue_free()
+				_threads.remove_at(k)
+				continue
+			var a: Vector3 = e[2]
+			var b := ny.position
+			var d := b - a
+			th.transform = Transform3D(Basis(Vector3(0.0003, 0.0, 0.0), d if d.length() > 1e-5 else Vector3(0.0, 1e-5, 0.0), Vector3(0.0, 0.0, 0.0003)), (a + b) * 0.5)
