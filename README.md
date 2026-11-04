@@ -231,6 +231,24 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   haunches, turning it in its forepaws, nibbling it away; washing its face. The female gives birth in her grass nest
   (`Mouse.nest()`), licking each pup clean, then nursing; the pups born pink, hairless, eyes shut, ears folded,
   wriggling where they lie; growing, furred grey, eyes open, up and about, brown as they grow up.
+- `scripts/creatures/carnivore.gd`, the four-legged hunters' make (on `hexapod.gd`'s motor), life size, under
+  `red_fox.gd` (`RedFox`: rufous, grizzled, white beneath, black stockings, a narrow white-sided muzzle, amber slit-pupilled
+  eyes, big black-backed ears, a full brush tipped white) and `bobcat.gd` (`Bobcat`: tawny to grey, spotted and barred,
+  a barred ruff, white about the eyes, black-backed tufted ears with a white spot, a short barred tail black-tipped
+  above); coats by `shaders/render/carnivore.gdshader`. Digitigrade legs (upper, lower, the long metapodial, the paw on
+  its toes; a lifted paw curled); gaits by speed, each foot planted where it's set down: a walk (each foot in turn), a
+  trot (the diagonals), a gallop (the back flexing, rising and pitching); the head on its neck, looking, sniffing; the
+  ears turning, pricked, laid back; the tail carried low walking, out behind running, low stalking, curled round its
+  feet sitting and round its nose asleep. Wandering (sniffing, looking, sitting, marking: the fox squatting, the bobcat
+  scraping); hunting (stalking low and slow, freezing; the fox listening, head cocked, then its high arcing pounce
+  diving nose first; the bobcat treading, tail tip twitching, then the rush and the spring), the prey (a deer mouse,
+  a snowshoe hare: anything with die()) killed, carried, eaten (tearing, chewing, it shrinking away); grooming (a
+  forepaw licked, the face washed, a flank licked); sitting; sleeping curled, then a stretch. The female gives birth in
+  her den (`RedFox.den()`: a mound of dug earth; `Bobcat.den()`: a shelter of rocks), lying on her side, licking each;
+  nursing them at her belly; the young born blind and helpless (a fox kit dark grey brown, a kitten spotted, greyer),
+  wriggling to her, growing, eyes open, following her, playing (stalking, pouncing on one another, tumbling). Mating:
+  the fox's tie (he mounts her, then turns round off her, and they stand tail to tail a long while); the bobcat's
+  nape bite, brief, then she rolls on her back and he springs away.
 - `scripts/creatures/hare.gd` (`Hare`, on `hexapod.gd`'s motor, its gait its own): a snowshoe hare (*Lepus
   americanus*), life size, in its summer coat (`shaders/render/hare.gdshader`: brown, grizzled, darker along the back,
   white beneath, the hind feet paler, the ears black tipped); long spoon ears turning, laid back, pricked; big eyes
@@ -285,9 +303,10 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   wasp's pouncing on her back, stroking her antennae; the snakes', the male crawling up along her back, chin rubbing,
   their tails twisted together; the mice's, the male following her, mounting from behind, thrusting in bouts, then
   washing. `act("mate", {partner})` for any of them (pilot.gd).
-- Not yet in the game: `tools/creatures/life_cycle_demo.tscn`'s last ten stations (F the spiders hunt, S the web
+- Not yet in the game: `tools/creatures/life_cycle_demo.tscn`'s last twelve stations (F the spiders hunt, S the web
   spiders spin, O the pill bugs roll; E the mice eat, Q wash; H the anoles and scorpions hunt, D the anoles display; B the hares browse, U sit up, T thump,
-  X flee, N nurse; K every pair mates; 1 lay and give birth, 4 hatch, Y the young eat; the last, the desert's plants).
+  X flee, N nurse; J the fox and bobcat hunt, L sleep, I groom, Z mark, A sit, V their young play;
+  K every pair mates; 1 lay and give birth, 4 hatch, Y the young eat; the last, the desert's plants).
 - Steering, for a future state machine (`scripts/creatures/pilot.gd`): every creature (`Wasp`, the
   lepidopterans, `Grasshopper`, `Mantis`, `Snake`, `Larva`; one of a colony: `AntColony.member(i)`) has the same
   calls: `go(direction, speed, seconds)`, `go_to(point, speed)`, `face(direction)`, `stop()`, `act(name, args)`
