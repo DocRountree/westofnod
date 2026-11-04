@@ -1,18 +1,21 @@
 extends Node3D
-## A plain to watch beetles (Beetles) on, their two animations on keys:
+## A plain to watch beetles on, June bugs (JuneBeetles) and convergent lady
+## beetles (LadyBeetles), their two animations on keys:
 ## godot --path . res://tools/creatures/beetle_demo.tscn
 ##
 ## 1 all walking about   2 all to the leaves, eating   3 half and half
-## + / - more or fewer beetles (every one drawn by the shader)
+## + / - more or fewer of each (every one drawn by the shader)
 ## Space slow motion   drag: turn round   wheel: nearer / further
 ## For the scale, a pawpaw and a black-eyed Susan lying by (Items).
 
-var colony: Beetles
+const JuneScript := preload("res://scripts/creatures/june_beetles.gd")
+const LadyScript := preload("res://scripts/creatures/lady_beetles.gd")
+var colonies: Array = [] # the June bugs, the lady beetles
 var cam: Camera3D
 var _yaw := 0.7
 var _pitch := -0.6
 var _dist := 0.35
-var _count := 12
+var _count := 6
 var _label: Label
 
 const CRUMBS := [Vector3(0.09, 0.0, -0.06), Vector3(-0.1, 0.0, 0.07)] # (the leaves)
@@ -64,28 +67,31 @@ func _ready() -> void:
 
 
 func _make() -> void:
-	if colony:
-		colony.queue_free()
-	colony = Beetles.new()
-	add_child(colony)
-	colony.setup(_count, Vector3.ZERO, 0.22)
-	_label.text = "%d beetles   1 walk about   2 eat at the leaves   3 half and half   + / - more or fewer   Space slow motion   drag: turn round   wheel: nearer / further" % _count
+	for c in colonies:
+		c.queue_free()
+	colonies = [JuneScript.new(), LadyScript.new()]
+	for c in colonies:
+		add_child(c)
+		c.setup(_count, Vector3.ZERO, 0.22)
+	_label.text = "%d June bugs and %d lady beetles   1 walk about   2 eat at the leaves   3 half and half   + / - more or fewer   Space slow motion   drag: turn round   wheel: nearer / further" % [_count, _count]
 
 
 func _unhandled_input(e: InputEvent) -> void:
 	if e is InputEventKey and e.pressed and not e.echo:
 		match e.keycode:
 			KEY_1:
-				for i in _count:
-					colony.wander(i, Vector3.ZERO, 0.22)
+				for c in colonies:
+					for i in _count:
+						c.wander(i, Vector3.ZERO, 0.22)
 			KEY_2, KEY_3:
-				for i in _count:
-					if e.keycode == KEY_3 and i % 2 == 1:
-						colony.wander(i, Vector3.ZERO, 0.22)
-					else:
-						# (each its own place on its leaf)
-						var leaf: Vector3 = CRUMBS[i % CRUMBS.size()]
-						colony.feed(i, leaf + Vector3(randf_range(-0.02, 0.02), 0.0, randf_range(-0.035, 0.035)))
+				for c in colonies:
+					for i in _count:
+						if e.keycode == KEY_3 and i % 2 == 1:
+							c.wander(i, Vector3.ZERO, 0.22)
+						else:
+							# (each its own place on its leaf)
+							var leaf: Vector3 = CRUMBS[i % CRUMBS.size()]
+							c.feed(i, leaf + Vector3(randf_range(-0.02, 0.02), 0.0, randf_range(-0.035, 0.035)))
 			KEY_EQUAL, KEY_PLUS, KEY_KP_ADD:
 				_count = mini(_count * 2, 1280)
 				_make()

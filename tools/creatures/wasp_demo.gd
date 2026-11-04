@@ -18,9 +18,10 @@ extends Node3D
 ## 6 the hummingbird moth searching (darting about the flowers)   7 it feeding
 ## at the milkweed   8 the monarch flying   9 it basking on the stone   0 it
 ## feeding at the swamp milkweed   A the ants: wandering, or at their crumb
-## B the beetles: walking about, or eating at their leaves
+## B the June bugs: walking about, or eating at their leaves   L the
+## lady beetles: walking about, or hunting their leaves over
 ## Tab: the camera follows the next of them (wasp, moth, monarch, ants,
-## beetles).
+## June bugs, lady beetles).
 
 var wasp: Wasp
 # (by path, not by class name: found whether or not the editor has seen these yet)
@@ -31,10 +32,14 @@ const Flowers := preload("res://tools/creatures/demo_flowers.gd")
 var moth: MothScript
 var monarch: MonarchScript
 var ants: AntColony
-var beetles: Beetles
+const JuneScript := preload("res://scripts/creatures/june_beetles.gd")
+const LadyScript := preload("res://scripts/creatures/lady_beetles.gd")
+var beetles: JuneScript
+var ladies: LadyScript
 var _ants_feeding := false
 var _beetles_feeding := false
-var _following := 0 # wasp, moth, monarch, ants, beetles
+var _ladies_feeding := false
+var _following := 0 # wasp, moth, monarch, ants, June bugs, lady beetles
 var _flowers := {} # the patch's clumps' florets (points), by kind (DemoFlowers.patch)
 var _milkweed: Array = [] # the first milkweed's
 var _swamp: Array = [] # the swamp milkweed's
@@ -45,7 +50,10 @@ const CRUMB := Vector3(0.5, 0.0, 0.05)
 const BEETLES_AT := Vector3(-0.55, 0.0, -0.25)
 const BEETLE_LEAVES := [Vector3(-0.5, 0.0, -0.3), Vector3(-0.62, 0.0, -0.18)]
 const ANT_COUNT := 14
-const BEETLE_COUNT := 8
+const BEETLE_COUNT := 4
+const LADIES_AT := Vector3(-0.55, 0.0, 0.4)
+const LADY_LEAVES := [Vector3(-0.5, 0.0, 0.38), Vector3(-0.62, 0.0, 0.5)]
+const LADY_COUNT := 8
 const SWARM_R := 0.13 # m: the ants' and beetles' wandering round their places
 var cam: Camera3D
 var prey: Node3D
@@ -113,7 +121,7 @@ func _ready() -> void:
 	_focus = wasp.global_position
 	_label = Label.new()
 	_label.position = Vector2(12, 8)
-	_label.text = "Wasp: 1 seek food   2 feed on the flower   3 catch the caterpillar (R: a new one)   4 land on the plank   5 sting the ball\nMoth: 6 search   7 feed at the milkweed   Monarch: 8 fly   9 bask on the stone   0 feed at the swamp milkweed\nA ants: wander / feed   B beetles: walk / eat   Tab follow the next   F follow on/off   Space slow motion   drag: turn round   wheel: nearer / further"
+	_label.text = "Wasp: 1 seek food   2 feed on the flower   3 catch the caterpillar (R: a new one)   4 land on the plank   5 sting the ball\nMoth: 6 search   7 feed at the milkweed   Monarch: 8 fly   9 bask on the stone   0 feed at the swamp milkweed\nA ants: wander / feed   B June bugs: walk / eat   L lady beetles: walk / hunt   Tab follow the next   F follow on/off   Space slow motion   drag: turn round   wheel: nearer / further"
 	add_child(_label)
 	wasp.seek_food(Vector3.ZERO, 0.6)
 
@@ -123,7 +131,8 @@ func _ready() -> void:
 ## (DemoFlowers.patch: three clumps of common milkweed, one of swamp
 ## milkweed, coneflowers, Susans, fleabane, asters, yampah), a stone for the
 ## monarch to bask on;
-## ants round a crumb; beetles round two leaves.
+## ants round a crumb; June bugs round two leaves, lady beetles round two
+## more.
 func _others() -> void:
 	_flowers = Flowers.patch(self, Vector2(MOTHS_AT.x, MOTHS_AT.z), Color(0.42, 0.38, 0.28))
 	_milkweed = _flowers.milkweed
@@ -148,9 +157,16 @@ func _others() -> void:
 		var leaf := Beetles.leaf()
 		leaf.position = c
 		add_child(leaf)
-	beetles = Beetles.new()
+	beetles = JuneScript.new()
 	add_child(beetles)
 	beetles.setup(BEETLE_COUNT, BEETLES_AT, SWARM_R)
+	for c in LADY_LEAVES:
+		var leaf := Beetles.leaf()
+		leaf.position = c
+		add_child(leaf)
+	ladies = LadyScript.new()
+	add_child(ladies)
+	ladies.setup(LADY_COUNT, LADIES_AT, SWARM_R)
 
 
 ## What the camera follows (Tab: the next).
@@ -164,6 +180,8 @@ func _followed() -> Vector3:
 			return ANTS_AT + Vector3(0.0, 0.02, 0.0)
 		4:
 			return BEETLES_AT + Vector3(0.0, 0.02, 0.0)
+		5:
+			return LADIES_AT + Vector3(0.0, 0.01, 0.0)
 	return wasp.global_position
 
 
@@ -265,8 +283,17 @@ func _unhandled_input(e: InputEvent) -> void:
 					else:
 						beetles.wander(i, BEETLES_AT, SWARM_R)
 				_following = 4
+			KEY_L:
+				_ladies_feeding = not _ladies_feeding
+				for i in LADY_COUNT:
+					if _ladies_feeding:
+						var leaf: Vector3 = LADY_LEAVES[i % LADY_LEAVES.size()]
+						ladies.feed(i, leaf + Vector3(randf_range(-0.02, 0.02), 0.0, randf_range(-0.035, 0.035)))
+					else:
+						ladies.wander(i, LADIES_AT, SWARM_R)
+				_following = 5
 			KEY_TAB:
-				_following = (_following + 1) % 5
+				_following = (_following + 1) % 6
 			KEY_R:
 				_new_prey()
 			KEY_F:

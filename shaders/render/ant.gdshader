@@ -10,7 +10,9 @@ shader_type spatial;
 // The mesh (AntColony.build_mesh) standing at rest, in metres, the thorax's
 // middle at the origin, facing -z; CUSTOM0.x which part a vertex is of (0
 // the body, 16 a shell over it (metallic: a beetle's); 1 the head, 2/3 its mandibles, 4/5 its antennae's scapes, 6/7
-// their funiculi, 15 its eyes; 8-13 the legs, 14 the gaster), .y a leg's
+// their funiculi, 15 its eyes; 8-13 the legs, 14 the gaster; 17/18 marks
+// on the body or the shell, mark_a's and mark_b's colours (a lady beetle's
+// spots, its pronotum's white), 19/20 the same on the head), .y a leg's
 // segment (0 coxa, 1 femur, 2 tibia, 3 tarsus), .z along an ellipsoid
 // (-0.5 front .. 0.5 behind: the gaster's bands), .w 1 where it's banded.
 // Each part turns about its joint (the pivots: uniforms, from the same
@@ -38,6 +40,11 @@ uniform vec3 band_color : source_color = vec3(0.36, 0.28, 0.16);
 // colour going from shell_a facing you to shell_b at a glance (iridescent)
 uniform vec3 shell_a : source_color = vec3(0.1, 0.45, 0.4);
 uniform vec3 shell_b : source_color = vec3(0.75, 0.32, 0.1);
+uniform float iridescence = 1.0; // how far the shell goes to shell_b at a glance
+uniform float shell_metal = 0.75; // (a dogbane beetle's metallic; a June bug's, a lady beetle's lacquered: 0)
+uniform float shell_gloss = 0.9;
+uniform vec3 mark_a : source_color = vec3(0.02);
+uniform vec3 mark_b : source_color = vec3(0.9, 0.88, 0.84);
 uniform float sweep = 1.0; // how much the antennae sweep and drum (an ant's 1)
 
 varying flat int part;
@@ -109,7 +116,7 @@ void vertex() {
 		turn(v, n, mand_pivots[part - 2], up, -0.55 * open * side);
 	}
 	// the head and all on it: down to the food, nodding as it chews; bobbing as it walks
-	if ((part >= 1 && part <= 7) || part == 15) {
+	if ((part >= 1 && part <= 7) || part == 15 || part == 19 || part == 20) {
 		float pitch = -0.4 * feed + 0.06 * feed * sin(t * 16.0) + 0.04 * walk * sin(t * stride_hz * 6.2832 * 2.0);
 		turn(v, n, neck, vec3(1.0, 0.0, 0.0), pitch);
 		turn(v, n, neck, up, 0.08 * walk * sin(t * 2.7));
@@ -139,9 +146,13 @@ void fragment() {
 	float metal = 0.0;
 	if (part == 16) {
 		float glance = 1.0 - clamp(dot(NORMAL, VIEW), 0.0, 1.0);
-		c = mix(shell_a, shell_b, smoothstep(0.15, 0.85, glance));
-		gloss = 0.9;
-		metal = 0.75;
+		c = mix(shell_a, shell_b, smoothstep(0.15, 0.85, glance) * iridescence);
+		gloss = shell_gloss;
+		metal = shell_metal;
+	}
+	if (part >= 17 && part <= 20) {
+		c = (part == 17 || part == 19) ? mark_a : mark_b;
+		gloss = shell_gloss;
 	}
 	ALBEDO = c;
 	METALLIC = metal;

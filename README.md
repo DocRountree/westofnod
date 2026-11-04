@@ -165,10 +165,12 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   colony is one draw call; the CPU only moves them along (wandering, or to food and
   feeding, keeping apart). `tools/creatures/ant_demo.tscn` (keys: 1 wander, 2 feed on
   the crumbs, 3 half and half, + / - more or fewer).
-- `scripts/creatures/beetles.gd`: beetles (`Beetles`, dogbane leaf beetles at twice life
-  size: metallic green, glinting copper at a glance), not yet in the game: made and moved as
-  the ants are (one mesh, the same shader, the same CPU side, its own shape, colours and
-  pace), walking and eating at a leaf. `tools/creatures/beetle_demo.tscn` (keys: 1 walk
+- `scripts/creatures/beetles.gd` (`Beetles`): beetles at twice life size, not yet in the game, the make they
+  share: made and moved as the ants are (one mesh, the same shader, the same CPU side), each species its own shape,
+  markings, colours and pace, walking and eating at a leaf. `june_beetles.gd` (`JuneBeetles`, *Phyllophaga*: glossy
+  reddish brown, ridged wing cases, a fan of plates on each antenna, spurred legs) and `lady_beetles.gd`
+  (`LadyBeetles`, *Hippodamia convergens*: orange-red, thirteen black spots, the black pronotum edged white with its
+  two converging white dashes). `tools/creatures/beetle_demo.tscn` (both kinds; keys: 1 walk
   about, 2 eat at the leaves, 3 half and half, + / - more or fewer).
 - `scripts/creatures/wasp.gd`: a paper wasp (`Wasp`, drawn at twice life size), not yet in the game: its model
   built from parts, posed by hand every frame, its animations methods (seek food, feed
@@ -177,7 +179,7 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   leaf, a plank and a ball (and for the scale the player's figure with its axe, and a pawpaw, a
   black-eyed Susan, a yampah and a cattail on the plank), each animation on a key (`godot --path . res://tools/creatures/wasp_demo.tscn`);
   and every other creature beside it, each at its own place (the hummingbird moth and the monarch round a patch of the
-  game's flowers, milkweeds among coneflowers, Susans, fleabane, asters and yampah, and a stone, ants round a crumb, beetles round two leaves), their animations on keys too, Tab following each in turn.
+  game's flowers, milkweeds among coneflowers, Susans, fleabane, asters and yampah, and a stone, ants round a crumb, June bugs and lady beetles round their leaves), their animations on keys too, Tab following each in turn.
 - `scripts/creatures/lepidoptera.gd` (`Lepidoptera`): a butterfly or moth at twice life size, not yet in the game: built
   from parts (furred where the species is), its wings cut to their real outlines and painted, veins, borders and
   spots, above and beneath (`tools/creatures/bake_lepidoptera_wings.py` bakes `data/creatures/lepidoptera_wings.png`
