@@ -5,20 +5,21 @@ extends Node
 ## the next day (GroundCover.set_gone). Each grown fruiting tree (a pawpaw:
 ## Population.fruit_trees_near) bears a few fruit of its own (none on some),
 ## hanging in its crown (its mesh_script's fruit_spots) as real things,
-## drawn on the trees near you: as many as are left on it. A click (left or
-## right) with a hand empty, under a fruiting tree's crown in front of you
-## (Population.fruit_near), picks one into that hand; what's picked is gone
-## from the tree till the next day, when it bears again. Saved with the game
-## (to_dict).
+## drawn on the trees near you: as many as are left on it. A left click with
+## a hand free, looking at one of the fruit itself within reach (PICK_REACH:
+## up in a tall tree's crown, climb it), picks that one into the hand; what's
+## picked is gone from the tree till the next day, when it bears again. Saved
+## with the game (to_dict).
 
-const REACH := 2.8 ## m from the trunk: under its crown
+const PICK_REACH := 2.8 ## m from the eye a fruit can be picked
+const PICK_SLACK := 0.04 ## m round a fruit the view may pass and still pick it
 const MOST := 6 ## fruit a tree bears, at most
 const SHOW := 45.0 ## m: the fruit drawn on the trees this near
 const RESHOW := 3.0 ## m you move before the trees near are looked at again
 const PLANT_REACH := 2.6 ## m along the view a flower or cattail is picked from
 
 var main: Node
-var _taken := {} # tree uid -> [day, how many picked that day]
+var _taken := {} # tree uid -> {"day": the day, "mask": which of its spots were picked that day (bits)}; or from older saves {"day", "n": how many, the last ones}
 var _shown := {} # fruit id -> MultiMeshInstance3D
 var _shown_at := Vector3.INF
 var _shown_day := -1
@@ -34,17 +35,72 @@ static func bears(uid: int) -> int:
 	return maxi(int(h * (MOST + 3)) - 2, 0)
 
 
+## Which of a tree's fruit spots were picked today (bits).
+func _picked(uid: int, spots: int) -> int:
+	var t: Dictionary = _taken.get(uid, {})
+	if t.is_empty() or int(t.get("day", -1)) != main.clock.day:
+		return 0
+	if t.has("mask"):
+		return int(t.mask)
+	# (saved before the fruit were picked one by one: so many, the last borne)
+	var borne := mini(bears(uid), spots)
+	var mask := 0
+	for i in range(maxi(borne - int(t.get("n", 0)), 0), borne):
+		mask |= 1 << i
+	return mask
+
+
+## The spots (indices into its mesh_script's fruit_spots) of the fruit
+## hanging on the tree today.
+func hanging(uid: int, spots: int) -> PackedInt32Array:
+	var out := PackedInt32Array()
+	var picked := _picked(uid, spots)
+	for i in mini(bears(uid), spots):
+		if not picked & (1 << i):
+			out.append(i)
+	return out
+
+
 ## How many are left on the tree today.
 func left_on(uid: int, spots: int) -> int:
-	var n := mini(bears(uid), spots)
-	var t: Array = _taken.get(uid, [])
-	if t.size() == 2 and int(t[0]) == main.clock.day:
-		n -= int(t[1])
-	return maxi(n, 0)
+	return hanging(uid, spots).size()
+
+
+## Where a tree's fruit at spot i hangs, as drawn (on the map; its middle):
+## its transform, sized as its item.
+static func _fruit_xf(tree: Dictionary, spot: Vector3, i: int) -> Transform3D:
+	var xf: Transform3D = tree.transform
+	var size: Vector3 = Items.KINDS.get(tree.fruit, {}).get("size", Vector3.ONE * 0.05)
+	var p := xf * spot
+	# hanging, tipped a little this way or that
+	var h := fposmod(sin(float(int(tree.uid) % 9973) * 3.17 + i * 7.31) * 9131.7, 1.0)
+	var b := Basis(Vector3.UP, h * TAU) * Basis(Vector3.RIGHT, (h - 0.5) * 0.5)
+	return Transform3D(b.scaled(size), p - Vector3.UP * size.y * 0.5)
+
+
+## The hanging fruit the view from eye along fwd (unit) meets first within
+## PICK_REACH: {tree, spot, fruit}, or {} none.
+func fruit_at(eye: Vector3, fwd: Vector3) -> Dictionary:
+	var best := {}
+	var best_t := INF
+	for tree in main.population.fruit_trees_near(eye, PICK_REACH + 12.0):
+		var kind: PropKind = tree.kind
+		var spots: PackedVector3Array = kind.mesh_script.fruit_spots(tree.variant)
+		var size: Vector3 = Items.KINDS.get(tree.fruit, {}).get("size", Vector3.ONE * 0.05)
+		var r := maxf(size.x, maxf(size.y, size.z)) * 0.5 + PICK_SLACK
+		for i in hanging(tree.uid, spots.size()):
+			var c := _fruit_xf(tree, spots[i], i).origin
+			var t := (c - eye).dot(fwd)
+			if t < 0.0 or t > PICK_REACH + r or t >= best_t:
+				continue
+			if (eye + fwd * t).distance_to(c) <= r:
+				best_t = t
+				best = {"tree": tree, "spot": i, "fruit": tree.fruit}
+	return best
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if not (event is InputEventMouseButton and event.pressed and event.button_index in [MOUSE_BUTTON_LEFT, MOUSE_BUTTON_RIGHT]):
+	if not (event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT):
 		return
 	var p: Player = main.player
 	if Input.mouse_mode != Input.MOUSE_MODE_CAPTURED or p.typing or p.frozen:
@@ -52,12 +108,12 @@ func _unhandled_input(event: InputEvent) -> void:
 	var inv: Inventory = main.inventory
 	var eye := Origin.map(p.camera.global_position)
 	var fwd := -p.camera.global_basis.z
-	# a tree's fruit, else a flower or a cattail
-	var tree: Dictionary = main.population.fruit_near(eye, fwd, REACH)
+	# a fruit looked at, else a flower or a cattail
+	var fruit := fruit_at(eye, fwd)
 	var plant := {}
 	var id := ""
-	if not tree.is_empty():
-		id = tree.fruit
+	if not fruit.is_empty():
+		id = fruit.fruit
 	elif main.ground_cover:
 		plant = main.ground_cover.pick_near(eye, fwd, PLANT_REACH)
 		if plant.is_empty():
@@ -65,23 +121,16 @@ func _unhandled_input(event: InputEvent) -> void:
 		id = plant.item
 	else:
 		return
-	# the clicked side's hand first, if it's empty (or has room for it), else the other
-	var first := Inventory.LEFT if event.button_index == MOUSE_BUTTON_LEFT else Inventory.RIGHT
-	var other := Inventory.RIGHT if first == Inventory.LEFT else Inventory.LEFT
-	var hand := first if _room(inv.get_at(first), id) else (other if _room(inv.get_at(other), id) else -1)
+	# the left hand, if it's empty (or has room for it), else the right
+	var hand := Inventory.LEFT if _room(inv.get_at(Inventory.LEFT), id) else (Inventory.RIGHT if _room(inv.get_at(Inventory.RIGHT), id) else -1)
 	if hand < 0:
 		return # (no hand free: nothing to pick with)
 	get_viewport().set_input_as_handled()
-	if not tree.is_empty():
+	if not fruit.is_empty():
+		var tree: Dictionary = fruit.tree
 		var kind: PropKind = tree.kind
-		var spots: PackedVector3Array = kind.mesh_script.fruit_spots(tree.variant)
-		if left_on(tree.uid, spots.size()) <= 0:
-			main.chat.say("There's no fruit left on it to pick.", Color(0.85, 0.85, 0.8))
-			return
-		var day: int = main.clock.day
-		var t: Array = _taken.get(tree.uid, [])
-		var n := int(t[1]) + 1 if t.size() == 2 and int(t[0]) == day else 1
-		_taken[tree.uid] = [day, n]
+		var spots: int = kind.mesh_script.fruit_spots(tree.variant).size()
+		_taken[tree.uid] = {"day": main.clock.day, "mask": _picked(tree.uid, spots) | (1 << int(fruit.spot))}
 		_dirty = true
 	else:
 		var cells: Array = _plants.get(id, [])
@@ -123,18 +172,12 @@ func _show(at: Vector3) -> void:
 	for tree in main.population.fruit_trees_near(at, SHOW):
 		var kind: PropKind = tree.kind
 		var spots: PackedVector3Array = kind.mesh_script.fruit_spots(tree.variant)
-		var n := left_on(tree.uid, spots.size())
-		if n <= 0:
+		var on := hanging(tree.uid, spots.size())
+		if on.is_empty():
 			continue
-		var xf: Transform3D = tree.transform
-		var size: Vector3 = Items.KINDS.get(tree.fruit, {}).get("size", Vector3.ONE * 0.05)
 		var list: Array = by_fruit.get(tree.fruit, [])
-		for i in n:
-			var p := xf * spots[i]
-			# hanging, tipped a little this way or that
-			var h := fposmod(sin(float(tree.uid % 9973) * 3.17 + i * 7.31) * 9131.7, 1.0)
-			var b := Basis(Vector3.UP, h * TAU) * Basis(Vector3.RIGHT, (h - 0.5) * 0.5)
-			list.append(Transform3D(b.scaled(size), p - Vector3.UP * size.y * 0.5))
+		for i in on:
+			list.append(_fruit_xf(tree, spots[i], i))
 		by_fruit[tree.fruit] = list
 	for id in _shown.keys():
 		if not by_fruit.has(id):
@@ -196,8 +239,10 @@ func from_dict(d: Dictionary) -> void:
 				for i in range(1, v.size() - 1, 2):
 					cells.append(Vector2i(int(v[i]), int(v[i + 1])))
 				_plants[String(k).substr(2)] = cells
-		elif v is Array and v.size() == 2:
-			_taken[int(k)] = [int(v[0]), int(v[1])]
+		elif v is Dictionary:
+			_taken[int(k)] = {"day": int(v.get("day", -1)), "mask": int(v.get("mask", 0))}
+		elif v is Array and v.size() == 2: # (saved before they were picked one by one: how many)
+			_taken[int(k)] = {"day": int(v[0]), "n": int(v[1])}
 	_plants_day = main.clock.day if main else -1
 	if main and main.ground_cover:
 		main.ground_cover.set_gone(_plants)

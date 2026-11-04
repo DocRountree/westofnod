@@ -10,7 +10,7 @@
 #ifndef CANOPY_INC
 #define CANOPY_INC
 
-const float CANOPY_COVER = 0.85; // how much of the forest's floor its crowns shade, at the most
+const float CANOPY_COVER = 0.75; // how much of the forest's floor its crowns shade, at the most
 const float CANOPY_HEIGHT = 12.0; // m up the crowns throw their shade from
 
 float cn_hash(ivec2 c) {
@@ -44,12 +44,12 @@ float canopy_light(vec2 p, float h, float forest, float fp, float night_k) {
 	vec2 q = p + off;
 	float crowns = cn_noise(q / 6.0) * 0.6 + cn_noise(q / 15.0 + vec2(7.3, -2.1)) * 0.4;
 	float gaps = smoothstep(0.52, 0.7, crowns);
-	float flecks = smoothstep(0.66, 0.82, cn_noise(q / 1.2 + vec2(3.1, 9.7))) * 0.7;
+	float flecks = smoothstep(0.62, 0.8, cn_noise(q / 1.2 + vec2(3.1, 9.7))) * 0.75;
 	float lit = max(gaps, flecks);
-	lit = mix(lit, 0.3, smoothstep(1.0, 5.0, fp)); // (its mean, far off)
+	lit = mix(lit, 0.35, smoothstep(1.0, 5.0, fp)); // (its mean, far off)
 	float direct = smoothstep(0.0, 0.3, sun.y) * (1.0 - night_k); // (how much of the light is the sun's)
-	float shade = mix(1.0, mix(0.32, 1.0, lit), cover * direct);
-	return shade * (1.0 - 0.28 * cover); // (and the sky's light, which the canopy hides much of)
+	float shade = mix(1.0, mix(0.5, 1.0, lit), cover * direct); // (its shade not too deep: the floor still to be seen)
+	return shade * (1.0 - 0.15 * cover); // (and the sky's light, which the canopy hides some of)
 }
 
 #endif
