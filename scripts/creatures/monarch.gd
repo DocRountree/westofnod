@@ -21,6 +21,8 @@ extends "res://scripts/creatures/lepidoptera.gd" # (by path: found whether or no
 ##   closed upright over its back, showing their undersides, opening them a
 ##   little now and then; the proboscis down into a floret; stepping to
 ##   another every few seconds
+## - mate(her) (Lepidoptera's: a male flying after her and taking her down,
+##   the pair joined end to end on the ground or her perch)
 
 var _mode := ""
 var _centre := Vector3.ZERO
@@ -104,7 +106,11 @@ func _build() -> void:
 ## seconds}, bask {at, normal, seconds}, feed {florets, seconds}, lay
 ## {spots, normals}.
 func _p_behaviours() -> PackedStringArray:
-	return PackedStringArray(["fly", "bask", "feed", "lay"])
+	return PackedStringArray(["fly", "bask", "feed", "mate"]) if male else PackedStringArray(["fly", "bask", "feed", "lay", "mate"])
+
+
+func _after_mate() -> void:
+	fly(_centre, _radius)
 
 
 func _p_act(name: String, args: Dictionary) -> bool:

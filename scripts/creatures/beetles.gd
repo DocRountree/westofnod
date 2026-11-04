@@ -11,6 +11,11 @@ extends AntColony
 ## it lifts off, nose up, and wanders through the air round a place; told
 ## to walk or feed again, it comes down, lands, and folds them away).
 ## wander(i, centre, radius), feed(i, leaf), fly(i, centre, radius, height).
+## mate(i, j): one of them a male (males[k]: every other one), the other a
+## female (no difference between them to see): he comes up behind her,
+## climbs onto her back, his legs on her shell, and stays there joined,
+## rocking now and then; then slides off behind her, and both go back to
+## what they were doing. Only the females lay.
 ##
 ## At rest its wing cases (elytra) are one unbroken shell: the two halves
 ## of one dome, split down the middle where they meet, edge to edge (the
@@ -45,6 +50,17 @@ var fly_h := PackedFloat32Array()
 var landing := PackedByteArray()
 ## the pronotum's part: 16 the shell's colour, 17 or 18 a mark's
 var pronotum_part := 16
+var males := PackedByteArray() ## (1: a male; every other one)
+var mate_secs := 25.0 ## s joined
+# mating (each): its partner (-1 none), the stage (1 going to her, 2 climbing
+# on, 3 joined, 4 climbing off; a female's 9: still, his), how long at it,
+# the task it was at before
+var partner := PackedInt32Array()
+var mate_stage := PackedByteArray()
+var mate_t := PackedFloat32Array()
+var mate_for := PackedFloat32Array()
+var _was := PackedInt32Array()
+const MATING := 5
 
 
 func _build_mesh() -> Array:
@@ -235,12 +251,134 @@ func setup(n: int, c: Vector3, r: float) -> void:
 	air_at.resize(n)
 	fly_h.resize(n)
 	landing.resize(n)
+	males.resize(n)
+	partner.resize(n)
+	mate_stage.resize(n)
+	mate_t.resize(n)
+	mate_for.resize(n)
+	_was.resize(n)
+	for i in n:
+		males[i] = i % 2
+		partner[i] = -1
 	super(n, c, r)
 
 
 ## (Steering, pilot.gd: a beetle's behaviours, flying too.)
-func _p_behaviours(_i: int) -> PackedStringArray:
-	return PackedStringArray(["feed", "lay", "fly"]) if lays else PackedStringArray(["feed", "fly"])
+func _p_behaviours(i: int) -> PackedStringArray:
+	return PackedStringArray(["feed", "lay", "fly", "mate"]) if lays and males[i] == 0 else PackedStringArray(["feed", "fly", "mate"])
+
+
+## Beetle i laying (a female: the males don't).
+func lay(i: int, at: Vector3) -> void:
+	if males[i] == 0:
+		super(i, at)
+
+
+## Beetles i and j mating (one male, one female, neither mating, both on
+## the ground): false if they can't.
+func mate(i: int, j: int, secs := -1.0) -> bool:
+	if i == j or i < 0 or j < 0 or i >= pos.size() or j >= pos.size() or males[i] == males[j]:
+		return false
+	if partner[i] >= 0 or partner[j] >= 0 or alt[i] > 0.0 or alt[j] > 0.0:
+		return false
+	var him := i if males[i] == 1 else j
+	var her := j if him == i else i
+	for k: int in [him, her]:
+		_was[k] = task[k] if task[k] != MATING else 0
+		task[k] = MATING
+		mate_t[k] = 0.0
+		mate_for[k] = secs if secs > 0.0 else mate_secs
+	partner[him] = her
+	partner[her] = him
+	mate_stage[him] = 1
+	mate_stage[her] = 9
+	return true
+
+
+func _together(i: int, j: int) -> bool:
+	return partner[i] == j
+
+
+func is_mating(i: int) -> bool:
+	return partner[i] >= 0
+
+
+func _end_mate(i: int) -> void:
+	var j := partner[i]
+	for k: int in ([i, j] if j >= 0 else [i]):
+		partner[k] = -1
+		mate_stage[k] = 0
+		task[k] = _was[k] if _was[k] != MATING else 0
+		target[k] = pos[k]
+		wait[k] = rng.randf_range(0.5, 2.0)
+
+
+func _think(i: int, dt: float) -> void:
+	if task[i] != MATING:
+		super(i, dt)
+		return
+	feed_k[i] = move_toward(feed_k[i], 0.0, dt * 2.0)
+	var j := partner[i]
+	if j < 0:
+		task[i] = 0
+		return
+	mate_t[i] += dt
+	if mate_stage[i] == 9: # (her: still)
+		target[i] = pos[i]
+		return
+	# him: to just behind her
+	var back := Vector3(sin(yaw[j]), 0.0, cos(yaw[j]))
+	var to := pos[j] + back * (_length() * 0.75) * MM
+	target[i] = to
+	if Vector2(to.x - pos[i].x, to.z - pos[i].z).length() < 0.003:
+		mate_stage[i] = 2
+		mate_t[i] = 0.0
+
+
+## (How long a beetle is, mm: its shell's.)
+func _length() -> float:
+	return float((shape.elytra[1] as Vector3).z) + float((shape.pronotum[1] as Vector3).z) * 0.6
+
+
+## Him on her back (climbing on, joined, climbing off): placed here, not
+## walking.
+func _ride(i: int, dt: float) -> void:
+	var j := partner[i]
+	mate_t[i] += dt
+	var st := mate_stage[i]
+	if st == 2 and mate_t[i] > 0.7:
+		mate_stage[i] = 3
+		mate_t[i] = 0.0
+	elif st == 3 and mate_t[i] > mate_for[i]:
+		mate_stage[i] = 4
+		mate_t[i] = 0.0
+	elif st == 4 and mate_t[i] > 0.7:
+		var back := Vector3(sin(yaw[j]), 0.0, cos(yaw[j]))
+		var off := pos[j] + back * _length() * 0.8 * MM
+		pos[i] = Vector3(off.x, height.call(off.x, off.z) if height.is_valid() else pos[j].y, off.z)
+		_end_mate(i)
+		_place(i, pos[i], 0.0)
+		return
+	var k := 1.0
+	if mate_stage[i] == 2:
+		k = clampf(mate_t[i] / 0.7, 0.0, 1.0)
+	elif mate_stage[i] == 4:
+		k = 1.0 - clampf(mate_t[i] / 0.7, 0.0, 1.0)
+	k = k * k * (3.0 - 2.0 * k)
+	var ec: Vector3 = shape.elytra[0]
+	var es: Vector3 = shape.elytra[1]
+	var fwd := Vector3(-sin(yaw[j]), 0.0, -cos(yaw[j]))
+	var behind := pos[j] - fwd * _length() * 0.75 * MM
+	var on := pos[j] - fwd * (es.z * 0.12) * MM # (his middle a little behind hers)
+	var p := behind.lerp(on, k)
+	var top := (ec.y + es.y * 0.5 + body_h * 0.55) * MM # (over her shell)
+	var rock := sin(_t * 4.0 + seed[i] * 9.0) * maxf(sin(_t * 0.7 + seed[i] * 3.0), 0.0) if mate_stage[i] == 3 else 0.0
+	yaw[i] = lerp_angle(yaw[i], yaw[j], 1.0 - exp(-8.0 * dt))
+	var b := Basis(Vector3.UP, yaw[i]) * Basis(Vector3.RIGHT, (0.12 + 0.05 * rock) * k)
+	multimesh.set_instance_transform(i, Transform3D(b, p + Vector3.UP * (body_h * MM * (1.0 - k) + (top + sin(PI * k) * 1.5 * MM) * k)))
+	multimesh.set_instance_custom_data(i, Color(0.25 * (1.0 - k) if mate_stage[i] != 3 else 0.0, 0.0, seed[i], 0.0))
+	pos[i] = Vector3(p.x, pos[j].y, p.z)
+	speed[i] = 0.0
 
 
 func _p_act(i: int, name: String, args: Dictionary) -> bool:
@@ -256,6 +394,8 @@ func _p_act_secs(i: int, name: String) -> float:
 
 ## Beetle i up and flying round c (within r), about h (m) over the ground.
 func fly(i: int, c: Vector3, r: float, h := 0.25) -> void:
+	if partner[i] >= 0:
+		_end_mate(i)
 	task[i] = 2
 	centre[i] = c
 	radius[i] = r
@@ -271,6 +411,9 @@ func _fly_of(i: int) -> float:
 ## Flying, or coming down: moved here, not walking (true); on the ground,
 ## its elytra closing if they're open (false: it walks).
 func _air(i: int, dt: float) -> bool:
+	if task[i] == MATING and mate_stage[i] in [2, 3, 4] and partner[i] >= 0:
+		_ride(i, dt)
+		return true
 	var p := pos[i]
 	if task[i] != 2 and alt[i] <= 0.0:
 		fly_k[i] = move_toward(fly_k[i], 0.0, dt * 1.6) # (folding the wings away, closing the shell)

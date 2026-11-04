@@ -14,10 +14,12 @@ shader_type spatial;
 // 3 yellow garden spider (Argiope aurantia): the cephalothorax silver
 //   white, the abdomen black with bold yellow patches in pairs, its front
 //   edge yellow
-// young: paler, the marks faint. abd_z: where the abdomen begins (mm).
+// young: paler, the marks faint. male: the yellow garden spider's (its
+// abdomen tan, two pale bands down it, no yellow). abd_z: where the abdomen begins (mm).
 
 uniform int species = 0;
 uniform bool young = false;
+uniform bool male = false;
 uniform float abd_z = 0.5;
 uniform float abd_len = 12.0;
 uniform float half_w = 4.5;
@@ -79,6 +81,11 @@ void fragment() {
 		if (!abd) {
 			c = vec3(0.82, 0.82, 0.78); // (silver hairs)
 			rough = 0.45;
+		} else if (male) {
+			c = vec3(0.45, 0.34, 0.2);
+			float band = smoothstep(0.25, 0.32, ax) * (1.0 - smoothstep(0.5, 0.6, ax));
+			c = mix(c, vec3(0.78, 0.7, 0.52), band * (1.0 - under));
+			c = mix(c, vec3(0.2, 0.15, 0.09), under);
 		} else {
 			c = vec3(0.04, 0.04, 0.04);
 			// the yellow patches in pairs down each side, the front edge yellow

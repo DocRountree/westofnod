@@ -38,8 +38,24 @@ extends "res://scripts/creatures/hexapod.gd" # (by path: found whether or not th
 ##   out from the funnel; then waiting at its mouth
 ## - spin_orb(top, left, right) (the garden spider's): the orb spun between
 ##   them (top: on a branch), thread by thread; then at the hub, head down
+## - mate(her) (a male's: Spider.new(kind) with male set before it's
+##   added: smaller (the garden spider's a quarter her size, tan, slender),
+##   the ends of his palps swollen into their bulbs; otherwise as she is):
+##   first, charged: a little sperm web spun under him, a drop of sperm
+##   laid on it from under his abdomen, and he turns round and dips his
+##   palps in it one and then the other, drawing it up; then to her, and
+##   courts (the wolf spider waving his front legs and drumming his palps,
+##   the fishing spider tapping, the grass spider plucking her sheet, the
+##   garden spider her web's threads); then on: the wolf and fishing
+##   spiders' up onto her front, facing back, leaning down one side and the
+##   other to reach a palp under her abdomen; the grass spider's the same,
+##   she gone still and lying over on her side; the garden spider's up her
+##   web to her, under her at the hub; each palp put in to her in turn, its
+##   bulb swelling and pulsing. The garden spider's dies there after his
+##   second, and she wraps him in silk
 ## Steering (pilot.gd): act hunt {prey}, lay, spin {at, radius} / {top,
-## left, right}; go, go_to, ... on the ground (not in its orb).
+## left, right}, mate {partner}; go, go_to, ... on the ground (not in its
+## orb).
 
 const SPECIES := {
 	"wolf": {"pattern": 0, "ceph": Vector3(12.0, 4.6, 3.6), "abd": Vector3(13.0, 5.4, 4.4), "leg": Vector3(8.5, 10.0, 10.0), "pairs": [1.0, 0.92, 0.82, 1.06],
@@ -87,6 +103,18 @@ var _web_head := Vector3.DOWN
 var _path: Array = [] # points to go along, in the web (its parent's space)
 var _path_speed := 0.12
 var _sub := 0 # (spinning a thread: 0 going to its start, 1 laying it)
+# mating
+var _charged := false # (a male's palps filled from his sperm web)
+var _sperm: Node3D # (his sperm web)
+var _palp_ask: Array = [null, null] # (each palp's pose, or null: its own)
+var _bulbs: Array[Node3D] = []
+var _pump := [0.0, 0.0] # (each bulb swelling, in her)
+var _pre_mode := ""
+var _cata := false # (a grass spider female, still, over on her side)
+var _hang: Node3D # (a dead garden spider male: on her)
+var _hang_at := Transform3D()
+var _wrap: MeshInstance3D
+var _wrap_t := 0.0
 
 
 func _init(kind_ := "wolf", young_ := false) -> void:
@@ -122,6 +150,8 @@ func _init(kind_ := "wolf", young_ := false) -> void:
 func _build() -> void:
 	var ceph: Vector3 = S.ceph
 	var abd: Vector3 = S.abd
+	if male and kind == "argiope" and not young: # (his abdomen a slender oval, not her broad one)
+		abd = Vector3(abd.x * 0.8, abd.y * 0.55, abd.z * 0.6)
 	var L := ceph.x
 	var hw := ceph.y
 	var hh := ceph.z
@@ -130,6 +160,7 @@ func _build() -> void:
 	cm.shader = shader
 	cm.set_shader_parameter("species", int(S.pattern))
 	cm.set_shader_parameter("young", young)
+	cm.set_shader_parameter("male", male and kind == "argiope")
 	cm.set_shader_parameter("abd_z", 999.0)
 	cm.set_shader_parameter("half_w", hw)
 	# the cephalothorax: the head's end raised (the eyes), widest behind it
@@ -147,6 +178,7 @@ func _build() -> void:
 	am.shader = shader
 	am.set_shader_parameter("species", int(S.pattern))
 	am.set_shader_parameter("young", young)
+	am.set_shader_parameter("male", male and kind == "argiope")
 	am.set_shader_parameter("abd_z", -1.0)
 	am.set_shader_parameter("abd_len", abd.x)
 	am.set_shader_parameter("half_w", abd.y)
@@ -200,9 +232,19 @@ func _build() -> void:
 		var pc := _mat(S.femur, 0.6)
 		_stick(Vector3.ZERO, Vector3(0.6 * side, -0.6, -2.2), 0.32, pc, pp)
 		_stick(Vector3(0.6 * side, -0.6, -2.2), Vector3(0.8 * side, -2.0, -3.2), 0.36, pc, pp)
+		if male and not young: # (his palp's end: the cymbium cupping the bulb, dark, glossy)
+			var bulb := Node3D.new()
+			bulb.position = Vector3(0.85 * side, -2.3, -3.4)
+			pp.add_child(bulb)
+			_part(Vector3(0.0, 0.1, -0.1), Vector3(1.3, 1.1, 1.7), _mat((S.femur as Color).darkened(0.25), 0.6, 0.3), bulb)
+			_part(Vector3(0.0, -0.35, 0.1), Vector3(0.9, 0.8, 1.1), _mat(Color(0.12, 0.08, 0.05), 0.25), bulb)
+			_bulbs.append(bulb)
 		pp.set_meta("side", side)
 		_palps.append(pp)
-	_build_legs(_mat(S.femur, 0.7, 0.3), _mat(S.tibia, 0.7, 0.3))
+	if male and kind == "argiope" and not young: # (his legs brown, banded paler; not her red and black)
+		_build_legs(_mat(Color(0.42, 0.3, 0.17), 0.7, 0.3), _mat(Color(0.33, 0.24, 0.14), 0.7, 0.3))
+	else:
+		_build_legs(_mat(S.femur, 0.7, 0.3), _mat(S.tibia, 0.7, 0.3))
 
 
 # --- what it does --------------------------------------------------------------
@@ -225,7 +267,7 @@ func hunt(prey: Node3D) -> void:
 
 
 func lay() -> void:
-	if young:
+	if young or male:
 		return
 	_mode = "lay"
 	_stage = 0
@@ -479,6 +521,9 @@ func _lay(_dt: float) -> void:
 
 
 func _process(dt: float) -> void:
+	if dead and _hang != null:
+		_hung(dt)
+		return
 	if _mother != null:
 		_ride(dt)
 		return
@@ -658,7 +703,15 @@ func _pose(dt: float) -> void:
 		c.rotation = Vector3(-0.3 * _chew * (0.5 + 0.5 * sin(_t * 9.0)), side * 0.25 * _chew * sin(_t * 9.0), 0.0)
 	for k in _palps.size():
 		var pp := _palps[k]
-		pp.rotation = Vector3(0.25 * sin(_t * (6.0 if _chew > 0.0 else 1.3) + k * 1.7), 0.15 * sin(_t * 1.1 + k), 0.0)
+		if _palp_ask[k] != null:
+			pp.rotation = pp.rotation.lerp(_palp_ask[k], 1.0 - exp(-12.0 * dt))
+		else:
+			pp.rotation = Vector3(0.25 * sin(_t * (6.0 if _chew > 0.0 else 1.3) + k * 1.7), 0.15 * sin(_t * 1.1 + k), 0.0)
+	for k in _bulbs.size(): # (swelling, pulsing, in her)
+		_pump[k] = move_toward(float(_pump[k]), 0.0, dt * 0.5)
+		_bulbs[k].scale = Vector3.ONE * (1.0 + float(_pump[k]) * (0.3 + 0.15 * sin(_t * 7.0)))
+	if not _cata:
+		_roll = lerpf(_roll, 0.0, 1.0 - exp(-3.0 * dt))
 	# the prey held in the jaws
 	if _held and is_instance_valid(_prey):
 		var ceph: Vector3 = S.ceph
@@ -673,6 +726,271 @@ func _on_landed() -> void:
 	pass
 
 
+# --- mating ------------------------------------------------------------------------
+
+func _male_size() -> float:
+	return {"wolf": 0.75, "fishing": 0.6, "funnel": 0.85, "argiope": 0.28}.get(kind, 0.8)
+
+
+## (How many times he puts a palp in to her, by turns.)
+func _insertions() -> int:
+	return 2 if kind == "argiope" else 6
+
+
+func _mate_approach() -> Vector3:
+	if kind == "argiope": # (below her hub, on the ground: up her web from there)
+		return Vector3(0.0, 0.0, 0.0)
+	return Vector3(0.0, -body_h, -float((S.ceph as Vector3).x) * 2.6) # (before her, facing her)
+
+
+func _mate_leave() -> Vector3:
+	return Vector3(float((S.leg as Vector3).x) * 2.2, -body_h, -float((S.ceph as Vector3).x) * 2.0)
+
+
+func _court_secs() -> float:
+	return {"wolf": 6.0, "fishing": 5.0, "funnel": 5.0, "argiope": 0.5}.get(kind, 4.0)
+
+
+func _mount_secs() -> float:
+	if kind == "argiope" and _mate != null: # (up a thread to her: as far as it is, at 5 cm/s)
+		if _climb < 0.0:
+			_climb = clampf(_mount_from.origin.distance_to(_mate.transform.origin) / 0.05, 0.8, 8.0)
+		return _climb
+	return 0.9
+
+
+var _climb := -1.0
+
+
+func _on_mate_start() -> void:
+	_pre_mode = _mode
+	if male and kind == "funnel" and is_instance_valid(_mate):
+		web = _mate.get("web") # (on her sheet with her)
+
+
+func _after_mate() -> void:
+	_palp_ask = [null, null]
+	_cata = false
+	_climb = -1.0
+	if male:
+		if kind == "funnel":
+			web = null
+		_charged = false
+		if not dead:
+			wander(_pos, 0.2)
+	elif _pre_mode in ["ambush", "hub"]:
+		_mode = _pre_mode
+	else:
+		wander(_pos, 0.15)
+
+
+## Which palp's in her (0, 1), or -1 (between); and how far into that one
+## (0..1).
+func _insertion() -> Vector2:
+	var n := _insertions()
+	var t := clampf(_mate_t / maxf(mate_secs, 0.01), 0.0, 0.999) * n
+	var k := fmod(t, 1.0)
+	var which := int(t) % 2
+	return Vector2(which if k > 0.15 and k < 0.9 else -1, k)
+
+
+func _mount() -> Dictionary:
+	var hc: Vector3 = S.ceph
+	var ha: Vector3 = S.abd
+	var r := size / maxf(float(_mate.get("size")), 0.01) # (his size to hers)
+	var ins := _insertion() if _mate_stage == "joined" else Vector2(-1, 0)
+	var grips := {}
+	if kind == "argiope":
+		# under her at the hub, belly to belly, his head to hers; his legs
+		# holding her abdomen's sides
+		var b := Basis(Vector3.BACK, PI)
+		for i in 8:
+			var p := i / 2
+			var sd := 1.0 if i % 2 == 1 else -1.0
+			grips[i] = Vector3(-sd * ha.y * 0.5, -ha.z * 0.2, ha.x * (0.1 + 0.12 * p))
+		return {"at": Vector3(0.0, -ha.z * 0.75, ha.x * 0.2), "basis": b, "grips": grips}
+	# on her front, facing back over her abdomen, leaning down to one side
+	# then the other (the palp on that side down under her abdomen's front)
+	var side := (-1.0 if int(ins.x) == 0 else 1.0) if ins.x >= 0.0 else 0.0
+	var lean := sin(clampf((ins.y - 0.1) / 0.8, 0.0, 1.0) * PI) if ins.x >= 0.0 else 0.0
+	var b := Basis(Vector3.UP, PI) * Basis(Vector3.BACK, side * 0.45 * lean)
+	for i in 8:
+		var p := i / 2
+		var sd := 1.0 if i % 2 == 1 else -1.0
+		# (his right side over her left: he faces the other way)
+		var z := lerpf(ha.x * 0.25, -hc.x * 0.9, float(p) / 3.0)
+		grips[i] = Vector3(-sd * (hc.y * 1.05 if z < 0.0 else ha.y * 0.95), -hc.z * 0.25, z)
+	var at := Vector3(side * hc.y * 0.3 * lean, hc.z * 0.95 + 0.6 * r * hc.z, -hc.x * r * 0.6 + 0.6)
+	return {"at": at, "basis": b, "grips": grips}
+
+
+func _mate_over() -> bool:
+	if male and _mate_stage == "joined":
+		var ins := _insertion()
+		_palp_ask = [null, null]
+		if ins.x >= 0.0:
+			var w := int(ins.x)
+			var sd := -1.0 if w == 0 else 1.0
+			# (down and back under her abdomen, to her epigyne)
+			_palp_ask[w] = Vector3(-1.1, sd * 0.5, sd * 0.3) if kind != "argiope" else Vector3(-0.5, sd * 0.2, 0.0)
+			_pump[w] = minf(float(_pump[w]) + get_process_delta_time() * 2.0, 1.0)
+		if kind == "argiope" and _mate_t >= mate_secs: # (his second in: he dies there)
+			_die_on(_mate)
+			return false
+	return super()
+
+
+func _mating(dt: float) -> void:
+	if _mate_role == "male" and not _charged and _mate_stage == "seek":
+		_mate_stage = "sperm"
+		_mate_t = 0.0
+		_stage = 0
+	if _mate_role == "male" and _mate_stage == "sperm":
+		_mate_t += dt
+		_charge(dt)
+		return
+	super(dt)
+	if _mate_role == "male" and _mate_stage == "court":
+		_court(dt)
+	elif _mate_role == "female":
+		# (the grass spider gone still, over on her side, her legs drawn in)
+		var lie := kind == "funnel" and _mate_stage == "joined"
+		_cata = lie
+		if lie:
+			_roll = lerpf(_roll, 1.25, 1.0 - exp(-2.0 * dt))
+
+
+## His sperm web: spun under him (his abdomen working), a drop of sperm laid
+## on it, then round to it, his palps dipped in it by turns.
+func _charge(dt: float) -> void:
+	var A := float((S.abd as Vector3).x)
+	match _stage:
+		0: # spinning it, under his abdomen
+			_target = _pos
+			if _sperm == null:
+				var sw := SpermWeb.new()
+				sw.across = float((S.ceph as Vector3).y) * 2.4 * MM * size
+				get_parent().add_child(sw)
+				var at := _out(Vector3(0.0, -body_h, A * 0.35))
+				sw.position = Vector3(at.x, _ground(at.x, at.z), at.z)
+				sw.rotation.y = _yaw
+				_sperm = sw
+			_abd.rotation = Vector3(0.35 + 0.15 * sin(_mate_t * 9.0), 0.25 * sin(_mate_t * 4.0), 0.0)
+			_sperm.set("built", clampf(_mate_t / 5.0, 0.0, 1.0))
+			if _mate_t > 5.0:
+				_stage = 1
+				_mate_t = 0.0
+		1: # the drop laid on it from under his abdomen
+			_crouch = minf(_crouch + dt * 2.0, 0.8)
+			_abd.rotation = _abd.rotation.lerp(Vector3(0.45, 0.0, 0.0), 1.0 - exp(-6.0 * dt))
+			_sperm.set("drop", clampf(_mate_t / 2.0, 0.0, 1.0))
+			if _mate_t > 2.2:
+				_stage = 2
+				_mate_t = 0.0
+		2: # round, to it, his front over it
+			_crouch = move_toward(_crouch, 0.0, dt * 2.0)
+			_abd.rotation = _abd.rotation.lerp(Vector3.ZERO, 1.0 - exp(-4.0 * dt))
+			var to := _sperm.position - _pos
+			to.y = 0.0
+			var reach := (float((S.ceph as Vector3).x) * 0.5 - _ceph_c.z + 2.5) * MM * size
+			var goal := _sperm.position - to.normalized() * reach
+			_target = Vector3(goal.x, _pos.y, goal.z)
+			_pace = walk_speed * 0.3
+			if Vector2(goal.x - _pos.x, goal.z - _pos.z).length() < 0.002 or _mate_t > 8.0:
+				_target = _pos
+				_turn_to = atan2(-to.x, -to.z)
+				_stage = 3
+				_mate_t = 0.0
+		3: # his palps dipped in the drop by turns, drawing it up
+			_pace = -1.0
+			_target = _pos
+			var w := int(_mate_t / 1.2) % 2
+			_palp_ask = [null, null]
+			_palp_ask[w] = Vector3(-0.8 - 0.15 * sin(_mate_t * 8.0), 0.0, 0.0)
+			_pump[w] = minf(float(_pump[w]) + dt, 0.5)
+			_sperm.set("drop", clampf(1.0 - _mate_t / 7.0, 0.0, 1.0))
+			if _mate_t > 7.2:
+				_palp_ask = [null, null]
+				_charged = true
+				_sperm.set("left", true)
+				_sperm = null
+				_mate_stage = "seek"
+				_mate_t = 0.0
+				_stage = 0
+
+
+## Courting her (his own way, by kind), facing her.
+func _court(_dt: float) -> void:
+	var t := _mate_t
+	var up := Vector3(0.0, 0.0, 0.0)
+	match kind:
+		"wolf": # (his front legs raised, waving; his palps drumming the ground)
+			up = Vector3(0.0, 5.0 + 3.0 * sin(t * 3.0), -2.0)
+			var w := int(t * 8.0) % 2
+			_palp_ask = [null, null]
+			_palp_ask[w] = Vector3(-0.7, 0.0, 0.0)
+		"fishing": # (tapping the surface with his front legs)
+			up = Vector3(0.0, 2.0 * maxf(sin(t * 12.0), 0.0), -1.0)
+		"funnel": # (plucking her sheet, his abdomen jerking)
+			up = Vector3(0.0, 1.5 * maxf(sin(t * 9.0), 0.0), 0.0)
+			_abd.rotation.x = 0.12 * sin(t * 25.0)
+		_: # (plucking her threads)
+			up = Vector3(0.0, 2.0 * maxf(sin(t * 6.0), 0.0), 0.0)
+	for i in [0, 1]:
+		var L: Dictionary = legs[0]
+		var sd := 1.0 if i % 2 == 1 else -1.0
+		var hm: Vector2 = L.home
+		var phase := sin(t * 3.0 + PI * i) * 0.5 + 0.5 if kind == "wolf" else 1.0
+		_pose_foot[i] = Vector3(hm.x * sd * 0.6, -body_h + up.y * phase, hm.y * 0.8 + up.z)
+		if not _gripped.has(i):
+			_gripped.append(i)
+	if t + get_process_delta_time() >= _court_secs():
+		_palp_ask = [null, null]
+		_abd.rotation = Vector3.ZERO
+
+
+## (A garden spider male: dead on her, after his second; she wraps him.)
+func _die_on(her: Node3D) -> void:
+	_hang = her
+	_hang_at = her.transform.affine_inverse() * transform
+	_palp_ask = [null, null]
+	die()
+
+
+func _hung(dt: float) -> void:
+	_t += dt
+	_wrap_t += dt
+	if not is_instance_valid(_hang):
+		_hang = null
+		return
+	transform = _hang.transform * _hang_at
+	_body.scale = Vector3.ONE * MM * size
+	# his legs drawn in
+	for i in legs.size() * 2:
+		var L: Dictionary = legs[i / 2]
+		var side := 1.0 if i % 2 == 1 else -1.0
+		var hp: Vector3 = L.hip
+		_pose_foot[i] = Vector3(hp.x * side * 2.0, hp.y + float(L.f) * 0.55, hp.z * 0.7)
+	_pose_legs()
+	# (and she wraps him in silk)
+	if _wrap_t > 3.0:
+		if _wrap == null:
+			_wrap = MeshInstance3D.new()
+			var sm := SphereMesh.new()
+			sm.radius = 0.5
+			sm.height = 1.0
+			_wrap.mesh = sm
+			var silk := StandardMaterial3D.new()
+			silk.albedo_color = Color(0.95, 0.95, 0.92)
+			silk.roughness = 0.7
+			_wrap.material_override = silk
+			_body.add_child(_wrap)
+		var k := clampf((_wrap_t - 3.0) / 4.0, 0.02, 1.0)
+		var A: Vector3 = S.abd
+		_wrap.position = Vector3(0.0, 0.0, A.x * 0.15)
+		_wrap.scale = Vector3(A.y * 2.2, A.z * 2.0, A.x * 1.9 + float((S.ceph as Vector3).x)) * k
+
+
 # --- steering (pilot.gd): its behaviours -------------------------------------------
 
 ## hunt {prey}, lay, spin {at, radius} (the funnel weaver) / {top, left,
@@ -680,9 +998,11 @@ func _on_landed() -> void:
 func _p_behaviours() -> PackedStringArray:
 	if young:
 		return PackedStringArray(["hunt"])
+	if male:
+		return PackedStringArray(["hunt", "mate"])
 	if kind in ["funnel", "argiope"]:
-		return PackedStringArray(["hunt", "lay", "spin"])
-	return PackedStringArray(["hunt", "lay"])
+		return PackedStringArray(["hunt", "lay", "spin", "mate"])
+	return PackedStringArray(["hunt", "lay", "mate"])
 
 
 func _p_act(name: String, args: Dictionary) -> bool:
@@ -1113,3 +1433,79 @@ class OrbWeb extends Node3D:
 
 	func _process(_dt: float) -> void:
 		_mat.set_shader_parameter("built", built)
+
+
+## A male spider's sperm web (his, before he goes to find a female): a
+## little sheet of silk a few mm off the ground on threads to its corners;
+## the drop of sperm he lays on it, milky (drop, 0..1), drawn up again into
+## his palps; left there.
+class SpermWeb extends Node3D:
+	var across := 0.01 # m
+	var built := 0.0
+	var drop := 0.0
+	var left := false
+	var _sheet: MeshInstance3D
+	var _drop: MeshInstance3D
+	var _threads: Array[MeshInstance3D] = []
+	var _gone := 0.0
+
+	func _ready() -> void:
+		var silk := StandardMaterial3D.new()
+		silk.albedo_color = Color(0.95, 0.95, 0.93, 0.6)
+		silk.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		silk.cull_mode = BaseMaterial3D.CULL_DISABLED
+		silk.roughness = 0.6
+		var q := QuadMesh.new()
+		q.size = Vector2.ONE
+		_sheet = MeshInstance3D.new()
+		_sheet.mesh = q
+		_sheet.rotation.x = -PI * 0.5
+		_sheet.material_override = silk
+		add_child(_sheet)
+		var c := CylinderMesh.new()
+		c.top_radius = 0.5
+		c.bottom_radius = 0.5
+		c.height = 1.0
+		c.radial_segments = 4
+		c.rings = 1
+		for k in 4:
+			var th := MeshInstance3D.new()
+			th.mesh = c
+			th.material_override = silk
+			add_child(th)
+			_threads.append(th)
+		var s := SphereMesh.new()
+		s.radius = 0.5
+		s.height = 1.0
+		s.radial_segments = 10
+		s.rings = 6
+		var milk := StandardMaterial3D.new()
+		milk.albedo_color = Color(0.93, 0.92, 0.86)
+		milk.roughness = 0.15
+		_drop = MeshInstance3D.new()
+		_drop.mesh = s
+		_drop.material_override = milk
+		add_child(_drop)
+
+	func _process(dt: float) -> void:
+		var h := across * 0.35
+		var w := across * built
+		_sheet.position = Vector3(0.0, h, 0.0)
+		_sheet.scale = Vector3(maxf(w, 1e-5), maxf(w * 0.8, 1e-5), 1.0)
+		_sheet.visible = built > 0.01
+		for k in 4:
+			var cx := (0.5 if k % 2 == 0 else -0.5) * w
+			var cz := (0.4 if k < 2 else -0.4) * w
+			var a := Vector3(cx, h, cz)
+			var b := Vector3(cx * 1.6, 0.0, cz * 1.6)
+			var d := a - b
+			_threads[k].visible = built > 0.3
+			var q := Quaternion(Vector3.UP, d.normalized()) if d.length() > 1e-6 else Quaternion()
+			_threads[k].transform = Transform3D(Basis(q) * Basis.from_scale(Vector3(across * 0.01, maxf(d.length(), 1e-5), across * 0.01)), (a + b) * 0.5)
+		_drop.visible = drop > 0.01
+		_drop.position = Vector3(0.0, h + across * 0.05 * drop, 0.0)
+		_drop.scale = Vector3(1.0, 0.6, 1.0) * across * 0.22 * drop
+		if left:
+			_gone += dt
+			if _gone > 60.0:
+				queue_free()

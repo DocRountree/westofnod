@@ -146,7 +146,11 @@ void fragment() {
 ## Its behaviours (a state machine's: pilot.gd): search {centre, radius,
 ## flowers, seconds}, feed {florets, seconds}, lay {spots, normals}.
 func _p_behaviours() -> PackedStringArray:
-	return PackedStringArray(["search", "feed", "lay"])
+	return PackedStringArray(["search", "feed", "mate"]) if male else PackedStringArray(["search", "feed", "lay", "mate"])
+
+
+func _after_mate() -> void:
+	search(_centre, _radius, _flowers)
 
 
 func _p_act(name: String, args: Dictionary) -> bool:

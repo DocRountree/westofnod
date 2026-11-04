@@ -17,7 +17,11 @@ extends "res://scripts/creatures/hexapod.gd" # (by path: found whether or not th
 ## - lay(): the female's brood pouch under her front filling, swelling with
 ##   eggs (pill bugs carry their eggs: no laying them out)
 ## - hatch(): the young out of the pouch, walking out from under her
-## Steering (pilot.gd): act eat {at, seconds}, roll {seconds}, lay.
+## - mate(her) (a male's: male set before it's added; as she is, but no
+##   pouch): he climbs onto her back from behind, then leans over to one
+##   side of her, his tail bent down under her edge, then to the other;
+##   and off again
+## Steering (pilot.gd): act eat {at, seconds}, roll {seconds}, lay, mate.
 
 const SEGS := 14 # head, 7 pereon plates, 5 pleon plates, the telson
 const LEN := 15.0 # mm, head to tail
@@ -131,7 +135,7 @@ func _build() -> void:
 	for side: float in [-1.0, 1.0]:
 		_part(Vector3(1.05 * side, -0.05, 0.45), Vector3(0.8, 0.4, 0.9), plate, tail)
 	# the brood pouch (a female's), under her front: swelling with eggs
-	if not young:
+	if not young and not male:
 		var pm := _mat(Color(0.88, 0.85, 0.75, 0.75), 0.3)
 		pm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 		_pouch = _part(Vector3(0.0, -1.6, -1.8), Vector3(3.2, 1.2, 4.4), pm)
@@ -334,6 +338,7 @@ func _pose(dt: float) -> void:
 	for n in _plates:
 		var d: float = n.get_meta("dir")
 		n.rotation.x = d * 0.47 * k # (the front ones head down and under, the back ones tail down and under)
+	_pose_mate()
 	# (a ball: up off its legs a little, settled on its round)
 	_lift = -body_h * 0.2 * k
 	# the legs tucked in, hidden, rolled
@@ -354,11 +359,57 @@ func _pose(dt: float) -> void:
 			_eggs[e].visible = _pouch.visible and float(e) / _eggs.size() < _brood
 
 
+# --- mating ------------------------------------------------------------------------
+
+func _mate_approach() -> Vector3:
+	return Vector3(0.0, -body_h, 14.0)
+
+
+func _mate_leave() -> Vector3:
+	return Vector3(7.0, -body_h, 10.0)
+
+
+func _court_secs() -> float:
+	return 1.5 # (his antennae tapping her)
+
+
+func _mount() -> Dictionary:
+	# on her back, then leaning right over to one side of her, his tail bent
+	# down under her edge; halfway, to the other side
+	var t := _mate_t / maxf(mate_secs, 0.01) if _mate_stage == "joined" else (0.0 if _mate_stage == "mount" else 1.0)
+	var side := -1.0 if t < 0.5 else 1.0
+	var lean := clampf(minf(t, 1.0 - t) * 10.0 if t < 0.5 else minf(t - 0.5, 1.0 - t) * 10.0, 0.0, 1.0)
+	var b := Basis(Vector3.BACK, -side * 0.55 * lean) * Basis(Vector3.RIGHT, -0.08)
+	var feet := {}
+	for p in legs.size():
+		var z := -4.2 + p * 1.25
+		feet[p * 2] = Vector3(-3.2, -0.2, z * 0.9 - 1.0)
+		feet[p * 2 + 1] = Vector3(3.2, -0.2, z * 0.9 - 1.0)
+	return {"at": Vector3(1.0 * side * lean, 3.6 - 0.6 * lean, 1.2), "basis": b, "grips": feet}
+
+
+func _pose_mate() -> void:
+	# (his tail bent down under her edge, joined)
+	if _mate_role != "male" or _mate_stage != "joined":
+		return
+	var n := _plates.size()
+	for j in range(n - 4, n):
+		var nd := _plates[j]
+		if float(nd.get_meta("dir")) > 0.0:
+			nd.rotation.x += 0.2
+
+
+func _after_mate() -> void:
+	wander(_pos, 0.06)
+
+
 # --- steering (pilot.gd): its behaviours -------------------------------------------
 
 ## eat {at, seconds}, roll {seconds}, lay (the female's).
 func _p_behaviours() -> PackedStringArray:
-	return PackedStringArray(["eat", "roll"]) if young else PackedStringArray(["eat", "roll", "lay"])
+	if young:
+		return PackedStringArray(["eat", "roll"])
+	return PackedStringArray(["eat", "roll", "mate"]) if male else PackedStringArray(["eat", "roll", "lay", "mate"])
 
 
 func _p_act(name: String, args: Dictionary) -> bool:

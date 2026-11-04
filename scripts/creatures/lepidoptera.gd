@@ -28,6 +28,13 @@ extends Node3D
 ##   there, its wings crumpled stubs, pumped out to their full size over
 ##   some seconds as it hangs, the abdomen working; then off
 ##
+## - mating (mate(partner): the male (male set) and the female, no
+##   difference between them to see): he flies after her, close behind
+##   her, till he's on her; down they go together (onto where she's perched,
+##   or the ground under her: floor_y), and there they're joined end to end,
+##   facing away from each other, their wings closed, their abdomens' tips
+##   together; a while, then apart, and both off again (_after_mate)
+##
 ## Steering (a state machine's: pilot.gd): go (flying, at its height),
 ## go_to, face, stop (hovering, if it can; a monarch, which can't, loitering
 ## there), act (the species' behaviours), behaviours, is_busy,
@@ -125,6 +132,18 @@ var _from_n := Vector3.UP
 var _from_h := Vector3.FORWARD
 var _emerging := false
 var _emerge_t := 0.0
+
+# mating
+var male := false
+var floor_y := 0.0 ## the ground's height under it (where a pair comes down, if she's flying)
+var mate_secs := 25.0 ## s joined
+var _mate: Node3D
+var _mate_role := "" # "male", "female"
+var _mate_stage := "" # "chase", "down", "joined"
+var _mate_t := 0.0
+var _mate_at := Vector3.ZERO # where they're joined (her abdomen's tip; its parent's space)
+var _mate_n := Vector3.UP
+var _mate_h := Vector3.FORWARD # her heading there
 
 
 func _ready() -> void:
@@ -423,7 +442,9 @@ func _process(dt: float) -> void:
 	_t += dt
 	if _pilot:
 		_pilot.tick(dt)
-	if _lay_i >= 0:
+	if _mate_role != "":
+		_mate_think(dt)
+	elif _lay_i >= 0:
 		_lay_think(dt)
 	elif _emerging:
 		_emerge_think(dt)
@@ -696,6 +717,146 @@ func _emerge_think(dt: float) -> void:
 					_after.call()
 	# its abdomen swollen with the blood it pumps into its wings, going down
 	_abdomen.scale = Vector3.ONE * lerpf(1.35, 1.0, _grow)
+
+
+# ---- mating ------------------------------------------------------------------------
+
+## Mating with partner (its kind, the other sex; neither laying, emerging,
+## or mating): see the class. False if they can't.
+func mate(partner: Node3D, secs := -1.0) -> bool:
+	if partner == null or partner == self or not partner.has_method("_mate_begin") or bool(partner.get("male")) == male:
+		return false
+	if _mate_role != "" or partner.get("_mate_role") != "" or _emerging or bool(partner.get("_emerging")):
+		return false
+	var him: Node3D = self if male else partner
+	var her: Node3D = partner if male else self
+	var s := secs if secs > 0.0 else mate_secs
+	him.call("_mate_begin", her, "male", s)
+	her.call("_mate_begin", him, "female", s)
+	return true
+
+
+func is_mating() -> bool:
+	return _mate_role != ""
+
+
+func mate_stage() -> String:
+	return _mate_stage
+
+
+func _mate_begin(partner: Node3D, role: String, secs: float) -> void:
+	_mate = partner
+	_mate_role = role
+	_mate_stage = "chase"
+	_mate_t = 0.0
+	mate_secs = secs
+	_lay_i = -1
+
+
+## (The species: off again after mating, its own doing.)
+func _after_mate() -> void:
+	pass
+
+
+## (How far its abdomen's tip is behind its middle, m.)
+func _tail() -> float:
+	return (abdomen_at.z + abdomen_tip.z) * MM
+
+
+func _mate_end() -> void:
+	_mate = null
+	_mate_role = ""
+	_mate_stage = ""
+	_curl = 0.0
+	_flap = 1.0
+	take_off()
+	_after_mate()
+
+
+func _mate_think(dt: float) -> void:
+	_mate_t += dt
+	if _mate == null or not is_instance_valid(_mate) or _mate.get("_mate_role") == "":
+		_mate_end()
+		return
+	_tongue = 0.0
+	_tongue_at = Vector3.INF
+	var her: Node3D = _mate if male else self
+	match _mate_stage:
+		"chase":
+			if not male:
+				# (she goes on as she was, a little slower, till he's on her)
+				_think(dt)
+				return
+			_flap = 1.0
+			_look = Vector3.ZERO
+			var hp: Vector3 = her.get("_pos")
+			var hh: Vector3 = her.get("_heading")
+			_target = hp - hh * 0.03 + Vector3.UP * 0.01
+			if _own_speed < 0.0:
+				_own_speed = max_speed
+			max_speed = _own_speed * 1.3
+			if not flying:
+				take_off()
+			if _pos.distance_to(hp) < 0.045 or _mate_t > 30.0:
+				# (on her: down together, where she's perched or the ground
+				# under her)
+				var at: Vector3
+				var n: Vector3
+				if not bool(her.get("flying")):
+					at = her.get("_surface_p")
+					n = her.get("_surface_n")
+				else:
+					at = Vector3(hp.x, floor_y, hp.z)
+					n = Vector3.UP
+				var h := Vector3(hh.x, 0.0, hh.z)
+				h = h.normalized() if h.length() > 1e-4 else Vector3.FORWARD
+				h = (h - n * h.dot(n)).normalized()
+				for c: Node3D in [self, her]:
+					c.set("_mate_at", at)
+					c.set("_mate_n", n)
+					c.set("_mate_h", h)
+					c.set("_mate_stage", "down")
+					c.set("_mate_t", 0.0)
+				max_speed = _own_speed
+		"down":
+			_jitter = 0.0
+			_pitch = 0.0
+			# to the spot: her there facing her way, him behind her facing
+			# the other, their abdomens' tips together
+			_flap = 1.0
+			var tail := _tail()
+			var spot := _mate_at if not male else _mate_at - _mate_h * (tail + float(her.call("_tail")))
+			var face := _mate_h if not male else -_mate_h
+			if flying:
+				_target = spot + _mate_n * (stand * MM + 0.01)
+				_look = face
+				if _pos.distance_to(_target) < 0.012:
+					land(spot, _mate_n)
+			else:
+				_surface_p = _surface_p.lerp(spot, 1.0 - exp(-4.0 * dt))
+				_heading = _heading.slerp(face, 1.0 - exp(-5.0 * dt)).normalized()
+				_open = 0.0
+				if male and not bool(her.get("flying")) and _surface_p.distance_to(spot) < 0.003:
+					for c: Node3D in [self, her]:
+						c.set("_mate_stage", "joined")
+						c.set("_mate_t", 0.0)
+		"joined":
+			_open = 0.0
+			_flap = 0.0
+			_pitch = 0.0
+			_curl = -0.12 # (their tips raised a little to each other)
+			var tail := _tail()
+			var spot := _mate_at if not male else _mate_at - _mate_h * (tail + float(her.call("_tail")))
+			_surface_p = _surface_p.lerp(spot, 1.0 - exp(-6.0 * dt))
+			var face := _mate_h if not male else -_mate_h
+			_heading = _heading.slerp(face, 1.0 - exp(-5.0 * dt)).normalized()
+			# (now and then his wings part a little, and close)
+			_open = 0.15 * maxf(sin(_t * 0.6 + (1.5 if male else 0.0)), 0.0)
+			if male and _mate_t > mate_secs:
+				var m := _mate
+				_mate_end()
+				if is_instance_valid(m) and m.get("_mate_role") != "":
+					m.call("_mate_end")
 
 
 # ---- steering: a state machine's (pilot.gd) -------------------------------------

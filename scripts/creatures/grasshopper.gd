@@ -21,6 +21,11 @@ extends "res://scripts/creatures/hexapod.gd" # (by path: found whether or not th
 ## - lay(at): to the spot, the abdomen pushed down into the soil, working,
 ##   and an egg pod left there (pods: Pod), hatching later into nymphs
 ##   that pop up out of the ground (Pod.hatch)
+## - mate(her) (a male's: male set before it's added; smaller, otherwise
+##   as she is): he comes up behind her, crouches and jumps onto her back,
+##   his fore and middle legs gripping her, his hind legs folded alongside
+##   hers, his abdomen curled down and round under to the tip of hers,
+##   working; then off again
 
 const LEGS := [
 	{"hip": Vector3(1.4, -1.8, -6.0), "f": 5.5, "t": 5.0, "s": 3.0, "home": Vector2(5.5, -11.0), "dangle": Vector3(2.5, -4.0, -6.5), "pole": Vector3(0.4, 1.0, -0.3), "r": 0.45},
@@ -50,6 +55,7 @@ var _chew := 0.0
 var _head_down := 0.0
 var _wings := 0.0 # 0 folded .. 1 open, beating
 var _probe := 0.0 # 0 .. 1: the abdomen pushed down into the soil
+var _clasp := 0.0 # 0 .. 1: a male's abdomen curled down round to hers
 
 
 func _init(nymph_ := false, size_ := 1.0) -> void:
@@ -308,7 +314,7 @@ func _on_landed() -> void:
 ## hop {at}, fly {at} (the adult's), feed {at, seconds}, lay {at} (the
 ## adult's); at defaulting to ahead of it (or where it is, to lay).
 func _p_behaviours() -> PackedStringArray:
-	return PackedStringArray(["hop", "feed"]) if nymph else PackedStringArray(["hop", "fly", "feed", "lay"])
+	return PackedStringArray(["hop", "feed"]) if nymph else PackedStringArray(["hop", "fly", "feed", "lay", "mate"])
 
 
 func _p_act(name: String, args: Dictionary) -> bool:
@@ -348,6 +354,46 @@ func _piloted() -> void:
 	_after_mode = "piloted"
 
 
+# --- mating ------------------------------------------------------------------------
+
+func _male_size() -> float:
+	return 0.78
+
+
+func _mate_approach() -> Vector3:
+	return Vector3(0.0, -body_h, 30.0)
+
+
+func _mate_leave() -> Vector3:
+	return Vector3(12.0, -body_h, 14.0)
+
+
+func _court_secs() -> float:
+	return 1.6
+
+
+func _mating(dt: float) -> void:
+	super(dt)
+	if _mate_role == "male" and _mate_stage == "court":
+		_crouch = minf(_crouch + dt * 2.0, 1.0) # (gathering himself to jump on)
+	else:
+		_crouch = move_toward(_crouch, 0.0, dt * 2.0)
+
+
+func _mount() -> Dictionary:
+	# on her back over her wings, his front legs at her pronotum's sides,
+	# his middle ones at her flanks; his hind legs folded down alongside
+	return {"at": Vector3(0.0, 5.8, 3.5), "basis": Basis(Vector3.RIGHT, -0.05), "grips": {
+		0: Vector3(-3.3, 0.6, -5.0), 1: Vector3(3.3, 0.6, -5.0),
+		2: Vector3(-3.2, -0.6, 1.5), 3: Vector3(3.2, -0.6, 1.5)},
+		"free": {4: Vector3(-5.5, -6.0, 9.0), 5: Vector3(5.5, -6.0, 9.0)}}
+
+
+func _after_mate() -> void:
+	_crouch = 0.0
+	wander(_pos, 0.15)
+
+
 ## The egg pod: where the abdomen's tip went down, in the soil.
 func _drop_pod() -> void:
 	var parent := get_parent() as Node3D
@@ -373,7 +419,9 @@ func _pose(dt: float) -> void:
 		_antennae[k].rotation = Vector3(0.12 * sin(_t * 1.3 + k * 2.0), 0.1 * sin(_t * 0.9 + k), 0.0)
 	# the abdomen: pushed down into the soil (and stretched: its joints
 	# telescope), drawn up a little as it leaps
-	_abdomen.rotation.x = 0.75 * _probe + (0.1 if airborne else 0.0)
+	var joined := _mate_role == "male" and _mate_stage in ["joined", "part"]
+	_clasp = move_toward(_clasp, 1.0 if joined else 0.0, dt * 1.5)
+	_abdomen.rotation = Vector3(0.75 * _probe + (0.1 if airborne else 0.0) + _clasp * (0.55 + 0.05 * sin(_t * 3.0)), 0.3 * _clasp, 0.15 * _clasp)
 	_abdomen.scale = Vector3(1.0, 1.0, 1.0 + 0.4 * _probe)
 	# the wings: roofed over the back, or up and out, the hindwings fanned
 	# and whirring

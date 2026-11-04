@@ -16,6 +16,13 @@ extends Node3D
 ## The species sets the shape (legs: hip, f, t, s, home, dangle, pole,
 ## walks, r; body_h) and poses its own parts (_pose: head, wings, abdomen),
 ## and decides what to do (_think).
+## Mating (mate(partner), the male leading: hexapod's own, the species
+## saying how: _mount, _court, its poses reading mate_stage()): he goes to
+## her, courts her (the species' own: drumming, waving, tapping), climbs on
+## (carried on her from then: his transform hers, his feet gripping where
+## the species says on her body), stays joined (mate_secs), and climbs off
+## behind her; both back to what they were doing (_after_mate). die(): it
+## rolls over, legs curled, and lies there.
 ## Steering (a state machine's: pilot.gd): go, go_to, face, stop, act,
 ## behaviours, is_busy, action_finished; height (the ground, for its feet
 ## and its walking). Its transform is set every frame: put it under a node
@@ -39,6 +46,8 @@ var tripod := [[0, 3, 4], [1, 2, 5]] ## the gait's two sets (a leg: its pair * 2
 
 var size := 1.0
 var nymph := false
+var male := false ## (set before it's added: the species' build may differ: its size, _male_size())
+var dead := false
 var ground_y := 0.0
 var height: Callable ## (x, z) -> the ground's y (none: level, at ground_y)
 var _pilot: PilotScript
@@ -81,6 +90,17 @@ var _leg_mesh: Array = [] # each leg: [femur, tibia, tarsus, knee]
 static var _sphere: SphereMesh
 static var _cyl: CylinderMesh
 
+# mating
+var _mate: Node3D # the partner (a hexapod of its kind)
+var _mate_role := "" # "male", "female"
+var _mate_stage := "" # the male's: "seek", "court", "mount", "joined", "part"; hers: "wait", "joined"
+var _mate_t := 0.0
+var mate_secs := 20.0 ## s joined (the species' default; mate(partner, secs) its own)
+var _mount_from := Transform3D()
+var _mount_to := Transform3D()
+var _gripped: Array[int] = []
+var _dead_t := 0.0
+
 
 func _init(nymph_ := false, size_ := 1.0) -> void:
 	nymph = nymph_
@@ -90,6 +110,9 @@ func _init(nymph_ := false, size_ := 1.0) -> void:
 
 
 func _ready() -> void:
+	if male and not nymph:
+		size *= _male_size()
+		_g_to = size
 	if _sphere == null:
 		_sphere = SphereMesh.new()
 		_sphere.radius = 0.5
@@ -318,10 +341,19 @@ func _process(dt: float) -> void:
 	if dt <= 0.0 or _body == null:
 		return
 	_t += dt
+	if dead:
+		_lie_dead(dt)
+		return
 	size = move_toward(size, _g_to, _g_rate * dt)
 	if _pilot:
 		_pilot.tick(dt)
-	_think(dt)
+	if _mate_role == "male" and _mate_stage in ["mount", "joined", "part"]:
+		_ride_mate(dt)
+		return
+	if _mate_role != "":
+		_mating(dt)
+	else:
+		_think(dt)
 	if airborne:
 		_fly(dt)
 	else:
@@ -612,3 +644,273 @@ func _piloted() -> void:
 ## Where p (body mm) is, in its parent's space.
 func _out(p: Vector3) -> Vector3:
 	return transform * (_body.transform * p)
+
+
+# --- mating ---------------------------------------------------------------------------
+
+## Mating with partner (its kind, the other sex): the male goes to her,
+## courts, climbs on, joined secs (-1: mate_secs), off again. Either may be
+## asked: he leads. False if it can't (young, dead, busy mating, the same
+## sex).
+func mate(partner: Node3D, secs := -1.0) -> bool:
+	if partner == null or partner == self or nymph or dead or _mate_role != "" or not partner.has_method("_mate_join"):
+		return false
+	if bool(partner.get("male")) == male or bool(partner.get("nymph")) or bool(partner.get("dead")) or partner.get("_mate_role") != "":
+		return false
+	var him: Node3D = self if male else partner
+	var her: Node3D = partner if male else self
+	var s := secs if secs > 0.0 else mate_secs
+	him.call("_mate_join", her, "male", s)
+	her.call("_mate_join", him, "female", s)
+	return true
+
+
+## Whether it's mating (any stage).
+func is_mating() -> bool:
+	return _mate_role != ""
+
+
+## The stage it's at: "" (not mating); the male's "seek", "court", "mount",
+## "joined", "part"; the female's "wait", "joined".
+func mate_stage() -> String:
+	return _mate_stage
+
+
+## (How far through the stage it's at, s.)
+func mate_time() -> float:
+	return _mate_t
+
+
+func _mate_join(partner: Node3D, role: String, secs: float) -> void:
+	_mate = partner
+	_mate_role = role
+	_mate_stage = "seek" if role == "male" else "wait"
+	_mate_t = 0.0
+	mate_secs = secs
+	_on_mate_start()
+
+
+## (The species: how much smaller the male (his share of her size).)
+func _male_size() -> float:
+	return 1.0
+
+
+## (The species: where he goes to court her (her body mm), before he climbs
+## on.)
+func _mate_approach() -> Vector3:
+	return Vector3(0.0, -body_h, 14.0)
+
+
+## (The species: where he's left when he climbs off (her body mm).)
+func _mate_leave() -> Vector3:
+	return _mate_approach()
+
+
+## (The species: s he takes to climb on (and off).)
+func _mount_secs() -> float:
+	return 0.9
+
+
+## (The species: s he courts her for once there, facing her.)
+func _court_secs() -> float:
+	return 0.0
+
+
+## (The species: how he's carried on her: {at: her body mm, where his body's
+## middle is; basis: his turned from hers; grips: {leg: her body mm, his foot
+## there}; free: {leg: his body mm, a leg held there}}; the rest of his legs
+## to their dangle.)
+func _mount() -> Dictionary:
+	return {"at": Vector3(0.0, body_h * 1.6, 3.0), "basis": Basis(), "grips": {}}
+
+
+## (The species: mating's begun; it's ended (each partner).)
+func _on_mate_start() -> void:
+	pass
+
+
+func _after_mate() -> void:
+	pass
+
+
+## (The species: something happening during it (his or hers): the mantis's
+## meal of him; false: it isn't over yet, on as it is.)
+func _mate_over() -> bool:
+	return _mate_t >= mate_secs
+
+
+func _end_mate() -> void:
+	for i in _gripped:
+		_pose_foot[i] = null
+	_gripped.clear()
+	_mate = null
+	_mate_role = ""
+	_mate_stage = ""
+	_mate_t = 0.0
+	_after_mate()
+
+
+## Mating, on the ground: she waits (still), he goes to her and courts.
+func _mating(dt: float) -> void:
+	_mate_t += dt
+	if _mate == null or not is_instance_valid(_mate):
+		_end_mate()
+		return
+	var her: Node3D = _mate
+	if _mate_role == "female":
+		_target = _pos
+		_pace = -1.0
+		if _mate.get("_mate_role") != "male": # (he's gone)
+			_end_mate()
+		elif _mate.get("_mate_stage") in ["mount", "joined"]:
+			_mate_stage = "joined"
+		return
+	match _mate_stage:
+		"seek":
+			var to: Vector3 = her.call("_out", _mate_approach())
+			_target = Vector3(to.x, _pos.y, to.z)
+			_pace = -1.0
+			if Vector2(to.x - _pos.x, to.z - _pos.z).length() < _p_reach() * 0.5:
+				_mate_stage = "court"
+				_mate_t = 0.0
+				var at: Vector3 = her.call("_out", Vector3(0.0, 0.0, 0.0))
+				_turn_to = atan2(-(at.x - _pos.x), -(at.z - _pos.z))
+		"court":
+			_target = _pos
+			if _mate_t >= _court_secs():
+				_mate_stage = "mount"
+				_mate_t = 0.0
+				_mount_from = transform
+				_speed = 0.0
+
+
+## Mounted on her: carried (his transform hers, through the climb on and
+## the climb off), his feet where they grip.
+func _ride_mate(dt: float) -> void:
+	_mate_t += dt
+	if _mate == null or not is_instance_valid(_mate):
+		_dismounted()
+		return
+	process_priority = _mate.process_priority + 1 # (after her: carried where she is now)
+	var m := _mount()
+	var her_t: Transform3D = _mate.transform
+	var hs := float(_mate.get("size")) * MM
+	var mb: Basis = m.get("basis", Basis())
+	var mat: Vector3 = m.at
+	_mount_to = Transform3D(her_t.basis * mb, her_t * (mat * hs))
+	var k := 1.0
+	match _mate_stage:
+		"mount":
+			k = clampf(_mate_t / _mount_secs(), 0.0, 1.0)
+			if k >= 1.0:
+				_mate_stage = "joined"
+				_mate_t = 0.0
+		"joined":
+			if _mate_over():
+				_mate_stage = "part"
+				_mate_t = 0.0
+				# (off behind her, on the ground)
+				var off: Vector3 = _mate.call("_out", _mate_leave())
+				_pos = Vector3(off.x, _ground(off.x, off.z), off.z)
+				ground_y = _pos.y
+				var fwd := -(_mount_to.basis.z)
+				_yaw = atan2(-fwd.x, -fwd.z)
+				_pitch = 0.0
+				_roll = 0.0
+				_place()
+				_mount_from = transform
+		"part":
+			k = 1.0 - clampf(_mate_t / _mount_secs(), 0.0, 1.0)
+	if _mate == null or dead: # (it ended there: the species' own end)
+		return
+	var e := k * k * (3.0 - 2.0 * k)
+	transform = _mount_from.interpolate_with(_mount_to, e)
+	transform.origin += Vector3.UP * sin(PI * e) * body_h * 0.6 * MM * size
+	_body.scale = Vector3.ONE * MM * size
+	_pose(dt)
+	# his feet: gripping her where they hold; the rest held, or dangling
+	var inv := (transform * _body.transform).affine_inverse()
+	var grips: Dictionary = m.get("grips", {})
+	var free: Dictionary = m.get("free", {})
+	for i in legs.size() * 2:
+		if grips.has(i):
+			var w: Vector3 = _mate.call("_out", grips[i])
+			var g := inv * w
+			_pose_foot[i] = (inv * _feet[i]).lerp(g, e) if _mate_stage == "mount" else g
+		elif free.has(i):
+			_pose_foot[i] = free[i]
+		elif not _gripped.has(i) and _pose_foot[i] != null:
+			continue # (the species' own)
+		else:
+			var dg: Vector3 = legs[i / 2].dangle
+			_pose_foot[i] = Vector3(dg.x * (1.0 if i % 2 == 1 else -1.0), dg.y, dg.z)
+		if not _gripped.has(i):
+			_gripped.append(i)
+	_pose_legs()
+	if _mate_stage == "part" and k <= 0.0:
+		_dismounted()
+
+
+func _dismounted() -> void:
+	process_priority = 0
+	var p := transform.origin
+	_pos = Vector3(p.x, _ground(p.x, p.z), p.z)
+	ground_y = _pos.y
+	var fwd := -transform.basis.z
+	_yaw = atan2(-fwd.x, -fwd.z)
+	_pitch = 0.0
+	_roll = 0.0
+	_target = _pos
+	_speed = 0.0
+	_place()
+	for i in legs.size() * 2:
+		_feet[i] = _home(i)
+	_swinging = -1
+	var her := _mate
+	_end_mate()
+	if her != null and is_instance_valid(her) and her.get("_mate_role") == "female":
+		her.call("_end_mate")
+	_on_parted()
+
+
+## (The species: he's just climbed off.)
+func _on_parted() -> void:
+	pass
+
+
+## Dead: over onto its back, legs curled in, still.
+func die() -> void:
+	if dead:
+		return
+	if _mate_role != "":
+		var her := _mate
+		_end_mate()
+		if her != null and is_instance_valid(her) and her.get("_mate_role") != "":
+			her.call("_end_mate")
+	dead = true
+	_dead_t = 0.0
+	airborne = false
+	_speed = 0.0
+	if _pilot:
+		_pilot.stop()
+
+
+func _lie_dead(dt: float) -> void:
+	_dead_t += dt
+	var k := clampf(_dead_t / 1.2, 0.0, 1.0)
+	_roll = lerpf(_roll, PI * 0.92, k)
+	_pitch = lerpf(_pitch, 0.0, k)
+	_crouch = k
+	_lift = lerpf(_lift, -body_h * 0.35, k)
+	_alt = 0.0
+	_place()
+	for i in legs.size() * 2:
+		var L: Dictionary = legs[i / 2]
+		var side := 1.0 if i % 2 == 1 else -1.0
+		var hp: Vector3 = L.hip
+		var f: float = L.f
+		# (curled in under it: up, now it's on its back)
+		_pose_foot[i] = Vector3(hp.x * side + side * f * 0.35, hp.y - f * 0.5, hp.z * 0.8)
+	_pose_legs()
+	if _dead_t > 2.0:
+		set_process(false)

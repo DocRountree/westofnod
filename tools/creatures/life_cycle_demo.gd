@@ -19,6 +19,8 @@ extends Node3D
 ## wolf spider, fishing spider (on a pond), grass spider (its funnel web
 ##   spun as it starts), yellow garden spider (its orb spun off a branch),
 ##   pill bugs in leaf litter (a female and young)
+## deer mouse (life size): a female, a male, her grass nest, seeds
+## (every station a male too, but the ants': the female's partner)
 ##
 ## 1 every adult lays its eggs (Brood's: the butterflies one to a leaf, the
 ##   wasp one to a cell, the beetles a cluster; not the ants: their queens'
@@ -41,6 +43,11 @@ extends Node3D
 ## P steered by the steering layer (pilot.gd), as a state machine would: the
 ##   grasshopper, the mantis, the snakes, the moth, a lady beetle, each
 ##   through a few orders, one after another as each says it's done
+## K they mate, each pair its own way (the male mantis eaten, the garden
+##   spider's male dead on her; the spiders' males first charging their
+##   palps at a sperm web)
+## E the mice eat (a seed each)   Q they wash   (1 also: the mouse gives
+##   birth in her nest; Y: her young, once they're about, eat)
 ## Tab / Shift+Tab: the next station   Space slow motion
 ## drag: turn round   wheel: nearer / further
 
@@ -55,12 +62,13 @@ const BroodScript := preload("res://scripts/creatures/brood.gd")
 const PupaScript := preload("res://scripts/creatures/pupa.gd")
 
 const NAMES := ["monarch", "hummingbird clearwing", "paper wasp", "carpenter ant (queen)", "red harvester (queen)", "June bug", "convergent lady beetle", "differential grasshopper", "Carolina mantis", "eastern diamondback rattlesnake", "eastern milk snake",
-		"Carolina wolf spider", "six-spotted fishing spider", "grass spider (funnel weaver)", "yellow garden spider", "pill bug"]
+		"Carolina wolf spider", "six-spotted fishing spider", "grass spider (funnel weaver)", "yellow garden spider", "pill bug", "deer mouse"]
 const SpiderScript := preload("res://scripts/creatures/spider.gd")
 const IsopodScript := preload("res://scripts/creatures/isopod.gd")
 const SnakeScript := preload("res://scripts/creatures/snake.gd")
 const HopperScript := preload("res://scripts/creatures/grasshopper.gd")
 const MantisScript := preload("res://scripts/creatures/mantis.gd")
+const MouseScript := preload("res://scripts/creatures/mouse.gd")
 const GAP := 0.9 # m between stations
 
 var cam: Camera3D
@@ -93,6 +101,11 @@ var milk: SnakeScript
 var _mice := [null, null]
 var spiders: Array = [] # wolf, fishing, funnel, garden
 var pillbug: IsopodScript
+var males := {} ## each station's male (by its female's name: "monarch", "moth", ...; "spider0".., "rattler", "milk")
+var mouse_f: MouseScript
+var mouse_m: MouseScript
+var _nest: Node3D
+var _seeds: Array = []
 const POND := -0.004 # m: the pond's surface, a little below the plain's
 const POND_W := 0.42 # (its half width, x)
 const POND_D := 0.36 # (its half depth, z)
@@ -125,7 +138,7 @@ func _ready() -> void:
 	add_child(sun)
 	# the plain, a hole left in it for the fishing spider's pond
 	var x0 := -0.95
-	var x1 := GAP * 16.0 + 4.0
+	var x1 := GAP * 17.0 + 5.0
 	var pc := _station(12)
 	var grass := Color(0.36, 0.4, 0.22)
 	_box(Vector3((x0 + pc.x - POND_W) * 0.5, -0.005, 0.0), Vector3(pc.x - POND_W - x0, 0.01, 3.0), grass)
@@ -150,6 +163,8 @@ func _ready() -> void:
 	_snake_stations()
 	_spider_stations()
 	_isopod_station()
+	_mouse_station()
+	_male_partners()
 	_new_pupae()
 	_focus = _station(0) + Vector3(0.0, 0.08, 0.0)
 	_say()
@@ -261,7 +276,7 @@ func _beetle_stations() -> void:
 	june = JuneScript.new()
 	june.position = c
 	add_child(june)
-	june.setup(1, Vector3.ZERO, 0.06)
+	june.setup(2, Vector3.ZERO, 0.06) # (0 a female, 1 a male)
 	var grub := LarvaScript.new("june")
 	add_child(grub)
 	grub.place(c + Vector3(0.1, 0.0, 0.1), Vector3.LEFT)
@@ -273,7 +288,7 @@ func _beetle_stations() -> void:
 	lady = LadyScript.new()
 	lady.position = c2
 	add_child(lady)
-	lady.setup(1, Vector3.ZERO, 0.04)
+	lady.setup(2, Vector3.ZERO, 0.04)
 	var ll := LarvaScript.new("lady")
 	add_child(ll)
 	ll.place(c2 + Vector3(0.0, 0.0045, 0.06), Vector3.RIGHT)
@@ -469,6 +484,139 @@ func _isopod_station() -> void:
 		y.wander(c + Vector3(0.0, 0.0, 0.08), 0.06)
 
 
+## The deer mice: a female and a male, her nest (a ball of grass), seeds
+## about.
+func _mouse_station() -> void:
+	var c := _station(16)
+	_nest = MouseScript.nest()
+	_nest.position = c + Vector3(0.15, 0.0, -0.1)
+	add_child(_nest)
+	mouse_f = MouseScript.new()
+	add_child(mouse_f)
+	mouse_f.place(c, 0.4)
+	mouse_f.home_nest = _nest
+	mouse_f.wander(c, 0.25)
+	mouse_m = MouseScript.new()
+	mouse_m.male = true
+	add_child(mouse_m)
+	mouse_m.place(c + Vector3(-0.15, 0.0, 0.12), 2.0)
+	mouse_m.wander(c, 0.3)
+	for k in 4:
+		_new_seed()
+
+
+func _new_seed() -> Node3D:
+	var c := _station(16)
+	var sd := MouseScript.sunflower_seed()
+	sd.position = c + Vector3(randf_range(-0.22, 0.22), 0.0, randf_range(-0.15, 0.22))
+	sd.rotation.y = randf() * TAU
+	add_child(sd)
+	_seeds.append(sd)
+	return sd
+
+
+## The nearest seed to p (a new one, if there are none left).
+func _seed_near(p: Vector3) -> Node3D:
+	var best: Node3D = null
+	for sd in _seeds:
+		if is_instance_valid(sd) and not sd.has_meta("taken") and (best == null or (sd as Node3D).position.distance_to(p) < best.position.distance_to(p)):
+			best = sd
+	if best == null:
+		best = _new_seed()
+	best.set_meta("taken", true)
+	return best
+
+
+## A male for each female (not the ants': their queens').
+func _male_partners() -> void:
+	var m := MonarchScript.new()
+	m.male = true
+	add_child(m)
+	m.place(_station(0) + Vector3(0.2, 0.6, 0.1))
+	m.fly(_station(0), 0.4)
+	males["monarch"] = m
+	var mo := MothScript.new()
+	mo.male = true
+	add_child(mo)
+	mo.place(_station(1) + Vector3(-0.2, 0.35, 0.1))
+	mo.search(_station(1), 0.4, [])
+	males["moth"] = mo
+	var w := Wasp.new()
+	w.male = true
+	add_child(w)
+	w.place(_station(2) + Vector3(-0.15, 0.3, 0.1))
+	w.seek_food(_station(2), 0.5)
+	males["wasp"] = w
+	var h := HopperScript.new()
+	h.male = true
+	add_child(h)
+	h.place(_station(7) + Vector3(-0.15, 0.0, -0.1), 2.5)
+	h.wander(_station(7), 0.2)
+	males["hopper"] = h
+	_new_mantis_male()
+	for k in 2:
+		var kind := "rattler" if k == 0 else "milk"
+		var sn := SnakeScript.new(kind)
+		sn.male = true
+		add_child(sn)
+		sn.place(_station(9 + k) + Vector3(-0.3, 0.0, -0.4), Vector3.RIGHT)
+		sn.wander(_station(9 + k), 0.6)
+		males[kind] = sn
+	var kinds := ["wolf", "fishing", "funnel", "argiope"]
+	for k in 4:
+		var c := _station(11 + k)
+		var sp := SpiderScript.new(kinds[k])
+		sp.male = true
+		add_child(sp)
+		var at := c + Vector3(0.15, 0.0, 0.2)
+		if kinds[k] == "fishing": # (on the water too)
+			at = c + Vector3(0.15, POND, 0.15)
+			sp.height = func(_x: float, _z: float) -> float: return POND
+		elif kinds[k] == "argiope": # (in the grass below her web)
+			at = c + Vector3(0.2, 0.0, 0.15)
+		sp.place(at, 1.0)
+		sp.wander(at, 0.08)
+		males["spider%d" % k] = sp
+	var pb := IsopodScript.new()
+	pb.male = true
+	add_child(pb)
+	pb.place(_station(15) + Vector3(-0.08, 0.0, -0.05), 1.0)
+	pb.wander(_station(15), 0.12)
+	males["pillbug"] = pb
+
+
+func _new_mantis_male() -> void:
+	var mm := MantisScript.new()
+	mm.male = true
+	add_child(mm)
+	mm.place(_station(8) + Vector3(-0.15, 0.0, 0.25), 2.6)
+	mm.stalk(_station(8) + Vector3(-0.1, 0.0, 0.2), 0.08)
+	males["mantis"] = mm
+
+
+## Every pair mates (each its own way).
+func _mate_all() -> void:
+	var m = males.get("mantis")
+	if not is_instance_valid(m) or m.dead: # (the last one eaten: another)
+		_new_mantis_male()
+	var pairs := [[males.monarch, monarch], [males.moth, moth], [males.wasp, wasp], [males.hopper, hopper], [males.mantis, mantis],
+			[males.rattler, rattler], [males.milk, milk], [males.pillbug, pillbug], [mouse_m, mouse_f]]
+	for k in 4:
+		var sm = males["spider%d" % k]
+		if is_instance_valid(sm) and sm.dead: # (the garden spider's, dead on her: another)
+			sm = SpiderScript.new(spiders[k].kind)
+			sm.male = true
+			add_child(sm)
+			sm.place(_station(11 + k) + Vector3(0.2, 0.0, 0.15), 1.0)
+			males["spider%d" % k] = sm
+		pairs.append([sm, spiders[k]])
+	for pr: Array in pairs:
+		if is_instance_valid(pr[0]) and is_instance_valid(pr[1]):
+			pr[0].call("mate", pr[1])
+	june.mate(1, 0)
+	lady.mate(1, 0)
+
+
 ## The garden spider's orb: round a spot among the branch, the stems and
 ## the post (a little off each time, its plane a little turned: so another
 ## set of contact points each time), moored to what's found there; three
@@ -562,6 +710,8 @@ func _young_eat() -> void:
 			c.call("hunt", f)
 		elif sc == IsopodScript and c.get("young"):
 			c.call("eat", (c as Node3D).get("_pos") + Vector3(randf_range(-0.01, 0.01), 0.0, randf_range(-0.01, 0.01)))
+		elif sc == MouseScript and c.get("young") and float(c.get("size")) >= 0.25:
+			c.call("eat", _seed_near((c as Node3D).get("_pos")))
 		elif sc == SnakeScript and c.get("young"):
 			var m := SnakeScript.mouse(0.35)
 			var a := randf() * TAU
@@ -611,6 +761,11 @@ func _pilot_demo() -> void:
 		func() -> void: moth.go(Vector3.RIGHT, -1.0, 2.0),
 		func() -> void: moth.go_to(_station(1) + Vector3(0.0, 0.3, 0.0)),
 		func() -> void: moth.act("lay", {"spots": _moth_leaves.map(func(l): return l[0]), "normals": _moth_leaves.map(func(l): return l[1])}),
+	])
+	_sequence(mouse_m, [
+		func() -> void: mouse_m.go(Vector3.RIGHT, -1.0, 1.5),
+		func() -> void: mouse_m.act("eat", {"seed": _seed_near(mouse_m.get("_pos"))}),
+		func() -> void: mouse_m.act("groom", {"seconds": 3.0}),
 	])
 	var lb: Object = lady.member(0)
 	_sequence(lb, [
@@ -664,6 +819,7 @@ func _lay_all() -> void:
 	for sp in spiders:
 		sp.lay()
 	pillbug.lay()
+	mouse_f.birth(4, _nest)
 
 
 func _hatch_eggs() -> void:
@@ -765,6 +921,16 @@ func _unhandled_input(e: InputEvent) -> void:
 						sp.spin_funnel(c, 0.14)
 					else:
 						_spin_orb(sp, randi())
+			KEY_K:
+				_mate_all()
+			KEY_E:
+				for mo: MouseScript in [mouse_f, mouse_m]:
+					mo.eat(_seed_near(mo.get("_pos")))
+				_go(16)
+			KEY_Q:
+				mouse_f.groom()
+				mouse_m.groom()
+				_go(16)
 			KEY_O:
 				for c in get_children():
 					if c.get_script() == IsopodScript:
@@ -789,12 +955,12 @@ func _unhandled_input(e: InputEvent) -> void:
 ## To station i (the camera further off for the snakes).
 func _go(i: int) -> void:
 	_at = i
-	_dist = 2.2 if i >= 9 else minf(_dist, 0.8)
+	_dist = 2.2 if i == 9 or i == 10 else minf(_dist, 0.8)
 	_say()
 
 
 func _say() -> void:
-	_label.text = "%s   (Tab / Shift+Tab: the next)\n1 all lay eggs   2 the pupae hatch   3 new pupae   4 the eggs hatch   5 new ant eggs\n6 grasshopper hops   7 flies   8 eats   9 mantis strikes the fly   0 flies   G grooms\nR rattlesnake eats   M milk snake eats   C snakes coil   W off again   Y the young eat   P steered\nF the spiders hunt   S the web spiders spin anew   O the pill bugs roll up   Space slow motion   drag: turn round   wheel: nearer / further" % NAMES[_at]
+	_label.text = "%s   (Tab / Shift+Tab: the next)\n1 all lay eggs   2 the pupae hatch   3 new pupae   4 the eggs hatch   5 new ant eggs\n6 grasshopper hops   7 flies   8 eats   9 mantis strikes the fly   0 flies   G grooms\nR rattlesnake eats   M milk snake eats   C snakes coil   W off again   Y the young eat   P steered\nF the spiders hunt   S the web spiders spin anew   O the pill bugs roll up   K they mate   E the mice eat   Q they wash\nSpace slow motion   drag: turn round   wheel: nearer / further" % NAMES[_at]
 
 
 func _process(dt: float) -> void:

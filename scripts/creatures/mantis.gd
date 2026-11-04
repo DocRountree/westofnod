@@ -24,6 +24,12 @@ extends "res://scripts/creatures/hexapod.gd" # (by path: found whether or not th
 ##   stem behind it, low): the abdomen's tip on it, working side to side,
 ##   the foam growing; later hatching (Ootheca.hatch): nymphs out along
 ##   its seam, each let down on a thread, and off
+## - mate(her) (a male's: Mantis.new() with male set): he creeps up behind
+##   her, freezes, swaying, then leaps onto her back, his forelegs clasping
+##   her, his abdomen curled down round to hers; she twists round, takes him
+##   in her forelegs and eats his head; headless, he goes on; then falls off
+##   her, dead. A male (smaller, slimmer: his abdomen narrow, his forewings
+##   covering it; otherwise as she is)
 
 const LEGS := [
 	# (the forelegs: raptorial, posed by hand, not walked: these unused)
@@ -154,6 +160,8 @@ func _build() -> void:
 	_abdomen.position = Vector3(0.0, 0.3, 2.0)
 	_body.add_child(_abdomen)
 	var ab := [[0.0, 0.0, 0.6, 0.6], [1.0, 0.0, 2.8, 2.0], [6.0, 0.1, 3.6, 2.4], [12.0, 0.1, 3.6, 2.4], [18.0, -0.1, 2.8, 2.0], [23.0, -0.3, 1.6, 1.2], [25.5, -0.3, 0.4, 0.4]]
+	if male and not nymph: # (a male's slender)
+		ab = [[0.0, 0.0, 0.5, 0.5], [1.0, 0.0, 2.0, 1.6], [6.0, 0.1, 2.3, 1.8], [12.0, 0.1, 2.3, 1.8], [18.0, 0.0, 1.9, 1.5], [22.5, -0.2, 1.2, 0.9], [24.5, -0.2, 0.4, 0.4]]
 	if nymph:
 		ab = [[0.0, 0.0, 0.5, 0.5], [1.0, 0.0, 1.8, 1.6], [6.0, 0.1, 2.2, 1.8], [12.0, 0.1, 2.0, 1.7], [17.0, 0.0, 1.3, 1.1], [19.5, 0.0, 0.3, 0.3]]
 	_abdomen.add_child(_mesh(_loft(ab), _banded(green.lightened(0.1), 3.2, 1.0, 0.3, 0.4))) # (its segments, mottled)
@@ -168,7 +176,8 @@ func _build() -> void:
 			h.position = Vector3(0.7 * side, 2.0, -4.5)
 			_body.add_child(h)
 			h.set_meta("side", side)
-			_part(Vector3(1.1 * side, 0.0, 10.5), Vector3(4.6, 0.3, 21.0), _mat(Color(0.5, 0.5, 0.33), 0.5), h)
+			var wl := 1.22 if male else 1.0 # (a male's: over all his abdomen)
+			_part(Vector3(1.1 * side, 0.0, 10.5 * wl), Vector3(4.2 if male else 4.6, 0.3, 21.0 * wl), _mat(Color(0.5, 0.5, 0.33), 0.5), h)
 			_part(Vector3(1.6 * side, 0.2, 7.5), Vector3(1.3, 0.35, 1.5), _mat(Color(0.18, 0.15, 0.1), 0.5), h)
 			_teg.append(h)
 			var hw := Node3D.new()
@@ -419,7 +428,7 @@ func _on_landed() -> void:
 ## strike {at, prey}, watch {at, seconds}, groom, fly {at} and lay {at}
 ## (the adult's).
 func _p_behaviours() -> PackedStringArray:
-	return PackedStringArray(["strike", "watch", "groom"]) if nymph else PackedStringArray(["strike", "watch", "groom", "fly", "lay"])
+	return PackedStringArray(["strike", "watch", "groom"]) if nymph else PackedStringArray(["strike", "watch", "groom", "fly", "lay", "mate"])
 
 
 func _p_act(name: String, args: Dictionary) -> bool:
@@ -458,6 +467,103 @@ func _piloted() -> void:
 	_rest_fore()
 
 
+# --- mating ------------------------------------------------------------------------
+
+const BITE_AT := 0.3 # (share of the time joined: she's round, his head in her jaws)
+const BITE_FOR := 0.3 # (and eaten)
+
+
+func _male_size() -> float:
+	return 0.82
+
+
+func _mate_approach() -> Vector3:
+	return Vector3(0.0, -body_h, 46.0) # (behind her, out of her sight)
+
+
+func _mate_leave() -> Vector3:
+	return Vector3(16.0, -body_h, 10.0) # (fallen off beside her)
+
+
+func _court_secs() -> float:
+	return 5.0
+
+
+func _mount() -> Dictionary:
+	# on her back, a little behind her thorax's middle, his middle legs
+	# gripping her flanks under her wings, his hind legs further back
+	return {"at": Vector3(0.0, 4.2, 2.5), "basis": Basis(Vector3.RIGHT, -0.06), "grips": {
+		2: Vector3(-2.4, -0.4, -2.5), 3: Vector3(2.4, -0.4, -2.5),
+		4: Vector3(-2.8, -0.6, 9.0), 5: Vector3(2.8, -0.6, 9.0)}}
+
+
+## (How far through his meal she is: 0 not begun .. 1 his head gone.)
+func _eaten() -> float:
+	var him: Node3D = self if male else _mate
+	if him == null or not is_instance_valid(him):
+		return 0.0
+	if him.get("_mate_stage") != "joined":
+		return float(him.get("_head_gone"))
+	var secs := float(him.get("mate_secs"))
+	return clampf((float(him.call("mate_time")) / secs - BITE_AT) / BITE_FOR, 0.0, 1.0)
+
+
+var _head_gone := 0.0 # (a male's, eaten)
+
+
+func _mating(dt: float) -> void:
+	super(dt)
+	_look = Vector3.INF
+	if _mate_role == "male":
+		# creeping up, then frozen, swaying, watching her
+		_rest_fore()
+		_pro_pitch = 0.35
+		if _mate_stage == "court":
+			_sw += dt * 0.8
+			_sway = sin(_sw) * 0.05
+			_look = _mate.call("_out", Vector3(0.0, 0.0, -18.0))
+		return
+	if _mate_role != "female" or _mate_stage != "joined" or _mate == null:
+		_rest_fore()
+		return
+	# she twists round over her shoulder to him, takes his head in her
+	# forelegs and eats it
+	var him: Node3D = _mate
+	var t := float(him.call("mate_time")) / float(him.get("mate_secs"))
+	var turn := clampf((t - BITE_AT + 0.12) / 0.12, 0.0, 1.0)
+	_turn_pro = lerpf(_turn_pro, 0.95 * turn, 1.0 - exp(-3.0 * dt))
+	if turn > 0.0:
+		_look = him.call("_out", Vector3(0.0, 0.6, -21.0))
+		_ask = [Vector3(0.1, 1.5, 2.7), Vector3(0.1, 1.5, 2.7)]
+		_fore_rate = 6.0
+	var e := _eaten()
+	_chew = 1.0 if e > 0.0 and e < 1.0 else 0.0
+	if e >= 1.0: # (done: back round)
+		_turn_pro = lerpf(_turn_pro, 0.3, 1.0 - exp(-1.0 * dt))
+
+
+var _turn_pro := 0.0 # (rad: the prothorax swung round to the side, hers)
+
+
+func _after_mate() -> void:
+	_turn_pro = 0.0
+	_rest_fore()
+	if not male:
+		stalk(_pos, 0.15)
+
+
+func _on_parted() -> void:
+	if male and _head_gone > 0.0:
+		die()
+	elif male:
+		stalk(_pos, 0.2)
+
+
+func _mate_over() -> bool:
+	_head_gone = maxf(_head_gone, _eaten())
+	return super()
+
+
 ## Let down from p on a thread (a hatchling, from its egg case): falling
 ## slowly, its legs out.
 func drop(p: Vector3) -> void:
@@ -470,7 +576,10 @@ func drop(p: Vector3) -> void:
 
 
 func _pose(dt: float) -> void:
-	_pro.rotation.x = _pro_pitch # (raised: its front up)
+	_pro.rotation = Vector3(_pro_pitch, _turn_pro, 0.0) # (raised: its front up; swung round)
+	if male:
+		_head.scale = Vector3.ONE * maxf(1.0 - _head_gone, 0.001)
+		_head.visible = _head_gone < 0.999
 	_pro_pitch = lerpf(_pro_pitch, 0.5, 1.0 - exp(-2.0 * dt)) if _mode != "strike" else _pro_pitch
 	# the head following what it watches
 	var yaw_to := 0.0
@@ -504,6 +613,15 @@ func _pose(dt: float) -> void:
 		_prey.global_position = tb.global_transform * Vector3(0.0, -3.5, 0.0)
 	# the abdomen: a nymph's curled up over its back
 	_abdomen.rotation.x = -0.75 if nymph else 0.0
+	if _mode != "lay" or _mate_role != "":
+		_abdomen.rotation.y = 0.0
+	_abdomen.rotation.z = 0.0
+	if _mate_role == "male" and _mate_stage in ["joined", "part"]:
+		# (curled down and round to one side, to the tip of hers, pumping)
+		var pump := 0.04 * sin(_t * (5.0 if _head_gone > 0.5 else 2.5))
+		_abdomen.rotation = Vector3(0.62 + pump, 0.22, 0.12)
+		_ask = [Vector3(0.05, 1.1, 2.4), Vector3(0.05, 1.1, 2.4)] # (clasping her)
+		_pro_pitch = 0.15
 	# the wings
 	var beat := sin(_t * TAU * 20.0)
 	for h in _teg:

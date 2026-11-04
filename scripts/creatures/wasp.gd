@@ -24,6 +24,11 @@ extends Node3D
 ## - lay_eggs(cells, normal): down onto its comb (Wasp.comb), and at each
 ##   cell in turn: its back to it, crouching, the gaster curled down into
 ##   it, pumping, an egg left at its bottom (Brood's); then settling
+## - mate(partner): he (male set: no different to see) flies to her (she
+##   down on a surface, still: the ground under her if she's flying), and
+##   pounces onto her back, his legs holding her sides, his antennae
+##   stroking hers, his gaster curled down and round under the tip of hers;
+##   a while, buzzing now and then; then he's off, and both seek food again
 ##
 ## The motor under them, every frame: flight (springing toward a target,
 ## banking, nose up hovering, a jitter), walking on a plane (a tripod gait:
@@ -126,6 +131,15 @@ const RATES := {"buzz": 40.0, "wing_open": 14.0, "curl": 16.0, "sting_out": 10.0
 var _p := POSE.duplicate()
 var _a := POSE.duplicate()
 var _groom_side := 1.0
+# mating
+var male := false
+var mate_secs := 20.0 ## s joined
+var _mate: Node3D
+var _mate_role := "" # "male", "female"
+var _riding := false # (a male, on her back)
+var _ride_k := 0.0 # 0..1 onto her
+var _ride_from := Transform3D()
+const RIDE_AT := Vector3(0.0, 2.5, 0.9) # mm, his thorax's middle from hers
 
 # the legs
 var _feet: Array[Vector3] = [] # world: planted
@@ -621,7 +635,7 @@ func _p_reach() -> float:
 
 
 func _p_behaviours() -> PackedStringArray:
-	return PackedStringArray(["seek_food", "feed_on_flower", "feed_on_insect", "land", "sting", "lay_eggs", "take_off"])
+	return PackedStringArray(["seek_food", "feed_on_flower", "feed_on_insect", "land", "sting", "lay_eggs", "take_off", "mate"])
 
 
 func _p_act(name: String, args: Dictionary) -> bool:
@@ -678,6 +692,148 @@ func _p_act_secs(name: String) -> float:
 		"feed_on_insect":
 			return 15.0
 	return -1.0
+
+
+# --- mating ----------------------------------------------------------------------
+
+## Mating with partner (a wasp, the other sex; neither mating): see the
+## class. False if they can't.
+func mate(partner: Node3D, secs := -1.0) -> bool:
+	if partner == null or partner == self or not partner.has_method("_mate_begin") or bool(partner.get("male")) == male:
+		return false
+	if _mate_role != "" or partner.get("_mate_role") != "":
+		return false
+	var him: Node3D = self if male else partner
+	var her: Node3D = partner if male else self
+	her.call("_mate_begin", him, "female", secs if secs > 0.0 else mate_secs)
+	him.call("_mate_begin", her, "male", secs if secs > 0.0 else mate_secs)
+	return true
+
+
+func is_mating() -> bool:
+	return _mate_role != ""
+
+
+func _mate_begin(partner: Node3D, role: String, secs: float) -> void:
+	var id := _begin()
+	release()
+	_mate = partner
+	_mate_role = role
+	mate_secs = secs
+	if role == "female":
+		_mate_wait(id)
+	else:
+		_mate_go(id)
+
+
+## (Hers: down where she is (on the surface she's on, or the ground under
+## her), still, till he's done.)
+func _mate_wait(id: int) -> void:
+	if flying:
+		var g := float(height.call(_pos.x, _pos.z)) if height.is_valid() else 0.0
+		if not await _touch_down(id, Vector3(_pos.x, g, _pos.z), Vector3.UP, _heading, 0.12):
+			return
+	_p.crouch = 0.35
+	_p.ant_down = 0.2
+	await _until(id, func() -> bool: return _mate_role == "", 600.0)
+
+
+## (His: to her, onto her back, joined, and off.)
+func _mate_go(id: int) -> void:
+	if not flying:
+		if not await _take_off(id):
+			return
+	_max_speed = 0.9
+	_weave = 0.0
+	var t := 0.0
+	while true:
+		await get_tree().process_frame
+		if id != _act or not _mate_ok():
+			return
+		t += get_process_delta_time()
+		var her := _mate as Node3D
+		var hh: Vector3 = her.get("_heading")
+		_fly_target = her.global_position + Vector3.UP * 0.02 - hh * 0.012
+		_look = hh
+		if (not bool(her.get("flying")) and _pos.distance_to(_fly_target) < 0.01) or t > 30.0:
+			break
+	if bool(_mate.get("flying")):
+		_mate_end()
+		return
+	# the pounce: onto her back
+	_ride_from = global_transform
+	_ride_k = 0.0
+	_riding = true
+	flying = false
+	_p.buzz = 0.0
+	_p.wing_open = 0.0
+	_p.curl = 0.85
+	_p.ant_down = 0.6
+	_p.ant_tap = 1.0
+	var left := mate_secs
+	while left > 0.0:
+		if not await _wait(id, 0.5):
+			return
+		left -= 0.5
+		_p.buzz = 1.0 if rng.randf() < 0.12 else 0.0 # (a buzz of his wings now and then)
+		_p.wing_open = _p.buzz
+	# off her, and away
+	var up := global_basis.y
+	_riding = false
+	_ride_k = 0.0
+	flying = true
+	_pos = global_position
+	_vel = up * 0.2
+	_fly_target = _pos + up * 0.04
+	_p.curl = 0.0
+	_p.ant_tap = 0.0
+	_p.ant_down = 0.0
+	var was := _mate
+	_mate_end()
+	seek_food(_pos, 1.0)
+	if is_instance_valid(was):
+		was.call("seek_food", was.get("_pos"), 1.0)
+
+
+func _mate_ok() -> bool:
+	return _mate != null and is_instance_valid(_mate) and _mate.get("_mate_role") != ""
+
+
+func _mate_end() -> void:
+	var m := _mate
+	_mate = null
+	_mate_role = ""
+	if _riding:
+		_riding = false
+		flying = true
+		_pos = global_position
+		_vel = Vector3.ZERO
+		_fly_target = _pos
+	if m != null and is_instance_valid(m) and m.get("_mate_role") != "":
+		m.call("_mate_end")
+
+
+## On her back: carried (his place hers), his legs holding her sides.
+func _ride(dt: float) -> void:
+	if not _mate_ok():
+		_mate_end()
+		return
+	var her := _mate as Node3D
+	var ht := her.global_transform
+	_ride_k = move_toward(_ride_k, 1.0, dt / 0.35)
+	var e := _ride_k * _ride_k * (3.0 - 2.0 * _ride_k)
+	var on := Transform3D(ht.basis * Basis(Vector3.RIGHT, -0.08), ht * (RIDE_AT * MM))
+	global_transform = _ride_from.interpolate_with(on, e)
+	surface_n = ht.basis.y.normalized()
+	surface_p = ht * (Vector3(0.0, -0.6, 0.0) * MM)
+	_heading = -ht.basis.z
+	# (his feet: hers sides, front to back)
+	for i in 6:
+		var side := 1.0 if i % 2 == 1 else -1.0
+		var z := [-1.4, 0.2, 1.8][i / 2] as float
+		var f := ht * (Vector3(1.5 * side, -0.6, z) * MM)
+		_feet[i] = f
+		_feet_now[i] = (_feet_now[i] as Vector3).lerp(f, e)
 
 
 ## Lets go of what it holds (it's left where it is).
@@ -756,6 +912,8 @@ static func comb() -> Array:
 ## A new action: the last one's stopped (its awaits see it), the pose back to rest.
 func _begin() -> int:
 	_act += 1
+	if _mate_role != "":
+		_mate_end()
 	for k in POSE:
 		if k in ["buzz", "wing_open", "hold"]:
 			continue
@@ -906,6 +1064,10 @@ func _process(dt: float) -> void:
 		_pilot.tick(dt)
 	for k in _p:
 		_a[k] = lerpf(_a[k], _p[k], 1.0 - exp(-RATES.get(k, 10.0) * dt))
+	if _riding:
+		_ride(dt)
+		_pose(dt)
+		return
 	if flying:
 		_fly(dt)
 	else:
@@ -1118,9 +1280,10 @@ static func _dir(yaw: float, pitch: float, side: float) -> Vector3:
 func _pose_gaster() -> void:
 	var pump: float = _a.pump * sin(_t * TAU * 1.2)
 	var hang := 0.12 if flying else 0.0
+	var twist := 0.3 * _ride_k if _riding else 0.0 # (his, round under the tip of hers)
 	for i in GASTER.size():
 		var ang: float = GASTER_DROOP[i] + _a.curl * GASTER_CURL[i] + (hang if i == 0 else 0.0) + pump * 0.02
-		_gaster[i].rotation = Vector3(ang, 0.0, 0.0)
+		_gaster[i].rotation = Vector3(ang, twist if i < 2 else 0.0, 0.0)
 		var g: Array = GASTER[i]
 		_gaster_mesh[i].scale = Vector3(g[1] * 2.0, g[2] * 2.0 * (1.0 + pump * 0.04), g[0] * 1.4 * (1.0 + pump * 0.05))
 	var out: float = _a.sting_out

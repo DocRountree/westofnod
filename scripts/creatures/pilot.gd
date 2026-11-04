@@ -13,7 +13,9 @@ extends RefCounted
 ## - stop(): stop where it is; whatever it was doing ends, not done
 ## - act(name, args := {}): start one of its behaviours (behaviours() lists
 ##   its own: "eat", "lay", "hop", "strike", ...; args by name: at, prey,
-##   seconds, ...); false if it hasn't that one. A behaviour that would go
+##   seconds, ...); false if it hasn't that one. "mate" {partner (its kind,
+##   the other sex; a colony's: the partner's index), seconds}: everyone's
+##   that mates (not ants: their workers don't), A behaviour that would go
 ##   on and on (eating, grooming, basking) ends after args.seconds (each
 ##   has its own default)
 ## - is_busy(): whether it's doing one of these
@@ -100,6 +102,18 @@ func stop() -> void:
 
 
 func act(name: String, args := {}) -> bool:
+	if name == "mate": # (everyone's that mates: mate(partner, seconds) -> bool, is_mating())
+		if not creature.has_method("mate") or args.get("partner") == null:
+			return false
+		_cancel()
+		if not _call("mate", [args.get("partner"), float(args.get("seconds", -1.0))]):
+			_finish(name, false)
+			return false
+		kind = "act"
+		_act = name
+		_secs = -1.0
+		_t = 0.0
+		return true
 	if not (_call("_p_behaviours") as PackedStringArray).has(name):
 		return false
 	_cancel()
@@ -148,7 +162,10 @@ func tick(dt: float) -> void:
 			else:
 				_call("_p_steer", [here + _dir * float(_call("_p_reach")) * 4.0, -1.0])
 		"act":
-			if _call("_p_act_done", [_act]) or (_secs >= 0.0 and _t >= _secs):
+			if _act == "mate":
+				if not _call("is_mating"):
+					_done(true)
+			elif _call("_p_act_done", [_act]) or (_secs >= 0.0 and _t >= _secs):
 				_done(true)
 
 

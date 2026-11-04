@@ -193,7 +193,7 @@ func _process(dt: float) -> void:
 		for dz in range(-1, 2):
 			for dx in range(-1, 2):
 				for j in grid.get(k + Vector2i(dx, dz), []):
-					if j == i:
+					if j == i or _together(i, j):
 						continue
 					var off := p - pos[j]
 					off.y = 0.0
@@ -206,6 +206,11 @@ func _process(dt: float) -> void:
 		multimesh.set_instance_transform(i, at)
 		# (laying: told the shader as feeding's negative)
 		multimesh.set_instance_custom_data(i, Color(clampf(speed[i] / top_speed, 0.0, 1.0), feed_k[i] - lay_k[i], seed[i], _fly_of(i)))
+
+
+## (Whether i and j are together, not kept apart: a mating pair's.)
+func _together(_i: int, _j: int) -> bool:
+	return false
 
 
 ## A flyer's (Beetles): whether i's in the air, moved there (true: not

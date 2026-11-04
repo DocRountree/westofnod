@@ -212,8 +212,33 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
 - `scripts/creatures/isopod.gd` (`Isopod`): a pill bug, overlapping plates over seven pairs of legs; walking, eating
   leaf litter, rolling into a ball; its eggs carried in a brood pouch that swells, its young (six pairs of legs) walking
   out from under it.
-- Not yet in the game: `tools/creatures/life_cycle_demo.tscn`'s last five stations (F the spiders hunt, S the web
-  spiders spin, O the pill bugs roll; 1 lay, 4 hatch, Y the young eat).
+- `scripts/creatures/mouse.gd` (`Mouse`, on `hexapod.gd`'s motor with four legs, trotting): a deer mouse
+  (*Peromyscus maniculatus*), life size: brown above, grizzled, white beneath with the sharp line between, white feet,
+  big black eyes, big round ears pink inside, whiskers, orange incisors, its long tail dark above and white below
+  (`shaders/render/mouse.gdshader`); mammal legs (the elbows back, the knees forward, the long hind feet flat heel to
+  toe). Scurrying, stopping to sniff (nose, whiskers and ears going), sitting up to look; eating a seed sat up on its
+  haunches, turning it in its forepaws, nibbling it away; washing its face. The female gives birth in her grass nest
+  (`Mouse.nest()`), licking each pup clean, then nursing; the pups born pink, hairless, eyes shut, ears folded,
+  wriggling where they lie; growing, furred grey, eyes open, up and about, brown as they grow up.
+- Mating (every species but the ants: their workers don't; `hexapod.gd`'s `mate(partner)` for the walkers, each
+  species saying how): a male of each (`male`, set before it's added; told apart only where it must be: the male
+  spiders smaller with the swollen bulbs of their palps, the garden spider's male a quarter her size, tan and slender;
+  the male mantis smaller and slimmer, his wings over all his abdomen; the male grasshopper smaller). The
+  grasshopper's rides her back, his abdomen curled down round to hers; the mantis's creeps up behind her, freezes
+  swaying, leaps on, and she twists round and eats his head; headless he goes on, then falls off her dead. The
+  spiders' males first charge their palps: a little sperm web spun, a drop laid on it, drawn up into each palp in
+  turn; then courting (the wolf spider waving and drumming, the fishing spider tapping, the grass spider and the
+  garden spider plucking); the wolf and fishing spiders up on her front facing back, leaning down each side in turn
+  to put a palp in to her, its bulb swelling; the grass spider's female gone still, over on her side; the garden
+  spider's male up her web to her at the hub, under her, and dead on her after his second, wrapped in her silk. The
+  pill bug's male on her back leaning down one side and then the other; the beetles' riding their females' backs (the
+  colony's own: `Beetles.mate(i, j)`); the butterflies and moths, the male chasing her down, joined end to end; the
+  wasp's pouncing on her back, stroking her antennae; the snakes', the male crawling up along her back, chin rubbing,
+  their tails twisted together; the mice's, the male following her, mounting from behind, thrusting in bouts, then
+  washing. `act("mate", {partner})` for any of them (pilot.gd).
+- Not yet in the game: `tools/creatures/life_cycle_demo.tscn`'s last six stations (F the spiders hunt, S the web
+  spiders spin, O the pill bugs roll; E the mice eat, Q wash; K every pair mates; 1 lay and give birth, 4 hatch,
+  Y the young eat).
 - Steering, for a future state machine (`scripts/creatures/pilot.gd`): every creature (`Wasp`, the
   lepidopterans, `Grasshopper`, `Mantis`, `Snake`, `Larva`; one of a colony: `AntColony.member(i)`) has the same
   calls: `go(direction, speed, seconds)`, `go_to(point, speed)`, `face(direction)`, `stop()`, `act(name, args)`

@@ -24,8 +24,14 @@ extends Node3D
 ##   (leathery, white: Egg), later hatching (Egg.hatch: a slit, the young's
 ##   head out, waiting, then out and away); the rattler gives birth (no
 ##   eggs): n young, each in a clear membrane it wriggles free of at once
+## - mate(partner): he (male set: no different to see) finds her trail
+##   and comes up behind her, then crawls up along her back from her tail
+##   to her neck, lying over her, rubbing his chin along her and jerking,
+##   his tongue going; his tail finds hers and they're twisted together,
+##   and the pair lie still, joined, a long while; then his tail unwinds
+##   and he's off. She lies still through it
 ## Steering (a state machine's: pilot.gd): go, go_to, face, stop, act
-## (eat {prey}, coil {seconds}, lay {n}), behaviours, is_busy,
+## (eat {prey}, coil {seconds}, lay {n}, mate {partner}), behaviours, is_busy,
 ## action_finished; height (the ground under every point of it).
 ## Put it under a node that isn't moved: its own transform stays identity.
 
@@ -77,6 +83,16 @@ var _bulge_r := 0.0
 var _lay_left := 0
 var _lay_t := 0.0
 var _peek := 0.0 # s it keeps its head out of its egg before coming on out
+# mating
+var male := false
+var mate_secs := 40.0 ## s joined
+var _mate: Node3D
+var _mate_role := ""
+var _mate_stage := 0 # his: 0 to her tail, 1 up along her back, 2 joined, 3 unwinding
+var _mate_i := 0 # (the point of hers he's making for)
+var _twine := 0.0 # 0..1 his tail round hers
+var _wave := 0.55 # rad: how wide its waves swing
+var _was_mode := "wander"
 
 var _skin: MeshInstance3D
 var _mat: ShaderMaterial
@@ -468,6 +484,8 @@ func _think(dt: float) -> void:
 					wander(_pos, 0.6)
 		"eat":
 			go = _eat(dt)
+		"mate":
+			go = _mate_think(dt)
 	# moving: the head on toward its target, its way swinging in waves
 	var want := (_pace if _pace > 0.0 else float(K.speed) * lerpf(0.5, 1.0, size)) if go else 0.0
 	_speed = move_toward(_speed, want, dt * 0.5)
@@ -479,7 +497,7 @@ func _think(dt: float) -> void:
 			_dir = _dir.rotated(Vector3.UP, clampf(turn, -1.0 * dt, 1.0 * dt))
 		var wl := float(K.len) * size * 0.45 # (a wave's length along its path)
 		_phase += _speed * dt / wl * TAU
-		var way := _dir.rotated(Vector3.UP, 0.55 * sin(_phase))
+		var way := _dir.rotated(Vector3.UP, _wave * sin(_phase))
 		# never through its own body: steering away from any of it ahead,
 		# slowing for it; its head kept clear of it whatever (the body
 		# follows the head's path: if the head never crosses it, nor does
@@ -509,9 +527,152 @@ func _think(dt: float) -> void:
 			_trail.pop_back()
 
 
-## The ground's height at (x, z): height's, or level.
+## The ground's height at (x, z): height's, or level; a male mating, over
+## her body where it's under him.
 func _ground(x: float, z: float) -> float:
-	return float(height.call(x, z)) if height.is_valid() else ground_y
+	var g := float(height.call(x, z)) if height.is_valid() else ground_y
+	if _mate_role == "male" and _mate_stage >= 1 and is_instance_valid(_mate):
+		var hp: Array[Vector3] = _mate.get("_pts")
+		var hr := float(_mate.get("K").r) * float(_mate.get("size"))
+		var best := INF
+		var top := g
+		for q in hp:
+			var d := Vector2(x - q.x, z - q.z).length()
+			if d < best:
+				best = d
+				top = q.y
+		if best < hr * 1.6:
+			var k := 1.0 - best / (hr * 1.6)
+			g = maxf(g, lerpf(g, top + hr * 0.75, sqrt(k)))
+	return g
+
+
+# --- mating ------------------------------------------------------------------------
+
+## Mating with partner (a snake of its kind, the other sex; neither young
+## or mating): see the class. False if they can't.
+func mate(partner: Node3D, secs := -1.0) -> bool:
+	if partner == null or partner == self or not partner.has_method("_mate_begin") or young or bool(partner.get("young")):
+		return false
+	if bool(partner.get("male")) == male or partner.get("kind") != kind or _mate_role != "" or partner.get("_mate_role") != "":
+		return false
+	var him: Node3D = self if male else partner
+	var her: Node3D = partner if male else self
+	var t := secs if secs > 0.0 else mate_secs
+	him.call("_mate_begin", her, "male", t)
+	her.call("_mate_begin", him, "female", t)
+	return true
+
+
+func is_mating() -> bool:
+	return _mate_role != ""
+
+
+func _mate_begin(partner: Node3D, role: String, secs: float) -> void:
+	_was_mode = _mode if _mode in ["wander", "coil"] else "wander"
+	_mate = partner
+	_mate_role = role
+	_mate_stage = 0
+	mate_secs = secs
+	_st = 0.0
+	_mode = "mate"
+	_target = _pos
+
+
+func _mate_end() -> void:
+	var m := _mate
+	_mate = null
+	_mate_role = ""
+	_wave = 0.55
+	_twine = 0.0
+	_strike_k = 0.0
+	if _was_mode == "coil":
+		coil()
+	else:
+		wander(_pos, 0.6)
+	if m != null and is_instance_valid(m) and m.get("_mate_role") != "":
+		m.call("_mate_end")
+
+
+## Mating: whether it's going.
+func _mate_think(dt: float) -> bool:
+	_coil_k = move_toward(_coil_k, 0.0, dt * 0.8)
+	if _mate == null or not is_instance_valid(_mate):
+		_mate_end()
+		return false
+	if _mate_role == "female": # (still, through it)
+		_target = _pos
+		return false
+	var hp: Array[Vector3] = _mate.get("_pts")
+	if hp.size() < SPINE:
+		return false
+	var hr := float(_mate.get("K").r) * float(_mate.get("size"))
+	match _mate_stage:
+		0: # to behind her tail
+			_wave = 0.45
+			var tail: Vector3 = hp[SPINE - 1]
+			var back := (tail - hp[SPINE - 4])
+			back.y = 0.0
+			back = back.normalized() if back.length() > 1e-5 else -_dir
+			_target = tail + back * hr * 4.0
+			if Vector2(_pos.x - _target.x, _pos.z - _target.z).length() < hr * 3.0 or _st > 40.0:
+				_mate_stage = 1
+				_mate_i = SPINE - 1
+				_st = 0.0
+			return true
+		1: # up along her back, his chin on her, jerking, his tongue going
+			_wave = 0.1
+			_pace = float(K.speed) * 0.25
+			var q: Vector3 = hp[_mate_i]
+			_target = q
+			if Vector2(_pos.x - q.x, _pos.z - q.z).length() < hr * 2.0:
+				_mate_i -= 1
+			if _mate_i <= 3 or _st > 60.0:
+				_mate_stage = 2
+				_st = 0.0
+				_pace = -1.0
+			return true
+		2: # joined: his tail twisted round hers; still, his chin on her now and then
+			_wave = 0.1
+			_twine = move_toward(_twine, 1.0, dt / 4.0)
+			_target = _pos
+			if _st > mate_secs:
+				_mate_stage = 3
+				_st = 0.0
+			return false
+		3: # unwinding, then off
+			_twine = move_toward(_twine, 0.0, dt / 3.0)
+			if _twine <= 0.0:
+				_mate_end()
+			return false
+	return false
+
+
+## His tail wound round hers (as far as it's twined): his last points a
+## helix round her last ones; and his chin jerking on her back, courting.
+func _mate_pose() -> void:
+	if _mate_role != "male" or not is_instance_valid(_mate):
+		return
+	var R := float(K.r) * size
+	if _mate_stage == 1 or _mate_stage == 2: # (the chin pressed down on her, jerking)
+		var jerk := maxf(sin(_t * 7.0), 0.0) * maxf(sin(_t * 1.3), 0.0)
+		_pts[0] += Vector3.UP * R * 0.6 * jerk
+		_pts[1] += Vector3.UP * R * 0.3 * jerk
+	if _twine <= 0.0:
+		return
+	var hp: Array[Vector3] = _mate.get("_pts")
+	var hr := float(_mate.get("K").r) * float(_mate.get("size"))
+	const N := 10
+	for k in N:
+		var i := SPINE - 1 - k
+		var c: Vector3 = hp[i]
+		var fwd := (hp[i - 1] - hp[i]).normalized()
+		var side := fwd.cross(Vector3.UP).normalized()
+		var up := side.cross(fwd).normalized()
+		var a := k * 0.85 + 0.6
+		var w := _twine * clampf(1.0 - float(k) / N, 0.0, 1.0) * 1.2 # (fully round at the tip, easing in up the tail)
+		var on := c + (side * cos(a) + up * sin(a)) * (hr + R) * 0.95
+		_pts[i] = _pts[i].lerp(on, clampf(w, 0.0, 1.0))
 
 
 # --- steering: a state machine's (pilot.gd) ---------------------------------------
@@ -586,7 +747,9 @@ func _p_reach() -> float:
 ## eat {prey: a Node3D, its mouse}, coil {seconds}, lay {n} (the adult's:
 ## the rattler's, born).
 func _p_behaviours() -> PackedStringArray:
-	return PackedStringArray(["eat", "coil"]) if young else PackedStringArray(["eat", "coil", "lay"])
+	if young:
+		return PackedStringArray(["eat", "coil"])
+	return PackedStringArray(["eat", "coil", "mate"]) if male else PackedStringArray(["eat", "coil", "lay", "mate"])
 
 
 func _p_act(name: String, args: Dictionary) -> bool:
@@ -773,6 +936,7 @@ func _update(_dt: float) -> void:
 			var f := float(k0 - i) / k0
 			var line := base.lerp(_strike_at, f) + Vector3.UP * sin(PI * f) * L * 0.05
 			_pts[i] = _pts[i].lerp(line, _strike_k)
+	_mate_pose()
 	# the rattle: the tail's tip raised, buzzing
 	if _rattle > 0.0:
 		for i in range(SPINE - 4, SPINE):
