@@ -438,12 +438,19 @@ func _crawl(dt: float) -> void:
 		if to.length() > 0.004:
 			var want := to.normalized()
 			var turn := _dir.signed_angle_to(want, Vector3.UP)
-			_dir = _dir.rotated(Vector3.UP, clampf(turn, -0.8 * dt, 0.8 * dt))
 			# a caterpillar goes in surges, a wave of its prolegs at a time
 			var surge := 1.0
 			if K.get("legs", "") == "caterpillar":
 				surge = 0.3 + 1.4 * maxf(sin(_t * TAU * 0.7), 0.0)
-			_pos += _dir * speed * lerpf(0.25, 1.0, _g) * surge * dt
+			var step := speed * lerpf(0.25, 1.0, _g) * surge * dt
+			# the head turns only as it goes, and no faster than the body
+			# behind can follow: at most `bend` a segment's length gone. So
+			# the trail it leaves never bends more than a joint can, and the
+			# body, following it, never has to be pushed aside
+			var most: float = K.get("bend", 0.2)
+			var can := most / maxf(_seg * _g, 1e-5) * step * 0.9
+			_dir = _dir.rotated(Vector3.UP, clampf(turn, -can, can))
+			_pos += _dir * step
 			_pos.y = _centre.y
 	# the trail: where the head's been, for the body to follow
 	if _trail.is_empty() or _trail[0].distance_to(_pos) > _seg * _g * 0.25:
@@ -473,8 +480,6 @@ func _place_spine() -> void:
 			pts.append(p + Vector3.UP * (_widths[i] * _g * 0.95 + lift))
 			ups.append(Vector3.UP)
 			_lift.append(lift)
-		if _mode == "eat": # (the head working side to side, nibbling)
-			pts[0] += (_dir.cross(Vector3.UP) * sin(_t * 3.0) * _widths[0] * 0.8 + Vector3.DOWN * _widths[0] * 0.3 * (0.5 + 0.5 * sin(_t * 6.0))) * _g
 		# no joint bent more than `bend`: each segment laid on from the one
 		# ahead, its way turned no further than that from the one ahead's
 		var most: float = K.get("bend", 0.2)
@@ -490,6 +495,9 @@ func _place_spine() -> void:
 			pts[i] = pts[i - 1] - dn * sg
 			pts[i].y = y
 			ahead = dn
+		# (a safeguard only: the head's turning keeps the trail within it)
+		if _mode == "eat": # (the head alone working side to side, nibbling: the body stays)
+			pts[0] += (_dir.cross(Vector3.UP) * sin(_t * 3.0) * _widths[0] * 0.5 + Vector3.DOWN * _widths[0] * 0.3 * (0.5 + 0.5 * sin(_t * 6.0))) * _g
 	else:
 		# a C, on its side: an arc in the level plane, curling and
 		# uncurling slowly; an ant's larva, its neck crooked
