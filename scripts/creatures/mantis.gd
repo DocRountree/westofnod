@@ -75,8 +75,8 @@ func _init(nymph_ := false, size_ := 1.0) -> void:
 
 func _build() -> void:
 	var green := Color(0.47, 0.5, 0.3) if not nymph else Color(0.55, 0.5, 0.36)
-	var body := _mat(green, 0.55)
-	var pale := _mat(green.lightened(0.15), 0.55)
+	var body := _banded(green, 0.0, 0.0, 0.35, 0.4) # (mottled)
+	var pale := _banded(green.lightened(0.15), 0.0, 0.0, 0.25, 0.4)
 	var eye := _mat(Color(0.55, 0.6, 0.42), 0.15)
 	# the prothorax, long and narrow, raised from its joint
 	_pro = Node3D.new()
@@ -87,10 +87,19 @@ func _build() -> void:
 	_head = Node3D.new()
 	_head.position = Vector3(0.0, 0.6, -17.0)
 	_pro.add_child(_head)
-	_part(Vector3(0.0, 0.5, -1.2), Vector3(6.0, 4.2, 3.0), body, _head)
-	_part(Vector3(0.0, -1.2, -1.8), Vector3(2.6, 2.6, 1.8), pale, _head)
+	# (a triangle, point down: a broad crown between the eyes, the face
+	# narrowing below it to the mouth; three simple eyes between the
+	# antennae)
+	_part(Vector3(0.0, 1.5, -1.0), Vector3(6.4, 2.3, 2.6), body, _head)
+	_part(Vector3(0.0, 0.1, -1.4), Vector3(4.2, 3.0, 2.3), body, _head)
+	_part(Vector3(0.0, -1.5, -1.8), Vector3(2.4, 2.0, 1.7), pale, _head)
+	var amber := _mat(Color(0.6, 0.42, 0.15), 0.2)
+	for p in [Vector3(0.0, 2.5, -1.9), Vector3(0.65, 2.15, -2.05), Vector3(-0.65, 2.15, -2.05)]:
+		_part(p, Vector3.ONE * 0.5, amber, _head)
 	for side: float in [-1.0, 1.0]:
-		_part(Vector3(2.8 * side, 1.1, -1.4), Vector3(2.4, 3.2, 2.6), eye, _head)
+		# the eyes bulging out at the crown's corners
+		_part(Vector3(3.1 * side, 1.3, -1.0), Vector3(2.3, 3.0, 2.6), eye, _head)
+		_stick(Vector3(0.75 * side, -2.0, -2.2), Vector3(1.0 * side, -3.6, -2.6), 0.18, pale, _head) # (a palp)
 		var j := Node3D.new()
 		j.position = Vector3(0.5 * side, -2.4, -2.2)
 		_head.add_child(j)
@@ -114,19 +123,24 @@ func _build() -> void:
 		var cx := Node3D.new()
 		cx.position = Vector3(1.2 * side, -1.0, -14.0)
 		_pro.add_child(cx)
-		_stick(Vector3.ZERO, Vector3(0.0, -8.0, 0.0), 0.75, body, cx)
+		_part(Vector3(0.0, -4.3, 0.0), Vector3(1.5, 9.0, 2.1), body, cx) # (the coxa: long, flattened)
 		var fm := Node3D.new()
 		fm.position = Vector3(0.0, -8.0, 0.0)
 		cx.add_child(fm)
-		_part(Vector3(0.0, -5.5, 0.0), Vector3(1.8, 11.5, 1.4), body, fm)
-		for k in 5: # (its spines, along its inner edge)
-			var sp := Vector3(0.0, -2.0 - k * 1.9, 0.6)
-			_stick(sp, sp + Vector3(0.0, -0.5, 1.0), 0.12, _mat(Color(0.15, 0.12, 0.08), 0.4), fm)
+		_part(Vector3(0.0, -5.5, 0.3), Vector3(1.3, 11.5, 2.6), body, fm) # (the femur: a blade, deep and flat)
+		var spine := _mat(Color(0.2, 0.16, 0.1), 0.4)
+		for k in 6: # (its spines, two rows along its inner edge, the groove the tibia shuts into between)
+			for row: float in [-0.45, 0.45]:
+				var sp := Vector3(row, -1.5 - k * 1.65, 1.5)
+				_stick(sp, sp + Vector3(row * 0.3, -0.4, 0.9), 0.1, spine, fm)
 		var tb := Node3D.new()
 		tb.position = Vector3(0.0, -11.0, 0.0)
 		fm.add_child(tb)
-		_stick(Vector3.ZERO, Vector3(0.0, -6.0, 0.0), 0.45, body, tb)
-		_stick(Vector3(0.0, -6.0, 0.0), Vector3(0.0, -6.0, 1.2), 0.2, body, tb) # (its hook)
+		_part(Vector3(0.0, -3.0, 0.2), Vector3(0.9, 6.2, 1.3), body, tb)
+		_stick(Vector3(0.0, -6.0, 0.2), Vector3(0.0, -5.9, 1.6), 0.22, spine, tb) # (its hook)
+		for k in 4: # (its spines)
+			var sp := Vector3(0.0, -1.2 - k * 1.2, 0.7)
+			_stick(sp, sp + Vector3(0.0, -0.3, 0.6), 0.08, spine, tb)
 		_stick(Vector3(0.0, -5.0, 0.0), Vector3(0.0, -8.5, -1.5), 0.2, body, tb) # (the tarsus)
 		_fore.append([cx, fm, tb])
 	# the thorax behind it, the abdomen broad and flat (a nymph's curled up)
@@ -137,7 +151,10 @@ func _build() -> void:
 	var ab := [[0.0, 0.0, 0.6, 0.6], [1.0, 0.0, 2.8, 2.0], [6.0, 0.1, 3.6, 2.4], [12.0, 0.1, 3.6, 2.4], [18.0, -0.1, 2.8, 2.0], [23.0, -0.3, 1.6, 1.2], [25.5, -0.3, 0.4, 0.4]]
 	if nymph:
 		ab = [[0.0, 0.0, 0.5, 0.5], [1.0, 0.0, 1.8, 1.6], [6.0, 0.1, 2.2, 1.8], [12.0, 0.1, 2.0, 1.7], [17.0, 0.0, 1.3, 1.1], [19.5, 0.0, 0.3, 0.3]]
-	_abdomen.add_child(_mesh(_loft(ab), pale))
+	_abdomen.add_child(_mesh(_loft(ab), _banded(green.lightened(0.1), 3.2, 1.0, 0.3, 0.4))) # (its segments, mottled)
+	var tip: Array = ab[ab.size() - 1]
+	for side: float in [-1.0, 1.0]: # (the cerci)
+		_stick(Vector3(0.4 * side, float(tip[1]), float(tip[0]) - 0.6), Vector3(1.2 * side, float(tip[1]) + 0.5, float(tip[0]) + 2.2), 0.18, body, _abdomen)
 	# the wings: the adult's forewings flat over the abdomen, a dark spot on
 	# each; the hindwings, smoky, folded away under them
 	if not nymph:
@@ -404,7 +421,7 @@ func drop(p: Vector3) -> void:
 
 
 func _pose(dt: float) -> void:
-	_pro.rotation.x = -_pro_pitch # (raised: its front up)
+	_pro.rotation.x = _pro_pitch # (raised: its front up)
 	_pro_pitch = lerpf(_pro_pitch, 0.5, 1.0 - exp(-2.0 * dt)) if _mode != "strike" else _pro_pitch
 	# the head following what it watches
 	var yaw_to := 0.0
@@ -415,7 +432,9 @@ func _pose(dt: float) -> void:
 		var local := transform.basis.inverse() * d
 		yaw_to = clampf(atan2(-local.x, -local.z), -1.2, 1.2)
 		pitch_to = clampf(atan2(local.y, Vector2(local.x, local.z).length()), -0.9, 0.6)
-	_head.rotation = _head.rotation.lerp(Vector3(pitch_to + _pro_pitch * 0.8 - 0.3 * _chew, yaw_to, 0.0), 1.0 - exp(-6.0 * dt))
+	# (the head held level on the raised prothorax, its face forward, a
+	# little down; down to its food as it eats)
+	_head.rotation = _head.rotation.lerp(Vector3(pitch_to - _pro_pitch * 0.85 - 0.12 - 0.3 * _chew, yaw_to, 0.0), 1.0 - exp(-6.0 * dt))
 	for j in _jaws:
 		var side: float = j.get_meta("side")
 		j.rotation.y = side * 0.4 * _chew * (0.5 + 0.5 * sin(_t * 11.0))

@@ -26,7 +26,7 @@ var body_h := 4.0 ## mm its thorax's middle stands over the ground
 var walk_speed := 0.03 ## m/s (the adult's)
 var stride := 7.0 ## mm a foot's left behind before its set steps
 var step_time := 0.14 ## s a set's swing takes
-var legs: Array = [] ## the right side's: {hip, f, t, s, home: Vector2 (x, z), dangle: Vector3, pole: Vector3 (body: the knee's way), walks: bool, r: thickness (mm)}
+var legs: Array = [] ## the right side's: {hip, f, t, s, home: Vector2 (x, z), dangle: Vector3, pole: Vector3 (body: the knee's way), walks: bool, r: thickness (mm), knee: Vector3 (body mm: held there on the ground, not reached for: a grasshopper's hind knee)}
 var tripod := [[0, 3, 4], [1, 2, 5]] ## (a leg: its pair * 2, + 1 the right)
 
 var size := 1.0
@@ -176,6 +176,52 @@ static func _mat(c: Color, rough := 0.6, fur := 0.0) -> StandardMaterial3D:
 	if fur > 0.0:
 		m.rim_enabled = true
 		m.rim = fur
+	return m
+
+
+static var _band_shader: Shader
+
+
+## A body part's material, its segments' joints shaded darker across it
+## (every seg mm along z from z0; none: seg 0) and mottled (0..1).
+static func _banded(c: Color, seg: float, z0 := 0.0, mottle := 0.0, gloss := 0.45) -> ShaderMaterial:
+	if _band_shader == null:
+		_band_shader = Shader.new()
+		_band_shader.code = """shader_type spatial;
+uniform vec3 base : source_color;
+uniform float seg = 0.0;
+uniform float z0 = 0.0;
+uniform float mottle = 0.0;
+uniform float gloss = 0.45;
+varying vec3 o;
+void vertex() { o = VERTEX; }
+float h(vec3 p) { return fract(sin(dot(floor(p), vec3(12.9898, 78.233, 37.719))) * 43758.5453); }
+float vn(vec3 p) {
+	vec3 f = fract(p);
+	f = f * f * (3.0 - 2.0 * f);
+	vec3 i = floor(p);
+	return mix(mix(mix(h(i), h(i + vec3(1, 0, 0)), f.x), mix(h(i + vec3(0, 1, 0)), h(i + vec3(1, 1, 0)), f.x), f.y),
+			mix(mix(h(i + vec3(0, 0, 1)), h(i + vec3(1, 0, 1)), f.x), mix(h(i + vec3(0, 1, 1)), h(i + vec3(1, 1, 1)), f.x), f.y), f.z);
+}
+void fragment() {
+	vec3 c = base;
+	if (seg > 0.0 && o.z > z0) {
+		float f = fract((o.z - z0) / seg);
+		c *= 1.0 - 0.28 * smoothstep(0.8, 0.97, f); // (each segment's back edge, where it laps the next)
+	}
+	if (mottle > 0.0)
+		c *= 1.0 - mottle * (vn(o * 0.9) - 0.5) - mottle * 0.5 * (vn(o * 2.7 + 3.1) - 0.5);
+	ALBEDO = c;
+	ROUGHNESS = mix(0.75, 0.25, gloss);
+}
+"""
+	var m := ShaderMaterial.new()
+	m.shader = _band_shader
+	m.set_shader_parameter("base", c)
+	m.set_shader_parameter("seg", seg)
+	m.set_shader_parameter("z0", z0)
+	m.set_shader_parameter("mottle", mottle)
+	m.set_shader_parameter("gloss", gloss)
 	return m
 
 
@@ -420,7 +466,14 @@ func _pose_legs() -> void:
 		var ankle := foot + (-out * 0.85 + up * 0.5).normalized() * s
 		var pl: Vector3 = L.get("pole", Vector3(0.6, 1.0, 0.0))
 		var pole := Vector3(pl.x * side, pl.y, pl.z)
-		var knee := _knee(hip, ankle, L.f, L.t, pole)
+		var knee: Vector3
+		if L.has("knee") and not airborne:
+			# (held where it is on the body as it walks: the femur still,
+			# the tibia reaching from it to the foot; lowered crouching)
+			var kn: Vector3 = L.knee
+			knee = Vector3(kn.x * side, kn.y - 2.5 * _crouch, kn.z + 1.5 * _crouch)
+		else:
+			knee = _knee(hip, ankle, L.f, L.t, pole)
 		var r: float = L.get("r", 0.5)
 		var m: Array = _leg_mesh[i]
 		(m[0] as MeshInstance3D).transform = _seg(hip, knee, r * float(L.get("femur_r", 1.6)))

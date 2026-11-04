@@ -25,7 +25,9 @@ extends "res://scripts/creatures/hexapod.gd" # (by path: found whether or not th
 const LEGS := [
 	{"hip": Vector3(1.4, -1.8, -6.0), "f": 5.5, "t": 5.0, "s": 3.0, "home": Vector2(5.5, -11.0), "dangle": Vector3(2.5, -4.0, -6.5), "pole": Vector3(0.4, 1.0, -0.3), "r": 0.45},
 	{"hip": Vector3(1.8, -2.0, -3.0), "f": 6.0, "t": 5.5, "s": 3.2, "home": Vector2(7.5, -2.5), "dangle": Vector3(3.0, -4.5, -1.0), "pole": Vector3(0.5, 1.0, 0.0), "r": 0.45},
-	{"hip": Vector3(2.2, -1.5, 0.8), "f": 18.0, "t": 17.0, "s": 4.5, "home": Vector2(5.5, 2.5), "dangle": Vector3(3.0, -2.0, 24.0), "pole": Vector3(0.15, 0.35, 1.0), "r": 0.7, "femur_r": 2.6},
+	# (the hind leg: its knee held up behind as it walks, the femur still:
+	# only in the air reaching, flung out behind)
+	{"hip": Vector3(2.2, -1.5, 0.8), "f": 18.0, "t": 17.0, "s": 4.5, "home": Vector2(5.5, 1.5), "dangle": Vector3(3.0, -2.0, 24.0), "pole": Vector3(0.15, 0.35, 1.0), "r": 0.7, "femur_r": 2.6, "knee": Vector3(4.3, 4.4, 16.5)},
 ]
 
 var pods: Array[Node3D] = [] ## the egg pods it's laid (in its parent)
@@ -105,7 +107,7 @@ func _build() -> void:
 	_abdomen.position = Vector3(0.0, 0.2, -0.5)
 	_body.add_child(_abdomen)
 	var ab := _loft([[0.0, 0.0, 0.6, 0.6], [0.6, 0.0, 2.6, 2.8], [4.0, 0.0, 2.9, 3.1], [9.0, -0.2, 2.6, 2.8], [14.0, -0.4, 2.0, 2.2], [18.0, -0.5, 1.1, 1.2], [19.2, -0.5, 0.3, 0.3]])
-	_abdomen.add_child(_mesh(ab, _mat(olive_dk.lerp(olive, 0.6), 0.45)))
+	_abdomen.add_child(_mesh(ab, _banded(olive_dk.lerp(olive, 0.6), 2.6, 0.8, 0.1, 0.55)))
 	_part(Vector3(0.0, -0.3, 19.6), Vector3(1.1, 0.9, 1.8), dark, _abdomen)
 	# the wings: the adult's long leathery forewings, roofed over its back,
 	# the hindwings pleated away under them; a nymph's only little pads
@@ -257,12 +259,14 @@ func _think(dt: float) -> void:
 					_leap(_at, 0.9)
 					_stage = 1
 					_st = 0.0
-			elif _stage == 1 and _st > 0.12:
-				# the wings out, off over toward it, then gliding down onto it
-				_wings = 1.0
+			elif _stage == 1:
+				# the wings out at once, off over toward it (up, then down to
+				# it), the wings whirring; then down onto it
+				_wings = minf(_wings + dt * 12.0, 1.0)
 				var d := Vector2(_at.x - _pos.x, _at.z - _pos.z).length()
-				_steer = Vector3(_at.x, ground_y + clampf(d * 0.4, 0.0, 0.25), _at.z)
-				_steer_speed = 0.9
+				if _st > 0.1:
+					_steer = Vector3(_at.x, ground_y + clampf(d * 0.5, 0.06, 0.3), _at.z)
+					_steer_speed = 1.0
 				if d < 0.06:
 					_steer = Vector3.INF # (down)
 					_stage = 2
@@ -325,14 +329,21 @@ func _pose(dt: float) -> void:
 	_abdomen.scale = Vector3(1.0, 1.0, 1.0 + 0.4 * _probe)
 	# the wings: roofed over the back, or up and out, the hindwings fanned
 	# and whirring
-	var beat := sin(_t * TAU * 18.0)
+	# (folded: the forewings roofed over the back along it; flying: swung
+	# out square to the sides, beating, the hindwings fanned out from their
+	# pleats behind them, beating harder, a little after)
+	var ph := _t * TAU * 18.0
 	for h in _teg:
 		var side: float = h.get_meta("side")
-		h.rotation = Vector3(-0.35 * _wings, 0.0, side * (-0.28 + 1.3 * _wings)) if not nymph else Vector3(0.0, 0.0, -0.3 * side)
+		if nymph:
+			h.transform.basis = Basis(Vector3.BACK, -0.3 * side)
+			continue
+		var flap := (0.12 + 0.35 * sin(ph + 0.9)) * _wings
+		h.transform.basis = Basis(Vector3.BACK, side * flap) * Basis(Vector3.UP, side * 1.25 * _wings) * Basis(Vector3.BACK, -0.28 * side * (1.0 - _wings))
 	for h in _hind:
 		var side: float = h.get_meta("side")
-		h.scale = Vector3(lerpf(0.06, 1.0, _wings), 1.0, lerpf(0.5, 1.0, _wings))
-		h.rotation = Vector3(0.0, 0.0, side * (0.1 + 0.9 * beat) * _wings - side * 0.05)
+		var flap := (0.1 + 0.85 * sin(ph)) * _wings
+		h.transform.basis = Basis(Vector3.BACK, side * flap) * Basis(Vector3.UP, -0.15 * side * _wings) * Basis.from_scale(Vector3(lerpf(0.06, 1.0, _wings), 1.0, lerpf(0.5, 1.0, _wings)))
 		h.visible = _wings > 0.02
 	# in the air, nose up rising and down falling; on the ground, level
 	# (but laying)
