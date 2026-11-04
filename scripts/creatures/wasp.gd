@@ -177,6 +177,7 @@ var _fans: Array[MeshInstance3D] = [] # L, R
 var _wing_mat: ShaderMaterial
 var _hind_mat: ShaderMaterial
 var _pal: Dictionary = {} # (its colours: _palette())
+static var _tergites := {} # (the gaster's plates' meshes, shared)
 var _sphere: SphereMesh
 var _cyl: CylinderMesh
 
@@ -1525,12 +1526,21 @@ func _build() -> void:
 	var leg_yellow := _chitin(_pal.leg2, 0.0, 0.5)
 	var tip := _chitin(_pal.tip, 0.0, 0.4)
 	var ant := _chitin(_pal.antenna)
-	# the thorax (mesosoma): its marks yellow
-	_ball(_body, Vector3.ZERO, Vector3(2.8, 2.9, 4.6), brown)
-	_ball(_body, Vector3(0.0, 0.2, -1.75), Vector3(2.9, 2.5, 0.9), _chitin(BODY, 0.25)) # (the collar, its hind edge yellow)
-	_ball(_body, Vector3(0.0, 1.3, 1.1), Vector3(1.1, 0.5, 0.7), yellow) # (the scutellum)
-	_ball(_body, Vector3(0.0, -0.1, 1.9), Vector3(2.0, 2.2, 1.4), dark) # (the propodeum)
-	_ball(_body, Vector3(0.0, 0.25, -2.2), Vector3(1.0, 1.0, 0.8), dark) # (the neck)
+	# the thorax (mesosoma), one hard box: narrow at the neck, the collar
+	# (pronotum) round its front, the mesoscutum domed high over the wings'
+	# roots, the scutellum a low hump behind it, then the propodeum sloping
+	# steeply down to the waist; its sides flat, its marks yellow
+	var thorax := MeshInstance3D.new()
+	thorax.mesh = _thorax_mesh()
+	thorax.material_override = brown
+	thorax.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_body.add_child(thorax)
+	_ball(_body, Vector3(0.0, 0.12, -1.72), Vector3(2.62, 2.3, 0.7), _chitin(BODY, 0.28)) # (the collar's rim, its hind edge yellow)
+	_ball(_body, Vector3(0.0, 1.22, 1.0), Vector3(1.15, 0.42, 0.75), yellow) # (the scutellum)
+	_ball(_body, Vector3(0.0, 0.95, 1.6), Vector3(0.8, 0.3, 0.45), _chitin(BODY)) # (the metanotum)
+	for side: float in [-1.0, 1.0]: # (the propodeum's pair of marks)
+		_ball(_body, Vector3(0.42 * side, 0.45, 2.05), Vector3(0.35, 0.5, 0.45), yellow)
+	_ball(_body, Vector3(0.0, 0.2, -2.25), Vector3(0.9, 0.85, 0.6), dark) # (the neck)
 	for side: float in [-1.0, 1.0]:
 		_ball(_body, Vector3(0.95 * side, 1.15, -0.75), Vector3(0.5, 0.35, 0.6), yellow) # (the tegulae, over the wings' hinges)
 	# the head
@@ -1561,7 +1571,13 @@ func _build() -> void:
 		piv.position = at
 		parent.add_child(piv)
 		_gaster.append(piv)
-		_gaster_mesh.append(_ball(piv, Vector3(0.0, 0.0, g[0] * 0.5), Vector3(g[1] * 2.0, g[2] * 2.0, g[0] * 1.4), _chitin(BODY, float(bands[i]))))
+		# (each a plate, the tergite over the sternite: its front tucked
+		# under the rim of the one before, widening to its own hind rim,
+		# the last closing to the tip: no rings stacked, a telescoped whole)
+		var front := 0.32 if i == 0 else clampf(float(GASTER[i - 1][1]) / float(g[1]) * 0.86, 0.3, 1.0)
+		var seg := _ball(piv, Vector3(0.0, 0.0, g[0] * 0.5), Vector3(g[1] * 2.0, g[2] * 2.0, g[0] * 1.4), _chitin(BODY, float(bands[i])))
+		seg.mesh = _tergite_mesh(front, i == GASTER.size() - 1, i == 0)
+		_gaster_mesh.append(seg)
 		parent = piv
 		at = Vector3(0.0, 0.0, g[0])
 	# the stinger: grows out of the tip (its holder scaled along it by sting_out)
@@ -1614,6 +1630,98 @@ func _build() -> void:
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		_body.add_child(mi)
 		_fans.append(mi)
+
+
+## The thorax's mesh (model mm): rings along z, each a rounded box (flat
+## sided, domed above, flatter beneath), from the neck to the waist.
+static func _thorax_mesh() -> ArrayMesh:
+	# z, the middle's y, half width, half height
+	const KEYS := [[-2.3, 0.2, 0.55, 0.5], [-2.0, 0.15, 1.05, 0.95], [-1.5, 0.2, 1.32, 1.28], [-0.7, 0.18, 1.42, 1.5],
+		[0.2, 0.08, 1.4, 1.45], [0.95, 0.05, 1.25, 1.25], [1.6, -0.08, 1.05, 1.0], [2.1, -0.25, 0.72, 0.68], [2.4, -0.35, 0.3, 0.3]]
+	return _loft_rings(KEYS, 2.6, 18, 24)
+
+
+## A gaster segment's plate, in a unit's space (x, y half 0.5; z from -0.5,
+## tucked under the one before, to 0.5, its hind rim): front, its front's
+## radius (of its widest); last, closing to the tip; first, funnelled from
+## the waist.
+static func _tergite_mesh(front: float, last: bool, first: bool) -> ArrayMesh:
+	var key := "%.3f_%s_%s" % [front, last, first]
+	if _tergites.has(key):
+		return _tergites[key]
+	var keys := []
+	const N := 12
+	for k in N + 1:
+		var u := float(k) / N
+		var rr: float
+		if last:
+			rr = lerpf(front, 1.0, smoothstep(0.0, 0.35, u)) * sqrt(maxf(1.0 - pow(maxf(u - 0.35, 0.0) / 0.65, 2.0), 0.0))
+			rr = maxf(rr, 0.02)
+		elif first:
+			rr = lerpf(front, 1.0, pow(smoothstep(0.0, 0.85, u), 0.7))
+			if u > 0.93:
+				rr *= 1.0 - (u - 0.93) / 0.07 * 0.12
+		else:
+			rr = lerpf(front, 1.0, smoothstep(0.0, 0.55, u))
+			if u > 0.9: # (the hind rim: its lip turning in)
+				rr *= 1.0 - (u - 0.9) / 0.1 * 0.16
+		keys.append([u - 0.5, 0.0, rr * 0.5, rr * 0.5])
+	var m := _loft_rings(keys, 2.2, 16, 0, 0.88)
+	_tergites[key] = m
+	return m
+
+
+## A loft through keys ([z, y, half width, half height]), each ring a
+## superellipse (power pw: 2 round, more boxier); steps: rings between,
+## smoothed (0: the keys' own); under: the underside's squash (1 none).
+static func _loft_rings(keys: Array, pw: float, ring: int, steps: int, under := 0.85) -> ArrayMesh:
+	var rows := []
+	var K := keys.size()
+	var n := steps if steps > 0 else K - 1
+	for i in n + 1:
+		var t := float(i) / n * (K - 1)
+		var j := mini(int(t), K - 2)
+		var f := t - j
+		var v := []
+		for c in 4:
+			var p0 := float((keys[maxi(j - 1, 0)] as Array)[c])
+			var p1 := float((keys[j] as Array)[c])
+			var p2 := float((keys[j + 1] as Array)[c])
+			var p3 := float((keys[mini(j + 2, K - 1)] as Array)[c])
+			v.append(0.5 * (2.0 * p1 + (-p0 + p2) * f + (2.0 * p0 - 5.0 * p1 + 4.0 * p2 - p3) * f * f + (-p0 + 3.0 * p1 - 3.0 * p2 + p3) * f * f * f))
+		var pts := []
+		for k in ring:
+			var a := TAU * k / ring
+			var cx := cos(a)
+			var cy := sin(a)
+			var ex := signf(cx) * pow(absf(cx), 2.0 / pw)
+			var ey := signf(cy) * pow(absf(cy), 2.0 / pw)
+			pts.append(Vector3(ex * float(v[2]), float(v[1]) + ey * float(v[3]) * (under if cy < 0.0 else 1.0), float(v[0])))
+		rows.append(pts)
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	st.set_smooth_group(0)
+	for i in rows.size() - 1:
+		for k in ring:
+			var a: Vector3 = rows[i][k]
+			var b: Vector3 = rows[i][(k + 1) % ring]
+			var c: Vector3 = rows[i + 1][k]
+			var d: Vector3 = rows[i + 1][(k + 1) % ring]
+			for q in [a, c, b, b, c, d]:
+				st.add_vertex(q)
+	# (the ends closed: a fan to each end's middle)
+	for e in [0, rows.size() - 1]:
+		var mid := Vector3.ZERO
+		for q: Vector3 in rows[e]:
+			mid += q
+		mid /= ring
+		for k in ring:
+			var a: Vector3 = rows[e][k]
+			var b: Vector3 = rows[e][(k + 1) % ring]
+			for q in ([mid, b, a] if e == 0 else [mid, a, b]):
+				st.add_vertex(q)
+	st.generate_normals()
+	return st.commit()
 
 
 ## A wing's quad: x along it 0..1, z across it 0..1 (UV the same).
