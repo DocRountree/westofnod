@@ -35,6 +35,8 @@ extends Node3D
 ## American bison (life size): two bulls, two cows, a calf, a dust wallow
 ## white-tailed deer (life size): a doe with twin fawns and a buck in velvet
 ##   (summer); two bucks and a doe (winter); a shrub, a sapling to rub
+## trigonalid wasp: a female and a male, fleabane for nectar, leaves to lay
+##   along (no nest)
 ## (every station a male too, but the ants': the female's partner)
 ##
 ## THE KEYS (the same for every creature, acting only on those at the
@@ -67,7 +69,7 @@ const PupaScript := preload("res://scripts/creatures/pupa.gd")
 
 const NAMES := ["monarch", "hummingbird clearwing", "paper wasp", "carpenter ant (queen)", "red harvester (queen)", "June bug", "convergent lady beetle", "differential grasshopper", "Carolina mantis", "eastern diamondback rattlesnake", "eastern milk snake",
 		"Carolina wolf spider", "six-spotted fishing spider", "grass spider (funnel weaver)", "yellow garden spider", "pill bug", "deer mouse",
-		"green anole", "Arizona bark scorpion", "snowshoe hare", "red fox", "bobcat", "coyote", "grey wolf", "American black bear", "brown bear (grizzly)", "American bison", "white-tailed deer"]
+		"green anole", "Arizona bark scorpion", "snowshoe hare", "red fox", "bobcat", "coyote", "grey wolf", "American black bear", "brown bear (grizzly)", "American bison", "white-tailed deer", "trigonalid wasp"]
 const SpiderScript := preload("res://scripts/creatures/spider.gd")
 const IsopodScript := preload("res://scripts/creatures/isopod.gd")
 const SnakeScript := preload("res://scripts/creatures/snake.gd")
@@ -88,6 +90,7 @@ const AnoleScript := preload("res://scripts/creatures/anole.gd")
 const ScorpionScript := preload("res://scripts/creatures/scorpion.gd")
 const BisonScript := preload("res://scripts/creatures/bison.gd")
 const DeerScript := preload("res://scripts/creatures/deer.gd")
+const TrigScript := preload("res://scripts/creatures/trigonalid.gd")
 const GAP := 0.9 # m between stations
 
 var cam: Camera3D
@@ -107,6 +110,8 @@ var lady: LadyScript
 var _monarch_leaves: Array = [] # [spot, normal]
 var _moth_leaves: Array = []
 var _cells: Array = [] # the comb's cells' mouths (the plain's)
+var _trig_heads: Array = [] # the trigonalid's flowers' heads
+var _trig_leaves: Array = [] # its leaves' tops [point, normal]
 var _pupae: Array = []
 var _ant_eggs: Array = []
 var _sun_dir := Vector3(0.4, 0.6, 0.6) # (toward the sun: the water's)
@@ -165,7 +170,7 @@ var _moth_perch_n := Vector3.BACK
 
 func _station(i: int) -> Vector3:
 	# (the snakes, life size, given more room)
-	return Vector3(i * GAP + (1.2 if i >= 9 else 0.0) + (1.8 if i >= 10 else 0.0) + (1.6 if i >= 11 else 0.0) + (3.0 if i >= 19 else 0.0) + (4.0 if i >= 20 else 0.0) + (4.0 if i >= 21 else 0.0) + (4.0 if i >= 22 else 0.0) + (5.0 if i >= 23 else 0.0) + (6.0 if i >= 24 else 0.0) + (7.0 if i >= 25 else 0.0) + (9.0 if i >= 26 else 0.0) + (9.0 if i >= 27 else 0.0), 0.0, 0.0)
+	return Vector3(i * GAP + (1.2 if i >= 9 else 0.0) + (1.8 if i >= 10 else 0.0) + (1.6 if i >= 11 else 0.0) + (3.0 if i >= 19 else 0.0) + (4.0 if i >= 20 else 0.0) + (4.0 if i >= 21 else 0.0) + (4.0 if i >= 22 else 0.0) + (5.0 if i >= 23 else 0.0) + (6.0 if i >= 24 else 0.0) + (7.0 if i >= 25 else 0.0) + (9.0 if i >= 26 else 0.0) + (9.0 if i >= 27 else 0.0) + (4.5 if i >= 28 else 0.0), 0.0, 0.0)
 
 
 func _ready() -> void:
@@ -186,7 +191,7 @@ func _ready() -> void:
 	add_child(sun)
 	# the plain, a hole left in it for the fishing spider's pond
 	var x0 := -0.95
-	var x1 := GAP * 27.0 + 92.0
+	var x1 := GAP * 28.0 + 98.0
 	var pc := _station(12)
 	var grass := Color(0.36, 0.4, 0.22)
 	_box(Vector3((x0 + pc.x - POND_W) * 0.5, -0.005, 0.0), Vector3(pc.x - POND_W - x0, 0.01, 3.0), grass)
@@ -223,6 +228,7 @@ func _ready() -> void:
 	_bear_station(1)
 	_bison_station()
 	_deer_station()
+	_trig_station()
 	_male_partners()
 	_new_pupae()
 	_focus = _station(0) + Vector3(0.0, 0.08, 0.0)
@@ -873,6 +879,56 @@ func _bison_station() -> void:
 			ones.append(y)
 
 
+## The comb's cells with nothing in them yet (no egg, no grub), the middle
+## first: its wasp lays in the first of them.
+func _empty_cells() -> Array:
+	var out := []
+	for cell: Vector3 in _cells:
+		var full := false
+		for n in get_children():
+			if not (n is Node3D) or n.get_script() == null or n.get_script() == Wasp: # (its brood only: no comb, no wasp)
+				continue
+			var q := (n as Node3D).global_position
+			var p: Variant = n.get("_pos")
+			if p is Vector3:
+				q = p
+			if Vector2(q.x - cell.x, q.z - cell.z).length() < 0.0035 and q.y < cell.y + 0.002 and q.y > cell.y - 0.02:
+				full = true
+				break
+		if not full:
+			out.append(cell)
+	return out
+
+
+## The trigonalid wasp: a female and a male, about a clump of fleabane (its
+## nectar), and leaves on stalks about it (hers to lay along).
+func _trig_station() -> void:
+	var c := _station(28)
+	var info: Dictionary = Flowers.build(self, "fleabane", Vector2(c.x - 0.12, c.z - 0.15), 0.5, Color(0.42, 0.38, 0.28), 0.0)
+	_trig_heads = info.heads
+	_leaves(c, [Vector3(0.15, 0.14, 0.05), Vector3(0.05, 0.2, 0.18), Vector3(-0.12, 0.1, 0.16), Vector3(0.2, 0.22, -0.12)], _trig_leaves)
+	var f: Node3D = TrigScript.new()
+	add_child(f)
+	f.call("place", c + Vector3(0.0, 0.35, 0.1))
+	f.call("visit_flowers", _trig_heads, 0.0)
+	var m: Node3D = TrigScript.new()
+	m.set("male", true)
+	add_child(m)
+	m.call("place", c + Vector3(0.1, 0.3, -0.1))
+	m.call("seek_food", c, 0.35)
+
+
+## Points along a demo leaf's margin (its top at top: Beetles.leaf, as
+## _leaves sets it, 35 by 60 mm), one side, end to end.
+func _leaf_edge(top: Vector3) -> Array:
+	var out := []
+	for k in 6:
+		var z := lerpf(-0.022, 0.022, k / 5.0)
+		var x := 0.0175 * sqrt(maxf(1.0 - pow(z / 0.02975, 2.0), 0.0)) * 0.92
+		out.append(top + Vector3(x, 0.0, z))
+	return out
+
+
 ## The deer: in summer, a doe with her twin fawns (spotted) and a buck in
 ## velvet; in winter coats, two bucks (hard antlers, to spar) and a doe; a
 ## shrub to browse, a sapling to rub.
@@ -1241,7 +1297,7 @@ func _lay_all() -> void:
 	monarch.lay(_monarch_leaves.map(func(l): return l[0]), _monarch_leaves.map(func(l): return l[1]), func() -> void: monarch.fly(c0, 0.4))
 	var c1 := _station(1)
 	moth.lay(_moth_leaves.map(func(l): return l[0]), _moth_leaves.map(func(l): return l[1]), func() -> void: moth.search(c1, 0.4, []))
-	wasp.lay_eggs(_cells.slice(0, 4), Vector3.UP)
+	wasp.lay_eggs(_empty_cells().slice(0, 1), Vector3.UP, 0.0068)
 	june.lay(0, Vector3(-0.05, 0.0, 0.0))
 	lady.lay(0, Vector3(0.02, 0.0, -0.02))
 	hopper.lay(_station(7) + Vector3(0.05, 0.0, -0.08))
@@ -1474,8 +1530,8 @@ func _do(c: Node, act: String, all: Array) -> void:
 				c.call("fly", st, 0.4)
 			elif sc == MothScript:
 				c.call("search", st, 0.4, [])
-			elif sc == Wasp:
-				c.call("seek_food", st, 0.5)
+			elif sc == Wasp or sc == TrigScript:
+				c.call("seek_food", st, 0.5 if sc == Wasp else 0.35)
 			elif sc == MantisScript:
 				c.call("stalk", p, 0.15)
 			elif sc == BisonScript or sc == DeerScript:
@@ -1495,7 +1551,10 @@ func _do(c: Node, act: String, all: Array) -> void:
 			elif sc == MothScript:
 				c.call("lay", _moth_leaves.map(func(l): return l[0]), _moth_leaves.map(func(l): return l[1]), Callable(c, "search").bind(st, 0.4, []))
 			elif sc == Wasp:
-				c.call("lay_eggs", _cells.slice(0, 4), Vector3.UP)
+				c.call("lay_eggs", _empty_cells().slice(0, 1), Vector3.UP, 0.0068) # (one cell a lay: the next empty one)
+			elif sc == TrigScript:
+				var lf: Array = _trig_leaves[randi() % _trig_leaves.size()]
+				c.call("lay_on_leaf", _leaf_edge(lf[0]), Vector3.UP)
 			elif sc == HopperScript:
 				c.call("lay", st + Vector3(0.05, 0.0, -0.08))
 			elif sc == MantisScript:
@@ -1523,6 +1582,9 @@ func _do(c: Node, act: String, all: Array) -> void:
 				c.call("groom")
 			elif sc == Wasp:
 				c.call("land", st + Vector3(0.1, 0.0, 0.08))
+			elif sc == TrigScript: # (down on a leaf, cleaning its antennae)
+				var lf: Array = _trig_leaves[randi() % _trig_leaves.size()]
+				c.call("land", lf[0], Vector3.UP)
 		"sleep":
 			if c.has_method("sleep"):
 				c.call("sleep", 20.0)
@@ -1537,8 +1599,8 @@ func _do(c: Node, act: String, all: Array) -> void:
 				c.call("fly", st, 0.6)
 			elif sc == MothScript:
 				c.call("search", st, 0.5, [])
-			elif sc == Wasp:
-				c.call("seek_food", st, 0.6)
+			elif sc == Wasp or sc == TrigScript:
+				c.call("seek_food", st, 0.6 if sc == Wasp else 0.4)
 			elif sc == HopperScript:
 				var a := randf() * TAU
 				c.call("hop" if young else "fly", st + Vector3(cos(a), 0.0, sin(a)) * (0.2 if young else 0.35))
@@ -1702,6 +1764,8 @@ func _feed(c: Node, act: String, young: bool, p: Vector3, st: Vector3) -> void:
 		c.call("hunt", f)
 	elif sc == HareScript:
 		c.call("eat", _hare_food_near(p, act == "hunt" and not young)) # (H: the willow shoot, sitting up)
+	elif sc == TrigScript: # (nectar: from flower to flower)
+		c.call("visit_flowers", _trig_heads, 0.0)
 	elif sc == Wasp:
 		var cat := Wasp.caterpillar()
 		var at := st + Vector3(-0.12, 0.004, 0.1)
@@ -1737,7 +1801,7 @@ func _feed(c: Node, act: String, young: bool, p: Vector3, st: Vector3) -> void:
 ## To station i (the camera further off for the snakes).
 func _go(i: int) -> void:
 	_at = i
-	_dist = 2.2 if i == 9 or i == 10 else (2.4 if i == 19 else ((6.0 if i >= 27 else (9.0 if i >= 26 else (7.5 if i >= 24 else (5.0 if i >= 22 else 3.6)))) if i >= 20 else minf(_dist, 0.8)))
+	_dist = 0.8 if i == 28 else 2.2 if i == 9 or i == 10 else (2.4 if i == 19 else ((6.0 if i >= 27 else (9.0 if i >= 26 else (7.5 if i >= 24 else (5.0 if i >= 22 else 3.6)))) if i >= 20 else minf(_dist, 0.8)))
 	_say()
 
 

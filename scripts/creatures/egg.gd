@@ -12,7 +12,7 @@ const MM := 0.002 ## m drawn per mm (twice life size)
 const LarvaScript := preload("res://scripts/creatures/larva.gd")
 ## kind: [length, width (mm), colour, stood on end]
 const EGGS := {
-	"wasp": [1.5, 0.55, Color(0.93, 0.92, 0.86), false], # (a paper wasp's: one at the bottom of each cell)
+	"wasp": [6.0, 4.9, Color(0.93, 0.92, 0.86), false], # (a paper wasp's: one to a cell, filling it)
 	"carpenter": [0.9, 0.45, Color(0.95, 0.94, 0.9), false], # (the queen's, in a pile)
 	"harvester": [0.6, 0.35, Color(0.95, 0.93, 0.88), false],
 	"june": [2.6, 2.0, Color(0.92, 0.9, 0.84), false], # (pearly, round, in the soil)

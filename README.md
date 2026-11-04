@@ -200,7 +200,14 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   about, 2 eat at the leaves, 3 half and half, 4 fly, 5 half fly, + / - more or fewer).
 - `scripts/creatures/wasp.gd`: a paper wasp (`Wasp`, drawn at twice life size), not yet in the game: its model
   built from parts, posed by hand every frame, its animations methods (seek food, feed
-  on a flower, catch and eat a caterpillar, land and walk about and settle, sting).
+  on a flower, catch and eat a caterpillar, land and walk about and settle, sting). Its colours are `_palette()`'s,
+  so another species can wear the model: `trigonalid.gd` (`Trigonalid`, *Taeniogonalos gundlachii*, drawn at the
+  paper wasp's size): black, cream marks on its face, collar, tegulae and scutellum, cream bands on the gaster's
+  second and third segments only, reddish legs, a pale ring on each antenna, near clear wings. It builds no nest and
+  hunts nothing: `visit_flowers(heads)` (from flower to flower, hovering, drinking nectar) and, a female's,
+  `lay_on_leaf(edge)` (down on a leaf, along its margin, the gaster curled to the edge, rows of tiny dark eggs left
+  there: they would hatch only inside a caterpillar that ate them, so here they don't). The life cycle demo's last
+  station: a female and a male, fleabane, leaves to lay along (E nectar, 1 lay, G land, W / F fly about, K mate).
   `tools/creatures/wasp_demo.tscn` puts one on a plain with a clump of the game's purple coneflowers, a caterpillar on a
   leaf, a plank and a ball (and for the scale the player's figure with its axe, and a pawpaw, a
   black-eyed Susan, a yampah and a cattail on the plank), each animation on a key (`godot --path . res://tools/creatures/wasp_demo.tscn`);
@@ -386,7 +393,7 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   once an order's done. The life cycle demo's P runs a few creatures through orders one after another this way.
 - Life cycles (not yet in the game): eggs (`scripts/creatures/brood.gd`, `Brood`; `egg.gd`: rice grains, each kind
   its size and colour) laid by the butterflies one to a leaf (the clearwing hovering), by the wasp one to each cell of
-  its comb (`Wasp.comb`, `lay_eggs`), by the beetles in a cluster (`AntColony.lay`, a beetle's: tipped tail down; the
+  its comb, each egg filling its cell (`Wasp.comb`, `lay_eggs`; the demo's 1 lays in the next empty cell, one a lay), by the beetles in a cluster (`AntColony.lay`, a beetle's: tipped tail down; the
   ants don't lay: their queens' eggs lie in piles); every egg hatches (`hatch`: rocking, the larva out, small,
   growing up; a caterpillar eats its shell first, any other's collapses and fades). Their larvae (`larva.gd`, `Larva`: one smooth skin bent along
   a spine the CPU moves, by `shaders/render/larva.gdshader`, its creases shallow; a crawler bending at most a little

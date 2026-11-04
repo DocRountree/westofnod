@@ -176,6 +176,7 @@ var _wings: Array[MeshInstance3D] = [] # fore L, fore R, hind L, hind R
 var _fans: Array[MeshInstance3D] = [] # L, R
 var _wing_mat: ShaderMaterial
 var _hind_mat: ShaderMaterial
+var _pal: Dictionary = {} # (its colours: _palette())
 var _sphere: SphereMesh
 var _cyl: CylinderMesh
 
@@ -1454,11 +1455,21 @@ static func _seg(mi: MeshInstance3D, a: Vector3, b: Vector3, r: float) -> void:
 	mi.transform = Transform3D(Basis(x * 2.0 * r, d, z * 2.0 * r), (a + b) * 0.5)
 
 
+## Its colours (a species reusing the model says its own): its body, its
+## darker parts, its marks (the gaster's bands too), its legs (femora,
+## tibiae and tarsi), its antennae's tips, its mandibles, its wings'
+## membrane and veins; the gaster's bands, each segment's share (0 none).
+func _palette() -> Dictionary:
+	return {"body": BROWN, "dark": DARK, "mark": YELLOW, "leg": LEG_BROWN, "leg2": LEG_YELLOW, "tip": TIP_ORANGE,
+		"mandible": Color(0.6, 0.38, 0.12), "membrane": Color(0.5, 0.36, 0.2), "vein": Color(0.22, 0.13, 0.06),
+		"bands": [0.16, 0.16, 0.16, 0.16, 0.16, 0.0], "antenna": DARK}
+
+
 func _chitin(c: Color, band := 0.0, gloss := 0.65) -> ShaderMaterial:
 	var m := ShaderMaterial.new()
 	m.shader = preload("res://shaders/render/wasp_chitin.gdshader")
 	m.set_shader_parameter("base_color", c)
-	m.set_shader_parameter("band_color", YELLOW)
+	m.set_shader_parameter("band_color", _pal.get("mark", YELLOW))
 	m.set_shader_parameter("band", band)
 	m.set_shader_parameter("gloss", gloss)
 	_mats.append(m)
@@ -1500,16 +1511,19 @@ func _build() -> void:
 	_body = Node3D.new()
 	_body.scale = Vector3.ONE * MM
 	add_child(_body)
-	var brown := _chitin(BROWN)
-	var dark := _chitin(DARK)
-	var yellow := _chitin(YELLOW)
+	_pal = _palette()
+	var BODY: Color = _pal.body
+	var brown := _chitin(BODY)
+	var dark := _chitin(_pal.dark)
+	var yellow := _chitin(_pal.mark)
 	var eye := _chitin(Color(0.05, 0.035, 0.03), 0.0, 1.0)
-	var leg_brown := _chitin(LEG_BROWN, 0.0, 0.5)
-	var leg_yellow := _chitin(LEG_YELLOW, 0.0, 0.5)
-	var tip := _chitin(TIP_ORANGE, 0.0, 0.4)
+	var leg_brown := _chitin(_pal.leg, 0.0, 0.5)
+	var leg_yellow := _chitin(_pal.leg2, 0.0, 0.5)
+	var tip := _chitin(_pal.tip, 0.0, 0.4)
+	var ant := _chitin(_pal.antenna)
 	# the thorax (mesosoma): its marks yellow
 	_ball(_body, Vector3.ZERO, Vector3(2.8, 2.9, 4.6), brown)
-	_ball(_body, Vector3(0.0, 0.2, -1.75), Vector3(2.9, 2.5, 0.9), _chitin(BROWN, 0.25)) # (the collar, its hind edge yellow)
+	_ball(_body, Vector3(0.0, 0.2, -1.75), Vector3(2.9, 2.5, 0.9), _chitin(BODY, 0.25)) # (the collar, its hind edge yellow)
 	_ball(_body, Vector3(0.0, 1.3, 1.1), Vector3(1.1, 0.5, 0.7), yellow) # (the scutellum)
 	_ball(_body, Vector3(0.0, -0.1, 1.9), Vector3(2.0, 2.2, 1.4), dark) # (the propodeum)
 	_ball(_body, Vector3(0.0, 0.25, -2.2), Vector3(1.0, 1.0, 0.8), dark) # (the neck)
@@ -1527,13 +1541,14 @@ func _build() -> void:
 		var piv := Node3D.new()
 		piv.position = Vector3(0.45 * side, -1.2, -1.75)
 		_head.add_child(piv)
-		_ball(piv, Vector3(0.0, 0.0, -0.45), Vector3(0.38, 0.3, 0.95), _chitin(Color(0.6, 0.38, 0.12)))
+		_ball(piv, Vector3(0.0, 0.0, -0.45), Vector3(0.38, 0.3, 0.95), _chitin(_pal.mandible))
 		_mandibles.append(piv)
 		var segs := []
 		for k in 5:
-			segs.append(_stick(_head, tip if k == 4 else (dark if k > 0 else brown)))
+			segs.append(_stick(_head, tip if k == 4 else (ant if k > 0 else brown)))
 		_antennae.append(segs)
 	# the gaster: a chain of segments, each banded yellow behind
+	var bands: Array = _pal.bands
 	var parent := _body
 	var at := GASTER_AT
 	for i in GASTER.size():
@@ -1542,7 +1557,7 @@ func _build() -> void:
 		piv.position = at
 		parent.add_child(piv)
 		_gaster.append(piv)
-		_gaster_mesh.append(_ball(piv, Vector3(0.0, 0.0, g[0] * 0.5), Vector3(g[1] * 2.0, g[2] * 2.0, g[0] * 1.4), _chitin(BROWN, 0.16 if i < 5 else 0.0)))
+		_gaster_mesh.append(_ball(piv, Vector3(0.0, 0.0, g[0] * 0.5), Vector3(g[1] * 2.0, g[2] * 2.0, g[0] * 1.4), _chitin(BODY, float(bands[i]))))
 		parent = piv
 		at = Vector3(0.0, 0.0, g[0])
 	# the stinger: grows out of the tip (its holder scaled along it by sting_out)
@@ -1571,6 +1586,8 @@ func _build() -> void:
 	# the wings, and the blur of their beat
 	_wing_mat = ShaderMaterial.new()
 	_wing_mat.shader = preload("res://shaders/render/wasp_wing.gdshader")
+	_wing_mat.set_shader_parameter("membrane", _pal.membrane)
+	_wing_mat.set_shader_parameter("vein", _pal.vein)
 	_hind_mat = _wing_mat.duplicate()
 	_mats.append(_wing_mat)
 	_mats.append(_hind_mat)
