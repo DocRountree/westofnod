@@ -40,6 +40,11 @@ extends Node3D
 ## - swamp asters (Symphyotrichum puniceum): the swamp's, sparse
 ##   among the grass's tips (taller than they'd be, the grass being head-high);
 ##   to 38 m and 34 m.
+## - common milkweed (Asclepias syriaca): the prairie's, in loose colonies,
+##   a stout stem, broad leaves in pairs, drooping balls of mauve-pink
+##   flowers; swamp milkweed (Asclepias incarnata): the swamp's, sparse,
+##   branched, narrow leaves, flat clusters of deep pink flowers. To 28 m,
+##   on a 3 m grid (their clumps' flowers many).
 ## The forest's brown patches are leaf litter: a texture on the terrain
 ## (terrain.gdshader), not geometry.
 ##
@@ -116,6 +121,26 @@ const LAYERS := [
 			"petal_color": Vector3(0.6, 0.45, 0.85), "petal_base": Vector3(0.52, 0.36, 0.8), "petal_alt": Vector3(0.78, 0.68, 0.94), "petal_mix": 1.2,
 			"disc_color": Vector3(0.93, 0.72, 0.12), "head_size": 0.03, "head_px": Vector2(3.0, 6.0),
 			"fade_out": Vector2(26.0, 36.0), "thin_from": 20.0}},
+	# common milkweed (Asclepias syriaca): the prairie's, in loose colonies
+	# here and there; a stout stem, broad leaves in pairs, drooping balls of
+	# small mauve-pink flowers. On a coarser grid (3 m cells): a clump's
+	# flowers are many
+	{"cell": 3.0, "cells": 8, "tiles": 5, "flowers": "milkweed", "stems": 1, "radius": 0.15,
+		"u": {"kind": 2, "seed": 14, "in_forest": false, "cover": 0.5, "drift": Vector3(18.0, 0.3, 12.7),
+			"forest_height": Vector2(0.6, 0.9), "prairie_height": Vector2(1.1, 1.5),
+			"prairie_green": Vector3(0.3, 0.4, 0.22), "prairie_blonde": Vector3(0.36, 0.42, 0.24), # (blue-grey green)
+			"petal_color": Vector3(0.86, 0.56, 0.66), "petal_base": Vector3(0.74, 0.42, 0.52), "petal_alt": Vector3(0.9, 0.68, 0.74), "petal_alt_share": 0.3,
+			"disc_color": Vector3(0.93, 0.78, 0.82), "head_size": 0.05, "head_px": Vector2(2.0, 5.0),
+			"fade_out": Vector2(20.0, 28.0), "thin_from": 16.0}},
+	# swamp milkweed (Asclepias incarnata): the swamp's, sparse; branching near
+	# its top into flat clusters of small deep pink flowers, narrow leaves
+	{"cell": 3.0, "cells": 8, "tiles": 5, "flowers": "swamp_milkweed", "stems": 2, "radius": 0.2,
+		"u": {"kind": 2, "seed": 15, "in_forest": false, "in_prairie": false, "in_swamp": true, "swamp_clumped": false, "cover": 0.4,
+			"drift": Vector3(16.0, 0.35, -9.1), "prairie_height": Vector2(1.0, 1.4),
+			"prairie_green": Vector3(0.24, 0.35, 0.13), "prairie_blonde": Vector3(0.3, 0.38, 0.15),
+			"petal_color": Vector3(0.85, 0.3, 0.5), "petal_base": Vector3(0.72, 0.2, 0.4), "petal_alt": Vector3(0.92, 0.55, 0.68), "petal_alt_share": 0.2,
+			"disc_color": Vector3(0.95, 0.8, 0.86), "head_size": 0.05, "head_px": Vector2(2.0, 5.0),
+			"fade_out": Vector2(20.0, 28.0), "thin_from": 16.0}},
 	{"cell": 0.5, "cells": 24, "tiles": 9, "fronds": 8,
 		"u": {"kind": 1, "seed": 4, "in_prairie": false, "forest_height": Vector2(0.25, 0.45),
 			"fade_out": Vector2(32.0, 45.0), "thin_from": 16.0}},
@@ -794,6 +819,57 @@ static func flower_mesh(kind: String, stems: int, radius: float, seed: int) -> A
 					var c := uc + Vector3(cos(ka) * kr / H, (0.012 - kr * 0.35) * size / H, sin(ka) * kr / H)
 					strip.call(root, [uc, c], [0.0008, 0.0006], side, n, shade, 0.0)
 					head.call(root, c, Vector3(cos(ka), 0.0, sin(ka)) * kr * 15.0, 7, 0.0025, 0.0055, 0.0022, 0.0, 0.0012, rng.randf())
+		elif kind == "milkweed":
+			# a stout, unbranched stem; broad oval leaves in pairs up it,
+			# each pair square to the last; from the top and the upper
+			# leaves' axils, drooping balls of small flowers on their stalks
+			strip.call(root, [Vector3.ZERO, top * 0.5, top], [0.006, 0.005, 0.004], side, n, shade, 0.0)
+			for k in 5:
+				var at := top * (0.22 + 0.62 * k / 4.0)
+				var pa := face + k * PI * 0.5
+				for sd in [-1.0, 1.0]:
+					var ld := Vector2(cos(pa), sin(pa)) * sd
+					var ll := rng.randf_range(0.11, 0.15) / H
+					var pts := [at, at + Vector3(ld.x * ll * 0.5, ll * 0.22, ld.y * ll * 0.5), at + Vector3(ld.x * ll, ll * 0.15, ld.y * ll)]
+					strip.call(root, pts, [0.004, 0.032, 0.003], Vector3(-ld.y, 0.0, ld.x), Vector3(ld.x * 0.3, 1.0, ld.y * 0.3).normalized(), shade, 0.0)
+			for u in rng.randi_range(2, 3):
+				var ua := rng.randf() * TAU
+				var ub := top * (1.0 - 0.14 * u)
+				var uc := ub + Vector3(cos(ua) * 0.05, 0.03, sin(ua) * 0.05) / H
+				strip.call(root, [ub, uc], [0.0025, 0.002], side, n, shade, 0.0)
+				var size := rng.randf_range(0.85, 1.15)
+				for f in 12:
+					# a ball, drooping: its flowers more round its underside
+					var fy := rng.randf_range(-0.95, 0.45)
+					var fa := rng.randf() * TAU
+					var ld := Vector3(cos(fa) * sqrt(1.0 - fy * fy), fy, sin(fa) * sqrt(1.0 - fy * fy))
+					var fc := uc + ld * 0.032 * size / H
+					strip.call(root, [uc, fc], [0.0007, 0.0006], side, n, shade, 0.0)
+					head.call(root, fc, ld * 3.0, 5, 0.0022, 0.0055, 0.0028, 0.0025, 0.0018, rng.randf())
+		elif kind == "swamp_milkweed":
+			# branching near its top into a few flat clusters of small
+			# flowers, upright; narrow leaves in pairs up the stem
+			var fork := top * 0.8
+			strip.call(root, [Vector3.ZERO, fork * 0.5, fork], [0.004, 0.0035, 0.003], side, n, shade, 0.0)
+			for k in 6:
+				var at := fork * (0.2 + 0.75 * k / 5.0)
+				var pa := face + k * PI * 0.5
+				for sd in [-1.0, 1.0]:
+					var ld := Vector2(cos(pa), sin(pa)) * sd
+					var ll := rng.randf_range(0.09, 0.13) / H
+					var pts := [at, at + Vector3(ld.x * ll * 0.5, ll * 0.35, ld.y * ll * 0.5), at + Vector3(ld.x * ll, ll * 0.45, ld.y * ll)]
+					strip.call(root, pts, [0.002, 0.008, 0.001], Vector3(-ld.y, 0.0, ld.x), Vector3(ld.x * 0.4, 1.0, ld.y * 0.4).normalized(), shade, 0.0)
+			for b in rng.randi_range(3, 4):
+				var ba := rng.randf() * TAU
+				var reach := rng.randf_range(0.03, 0.08)
+				var bc := fork + Vector3(cos(ba) * reach, rng.randf_range(0.1, 0.16) * tall, sin(ba) * reach)
+				strip.call(root, [fork, bc], [0.0025, 0.002], side, n, shade, 0.0)
+				for f in 9:
+					var fr := sqrt(rng.randf()) * 0.018
+					var fa := rng.randf() * TAU
+					var fc := bc + Vector3(cos(fa) * fr, 0.008 - fr * 0.3, sin(fa) * fr) / H
+					strip.call(root, [bc, fc], [0.0006, 0.0005], side, n, shade, 0.0)
+					head.call(root, fc, Vector3(cos(fa), 0.0, sin(fa)) * fr * 12.0, 5, 0.0016, 0.0042, 0.0022, 0.0015, 0.0012, rng.randf())
 		elif kind == "aster":
 			# branching from half way up into several heads, each 2.5-3 cm
 			var fork := top * 0.6
