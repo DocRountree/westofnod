@@ -35,9 +35,19 @@ func _ready() -> void:
 	add_child(status)
 
 
-func _process(_delta: float) -> void:
+const TEXT_EVERY := 0.25 ## s between the text's updates (laid out afresh each time: not every frame)
+var _text_in := 0.0
+
+
+func _process(delta: float) -> void:
 	if player == null:
 		return
+	var cam := Origin.map(player.camera.global_position)
+	underwater.visible = player.world != null and cam.y < player.world.water_at(cam.x, cam.z).x
+	_text_in -= delta
+	if _text_in > 0.0:
+		return
+	_text_in = TEXT_EVERY
 	var p := player.position # (on the map)
 	var place := ""
 	var cfg := WorldConfig.current()
@@ -54,5 +64,3 @@ func _process(_delta: float) -> void:
 			place.strip_edges(), "god" if god else "survival", "   [fly]" if player.flying else "",
 			("   [%.1fx]" % player.zoom if player.zoom > 1.0 else ""),
 			" · Space×2 fly" if god else "", " · [ ] time" if god else ""]
-	var cam := Origin.map(player.camera.global_position)
-	underwater.visible = player.world != null and cam.y < player.world.water_at(cam.x, cam.z).x

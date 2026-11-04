@@ -38,7 +38,7 @@ var _sun: DirectionalLight3D
 var _sea_sign := Vector2.ONE   # the ocean's coordinates relative to the world's (see _wrap)
 var _sea_offset := Vector2.ZERO
 var _last_x := 0.0
-var _hazed: Array[ShaderMaterial] = []
+var _globals := {} # global shader parameter -> its value as last set (set_global)
 var _sea_floor: MeshInstance3D
 var _under := false
 
@@ -98,10 +98,10 @@ func _ready() -> void:
 
 	terrain_mat.set_shader_parameter("sun_direction", _sun.global_basis.z)
 
-	# Aerial perspective (aerial.gdshaderinc) needs the sun on every surface it hazes.
-	_hazed = [terrain_mat, ocean_material]
-	for m in _hazed:
-		m.set_shader_parameter("haze_sun_dir", _sun.global_basis.z)
+	# Aerial perspective (aerial.gdshaderinc) needs the sun on every surface
+	# it hazes: global shader parameters (set_global), one call each
+	set_global("haze_sun_dir", _sun.global_basis.z)
+	set_global("lod_shadow_pick", true)
 
 	await _step("Growing the trees", 0.18)
 	collider = TerrainCollider.new()
@@ -112,24 +112,11 @@ func _ready() -> void:
 	population = Population.new()
 	population.world = world
 	Origin.root.add_child(population)
-	for k in population.props: # props with shader materials take the haze too
-		var mats: Array = [k.material, k.lod_material]
-		for mesh in [k.mesh] + k.lods:
-			if mesh:
-				for i in mesh.get_surface_count():
-					mats.append(mesh.surface_get_material(i))
-		for m in mats:
-			if m is ShaderMaterial and not _hazed.has(m):
-				_hazed.append(m)
-				m.set_shader_parameter("haze_sun_dir", _sun.global_basis.z)
 	await _step("Sowing the grass", 0.3)
 	ground_cover = GroundCover.new()
 	ground_cover.population = population
 	Origin.root.add_child(ground_cover)
 	ground_cover.setup(world)
-	for m in ground_cover.materials:
-		_hazed.append(m)
-		m.set_shader_parameter("haze_sun_dir", _sun.global_basis.z)
 	player = Player.new()
 	player.world = world
 	player.population = population
@@ -551,22 +538,28 @@ func _update_light() -> void:
 	var night := atmosphere.night_amount()
 	env.ambient_light_sky_contribution = 1.0 - 0.7 * night
 	env.tonemap_exposure = lerpf(1.05, 1.9, night)
-	# the prairie's pale ground and grass, a little darker at night
-	terrain_material.set_shader_parameter("night", night)
+	# the prairie's pale ground and grass, the leaves and lichen, a little
+	# darker at night (the global `night`)
 	OakTree.set_night(night)
-	for m in ground_cover.materials:
-		m.set_shader_parameter("night", night)
 	var dir := _sun.global_basis.z
 	var c := _sun.light_color * (_sun.light_energy / 1.4)
 	var sun_col := Vector3(c.r, c.g, c.b)
 	var haze := atmosphere.haze_now
-	for m in _hazed:
-		m.set_shader_parameter("haze_sun_dir", dir)
-		m.set_shader_parameter("haze_horizon", Vector3(haze.r, haze.g, haze.b))
-		m.set_shader_parameter("haze_sun", sun_col * 0.9 + Vector3(haze.r, haze.g, haze.b) * 0.1)
+	set_global("haze_sun_dir", dir)
+	set_global("haze_horizon", Vector3(haze.r, haze.g, haze.b))
+	set_global("haze_sun", sun_col * 0.9 + Vector3(haze.r, haze.g, haze.b) * 0.1)
 	ocean_material.set_shader_parameter("sun_direction", dir)
 	ocean_material.set_shader_parameter("sun_color", sun_col)
 	terrain_material.set_shader_parameter("sun_direction", dir)
+
+
+## Sets a global shader parameter (project.godot: shader_globals), only
+## when it's changed.
+func set_global(name: String, value: Variant) -> void:
+	if _globals.has(name) and typeof(_globals[name]) == typeof(value) and _globals[name] == value:
+		return
+	_globals[name] = value
+	RenderingServer.global_shader_parameter_set(name, value)
 
 
 ## The magnified view (Player.zoom): terrain and shadows pick their detail as
@@ -581,9 +574,8 @@ func _magnify() -> void:
 	# frustum's footprint spreads sideways) and a margin
 	var tan_h := tan(deg_to_rad(player.camera.fov) * 0.5) * vp.x / maxf(vp.y, 1.0)
 	tan_h = tan_h / maxf(sqrt(1.0 - f.y * f.y), 0.2) * 1.15 + 0.01
-	cdlod.magnify(dir, z, tan_h)
-	for m in _hazed:
-		m.set_shader_parameter("lod_zoom", z)
+	cdlod.magnify(dir, z, tan_h) # (and the global lod_zoom)
+	cdlod.shadow_range = (SUN_SHADOW + 100.0) * z
 	_sun.directional_shadow_max_distance = SUN_SHADOW * z
 
 
@@ -610,9 +602,10 @@ func _update_world(_cam: Vector3) -> void:
 	_update_position_on_planet()
 	_update_light()
 	var cam := Origin.map(player.camera.global_position)
+	set_global("main_camera", player.camera.global_position) # (drawn: the shadow passes' trees pick their level by it, lod_fade.gdshaderinc)
 	_magnify()
 	cdlod.update(cam)
-	population.update(player.position)
+	population.update(player.position, cam) # (the trees' levels of detail by the camera)
 	OakTree.set_player(player.position)
 	ground_cover.update(cam)
 	ocean_material.set_shader_parameter("view_pos", cam)
@@ -632,5 +625,4 @@ func _update_world(_cam: Vector3) -> void:
 		_sea_floor.visible = under
 		env.fog_density = 0.06
 		env.fog_light_color = Color(0.05, 0.22, 0.28)
-		for m in _hazed:
-			m.set_shader_parameter("underwater", under)
+		set_global("underwater", under)

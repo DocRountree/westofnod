@@ -16,7 +16,7 @@ const float LICHEN_NEAR = 30.0;
 
 uniform sampler2D lichen_tex : filter_linear_mipmap, repeat_enable;
 uniform float lichen_amount = 0.35;
-uniform float night = 0.0; // 0 day .. 1 night (main.gd): pale lichen glared under the night's wider exposure
+global uniform float night; // 0 day .. 1 night (main.gd: a global): pale lichen glared under the night's wider exposure
 uniform bool lichen_any_biome = false; // the same everywhere (dead wood), not by biome (growth_at)...
 uniform float lichen_swamp = 1.0;      // ...save this much more in the swamp (dead oaks)
 uniform float moss_amount = 0.0;

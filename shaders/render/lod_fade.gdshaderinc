@@ -11,6 +11,11 @@
 
 uniform vec3 lod_range = vec3(0.0, 1e9, 0.0); // fade 0: off
 uniform float lod_mid_height = 6.0;           // m above the foot (at scale 1)
+// The main camera (drawn: as MODEL_MATRIX), for the shadow passes, whose own
+// camera is the light's; and whether to go by it there (main.gd sets both;
+// off, as in the tools, every level casts whole)
+global uniform vec3 main_camera;
+global uniform bool lod_shadow_pick;
 
 float bayer4(vec2 frag) {
 	ivec2 q = ivec2(mod(frag, 4.0));
@@ -38,10 +43,18 @@ vec2 lod_fades(vec3 cam, mat4 model) {
 // fragment: if (lod_hidden(FRAGCOORD.xy, lod_f)) discard;
 varying vec2 lod_f;
 
-// Not in the (orthographic) directional shadow pass, where the camera is
-// the light: there every level is whole.
+// In the (orthographic) directional shadow pass, where the camera is the
+// light, each tree casts from one level only, the one it's in seen from the
+// main camera (no fade: a shadow's stipple would crawl), not from every
+// level whole, one over another.
 vec2 lod_vertex(vec3 cam, mat4 model, mat4 proj) {
-	if (lod_range.z <= 0.0 || proj[3][3] > 0.5) return vec2(1.0);
+	if (lod_range.z <= 0.0) return vec2(1.0);
+	if (proj[3][3] > 0.5) {
+		if (!lod_shadow_pick) return vec2(1.0);
+		vec3 o = model[3].xyz + model[1].xyz * lod_mid_height;
+		float d = distance(main_camera, o);
+		return (d >= lod_range.x && d < lod_range.y) ? vec2(1.0) : vec2(0.0);
+	}
 	return lod_fades(cam, model);
 }
 

@@ -18,6 +18,12 @@ var levels := 0
 var leaf := 0.0 # world size of a level-0 patch
 var ranges := PackedFloat32Array()
 var _mm: MultiMesh
+## Only the patches within this of the camera (m, across the ground) cast
+## the sun's shadow, drawn again for the shadow maps alone (_smm): those
+## reach SUN_SHADOW (main.gd) and no further, and the whole map drawn into
+## every cascade cost more than the terrain itself.
+var shadow_range := 300.0
+var _smm: MultiMesh
 var _last_cam := Vector3.INF
 var zoom := 1.0 ## Magnification: detail as if everything were this many times nearer.
 var _dir := Vector2(0, -1) # horizontal view direction, and the wedge seen (when magnified)
@@ -35,13 +41,19 @@ func setup(world: WorldData, mats: Array[ShaderMaterial]) -> void:
 	_mm.transform_format = MultiMesh.TRANSFORM_3D
 	_mm.use_custom_data = true
 	_mm.mesh = _grid_mesh()
+	_smm = MultiMesh.new()
+	_smm.transform_format = MultiMesh.TRANSFORM_3D
+	_smm.use_custom_data = true
+	_smm.mesh = _mm.mesh
 	for m in mats:
-		var mi := MultiMeshInstance3D.new()
-		mi.multimesh = _mm
-		mi.material_override = m
-		# Vertices are placed in the shader; never cull the set.
-		mi.custom_aabb = AABB(Vector3(-1e5, -1e4, -1e5), Vector3(2e5, 2e4, 2e5))
-		add_child(mi)
+		for shadow in [false, true]:
+			var mi := MultiMeshInstance3D.new()
+			mi.multimesh = _smm if shadow else _mm
+			mi.material_override = m
+			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY if shadow else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			# Vertices are placed in the shader; never cull the set.
+			mi.custom_aabb = AABB(Vector3(-1e5, -1e4, -1e5), Vector3(2e5, 2e4, 2e5))
+			add_child(mi)
 	for m in mats:
 		m.set_shader_parameter("height_tex", world.height_tex)
 		m.set_shader_parameter("map_size", float(world.size))
@@ -82,6 +94,19 @@ func update(cam: Vector3) -> void:
 		buf[o + 15] = p[1]
 	_mm.instance_count = picked.size()
 	_mm.buffer = buf
+	# the shadow casters: those near, the same per-instance data
+	var sbuf := PackedFloat32Array()
+	var c2 := Vector2(cam.x, cam.z)
+	for i in picked.size():
+		var p: Array = picked[i]
+		var corner: Vector2 = p[0]
+		var size: float = p[1]
+		var q := Vector2(clampf(c2.x, corner.x, corner.x + size), clampf(c2.y, corner.y, corner.y + size))
+		if q.distance_to(c2) <= shadow_range:
+			sbuf.append_array(buf.slice(i * 16, i * 16 + 16))
+	_smm.instance_count = sbuf.size() / 16
+	if not sbuf.is_empty():
+		_smm.buffer = sbuf
 
 
 ## Magnified view: detail by distance / zoom, and only the patches in the
@@ -93,8 +118,7 @@ func magnify(dir: Vector2, z: float, tan_half: float) -> void:
 	_dir = dir
 	_tan = tan_half
 	_last_cam = Vector3.INF # reselect
-	for m in materials:
-		m.set_shader_parameter("lod_zoom", zoom)
+	RenderingServer.global_shader_parameter_set("lod_zoom", zoom) # (a global: every shader with the height map)
 
 
 func _in_wedge(cam: Vector3, corner: Vector2, size: float) -> bool:

@@ -21,6 +21,7 @@ render_mode cull_disabled, skip_vertex_transform;
 // far along the blade (frond) from its root, 0..1.
 
 #include "res://shaders/render/aerial.gdshaderinc"
+#include "res://shaders/render/canopy.gdshaderinc"
 #include "res://shaders/render/wind.gdshaderinc"
 #include "res://shaders/render/ground_cover.gdshaderinc"
 
@@ -60,7 +61,7 @@ uniform vec3 disc_color = vec3(0.5);
 uniform float head_size = 0.05;
 uniform vec2 head_px = vec2(2.5, 6.0); // pixels across: its stem's colour below x, its own above y
 uniform float shadow_strength = 0.7;
-uniform float night = 0.0; // 0 day .. 1 night (main.gd): the prairie's grass darker at night, as its ground
+global uniform float night; // 0 day .. 1 night (main.gd: a global): the prairie's grass darker at night, as its ground
 uniform vec3 frond_mean = vec3(0.03, 0.07, 0.006); // linear: the frond texture's mean (GroundCover sets it)
 
 varying vec3 world_pos;
@@ -70,6 +71,7 @@ varying float frac;
 varying float fade;  // 1 drawn, 0 gone: a clump coming or going dissolves (stippled)
 varying float far;   // 0 its own colours, 1 all the ground's
 varying float dim;   // the night's dimming (the prairie's)
+varying float canopy; // the forest's canopy's shade over it (canopy.gdshaderinc: as the ground's under it)
 // which part of the clump (from UV.x, the vertex's own, exact): 0 a blade
 // or leaf, 1 a round stalk, 2 a cattail's head, 3 a flower's rays, 4 its
 // disc. Flat: not from UV.x in the pixel, which multisampling reads at the
@@ -119,6 +121,7 @@ void vertex() {
 		tip_col = vec3(0.0);
 		far = 0.0;
 		dim = 1.0;
+		canopy = 1.0;
 	} else {
 		float h = base_h - 512.0 + (round(a.r) * 256.0 + round(a.g)) / 64.0;
 		float spin = h2(c, 8) * 6.2832;
@@ -146,6 +149,7 @@ void vertex() {
 		// a few metres off, little by little; grass further out)
 		far = kind == 1 ? smoothstep(3.0, fade_out.x, d) : smoothstep(fade_out.x * 0.4, fade_out.x, d);
 		dim = 1.0 - 0.5 * night * prairie;
+		canopy = canopy_light(pos, h, 1.0 - prairie, d * 0.002, night);
 
 		ground *= dim;
 		root_col = pow(ground, vec3(2.2));
@@ -203,7 +207,7 @@ void fragment() {
 		head_k = smoothstep(head_px.x, head_px.y, head_size / max(mpp, 1e-6));
 		c = mix(tip_col * 0.9, c, head_k);
 	}
-	ALBEDO = mix(c, root_col, part >= 3 ? far * (1.0 - head_k) : far);
+	ALBEDO = mix(c, root_col, part >= 3 ? far * (1.0 - head_k) : far) * canopy;
 	ROUGHNESS = 0.85;
 	SPECULAR = 0.2;
 	FOG = aerial_fog(world_pos, CAMERA_POSITION_WORLD + world_origin);

@@ -6,12 +6,12 @@
 // every channel saturates and the land fades into the horizon's colour. The
 // air thins with height; toward the sun the haze warms (forward scattering).
 
-uniform vec3 haze_horizon = vec3(0.45, 0.6, 0.86); // what infinitely deep air looks like
-uniform vec3 haze_sun = vec3(0.95, 0.88, 0.75);    // forward-scattered sunlight
+global uniform vec3 haze_horizon; // what infinitely deep air looks like (these four: globals, main.gd)
+global uniform vec3 haze_sun;     // forward-scattered sunlight
 uniform float haze_distance = 6500.0;              // m for 63% of the blue at sea level (humid island air: distant land softens, blues)
 uniform float haze_scale_height = 1200.0;
-uniform vec3 haze_sun_dir = vec3(0.4, 0.6, 0.6);   // toward the sun
-uniform bool underwater = false;
+global uniform vec3 haze_sun_dir; // toward the sun
+global uniform bool underwater;
 
 const vec3 HAZE_SPECTRUM = vec3(0.3, 0.55, 1.0);
 

@@ -63,8 +63,9 @@ func _move(delta: float) -> void:
 	var hv := Vector2(velocity.x, velocity.z)
 	var p := position + Vector3(velocity.x, 0.0, velocity.z) * delta
 	if hv.length() > 0.01:
-		var n := world.normal_at(p.x, p.z)
-		var g := world.height_at(p.x, p.z)
+		var sf := world.surface_at(p.x, p.z) # (the height and the normal at once)
+		var n := Vector3(sf.y, sf.z, sf.w)
+		var g := sf.x
 		var blocked := (n.y < max_slope and g > position.y) or (not can_swim and g < 0.2)
 		if blocked:
 			p = position # too steep or into the water: stay (think() picks again)

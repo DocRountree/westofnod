@@ -16,7 +16,7 @@ uniform vec2 map_origin = vec2(-4096.0); // world xz of sample (0, 0)
 uniform vec3 view_pos;               // main camera, on the map (also during the shadow pass)
 // Magnification (the telescope): detail is chosen as if everything were this
 // many times nearer, so it holds up when magnified.
-uniform float lod_zoom = 1.0;
+global uniform float lod_zoom; // (a global: main.gd)
 
 const float OCEAN_FLOOR = -80.0; // = WorldData.OCEAN_FLOOR
 // Below the data: three octaves of value noise (wavelength m, amplitude m), as
@@ -143,6 +143,104 @@ float terrain_height(vec2 p, int m) {
 	if (land <= 0.0)
 		return b; // the sea floor: no relief
 	return b + terrain_detail(p) * land * (1.0 - swampiness(p));
+}
+
+// ---- the height and its slope together (terrain.gdshader's normals): one
+// evaluation, not the four a normal by differences takes.
+
+// The B-spline's weights' derivatives (bspline(), d/dt).
+vec4 dbspline(float t) {
+	float s = 1.0 - t;
+	return vec4(-0.5 * s * s, 1.5 * t * t - 2.0 * t, -1.5 * t * t + t + 0.5, 0.5 * t * t);
+}
+
+// base_height(), and its slope (d/dx, d/dz, m per m) in grad.
+float base_height_grad(vec2 p, int m, out vec2 grad) {
+	grad = vec2(0.0);
+	vec2 g = map_grid(p);
+	if (g.x < -2.0 || g.y < -2.0 || g.x > map_size + 1.0 || g.y > map_size + 1.0) return OCEAN_FLOOR;
+	float scale = exp2(float(m));
+	g = (g - (scale - 1.0) * 0.5) / scale;
+	vec2 fi = floor(g);
+	ivec2 c = ivec2(fi);
+	vec4 wx = bspline(g.x - fi.x);
+	vec4 wz = bspline(g.y - fi.y);
+	vec4 dx = dbspline(g.x - fi.x);
+	vec4 dz = dbspline(g.y - fi.y);
+	float h = 0.0;
+	float hx = 0.0;
+	float hz = 0.0;
+	for (int b = 0; b < 4; b++) {
+		float row = 0.0;
+		float drow = 0.0;
+		for (int a = 0; a < 4; a++) {
+			float f = fetch_m(height_tex, c + ivec2(a - 1, b - 1), m);
+			row += f * wx[a];
+			drow += f * dx[a];
+		}
+		h += row * wz[b];
+		hx += drow * wz[b];
+		hz += row * dz[b];
+	}
+	grad = vec2(hx, hz) / (map_cell() * scale);
+	return h;
+}
+
+// hm_vnoise(), and its slope (per unit of p) in d.
+float hm_vnoise_grad(vec2 p, out vec2 d) {
+	vec2 fi = floor(p);
+	ivec2 i = ivec2(fi);
+	vec2 f = p - fi;
+	vec2 u = f * f * f * (f * (f * 6.0 - 15.0) + 10.0);
+	vec2 du = 30.0 * f * f * (f * (f - 2.0) + 1.0);
+	float a = hm_hash(i);
+	float k1 = hm_hash(i + ivec2(1, 0)) - a;
+	float k2 = hm_hash(i + ivec2(0, 1)) - a;
+	float k3 = hm_hash(i + ivec2(1, 1)) - a - k1 - k2;
+	d = du * vec2(k1 + k3 * u.y, k2 + k3 * u.x);
+	return a + k1 * u.x + k2 * u.y + k3 * u.x * u.y;
+}
+
+// terrain_detail(), and its slope; each octave's slope let go as `width`
+// (m: the footprint the normal stands for) grows past its wavelength, as
+// differences that far apart smoothed it.
+float terrain_detail_grad(vec2 p, float width, out vec2 grad) {
+	float dist = distance(p, view_pos.xz) / lod_zoom;
+	float d = 0.0;
+	grad = vec2(0.0);
+	for (int k = 0; k < 3; k++) {
+		float fade = 1.0 - smoothstep(DETAIL[k].x * 25.0, DETAIL[k].x * 40.0, dist);
+		if (fade <= 0.0) continue;
+		vec2 dn;
+		float n = hm_vnoise_grad(p / DETAIL[k].x + vec2(17.0 * float(k), -9.0 * float(k)), dn);
+		float amp = 2.0 * DETAIL[k].y * fade;
+		d += (n - 0.5) * amp;
+		grad += dn / DETAIL[k].x * amp * (1.0 - smoothstep(DETAIL[k].x * 0.15, DETAIL[k].x * 0.5, width));
+	}
+	return d;
+}
+
+// terrain_height(), and its slope in grad (the swamp's smoothing taken as
+// level: it changes over hundreds of metres).
+float terrain_height_grad(vec2 p, int m, float width, out vec2 grad) {
+	float b = base_height_grad(p, m, grad);
+	float lr = (b - 0.5) / 3.0;
+	float land = clamp(lr, 0.0, 1.0);
+	if (land <= 0.0)
+		return b; // the sea floor: no relief
+	float dry = 1.0 - swampiness(p);
+	vec2 gd;
+	float det = terrain_detail_grad(p, width, gd);
+	vec2 gb = grad;
+	grad += gd * land * dry;
+	if (lr < 1.0)
+		grad += det * dry * gb / 3.0; // (the relief coming in up the shore)
+	return b + det * land * dry;
+}
+
+// The normal of a slope (terrain_height_grad's).
+vec3 slope_normal(vec2 grad) {
+	return normalize(vec3(-grad.x, 1.0, -grad.y));
 }
 
 vec3 terrain_normal(vec2 p, int m, float e) {

@@ -18,5 +18,9 @@ vec3 wind_sway(vec3 world, float t) {
 vec3 wind_local(mat4 model, vec3 local, float weight, float t) {
 	if (weight <= 0.0) return vec3(0.0);
 	vec3 w = wind_sway((model * vec4(local, 1.0)).xyz + world_origin, t) * weight;
-	return inverse(mat3(model)) * w;
+	// back into the model's space: its basis is a turn and a uniform scale
+	// (the trees' and the grass's), whose inverse is its transpose over the
+	// scale squared (no inverse() every vertex)
+	mat3 m = mat3(model);
+	return transpose(m) * w / dot(m[0], m[0]);
 }

@@ -73,6 +73,14 @@ knapsack={
 ]
 }
 
+[importer_defaults]
+
+texture={
+"compress/high_quality": true,
+"compress/mode": 2,
+"mipmaps/generate": true
+}
+
 [rendering]
 
 anti_aliasing/quality/msaa_3d=1
@@ -82,4 +90,40 @@ anti_aliasing/quality/msaa_3d=1
 world_origin={
 "type": "vec3",
 "value": Vector3(0, 0, 0)
+}
+night={
+"type": "float",
+"value": 0.0
+}
+player={
+"type": "vec3",
+"value": Vector3(0, 0, 0)
+}
+lod_zoom={
+"type": "float",
+"value": 1.0
+}
+haze_horizon={
+"type": "vec3",
+"value": Vector3(0.45, 0.6, 0.86)
+}
+haze_sun={
+"type": "vec3",
+"value": Vector3(0.95, 0.88, 0.75)
+}
+haze_sun_dir={
+"type": "vec3",
+"value": Vector3(0.4, 0.6, 0.6)
+}
+underwater={
+"type": "bool",
+"value": false
+}
+main_camera={
+"type": "vec3",
+"value": Vector3(0, 0, 0)
+}
+lod_shadow_pick={
+"type": "bool",
+"value": false
 }

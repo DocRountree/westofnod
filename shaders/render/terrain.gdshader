@@ -19,8 +19,9 @@ render_mode diffuse_burley, specular_schlick_ggx, skip_vertex_transform;
 
 #include "res://shaders/render/height_map.gdshaderinc"
 #include "res://shaders/render/aerial.gdshaderinc"
+#include "res://shaders/render/canopy.gdshaderinc"
 
-uniform float night = 0.0; // 0 day .. 1 night (main.gd)
+global uniform float night; // 0 day .. 1 night (main.gd: a global)
 const float PRAIRIE_NIGHT_DIM = 0.5; // (also ground_cover.gdshader): at night it looks only half again as bright as the forest floor (by day ~2.8x)
 uniform vec3 sun_direction = vec3(0.4, 0.6, 0.6);
 
@@ -34,13 +35,17 @@ void vertex() {
 	int lod;
 	float morph;
 	vec2 wp = cdlod_xz(VERTEX, MODEL_MATRIX, INSTANCE_CUSTOM, lod, morph);
+	// (the height by terrain_height() itself, as the neighbouring patches
+	// work theirs out, to the last bit: no cracks; the slope apart)
 	float h = terrain_height(wp, max(lod - SUB, 0));
+	vec2 slope;
+	terrain_height_grad(wp, max(lod - SUB, 0), map_cell() * exp2(float(max(lod - SUB, 0))) * 0.5, slope);
 	if (morph > 0.0) {
 		float hc = terrain_height(wp, max(lod + 1 - SUB, 0));
 		h = morph >= 1.0 ? hc : mix(h, hc, morph); // (exactly the coarser level's where they meet)
 	}
 	VERTEX = (VIEW_MATRIX * vec4(wp.x - world_origin.x, h, wp.y - world_origin.z, 1.0)).xyz;
-	NORMAL = mat3(VIEW_MATRIX) * terrain_normal(wp, max(lod - SUB, 0), map_cell() * exp2(float(max(lod - SUB, 0))) * 0.5);
+	NORMAL = mat3(VIEW_MATRIX) * slope_normal(slope); // (the shadow passes' normal bias: the colour pass works its own out per pixel)
 	local_pos = vec3(wp.x - world_origin.x, h, wp.y - world_origin.z);
 }
 
@@ -85,7 +90,9 @@ void fragment() {
 	vec2 p = world_pos.xz;
 	float fp = max(length(fwidth(p)), 0.01);
 	int pm = pixel_mip(fp);
-	vec3 n = terrain_normal(p, pm, max(fp, 0.5) * 1.5 + map_cell() * exp2(float(pm)) * 0.25);
+	vec2 slope;
+	terrain_height_grad(p, pm, max(fp, 0.5) * 1.5 + map_cell() * exp2(float(pm)) * 0.25, slope);
+	vec3 n = slope_normal(slope);
 	NORMAL = normalize((VIEW_MATRIX * vec4(n, 0.0)).xyz);
 	float h = world_pos.y;
 	vec4 m = texture(mask_tex, map_uv(p));
@@ -146,6 +153,9 @@ void fragment() {
 	col *= 1.0 - PRAIRIE_NIGHT_DIM * night * clamp(prairie + coast + m.a * (1.0 - rocky * 0.7), 0.0, 1.0);
 	col = mix(col, seabed, 1.0 - smoothstep(-1.0, 0.2, h));
 	col *= mix(1.0, 0.78, (1.0 - smoothstep(0.0, 0.6, h)) * step(-0.3, h)); // damp line
+	// under the forest's canopy (its trees cast no shadows: their stand-in,
+	// canopy.gdshaderinc; as the grass and ferns on it)
+	col *= canopy_light(p, h, forest * (1.0 - rocky) * (1.0 - m.a) * step(0.4, h), fp, night);
 	// past where the trees are drawn (OakTree.VIEW, 600 m), their canopy
 	// painted on the ground, as much of it as the trees there would cover
 	// (from their density by biome: data/population/props/, as Population

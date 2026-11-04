@@ -24,7 +24,7 @@ uniform vec2 frame = vec2(8.0, 8.0); // the card's middle's height, half its sid
 uniform vec2 atlas_px = vec2(1280.0, 160.0);
 uniform float shadow_strength = 0.55;
 uniform float translucency = 0.5;
-uniform float night = 0.0; // (OakTree.set_night)
+global uniform float night; // (OakTree.set_night: a global)
 const float NIGHT_DIM = 0.5; // (as the leaves)
 
 varying vec3 world_pos;

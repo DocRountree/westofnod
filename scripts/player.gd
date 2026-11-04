@@ -335,8 +335,9 @@ func _move(delta: float, in_water: bool) -> void:
 		# from the mud's surface when wading: you step up out of it)
 		var up := Vector3(0.0, sink, 0.0)
 		p = population.push_out(p + up, BODY_RADIUS) - up
-	var g := world.height_at(p.x, p.z)
-	var n := world.normal_at(p.x, p.z)
+	var sf := world.surface_at(p.x, p.z) # (the height and the normal at once)
+	var g := sf.x
+	var n := Vector3(sf.y, sf.z, sf.w)
 	var steep := n.y < cos(floor_max_angle)
 	if flying or in_water:
 		sink = 0.0
@@ -369,8 +370,9 @@ func _move(delta: float, in_water: bool) -> void:
 				velocity.x = hv.x
 				velocity.z = hv.y
 				p = position + velocity * delta
-				g = world.height_at(p.x, p.z) - sink
-				n = world.normal_at(p.x, p.z)
+				sf = world.surface_at(p.x, p.z)
+				g = sf.x - sink
+				n = Vector3(sf.y, sf.z, sf.w)
 				steep = n.y < cos(floor_max_angle)
 		var snap := 0.6 if grounded and velocity.y <= 0.0 else 0.0
 		if p.y <= g + snap:
@@ -392,14 +394,16 @@ func _move(delta: float, in_water: bool) -> void:
 func _climb(delta: float) -> void:
 	var input := _climb_input()
 	var g := Vector2(position.x, position.z) + _grip_offset
-	var n := world.normal_at(g.x, g.y)
+	var sf := world.surface_at(g.x, g.y) # (the height and the normal at once)
+	var n := Vector3(sf.y, sf.z, sf.w)
 	var up_t := (Vector3.UP - n * n.y).normalized()
 	var right := up_t.cross(n)
 	var move := (right * input.x - up_t * input.y) * CLIMB_SPEED * delta
-	var before := Vector3(g.x, world.height_at(g.x, g.y), g.y)
+	var before := Vector3(g.x, sf.x, g.y)
 	g += Vector2(move.x, move.z)
-	var surface := Vector3(g.x, world.height_at(g.x, g.y), g.y)
-	n = world.normal_at(g.x, g.y)
+	sf = world.surface_at(g.x, g.y)
+	var surface := Vector3(g.x, sf.x, g.y)
+	n = Vector3(sf.y, sf.z, sf.w)
 	up_t = (Vector3.UP - n * n.y).normalized()
 	right = up_t.cross(n)
 	if n.y > CLIMBABLE + 0.05 and input.length() > 0.1:

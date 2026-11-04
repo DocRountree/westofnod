@@ -174,7 +174,9 @@ void fragment() {
 	if (!in_forest && !in_prairie)
 		prairie = 1.0;
 	float size = 0.0;
-	if (h2(c, 5) < grows && h2(c, 4) < cover && !under_log(pos) && !picked(c)) {
+	// (the size only for the texel that keeps it: the logs' loop, up to 256
+	// a pixel, not for the ground's colour beside it)
+	if ((px.x & 1) == 0 && h2(c, 5) < grows && h2(c, 4) < cover && !under_log(pos) && !picked(c)) {
 		// not on rock, sand, mud or the shore; nothing on the forest's litter
 		float bare = max(max(rocky, in_coast ? 0.0 : m.a), mud * 3.0) + (in_swamp ? 0.0 : 1.0 - smoothstep(0.3, 1.2, h)); // (reeds stand in water; marram on sand)
 		float here = mix(smoothstep(0.3, 0.05, litter / max(fw, 1e-4)), 1.0, prairie);

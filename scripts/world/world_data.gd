@@ -250,6 +250,95 @@ static func _hash(i: int, j: int) -> float:
 	return float((v >> 22) ^ v) / 4294967295.0
 
 
+## The ground's height and normal at (x, z) at once: Vector4(height, the
+## normal's x, y, z). The height is height_at()'s, to the last bit; the
+## normal from the slope worked out alongside it (the B-spline's and the
+## relief's derivatives, the swamp's smoothing taken as level), not by
+## differences: one evaluation where height_at() and normal_at() took five.
+## (The player and actors move by it; Population still places by
+## normal_at(), so the trees stand where they always have.)
+func surface_at(x: float, z: float) -> Vector4:
+	var c := cell()
+	var gx := (x - origin.x) / c
+	var gz := (z - origin.y) / c
+	var i := floori(gx)
+	var j := floori(gz)
+	var w := _bspline(gx - i)
+	var v := _bspline(gz - j)
+	var dw := _dbspline(gx - i)
+	var dv := _dbspline(gz - j)
+	var b := 0.0
+	var bx := 0.0
+	var bz := 0.0
+	var inside := i >= 1 and j >= 1 and i + 2 < size and j + 2 < size
+	for r in 4:
+		var s0: float
+		var s1: float
+		var s2: float
+		var s3: float
+		if inside:
+			var k := (j - 1 + r) * size + i - 1
+			s0 = heights[k]
+			s1 = heights[k + 1]
+			s2 = heights[k + 2]
+			s3 = heights[k + 3]
+		else:
+			s0 = _sample(i - 1, j - 1 + r)
+			s1 = _sample(i, j - 1 + r)
+			s2 = _sample(i + 1, j - 1 + r)
+			s3 = _sample(i + 2, j - 1 + r)
+		var row := s0 * w.x + s1 * w.y + s2 * w.z + s3 * w.w
+		b += row * v[r]
+		bx += (s0 * dw.x + s1 * dw.y + s2 * dw.z + s3 * dw.w) * v[r]
+		bz += row * dv[r]
+	var g := Vector2(bx, bz) / c
+	var h := b
+	var lr := (b - 0.5) / 3.0
+	var land := clampf(lr, 0.0, 1.0)
+	if land > 0.0:
+		var dry := 1.0 - swampiness(x, z)
+		if dry > 0.0:
+			var d := 0.0
+			var dg := Vector2.ZERO
+			for k in DETAIL.size():
+				var o: Vector2 = DETAIL[k]
+				var n := _vnoise_grad(x / o.x + 17.0 * k, z / o.x - 9.0 * k)
+				d += (n.x - 0.5) * 2.0 * o.y
+				dg += Vector2(n.y, n.z) / o.x * 2.0 * o.y
+			h = b + d * land * dry
+			var gb := g
+			g += dg * land * dry
+			if lr < 1.0:
+				g += gb * d * dry / 3.0 # (the relief coming in up the shore)
+	var nrm := Vector3(-g.x, 1.0, -g.y).normalized()
+	return Vector4(h, nrm.x, nrm.y, nrm.z)
+
+
+## The B-spline's weights' derivatives (_bspline(), d/dt).
+static func _dbspline(t: float) -> Vector4:
+	var s := 1.0 - t
+	return Vector4(-0.5 * s * s, 1.5 * t * t - 2.0 * t, -1.5 * t * t + t + 0.5, 0.5 * t * t)
+
+
+## vnoise() (its value, to the bit) and its slope: Vector3(value, d/dx, d/dz).
+static func _vnoise_grad(x: float, z: float) -> Vector3:
+	var i := floori(x)
+	var j := floori(z)
+	var fx := x - i
+	var fz := z - j
+	var ux := fx * fx * fx * (fx * (fx * 6.0 - 15.0) + 10.0)
+	var uz := fz * fz * fz * (fz * (fz * 6.0 - 15.0) + 10.0)
+	var dux := 30.0 * fx * fx * (fx * (fx - 2.0) + 1.0)
+	var duz := 30.0 * fz * fz * (fz * (fz - 2.0) + 1.0)
+	var a := _hash(i, j)
+	var b := _hash(i + 1, j)
+	var c := _hash(i, j + 1)
+	var d := _hash(i + 1, j + 1)
+	var value := lerpf(lerpf(a, b, ux), lerpf(c, d, ux), uz)
+	var k3 := a - b - c + d
+	return Vector3(value, dux * (b - a + k3 * uz), duz * (c - a + k3 * ux))
+
+
 ## Surface normal at (x, z).
 func normal_at(x: float, z: float) -> Vector3:
 	var e := 1.0

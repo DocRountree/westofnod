@@ -150,11 +150,16 @@ const SPOROPHYTES_MOST := 40000
 
 
 ## Where the player is (main.gd, each frame): the sporophytes stand only
-## within a couple of metres of them.
+## within a couple of metres of them (the global `player`; sent when it's
+## moved a couple of cm).
+static var _player := Vector3.INF
+
+
 static func set_player(pos: Vector3) -> void:
-	for key in _bark_mats:
-		if key[0] is String:
-			_bark_mats[key].set_shader_parameter("player", pos)
+	if pos.distance_squared_to(_player) < 0.0004:
+		return
+	_player = pos
+	RenderingServer.global_shader_parameter_set("player", pos)
 
 
 ## One sporophyte's corners (UV, as sporophytes.gdshader reads them): the
@@ -298,13 +303,18 @@ static func _stump_top() -> float:
 	return 0.0
 
 
-## 0 day .. 1 night: the lichen and the leaves dim at night (main.gd).
+## 0 day .. 1 night: the lichen and the leaves dim at night, the ground and
+## the grass too (main.gd; ImpostorBaker: by day for its photographs). The
+## global `night`, every shader that dims.
 static func set_night(n: float) -> void:
+	if n == _night_sent:
+		return
 	_night = n
-	for key in _bark_mats:
-		_bark_mats[key].set_shader_parameter("night", n)
-	for key in _leaf_mats:
-		_leaf_mats[key].set_shader_parameter("night", n)
+	_night_sent = n
+	RenderingServer.global_shader_parameter_set("night", n)
+
+
+static var _night_sent := -1.0
 
 
 ## Where lichen and moss grow how much (sparse on the prairie, thick in the
@@ -578,7 +588,6 @@ static func _impostor(variant: int, mesh: Mesh, species := "oak") -> Mesh:
 	m.set_shader_parameter("frame", Vector2(mid, side * 0.5))
 	m.set_shader_parameter("frames", float(ImpostorBaker.FRAMES))
 	m.set_shader_parameter("atlas_px", Vector2(ImpostorBaker.PX * ImpostorBaker.FRAMES, ImpostorBaker.PX))
-	m.set_shader_parameter("night", _night)
 	if _no_photo == null: # (until it's photographed: clear, nothing drawn)
 		var img := Image.create(1, 1, false, Image.FORMAT_RGBA8)
 		img.fill(Color(0, 0, 0, 0))

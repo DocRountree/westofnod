@@ -35,7 +35,7 @@ uniform float translucency = 0.5; // light through the leaves from behind
 uniform vec2 atlas_size = vec2(2048.0, 1024.0);
 uniform float thin_power = 1.3;
 uniform float min_keep = 0.3;
-uniform float night = 0.0; // 0 day .. 1 night (main.gd, via OakTree.set_night)
+global uniform float night; // 0 day .. 1 night (main.gd, via OakTree.set_night: a global)
 const float NIGHT_DIM = 0.5; // the leaves at night (as the prairie's: PRAIRIE_NIGHT_DIM)
 
 varying vec3 world_pos;

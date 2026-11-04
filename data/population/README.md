@@ -71,14 +71,25 @@ shallows, and don't sway.
   big clumps) there instead,
   cross-fading stippled tree by tree over 12 m at each switch (and out at
   600 m) in `shaders/render/lod_fade.gdshaderinc` (each level's materials
-  hold its span; Population only keeps the levels' nodes drawn a chunk
-  wider than that); on
+  hold its span). Each level's MultiMesh holds only a chunk's trees near
+  enough its span to show in it, sorted on the CPU as the camera moves
+  (`Population._bucket`: its fade and 6 m to spare either side, a few
+  chunks a frame), so no tree's full mesh is worked out only to be
+  collapsed; in the shadow maps each tree casts from the one level it's in
+  from the main camera (`lod_shadow_pick`). Trees notched by an axe are drawn
+  apart (`Population._Group`: the cut meshes for them alone; a blow changes
+  only their notch's data); on
   top of that the leaf cards thin out with distance in the shader (the rest
   grow to keep the cover), each dissolving rather than popping.
 - Shadows: every standing oak casts the same stand-in, a lumpy dome on a
   stalk (`shadow_mesh`); the trees and their leaves cast none and take
   shadows only part way. The dead wood casts its own. In the swamp none of
-  them (standing, dead, saplings, stumps) casts a shadow (`shadowless_in`).
+  them (standing, dead, saplings, stumps) casts a shadow (`shadowless_in`),
+  nor in the forest any tree of any kind (`Population.SHADOWLESS`): its
+  floor, and the grass and ferns on it, shaded instead by a stand-in for
+  the canopy (`shaders/render/canopy.gdshaderinc`: crowns' shade thrown
+  along the sun's way, light through the gaps and in flecks, the sky's
+  light dimmed).
 
 `xvfb-run godot --path . --script res://tools/trees/preview.gd -- <out_dir>
 [side | close | leaves | dead | snag | lod]` renders them on a plain.

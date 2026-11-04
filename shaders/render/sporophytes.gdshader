@@ -26,7 +26,7 @@ uniform float near_end = 4.0;   // m from the player
 // that's each instance's own (here each sporophyte's), which shifted the
 // moss's pattern under every one differently from the bark's.
 instance uniform vec3 tree_at = vec3(0.0);
-uniform vec3 player = vec3(0.0); // on the map (main.gd, each frame: OakTree.set_player)
+global uniform vec3 player; // on the map (main.gd, each frame: OakTree.set_player: a global)
 uniform float stalk_r = 0.0004;  // m
 uniform vec2 capsule_r = vec2(0.0012, 0.0024); // m: round, along the stalk (longer that way)
 uniform vec3 stalk_base : source_color = vec3(0.33, 0.17, 0.12);

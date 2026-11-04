@@ -122,7 +122,8 @@ const LAYERS := [
 ]
 const MAX_LOGS := 256 ## logs, stumps, trunks and boulders the grass is kept out of, nearest first (ground_cover_bake.gdshader: logs[])
 const MAX_GONE := 64 ## clumps picked a layer hides (ground_cover_bake.gdshader: gone[]), the nearest
-const REBAKE := 5.0 ## m the camera moves before a layer's grid is worked out again
+const REBAKE := 5.0 ## m the camera moves before a layer's grid is worked out again (more for the layers further out: 8% of their fade_out)
+const BAKES_PER_FRAME := 2 ## layers' grids worked out a frame, at most (all thirteen at once made a hitch)
 const BAKE_KEYS := ["kind", "seed", "in_forest", "in_prairie", "in_swamp", "swamp_clumped", "in_coast", "forest_height", "prairie_height", "cover", "drift"]
 const DRAW_KEYS := ["kind", "seed", "fade_in", "fade_out", "thin_from", "prairie_green", "prairie_blonde", "patch_tints",
 		"petal_color", "petal_base", "petal_alt", "petal_alt_share", "disc_color", "head_size", "head_px", "petal_mix"]
@@ -147,7 +148,13 @@ var _logs_ds := PackedFloat32Array()
 func setup(w: WorldData) -> void:
 	world = w
 	var frond := load("res://data/population/textures/fern_frond.png") as Texture2D
-	for L in LAYERS:
+	for L0: Dictionary in LAYERS:
+		# no more tiles than the layer's range needs: as many each side of the
+		# camera's as reach its fade_out (the flowers' 7 a side, 168 m, drew
+		# clumps out to 84 m and more that faded out by 15-38 m)
+		var L := L0.duplicate()
+		var reach: float = (L.u.get("fade_out", Vector2(30.0, 40.0)) as Vector2).y
+		L.tiles = mini(L.tiles, 2 * ceili(reach / (L.cell * L.cells)) + 1)
 		var grid: int = L.cells * L.tiles
 		var m := ShaderMaterial.new()
 		m.shader = load("res://shaders/render/ground_cover.gdshader")
@@ -222,6 +229,7 @@ func setup(w: WorldData) -> void:
 		_layers.append({"need": need, "beach": L.u.get("in_coast", false), "live": {},
 				"L": L, "mm": mm, "size": L.cell * L.cells, "tiles": {}, "centre": Vector2i.MAX,
 				"material": m, "vps": vps, "bakes": bakes, "shown": -1, "baking": false, "want": Vector2i.MAX, "cam": Vector3.ZERO, "baked": Vector3.INF, "walks": -1,
+				"grid_shown": Vector2i.MAX, "cull_at": Vector3.INF,
 				"item": item_of(L), "gone": [], "img": null})
 
 
@@ -238,57 +246,95 @@ static func setup_terrain(terrain: ShaderMaterial) -> void:
 ## Every layer's grid worked out and shown (after the first update()s).
 func is_ready() -> bool:
 	for layer in _layers:
-		if layer.shown < 0 or layer.baking:
+		if layer.shown < 0 or layer.baking or layer.grid_shown != layer.want:
 			return false
 	return true
 
 
-## Moves the tiles to keep round the camera. Call every frame.
+## Moves the tiles to keep round the camera, shows only those that can draw
+## anything (a biome the layer grows in reaches them, and within the layer's
+## range: not wholly past its fade_out, nor wholly inside its fade_in), and
+## works out the grids again as needed, BAKES_PER_FRAME at most a frame (the
+## grids that moved first). Call every frame.
 func update(cam: Vector3) -> void:
+	var due: Array = [] # [0: its grid moved, 1: worked out again; layer]
 	for layer in _layers:
 		var L: Dictionary = layer.L
 		var size: float = layer.size
 		var tiles: Dictionary = layer.tiles
 		var centre := Vector2i(floori(cam.x / size), floori(cam.z / size))
-		if centre == layer.centre:
-			# (the ground's heights are as the terrain draws them from the
-			# eye, which changes as it moves: worked out again every few metres)
-			# (and when logs or stumps come or go)
-			var logs_moved: bool = population != null and population.walk_changes != layer.walks
-			if not layer.baking and (cam.distance_to(layer.baked) > REBAKE or logs_moved):
-				layer.cam = cam
-				_bake(layer)
+		if centre != layer.centre:
+			layer.centre = centre
+			var half: int = L.tiles / 2
+			layer.want = (centre - Vector2i(half, half)) * int(L.cells)
+			layer.cam = cam # (a bake under way goes again for it)
+			var wanted := {}
+			for i in range(-half, half + 1):
+				for j in range(-half, half + 1):
+					wanted[centre + Vector2i(i, j)] = true
+			var spare: Array = []
+			for key in tiles.keys():
+				if not wanted.has(key):
+					spare.append(tiles[key])
+					tiles.erase(key)
+			for key: Vector2i in wanted:
+				if tiles.has(key):
+					continue
+				var mi: MultiMeshInstance3D = spare.pop_back() if not spare.is_empty() else null
+				if mi == null:
+					mi = MultiMeshInstance3D.new()
+					mi.multimesh = layer.mm
+					mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+					add_child(mi)
+				mi.position = Vector3(key.x * size, 0.0, key.y * size)
+				mi.custom_aabb = _box(mi.position, size)
+				tiles[key] = mi
+			for mi in spare:
+				mi.queue_free()
+			layer.cull_at = Vector3.INF
+		# the tiles shown: those that can grow anything, within range
+		if cam.distance_to(layer.cull_at) > 1.0:
+			layer.cull_at = cam
+			for key: Vector2i in tiles:
+				(tiles[key] as MultiMeshInstance3D).visible = _tile_grows(layer, key) and _tile_in_range(layer, key, cam)
+		# (the ground's heights are as the terrain draws them from the eye,
+		# which changes as it moves: worked out again every few metres, more
+		# for the layers further out; and when logs or stumps come or go)
+		if layer.baking:
 			continue
-		layer.centre = centre
-		var half: int = L.tiles / 2
-		layer.want = (centre - Vector2i(half, half)) * int(L.cells)
+		var moved: bool = layer.want != layer.grid_shown
+		var logs_moved: bool = population != null and population.walk_changes != layer.walks
+		var again := maxf(REBAKE, (L.u.get("fade_out", Vector2(30.0, 40.0)) as Vector2).y * 0.08)
+		if moved or logs_moved or cam.distance_to(layer.baked) > again:
+			due.append([0 if moved else 1, layer])
+	due.sort_custom(func(a: Array, b: Array) -> bool: return a[0] < b[0])
+	for i in mini(due.size(), BAKES_PER_FRAME):
+		var layer: Dictionary = due[i][1]
 		layer.cam = cam
-		if not layer.baking:
-			_bake(layer)
-		var wanted := {}
-		for i in range(-half, half + 1):
-			for j in range(-half, half + 1):
-				wanted[centre + Vector2i(i, j)] = true
-		var spare: Array = []
-		for key in tiles.keys():
-			if not wanted.has(key):
-				spare.append(tiles[key])
-				tiles.erase(key)
-		for key: Vector2i in wanted:
-			if tiles.has(key):
-				continue
-			var mi: MultiMeshInstance3D = spare.pop_back() if not spare.is_empty() else null
-			if mi == null:
-				mi = MultiMeshInstance3D.new()
-				mi.multimesh = layer.mm
-				mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-				add_child(mi)
-			mi.position = Vector3(key.x * size, 0.0, key.y * size)
-			mi.custom_aabb = _box(mi.position, size)
-			mi.visible = _tile_grows(layer, key)
-			tiles[key] = mi
-		for mi in spare:
-			mi.queue_free()
+		_bake(layer)
+
+
+## Whether any of tile key's clumps can show from cam: not all of it past
+## the layer's fade_out, nor all of it nearer than its fade_in begins (m,
+## across the ground, as ground_cover.gdshader measures).
+func _tile_in_range(layer: Dictionary, key: Vector2i, cam: Vector3) -> bool:
+	var size: float = layer.size
+	var u: Dictionary = layer.L.u
+	var lo := Vector2(key) * size
+	var hi := lo + Vector2(size, size)
+	var c := Vector2(cam.x, cam.z)
+	var near := c.clamp(lo, hi).distance_to(c)
+	var fade_out: Vector2 = u.get("fade_out", Vector2(30.0, 40.0))
+	if near > fade_out.y + 1.0:
+		return false
+	var fade_in: Vector2 = u.get("fade_in", Vector2.ZERO)
+	if fade_in.y > 0.0:
+		var far := 0.0
+		for q in [lo, hi, Vector2(lo.x, hi.y), Vector2(hi.x, lo.y)]:
+			far = maxf(far, (q as Vector2).distance_to(c))
+		if far < fade_in.x - 1.0:
+			return false
+	return true
 
 
 ## Whether anything of the layer can grow in tile key: a biome it grows in
@@ -385,6 +431,7 @@ func _bake(layer: Dictionary) -> void:
 		m.set_shader_parameter("grid_size", layer.bakes[k].get_shader_parameter("grid_size"))
 		m.set_shader_parameter("base_h", base_h)
 		layer.shown = k
+		layer.grid_shown = origin
 		layer.img = null # (read back again when next picked from: pick_near)
 		if layer.want == origin and layer.cam == cam:
 			break

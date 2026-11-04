@@ -30,6 +30,15 @@ const UID_OFFSET := 1 << 18
 const STEP_UP := 0.7 ## m: a body steps up onto a log or stump this high above its feet; higher, it must jump
 const BODY_HEIGHT := 1.7 ## m: a log this far above the feet passes overhead
 const LOD_FADE := 6.0 ## m either side of a switch between levels of detail over which they cross-fade (stippled)
+const LOD_MID := 6.0 ## m up a tree's own axis (at scale 1) its level is measured from (lod_fade.gdshaderinc: lod_mid_height)
+## m the camera may move before a chunk's trees are sorted into their levels
+## again (each level holds the trees this much either side of its span, and
+## its fade, so none is missing between sortings)
+const LOD_SLACK := 6.0
+const BUCKETS_PER_FRAME := 24 ## chunks sorted a frame, at the least (more when many are due)
+## Biomes where no tree casts a shadow, whatever its kind (the forest: its
+## floor shaded by a cheap stand-in for the canopy instead, canopy.gdshaderinc)
+const SHADOWLESS := ["forest"]
 
 @export var actor_radius := 160.0 ## Actors live in the chunks this near the player.
 @export var world_seed := 1
@@ -57,11 +66,13 @@ var _near_jobs := {} # prop uid -> [task, out, near data]: its sporophytes being
 var _near_mm := {} # prop uid -> MultiMesh (or null): those on its moss (kept a while: _near_order)
 var _near_order: Array = [] # uids in _near_mm, oldest first
 var walk_changes := 0 ## Counts the times logs or stumps came or went (GroundCover rechecks the grass).
+var _view := Vector3.INF # the camera, on the map (update)
 
 
 class _Chunk:
 	var key: Vector2i
-	var nodes: Array[Node3D] = [] # one MultiMeshInstance3D per kind present
+	var groups := {} # prop kind index -> Array[_Group]: what it draws of that kind
+	var bucket_at := Vector3.INF # the camera (on the map) its trees were last sorted into their levels for
 	var obstacles := PackedFloat32Array() # x, z, radius
 	var walk := PackedFloat32Array() # world segments to stand on (PropKind.walk)
 	var trunks: Array[PackedFloat32Array] = [] # world trunks to climb (PropKind.climb), one each
@@ -69,6 +80,24 @@ class _Chunk:
 	var actors: Array[Actor] = []
 	var uids: Array = [] # per prop kind: PackedInt64Array of the instances' uids
 	var xforms: Array = [] # per prop kind: PackedFloat32Array (12 floats an instance, chunk-local)
+
+
+## A chunk's props of one kind that are drawn alike: notched by an axe or
+## not (the cut meshes, their notches in the custom data), casting shadows
+## or not (by the biome each stands in). Each level of detail its own
+## MultiMesh, holding only the trees near enough its span to show in it
+## (_bucket), refilled as the camera moves.
+class _Group:
+	var notched := false
+	var casts := false
+	var full := PackedFloat32Array() # every tree's: 12 floats (16 notched: + its notch), from the nodes' position
+	var stride := 12
+	var uids := PackedInt64Array()
+	var mids := PackedVector3Array() # each tree's middle (on the map), as lod_fade.gdshaderinc measures from
+	var lo := Vector3.ZERO # their box (on the map)
+	var hi := Vector3.ZERO
+	var levels: Array = [] # [begin, end, MultiMesh, MultiMeshInstance3D, what it last held: -1 not yet, 0 none, 1 all, 2 some]
+	var nodes: Array[Node3D] = []
 
 
 func _ready() -> void:
@@ -189,11 +218,13 @@ func refresh() -> void:
 	_centre = Vector2i.MAX
 
 
-## Call every frame with the player's position.
-func update(focus: Vector3) -> void:
+## Call every frame with the player's position (and the camera's, on the
+## map: the trees' levels of detail go by it; else a little over the player).
+func update(focus: Vector3, view := Vector3.INF) -> void:
 	if world == null or (props.is_empty() and actor_kinds.is_empty()):
 		return
 	_focus = focus
+	_view = view if view != Vector3.INF else focus + Vector3.UP * 1.6
 	var c := _key(focus)
 	if c != _centre:
 		_centre = c
@@ -212,6 +243,7 @@ func update(focus: Vector3) -> void:
 	for ch: _Chunk in batch:
 		if _wanted(ch.key):
 			_apply(ch)
+	_rebucket()
 	_update_near(focus)
 	_update_actors(focus)
 
@@ -701,10 +733,24 @@ func _merge_fallen(ch: _Chunk) -> void:
 ## tree's own units). Its chunk is rebuilt with it. Saved with the game
 ## (notches_to_dict: a maple's notch drips sap, Tapping).
 func set_notch(uid: int, notch: Color) -> void:
+	var was := _notches.has(uid)
 	_notches[uid] = notch
 	var ch: _Chunk = _chunks.get(_uid_key(uid))
-	if ch:
-		_build_props(ch)
+	if ch == null:
+		return
+	var k := (uid >> 16) & 0xFF
+	if was:
+		# (cut deeper: only its notch, in its group's data)
+		for g: _Group in ch.groups.get(k, []):
+			var i := g.uids.find(uid)
+			if g.notched and i >= 0:
+				var full := g.full # (a value: changed, then put back)
+				for j in 4:
+					full[i * 16 + 12 + j] = notch[j]
+				g.full = full
+				_bucket(g, true)
+				return
+	_build_kind(ch, k) # (first cut: into a group of its own, the cut meshes')
 
 
 ## The notches an axe has cut: tree uid -> its notch (set_notch's Color).
@@ -1138,143 +1184,225 @@ func _apply(ch: _Chunk) -> void:
 
 ## (Re)build a chunk's MultiMeshes.
 func _build_props(ch: _Chunk) -> void:
-	for n in ch.nodes:
-		n.queue_free()
-	ch.nodes.clear()
+	for k in ch.groups.keys():
+		_free_groups(ch, k)
 	if not _removed.is_empty():
 		_drop_removed(ch)
-	var at := Vector3(ch.key.x * CHUNK, 0.0, ch.key.y * CHUNK)
 	for k in ch.xforms.size():
-		var xf: PackedFloat32Array = ch.xforms[k]
-		if xf.is_empty():
-			continue
-		var kind := props[k]
-		# one MultiMesh per level of detail, each drawn over its own span of
-		# distance. They all get the same box (round every mesh they draw),
-		# so the levels hand over at the same distance, cross-fading.
-		var n := mini(kind.lods.size(), kind.lod_distances.size())
-		var box := _chunk_box(kind, xf)
-		# the nodes stand at the middle of their box (and the instances are
-		# placed from there): Godot measures visibility distance from a
-		# node's origin, which must not be off at the chunk's corner at sea
-		# level, hundreds of metres from the trees
-		var mid := box.get_center()
-		xf = xf.duplicate()
-		for i in range(0, xf.size(), 12):
-			xf[i + 3] -= mid.x
-			xf[i + 7] -= mid.y
-			xf[i + 11] -= mid.z
-		box.position -= mid
-		# those that cast shadows (none in the biomes it's shadowless in):
-		# all of them (sxf == xf), or drawn without and cast by a copy
-		var sxf := _shadow_casters(kind, xf, at + mid)
-		# any notches an axe has cut (set_notch): each instance's custom data
-		var with_custom := PackedFloat32Array()
-		if not _notches.is_empty():
-			var uids: PackedInt64Array = ch.uids[k]
-			var any := false
-			var custom := PackedFloat32Array()
-			custom.resize(uids.size() * 4)
-			for i in uids.size():
-				if _notches.has(uids[i]):
-					var c: Color = _notches[uids[i]]
-					custom[i * 4] = c.r
-					custom[i * 4 + 1] = c.g
-					custom[i * 4 + 2] = c.b
-					custom[i * 4 + 3] = c.a
-					any = true
-			if any:
-				with_custom.resize(uids.size() * 16)
-				for i in uids.size():
-					for j in 12:
-						with_custom[i * 16 + j] = xf[i * 12 + j]
-					for j in 4:
-						with_custom[i * 16 + 12 + j] = custom[i * 4 + j]
-		for l in n + 1:
-			var begin := 0.0 if l == 0 else kind.lod_distances[l - 1]
-			var end := kind.view_distance if l == n else minf(kind.lod_distances[l], kind.view_distance)
-			if begin >= end:
-				continue
-			var mm := MultiMesh.new()
-			mm.transform_format = MultiMesh.TRANSFORM_3D
-			mm.use_custom_data = not with_custom.is_empty()
-			mm.mesh = kind.mesh if l == 0 else kind.lods[l - 1]
-			if not with_custom.is_empty() and kind.mesh_script and kind.mesh_script.has_method("cut_meshes"):
-				# (a tree being felled in it: the cut variant, its notch a real hollow)
-				var cm: Array = kind.mesh_script.cut_meshes(int(kind.get_meta("variant", 0)))
-				mm.mesh = cm[0] if l == 0 else cm[1][l - 1]
-			mm.instance_count = xf.size() / 12
-			mm.buffer = xf if with_custom.is_empty() else with_custom
-			var mi := MultiMeshInstance3D.new()
-			mi.multimesh = mm
-			mi.position = at + mid
-			var mat := kind.material if l == 0 or kind.lod_material == null else kind.lod_material
-			if mat:
-				mi.material_override = mat
-			var shadows := kind.shadows and begin < kind.shadow_distance and kind.shadow_mesh == null
-			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if shadows and sxf.size() == xf.size() else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-			mi.custom_aabb = box
-			# Each tree's level is decided per tree in its shader
-			# (lod_fade.gdshaderinc: cross-faded, stippled, and collapsed to
-			# nothing outside the level's span); the node's range only has to
-			# hold every tree of the chunk that the level might show, wherever
-			# in the chunk it stands: its span widened by a chunk and the fade.
-			var pad := CHUNK + LOD_FADE * 2.0
-			mi.visibility_range_begin = maxf(begin - pad, 0.0) if l > 0 else 0.0
-			mi.visibility_range_end = end + pad
-			add_child(mi)
-			ch.nodes.append(mi)
-			if shadows and sxf.size() != xf.size() and not sxf.is_empty():
-				var cmm := MultiMesh.new()
-				cmm.transform_format = MultiMesh.TRANSFORM_3D
-				cmm.mesh = mm.mesh
-				cmm.instance_count = sxf.size() / 12
-				cmm.buffer = sxf
-				var cmi := MultiMeshInstance3D.new()
-				cmi.multimesh = cmm
-				cmi.position = mi.position
-				if mat:
-					cmi.material_override = mat
-				cmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY
-				cmi.custom_aabb = box
-				cmi.visibility_range_begin = mi.visibility_range_begin
-				cmi.visibility_range_end = mi.visibility_range_end
-				add_child(cmi)
-				ch.nodes.append(cmi)
-		if kind.shadow_mesh and kind.shadows and not sxf.is_empty():
-			# the stand-in, only in the shadow maps
-			var smm := MultiMesh.new()
-			smm.transform_format = MultiMesh.TRANSFORM_3D
-			smm.mesh = kind.shadow_mesh
-			smm.instance_count = sxf.size() / 12
-			smm.buffer = sxf
-			var smi := MultiMeshInstance3D.new()
-			smi.multimesh = smm
-			smi.position = at + mid
-			smi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY
-			smi.custom_aabb = box
-			smi.visibility_range_end = kind.shadow_distance
-			smi.visibility_range_end_margin = CHUNK * 0.5
-			add_child(smi)
-			ch.nodes.append(smi)
+		_build_kind(ch, k)
+	ch.bucket_at = _view
 
 
-## The instances of xf (placed from `origin`) that cast shadows: not those
-## standing in a biome the kind is shadowless in (kind.shadowless_in).
-func _shadow_casters(kind: PropKind, xf: PackedFloat32Array, origin: Vector3) -> PackedFloat32Array:
-	if kind.shadowless_in.is_empty() or world == null:
-		return xf
+func _free_groups(ch: _Chunk, k: int) -> void:
+	for g: _Group in ch.groups.get(k, []):
+		for n in g.nodes:
+			n.queue_free()
+	ch.groups.erase(k)
+
+
+## (Re)build what a chunk draws of kind k: its trees in groups drawn alike
+## (_Group: notched or not, casting shadows or not), each a MultiMesh a
+## level of detail, sorted (_bucket).
+func _build_kind(ch: _Chunk, k: int) -> void:
+	_free_groups(ch, k)
+	var xf: PackedFloat32Array = ch.xforms[k]
+	if xf.is_empty():
+		return
+	var kind := props[k]
+	var uids: PackedInt64Array = ch.uids[k]
+	var at := Vector3(ch.key.x * CHUNK, 0.0, ch.key.y * CHUNK)
+	var none := _shadowless(kind)
+	var parts := {} # 2 notched + 1 casting -> its trees' indices
+	for i in uids.size():
+		var casts := kind.shadows and not world.biome_index_at(at.x + xf[i * 12 + 3], at.z + xf[i * 12 + 11]) in none
+		var key := (2 if _notches.has(uids[i]) else 0) + (1 if casts else 0)
+		if not parts.has(key):
+			parts[key] = PackedInt32Array()
+		var list: PackedInt32Array = parts[key]
+		list.append(i)
+		parts[key] = list
+	var groups: Array[_Group] = []
+	for key: int in parts:
+		var g := _make_group(kind, xf, uids, parts[key], key >= 2, key % 2 == 1, at)
+		_bucket(g, true)
+		groups.append(g)
+	ch.groups[k] = groups
+
+
+## The biomes (indices) a kind casts no shadow in: its own (shadowless_in)
+## and every kind's (SHADOWLESS).
+func _shadowless(kind: PropKind) -> PackedInt32Array:
 	var none := PackedInt32Array()
-	for b in kind.shadowless_in:
-		if world.biome_names.has(b):
-			none.append(world.biome_names.find(b))
-	if none.is_empty():
-		return xf
-	var out := PackedFloat32Array()
-	for i in range(0, xf.size(), 12):
-		if not world.biome_index_at(origin.x + xf[i + 3], origin.z + xf[i + 11]) in none:
-			out.append_array(xf.slice(i, i + 12))
-	return out if out.size() != xf.size() else xf
+	if world == null:
+		return none
+	for b in Array(kind.shadowless_in) + SHADOWLESS:
+		var i := world.biome_names.find(b)
+		if i >= 0:
+			none.append(i)
+	return none
+
+
+func _make_group(kind: PropKind, xf: PackedFloat32Array, uids: PackedInt64Array, idx: PackedInt32Array, notched: bool, casts: bool, at: Vector3) -> _Group:
+	var g := _Group.new()
+	g.notched = notched
+	g.casts = casts
+	g.stride = 16 if notched else 12
+	# (built here and then given to it: packed arrays are values)
+	var gx := PackedFloat32Array()
+	gx.resize(idx.size() * 12)
+	var gu := PackedInt64Array()
+	for n in idx.size():
+		var i := idx[n]
+		for j in 12:
+			gx[n * 12 + j] = xf[i * 12 + j]
+		gu.append(uids[i])
+	g.uids = gu
+	# the nodes stand at the middle of the group's box (and the trees are
+	# placed from there): Godot measures visibility distance from a node's
+	# origin, which must not be off at the chunk's corner at sea level,
+	# hundreds of metres from the trees. All its levels get the same box
+	# (round every mesh they draw), so they hand over alike.
+	var box := _chunk_box(kind, gx)
+	var mid := box.get_center()
+	for n in idx.size():
+		gx[n * 12 + 3] -= mid.x
+		gx[n * 12 + 7] -= mid.y
+		gx[n * 12 + 11] -= mid.z
+	box.position -= mid
+	var origin := at + mid
+	var full := PackedFloat32Array()
+	full.resize(idx.size() * g.stride)
+	var mids := PackedVector3Array()
+	var lo := Vector3.INF
+	var hi := -Vector3.INF
+	for n in idx.size():
+		for j in 12:
+			full[n * g.stride + j] = gx[n * 12 + j]
+		if notched:
+			var c: Color = _notches.get(gu[n], Color(0, 0, 0, 0))
+			for j in 4:
+				full[n * 16 + 12 + j] = c[j]
+		var o := n * 12
+		var m := origin + Vector3(gx[o + 3], gx[o + 7], gx[o + 11]) + Vector3(gx[o + 1], gx[o + 5], gx[o + 9]) * LOD_MID
+		mids.append(m)
+		lo = lo.min(m)
+		hi = hi.max(m)
+	g.full = full
+	g.mids = mids
+	g.lo = lo
+	g.hi = hi
+	var n_lods := mini(kind.lods.size(), kind.lod_distances.size())
+	var meshes: Array = [kind.mesh] + kind.lods
+	if notched and kind.mesh_script and kind.mesh_script.has_method("cut_meshes"):
+		# (a tree being felled: the cut variant, its notch a real hollow)
+		var cm: Array = kind.mesh_script.cut_meshes(int(kind.get_meta("variant", 0)))
+		meshes = [cm[0]] + cm[1]
+	for l in n_lods + 1:
+		var begin := 0.0 if l == 0 else kind.lod_distances[l - 1]
+		var end := kind.view_distance if l == n_lods else minf(kind.lod_distances[l], kind.view_distance)
+		if begin >= end:
+			continue
+		var mm := MultiMesh.new()
+		mm.transform_format = MultiMesh.TRANSFORM_3D
+		mm.use_custom_data = notched
+		mm.mesh = meshes[l]
+		var mi := MultiMeshInstance3D.new()
+		mi.multimesh = mm
+		mi.position = origin
+		var mat := kind.material if l == 0 or kind.lod_material == null else kind.lod_material
+		if mat:
+			mi.material_override = mat
+		var shadows := casts and begin < kind.shadow_distance and kind.shadow_mesh == null
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if shadows else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		mi.custom_aabb = box
+		# (a backstop: the MultiMesh holds only the trees near its span, and
+		# the shader fades each tree in and out of it, lod_fade.gdshaderinc)
+		var pad := CHUNK + LOD_FADE * 2.0
+		mi.visibility_range_begin = maxf(begin - pad, 0.0) if l > 0 else 0.0
+		mi.visibility_range_end = end + pad
+		add_child(mi)
+		g.nodes.append(mi)
+		g.levels.append([begin, end, mm, mi, -1])
+	if kind.shadow_mesh and casts:
+		# the stand-in, only in the shadow maps (every tree of the group, to
+		# the shadows' distance)
+		var smm := MultiMesh.new()
+		smm.transform_format = MultiMesh.TRANSFORM_3D
+		smm.mesh = kind.shadow_mesh
+		smm.instance_count = idx.size()
+		smm.buffer = gx
+		var smi := MultiMeshInstance3D.new()
+		smi.multimesh = smm
+		smi.position = origin
+		smi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY
+		smi.custom_aabb = box
+		smi.visibility_range_end = kind.shadow_distance
+		smi.visibility_range_end_margin = CHUNK * 0.5
+		add_child(smi)
+		g.nodes.append(smi)
+	return g
+
+
+## Puts into each level's MultiMesh only the group's trees near enough its
+## span to show in it (from the camera, _view: as lod_fade.gdshaderinc
+## measures, with its fade and LOD_SLACK to spare either side): none of the
+## rest's vertices worked out only to be collapsed. A level all or none of
+## the group is in is left as it was unless forced.
+func _bucket(g: _Group, force := false) -> void:
+	if _view == Vector3.INF:
+		return
+	var box_near := _view.clamp(g.lo, g.hi).distance_to(_view)
+	var box_far := 0.0
+	for c in 8:
+		var q := Vector3(g.lo.x if c & 1 else g.hi.x, g.lo.y if c & 2 else g.hi.y, g.lo.z if c & 4 else g.hi.z)
+		box_far = maxf(box_far, q.distance_to(_view))
+	var count := g.uids.size()
+	for lv: Array in g.levels:
+		var lo: float = lv[0] - LOD_FADE - LOD_SLACK if lv[0] > 0.0 else -INF
+		var hi: float = lv[1] + LOD_FADE + LOD_SLACK
+		var state := 2
+		if box_near > hi or box_far < lo:
+			state = 0
+		elif box_near >= lo and box_far <= hi:
+			state = 1
+		if state != 2 and state == lv[4] and not force:
+			continue
+		lv[4] = state
+		var mm: MultiMesh = lv[2]
+		var mi: MultiMeshInstance3D = lv[3]
+		var buf := g.full
+		var n := count
+		if state == 0:
+			n = 0
+		elif state == 2:
+			buf = PackedFloat32Array()
+			n = 0
+			for i in count:
+				var d := g.mids[i].distance_to(_view)
+				if d >= lo and d <= hi:
+					buf.append_array(g.full.slice(i * g.stride, (i + 1) * g.stride))
+					n += 1
+		mm.instance_count = n
+		if n > 0:
+			mm.buffer = buf
+		mi.visible = n > 0
+
+
+## Sorts the trees of the chunks the camera has moved LOD_SLACK / 2 from
+## since they were last sorted (BUCKETS_PER_FRAME at the least a frame, more
+## when many are due).
+func _rebucket() -> void:
+	var due: Array[_Chunk] = []
+	for ch: _Chunk in _chunks.values():
+		if ch.bucket_at.distance_to(_view) > LOD_SLACK * 0.5:
+			due.append(ch)
+	var n := mini(due.size(), maxi(BUCKETS_PER_FRAME, due.size() / 6))
+	for i in n:
+		var ch := due[i]
+		ch.bucket_at = _view
+		for k in ch.groups:
+			for g: _Group in ch.groups[k]:
+				_bucket(g)
 
 
 ## A box (chunk-local) round everything a kind draws in a chunk: each
@@ -1339,9 +1467,8 @@ func _unload(key: Vector2i) -> void:
 	var ch: _Chunk = _chunks.get(key)
 	if ch == null:
 		return
-	for n in ch.nodes:
-		n.queue_free()
-	ch.nodes.clear()
+	for k in ch.groups.keys():
+		_free_groups(ch, k)
 	_despawn(ch)
 	_chunks.erase(key)
 
