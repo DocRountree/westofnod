@@ -15,8 +15,13 @@ extends Node3D
 ## the CPU knows where their flowers are: noted from their meshes as the
 ## shader places them).
 
-var moth: HummingbirdMoth
-var monarch: Monarch
+# (by path, not by class name: found whether or not the editor has seen these yet)
+const MothScript := preload("res://scripts/creatures/hummingbird_moth.gd")
+const MonarchScript := preload("res://scripts/creatures/monarch.gd")
+const Flowers := preload("res://tools/creatures/demo_flowers.gd")
+
+var moth: MothScript
+var monarch: MonarchScript
 var cam: Camera3D
 var _following: Node3D
 var _yaw := 0.6
@@ -48,12 +53,12 @@ func _ready() -> void:
 	# a flat stone, to bask on
 	var stone := _box(STONE - Vector3(0, 0.02, 0), Vector3(0.25, 0.04, 0.18), Color(0.5, 0.48, 0.44))
 	stone.rotation.y = 0.4
-	_milkweed = DemoFlowers.clump(self, "milkweed", Vector2(0.35, -0.2), 1.3, Color(0.42, 0.38, 0.28))
-	_swamp = DemoFlowers.clump(self, "swamp_milkweed", Vector2(-0.4, -0.45), 1.2, Color(0.2, 0.22, 0.14))
-	moth = HummingbirdMoth.new()
+	_milkweed = Flowers.clump(self, "milkweed", Vector2(0.35, -0.2), 1.3, Color(0.42, 0.38, 0.28))
+	_swamp = Flowers.clump(self, "swamp_milkweed", Vector2(-0.4, -0.45), 1.2, Color(0.2, 0.22, 0.14))
+	moth = MothScript.new()
 	add_child(moth)
 	moth.place(Vector3(0.0, 0.6, 0.3))
-	monarch = Monarch.new()
+	monarch = MonarchScript.new()
 	add_child(monarch)
 	monarch.place(Vector3(-0.3, 1.0, 0.2))
 	cam = Camera3D.new()
@@ -67,7 +72,7 @@ func _ready() -> void:
 	label.position = Vector2(12, 8)
 	label.text = "Moth: 1 search   2 feed at the milkweed\nMonarch: 3 fly   4 bask on the stone   5 feed at the swamp milkweed   6 feed at the milkweed\nTab: follow the other   F follow on/off   Space slow motion   drag: turn round   wheel: nearer / further"
 	add_child(label)
-	moth.search(Vector3(0.0, 0.0, 0.0), 0.7, DemoFlowers.heads(_milkweed) + DemoFlowers.heads(_swamp))
+	moth.search(Vector3(0.0, 0.0, 0.0), 0.7, Flowers.heads(_milkweed) + Flowers.heads(_swamp))
 	monarch.fly(Vector3(0.0, 0.0, 0.0), 1.2)
 
 
@@ -75,7 +80,7 @@ func _unhandled_input(e: InputEvent) -> void:
 	if e is InputEventKey and e.pressed and not e.echo:
 		match e.keycode:
 			KEY_1:
-				moth.search(Vector3.ZERO, 0.7, DemoFlowers.heads(_milkweed) + DemoFlowers.heads(_swamp))
+				moth.search(Vector3.ZERO, 0.7, Flowers.heads(_milkweed) + Flowers.heads(_swamp))
 				_following = moth
 			KEY_2:
 				moth.feed(_milkweed)

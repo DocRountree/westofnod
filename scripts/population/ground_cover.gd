@@ -859,7 +859,7 @@ static func flower_mesh(kind: String, stems: int, radius: float, seed: int) -> A
 					var ll := rng.randf_range(0.09, 0.13) / H
 					var pts := [at, at + Vector3(ld.x * ll * 0.5, ll * 0.35, ld.y * ll * 0.5), at + Vector3(ld.x * ll, ll * 0.45, ld.y * ll)]
 					strip.call(root, pts, [0.002, 0.008, 0.001], Vector3(-ld.y, 0.0, ld.x), Vector3(ld.x * 0.4, 1.0, ld.y * 0.4).normalized(), shade, 0.0)
-			for b in rng.randi_range(3, 4):
+			for cl in rng.randi_range(3, 4):
 				var ba := rng.randf() * TAU
 				var reach := rng.randf_range(0.03, 0.08)
 				var bc := fork + Vector3(cos(ba) * reach, rng.randf_range(0.1, 0.16) * tall, sin(ba) * reach)

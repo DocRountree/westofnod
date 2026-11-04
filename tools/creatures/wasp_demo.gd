@@ -23,8 +23,13 @@ extends Node3D
 ## beetles).
 
 var wasp: Wasp
-var moth: HummingbirdMoth
-var monarch: Monarch
+# (by path, not by class name: found whether or not the editor has seen these yet)
+const MothScript := preload("res://scripts/creatures/hummingbird_moth.gd")
+const MonarchScript := preload("res://scripts/creatures/monarch.gd")
+const Flowers := preload("res://tools/creatures/demo_flowers.gd")
+
+var moth: MothScript
+var monarch: MonarchScript
 var ants: AntColony
 var beetles: Beetles
 var _ants_feeding := false
@@ -118,15 +123,15 @@ func _ready() -> void:
 ## and swamp milkweed (DemoFlowers), a stone for the monarch to bask on;
 ## ants round a crumb; beetles round two leaves.
 func _others() -> void:
-	_milkweed = DemoFlowers.clump(self, "milkweed", Vector2(MOTHS_AT.x + 0.15, MOTHS_AT.z - 0.1), 1.3, Color(0.42, 0.38, 0.28))
-	_swamp = DemoFlowers.clump(self, "swamp_milkweed", Vector2(MOTHS_AT.x - 0.5, MOTHS_AT.z - 0.45), 1.2, Color(0.2, 0.22, 0.14))
+	_milkweed = Flowers.clump(self, "milkweed", Vector2(MOTHS_AT.x + 0.15, MOTHS_AT.z - 0.1), 1.3, Color(0.42, 0.38, 0.28))
+	_swamp = Flowers.clump(self, "swamp_milkweed", Vector2(MOTHS_AT.x - 0.5, MOTHS_AT.z - 0.45), 1.2, Color(0.2, 0.22, 0.14))
 	var stone := _box(STONE - Vector3(0, 0.02, 0), Vector3(0.25, 0.04, 0.18), Color(0.5, 0.48, 0.44))
 	stone.rotation.y = 0.4
-	moth = HummingbirdMoth.new()
+	moth = MothScript.new()
 	add_child(moth)
 	moth.place(MOTHS_AT + Vector3(0.0, 0.6, 0.3))
-	moth.search(MOTHS_AT, 0.6, DemoFlowers.heads(_milkweed) + DemoFlowers.heads(_swamp))
-	monarch = Monarch.new()
+	moth.search(MOTHS_AT, 0.6, Flowers.heads(_milkweed) + Flowers.heads(_swamp))
+	monarch = MonarchScript.new()
 	add_child(monarch)
 	monarch.place(MOTHS_AT + Vector3(-0.3, 1.0, 0.2))
 	monarch.fly(MOTHS_AT, 1.0)
@@ -283,7 +288,7 @@ func _unhandled_input(e: InputEvent) -> void:
 				_to_flower = false
 				wasp.sting(BALL + Vector3(0, 0.02, 0))
 			KEY_6:
-				moth.search(MOTHS_AT, 0.6, DemoFlowers.heads(_milkweed) + DemoFlowers.heads(_swamp))
+				moth.search(MOTHS_AT, 0.6, Flowers.heads(_milkweed) + Flowers.heads(_swamp))
 				_following = 1
 			KEY_7:
 				moth.feed(_milkweed)

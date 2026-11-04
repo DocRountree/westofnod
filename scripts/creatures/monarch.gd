@@ -1,5 +1,5 @@
 class_name Monarch
-extends Lepidoptera
+extends "res://scripts/creatures/lepidoptera.gd" # (by path: found whether or not the editor has seen the class yet)
 ## A monarch (Danaus plexippus), at twice life size (its wings 20 cm
 ## across): orange wings veined black, a black border with two rows of
 ## white dots, the forewings' tips black with orange and white spots;

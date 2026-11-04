@@ -1,5 +1,5 @@
 class_name HummingbirdMoth
-extends Lepidoptera
+extends "res://scripts/creatures/lepidoptera.gd" # (by path: found whether or not the editor has seen the class yet)
 ## A hummingbird clearwing (Hemaris thysbe), at twice life size (about 5 cm
 ## long, its wings 9 cm across): a stout, furry body, olive-yellow on the
 ## thorax, a band of burgundy across the abdomen, a black fan of a tail
