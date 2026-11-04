@@ -1,7 +1,8 @@
 class_name DemoFlowers
-## The game's own flowers for the creature demos (tools/creatures/): a clump
-## of one of GroundCover's flower layers, still (no wind, so the CPU knows
-## where its flowers are), and where its flowers are.
+## The game's own flowers for the creature demos (tools/creatures/): clumps
+## of GroundCover's flower layers (their meshes and colours), built ready
+## placed on the CPU and drawn by demo_flower.gdshader (not by the ground
+## cover's grid), and where their flowers are.
 
 
 ## The flowers' middles, one a flower ball or cluster (the florets' mean,
@@ -21,80 +22,114 @@ static func heads(florets: Array) -> Array:
 
 ## A clump of one of the game's flowers (GroundCover's layer with that
 ## `flowers`: milkweed, swamp_milkweed, coneflower, susan, fleabane, aster,
-## yampah), standing at `near` (within a few cm), as a cell of its layer: the cell's data (ground_cover_bake's
-## two texels) made up here, the ground at 0, the clump `tall` m; no wind.
-## Its florets' tops, as the shader places them (the map's = the parent's,
-## at the origin).
+## yampah), standing at `near`, `tall` m; still. Its
+## florets' tops (points, the parent's space).
 static func clump(parent: Node3D, flowers: String, near: Vector2, tall: float, ground: Color) -> Array:
+	var out := []
+	for h in build(parent, flowers, near, tall, ground, 0.0).heads:
+		out.append(h[0])
+	return out
+
+
+## The same, swaying in the wind by sway_k (the ground cover's grass_sway,
+## m per m of the wind at the top, times the clump's size: 0 still):
+## {heads: [the disc's top, the way it faces, how far up its stem (the
+## sway's share)] each, size: the clump's (m)}.
+##
+## The mesh is GroundCover.flower_mesh's, placed, turned and sized here
+## on the CPU as ground_cover.gdshader would place a cell's clump, at
+## `near`, coloured with
+## the layer's own colours (its petals, its discs; its stems from the
+## ground's colour at the root to the prairie's green at the top), drawn
+## by demo_flower.gdshader: nothing of the game's ground cover grid needed.
+static func build(parent: Node3D, flowers: String, near: Vector2, tall: float, ground: Color, sway_k: float) -> Dictionary:
 	var L: Dictionary
 	for l in GroundCover.LAYERS:
 		if l.get("flowers", "") == flowers:
 			L = l
-	var cell: float = L.cell
-	# a cell (and a seed: the hash's) whose clump stands at `near`, near
-	# enough (every clump of a kind can then stand where it's wanted; each
-	# its own plants, the mesh drawn from that seed)
-	var seed: int = L.u.seed
-	var at_cell := Vector2i.ZERO
-	var best := INF
-	for s in 600:
-		var sd: int = L.u.seed + s * 101
-		for cz in range(-2, 2):
-			for cx in range(-2, 2):
-				var c := Vector2i(cx, cz)
-				var at := Vector2(c) * cell + Vector2(GroundCover._h2(c, 1, sd), GroundCover._h2(c, 2, sd)) * cell
-				var d := at.distance_to(near)
-				if d < best:
-					best = d
-					at_cell = c
-					seed = sd
-		if best < 0.03:
-			break
-	var m := ShaderMaterial.new()
-	m.shader = load("res://shaders/render/ground_cover.gdshader")
-	m.set_shader_parameter("cell", cell)
-	for k in L.u:
-		if k in GroundCover.DRAW_KEYS:
-			m.set_shader_parameter(k, L.u[k])
-	m.set_shader_parameter("seed", seed)
-	m.set_shader_parameter("grass_sway", 0.0) # (still: the insects go by where the flowers are)
-	m.set_shader_parameter("fade_out", Vector2(1000.0, 1001.0))
-	m.set_shader_parameter("thin_from", 1000.0)
-	var size_b := roundf(tall / GroundCover.SIZE_MAX * 255.0)
-	var img := Image.create(2, 1, false, Image.FORMAT_RGBA8)
-	img.set_pixel(0, 0, Color8(128, 0, int(size_b), 120)) # (the ground at 0: 512 m over base_h, in 1/64 m; the size; how blonde)
-	img.set_pixel(1, 0, Color(ground.r, ground.g, ground.b, 1.0))
-	m.set_shader_parameter("data_tex", ImageTexture.create_from_image(img))
-	m.set_shader_parameter("grid_origin", at_cell)
-	m.set_shader_parameter("grid_size", Vector2i(1, 1))
-	m.set_shader_parameter("base_h", 0.0)
-	var mesh := GroundCover.flower_mesh(L.flowers, L.stems, L.radius, seed)
-	mesh.surface_set_material(0, m)
-	var mm := MultiMesh.new()
-	mm.transform_format = MultiMesh.TRANSFORM_3D
-	mm.mesh = mesh
-	mm.instance_count = 1
-	mm.set_instance_transform(0, Transform3D(Basis(), Vector3(at_cell.x * cell, 0.0, at_cell.y * cell)))
-	var mi := MultiMeshInstance3D.new()
-	mi.multimesh = mm
-	mi.custom_aabb = AABB(Vector3(-1, -1, -1), Vector3(cell + 2, 4, cell + 2))
-	parent.add_child(mi)
-	# the florets' tops (a head's disc's top: UV 4.5, 0), as the shader puts
-	# them: the clump at the cell's spot, turned, sized
-	var pos := Vector2(at_cell) * cell + Vector2(GroundCover._h2(at_cell, 1, seed), GroundCover._h2(at_cell, 2, seed)) * cell
-	var spin := GroundCover._h2(at_cell, 8, seed) * TAU
-	var size := size_b / 255.0 * GroundCover.SIZE_MAX
-	var a := mesh.surface_get_arrays(0)
+	var u: Dictionary = L.u
+	# standing exactly at `near`, its own plants (a seed from where it
+	# stands), turned some way
+	var seed: int = u.seed + (absi(int(near.x * 1000.0) * 31 + int(near.y * 1000.0) * 7) % 997) * 101
+	var pos := near
+	var spin := fposmod(sin(near.x * 12.9898 + near.y * 78.233) * 43758.5453, 1.0) * TAU
+	var pick0 := fposmod(spin * 3.7, 1.0)
+	var size := tall
+	var src := GroundCover.flower_mesh(L.flowers, L.stems, L.radius, seed)
+	var a := src.surface_get_arrays(0)
 	var vs: PackedVector3Array = a[Mesh.ARRAY_VERTEX]
+	var ns: PackedVector3Array = a[Mesh.ARRAY_NORMAL]
 	var uvs: PackedVector2Array = a[Mesh.ARRAY_TEX_UV]
 	var uv2s: PackedVector2Array = a[Mesh.ARRAY_TEX_UV2]
-	var out := []
+	var cols: PackedColorArray = a[Mesh.ARRAY_COLOR]
+	var cu: Variant = a[Mesh.ARRAY_CUSTOM0]
+	var across: PackedFloat32Array = cu.to_float32_array() if cu is PackedByteArray else cu
+	# the layer's colours (sRGB), or the shader's defaults
+	var green: Vector3 = u.get("prairie_green", Vector3(0.27, 0.43, 0.12))
+	var blonde: Vector3 = u.get("prairie_blonde", Vector3(0.74, 0.64, 0.38))
+	var petal: Vector3 = u.get("petal_color", Vector3.ONE)
+	var petal_base: Vector3 = u.get("petal_base", Vector3.ONE)
+	var petal_alt: Vector3 = u.get("petal_alt", Vector3.ONE)
+	var alt_share: float = u.get("petal_alt_share", 0.0)
+	var petal_mix: float = u.get("petal_mix", 0.0)
+	var disc: Vector3 = u.get("disc_color", Vector3(0.5, 0.5, 0.5))
+	var root_col := Vector3(ground.r, ground.g, ground.b)
+	var out_v := PackedVector3Array()
+	var out_n := PackedVector3Array()
+	var out_c := PackedColorArray()
+	var out_f := PackedVector2Array()
+	out_v.resize(vs.size())
+	out_n.resize(vs.size())
+	out_c.resize(vs.size())
+	out_f.resize(vs.size())
+	var heads := []
 	for i in vs.size():
-		if absf(uvs[i].x - 4.5) < 0.01 and uvs[i].y < 0.01:
-			var root := _turn(uv2s[i], spin)
-			var v := _turn(Vector2(vs[i].x, vs[i].z), spin)
-			out.append(Vector3(pos.x + root.x + v.x * size, vs[i].y * size, pos.y + root.y + v.y * size))
-	return out
+		var root := _turn(uv2s[i], spin)
+		var v := _turn(Vector2(vs[i].x, vs[i].z), spin)
+		var ac := _turn(Vector2(across[i * 3], across[i * 3 + 2]), spin)
+		var w := Vector3(pos.x + root.x + v.x * size + ac.x, vs[i].y * size + across[i * 3 + 1], pos.y + root.y + v.y * size + ac.y)
+		var n2 := _turn(Vector2(ns[i].x, ns[i].z), spin)
+		var nrm := Vector3(n2.x, ns[i].y, n2.y).normalized()
+		var frac := cols[i].b
+		var col: Vector3
+		var ux := uvs[i].x
+		if ux > 4.0: # (a disc)
+			col = disc * cols[i].r
+			if uvs[i].y < 0.01:
+				heads.append([w, nrm, frac])
+		elif ux > 3.0: # (a ray)
+			var pick := fposmod(cols[i].g + pick0, 1.0)
+			if petal_mix > 0.0:
+				col = petal.lerp(petal_alt, pow(pick, petal_mix))
+			elif pick < alt_share:
+				col = petal_alt
+			else:
+				col = petal_base.lerp(petal, smoothstep(0.0, 0.45, clampf(uvs[i].y, 0.0, 1.0)))
+			col *= cols[i].r
+		else: # (a stem, a leaf)
+			var tip := green.lerp(blonde, clampf(0.47 + cols[i].g * 0.5 - 0.25, 0.0, 1.0)) * 0.85 * cols[i].r
+			col = root_col.lerp(tip, smoothstep(0.0, 0.7, frac)) * lerpf(0.75, 1.0, frac)
+		out_v[i] = w
+		out_n[i] = nrm
+		out_c[i] = Color(col.x, col.y, col.z)
+		out_f[i] = Vector2(frac, 0.0)
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = out_v
+	arrays[Mesh.ARRAY_NORMAL] = out_n
+	arrays[Mesh.ARRAY_COLOR] = out_c
+	arrays[Mesh.ARRAY_TEX_UV2] = out_f
+	arrays[Mesh.ARRAY_INDEX] = a[Mesh.ARRAY_INDEX]
+	var mesh := ArrayMesh.new()
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	var m := ShaderMaterial.new()
+	m.shader = load("res://tools/creatures/demo_flower.gdshader")
+	m.set_shader_parameter("sway_k", sway_k)
+	var mi := MeshInstance3D.new()
+	mi.mesh = mesh
+	mi.material_override = m
+	parent.add_child(mi)
+	return {"heads": heads, "size": size}
 
 
 ## v turned by a (as ground_cover.gdshader turns a clump: mat2(cos, sin; -sin, cos)).

@@ -58,8 +58,7 @@ var _follow := true
 var _focus := Vector3.ZERO
 var _label: Label
 
-const CONE_NEAR := Vector2(0.3, -0.2) ## m: the coneflowers about here (the cell whose spot's nearest: where in its cell a clump stands is its hash)
-var CONE_CELL := Vector2i.ZERO
+const CONE_NEAR := Vector2(0.3, -0.2) ## m: the coneflowers here
 const CONE_H := 1.4 ## m: the clump's height (in the game 1.2-1.6 on the prairie)
 var _heads: Array = [] # the coneflowers' heads, still: [the disc's top, the way it faces, how far up its clump (its sway's share)]
 var _cone_size := 1.0
@@ -189,71 +188,14 @@ func _scale_things() -> void:
 		add_child(m)
 
 
-## A clump of the game's purple coneflowers (GroundCover: its mesh, its
-## shader, the layer's own colours), as a cell of the prairie's: the cell's
-## data (ground_cover_bake.gdshader's two texels) made up here, the
-## ground at 0, the clump CONE_H tall; no wind. Notes where its heads are,
-## worked out as the shader places them.
+## A clump of the game's purple coneflowers (DemoFlowers.build: their
+## mesh and colours, placed here on the CPU), CONE_H tall at CONE_NEAR,
+## swaying as the prairie's do (grass_sway 0.3 * its size * how far up,
+## squared). Notes where its heads are.
 func _coneflower() -> void:
-	var L: Dictionary
-	for l in GroundCover.LAYERS:
-		if l.get("flowers", "") == "coneflower":
-			L = l
-	var best := INF
-	for cz in range(-3, 3):
-		for cx in range(-3, 3):
-			var c := Vector2i(cx, cz)
-			var at := Vector2(c) * float(L.cell) + Vector2(GroundCover._h2(c, 1, L.u.seed), GroundCover._h2(c, 2, L.u.seed)) * float(L.cell)
-			if at.distance_to(CONE_NEAR) < best:
-				best = at.distance_to(CONE_NEAR)
-				CONE_CELL = c
-	var m := ShaderMaterial.new()
-	m.shader = load("res://shaders/render/ground_cover.gdshader")
-	m.set_shader_parameter("cell", L.cell)
-	for k in L.u:
-		if k in GroundCover.DRAW_KEYS:
-			m.set_shader_parameter(k, L.u[k])
-	var size_b := roundf(CONE_H / GroundCover.SIZE_MAX * 255.0)
-	var img := Image.create(2, 1, false, Image.FORMAT_RGBA8)
-	img.set_pixel(0, 0, Color8(128, 0, int(size_b), 120)) # (the ground at 0: 512 m over base_h, in 1/64 m; the size; how blonde)
-	img.set_pixel(1, 0, Color(0.42, 0.38, 0.28, 1.0)) # (the ground's colour; all prairie)
-	m.set_shader_parameter("data_tex", ImageTexture.create_from_image(img))
-	m.set_shader_parameter("grid_origin", CONE_CELL)
-	m.set_shader_parameter("grid_size", Vector2i(1, 1))
-	m.set_shader_parameter("base_h", 0.0)
-	var mesh := GroundCover.flower_mesh(L.flowers, L.stems, L.radius, L.u.seed)
-	mesh.surface_set_material(0, m)
-	var mm := MultiMesh.new()
-	mm.transform_format = MultiMesh.TRANSFORM_3D
-	mm.mesh = mesh
-	mm.instance_count = 1
-	var cell: float = L.cell
-	mm.set_instance_transform(0, Transform3D(Basis(), Vector3(CONE_CELL.x * cell, 0.0, CONE_CELL.y * cell)))
-	var mi := MultiMeshInstance3D.new()
-	mi.multimesh = mm
-	mi.custom_aabb = AABB(Vector3(-1, -1, -1), Vector3(cell + 2, 4, cell + 2))
-	add_child(mi)
-	# the heads, as the shader puts them: the clump at the cell's spot, turned
-	var seed: int = L.u.seed
-	var pos := Vector2(CONE_CELL) * cell + Vector2(GroundCover._h2(CONE_CELL, 1, seed), GroundCover._h2(CONE_CELL, 2, seed)) * cell
-	var spin := GroundCover._h2(CONE_CELL, 8, seed) * TAU
-	var size := size_b / 255.0 * GroundCover.SIZE_MAX
-	var rot := func(v: Vector2) -> Vector2: return Vector2(cos(spin) * v.x - sin(spin) * v.y, sin(spin) * v.x + cos(spin) * v.y)
-	var a := mesh.surface_get_arrays(0)
-	var vs: PackedVector3Array = a[Mesh.ARRAY_VERTEX]
-	var uvs: PackedVector2Array = a[Mesh.ARRAY_TEX_UV]
-	var uv2s: PackedVector2Array = a[Mesh.ARRAY_TEX_UV2]
-	var ns: PackedVector3Array = a[Mesh.ARRAY_NORMAL]
-	_heads.clear()
-	for i in vs.size():
-		if absf(uvs[i].x - 4.5) < 0.01 and uvs[i].y < 0.01: # (a disc's top)
-			var root: Vector2 = rot.call(uv2s[i])
-			var v: Vector2 = rot.call(Vector2(vs[i].x, vs[i].z))
-			var n2: Vector2 = rot.call(Vector2(ns[i].x, ns[i].z))
-			var at := Vector3(pos.x + root.x + v.x * size, vs[i].y * size, pos.y + root.y + v.y * size)
-			var cols: PackedColorArray = a[Mesh.ARRAY_COLOR]
-			_heads.append([at, Vector3(n2.x, ns[i].y, n2.y).normalized(), cols[i].b])
-	_cone_size = size
+	var info: Dictionary = Flowers.build(self, "coneflower", CONE_NEAR, CONE_H, Color(0.42, 0.38, 0.28), 0.3 * CONE_H)
+	_heads = info.heads
+	_cone_size = info.size
 
 
 func _new_prey() -> void:
