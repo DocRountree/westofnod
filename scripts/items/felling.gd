@@ -568,7 +568,7 @@ func _felled_model(kind: PropKind, variant: int, xf: Transform3D, cut: float, st
 	# fresh_end draws the strokes along x)
 	var sl := xf.basis.inverse() * stripes
 	var turn := Basis(Vector3.UP, atan2(-sl.z, sl.x)) if Vector2(sl.x, sl.z).length() > 1e-4 else Basis()
-	var grain: ShaderMaterial = (_fresh_stump(kind)[0] as Mesh).surface_get_material(0)
+	var grain := (_fresh_stump(kind)[0] as Mesh).surface_get_material(0) as ShaderMaterial
 	for lv: Array in _felled_cache[key]:
 		var mesh: ArrayMesh = lv[0]
 		var mi := MeshInstance3D.new()

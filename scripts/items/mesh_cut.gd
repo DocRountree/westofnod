@@ -45,8 +45,8 @@ static func above(src: Mesh, h: float) -> Dictionary:
 			continue
 		if not leaves:
 			loops.append_array(_loops(r[1], new_arrays[Mesh.ARRAY_VERTEX]))
-		var fmt := src.surface_get_format(si)
-		var custom := fmt & ((Mesh.ARRAY_FORMAT_CUSTOM_MASK << Mesh.ARRAY_FORMAT_CUSTOM0_SHIFT) | (Mesh.ARRAY_FORMAT_CUSTOM_MASK << Mesh.ARRAY_FORMAT_CUSTOM1_SHIFT) \
+		var fmt: int = src.surface_get_format(si)
+		var custom: int = fmt & ((Mesh.ARRAY_FORMAT_CUSTOM_MASK << Mesh.ARRAY_FORMAT_CUSTOM0_SHIFT) | (Mesh.ARRAY_FORMAT_CUSTOM_MASK << Mesh.ARRAY_FORMAT_CUSTOM1_SHIFT) \
 				| (Mesh.ARRAY_FORMAT_CUSTOM_MASK << Mesh.ARRAY_FORMAT_CUSTOM2_SHIFT) | (Mesh.ARRAY_FORMAT_CUSTOM_MASK << Mesh.ARRAY_FORMAT_CUSTOM3_SHIFT))
 		out.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, new_arrays, [], {}, custom)
 		out.surface_set_material(out.get_surface_count() - 1, mat)
