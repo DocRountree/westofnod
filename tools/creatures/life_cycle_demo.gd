@@ -82,6 +82,7 @@ var _moth_leaves: Array = []
 var _cells: Array = [] # the comb's cells' mouths (the plain's)
 var _pupae: Array = []
 var _ant_eggs: Array = []
+var _sun_dir := Vector3(0.4, 0.6, 0.6) # (toward the sun: the water's)
 var hopper: HopperScript
 var mantis: MantisScript
 var _hopper_leaf := Vector3.ZERO
@@ -92,7 +93,9 @@ var milk: SnakeScript
 var _mice := [null, null]
 var spiders: Array = [] # wolf, fishing, funnel, garden
 var pillbug: IsopodScript
-const POND := 0.002 # m: the pond's surface over the plain
+const POND := -0.004 # m: the pond's surface, a little below the plain's
+const POND_W := 0.42 # (its half width, x)
+const POND_D := 0.36 # (its half depth, z)
 const MOTH_PUPA := Vector3(0.2, 0.002, -0.2) # (off the clearwing's station)
 const MOTH_PUPA_TURN := 0.6
 var _moth_perch := Vector3.ZERO # (a stem by its pupa, to climb and hang from)
@@ -116,10 +119,19 @@ func _ready() -> void:
 	add_child(we)
 	var sun := DirectionalLight3D.new()
 	sun.rotation = Vector3(deg_to_rad(-55), deg_to_rad(-35), 0)
+	_sun_dir = Basis.from_euler(sun.rotation).z
 	sun.shadow_enabled = true
 	sun.directional_shadow_max_distance = 4.0
 	add_child(sun)
-	_box(Vector3(GAP * 8.0 + 2.3, -0.005, 0.0), Vector3(GAP * 16.0 + 6.5, 0.01, 3.0), Color(0.36, 0.4, 0.22))
+	# the plain, a hole left in it for the fishing spider's pond
+	var x0 := -0.95
+	var x1 := GAP * 16.0 + 4.0
+	var pc := _station(12)
+	var grass := Color(0.36, 0.4, 0.22)
+	_box(Vector3((x0 + pc.x - POND_W) * 0.5, -0.005, 0.0), Vector3(pc.x - POND_W - x0, 0.01, 3.0), grass)
+	_box(Vector3((pc.x + POND_W + x1) * 0.5, -0.005, 0.0), Vector3(x1 - pc.x - POND_W, 0.01, 3.0), grass)
+	for sgn: float in [-1.0, 1.0]:
+		_box(Vector3(pc.x, -0.005, sgn * (POND_D + 1.5) * 0.5), Vector3(POND_W * 2.0, 0.01, 1.5 - POND_D), grass)
 	cam = Camera3D.new()
 	cam.near = 0.002
 	cam.far = 60.0
@@ -357,21 +369,26 @@ func _spider_stations() -> void:
 		spiders.append(sp)
 		match kinds[k]:
 			"fishing": # (a pond: it runs on the water)
-				var pond := _box(c + Vector3(0.0, POND * 0.5, 0.0), Vector3(0.7, POND, 0.6), Color(0.16, 0.28, 0.32))
-				(pond.material_override as StandardMaterial3D).roughness = 0.05
+				_pond(c)
 				sp.place(c + Vector3(0.0, POND, 0.0), 0.5)
 				sp.height = func(_x: float, _z: float) -> float: return POND
 				sp.wander(c + Vector3(0.0, POND, 0.0), 0.2)
 			"funnel": # (its web spun as it starts)
 				sp.place(c + Vector3(0.12, 0.0, 0.0), 0.0)
 				sp.spin_funnel(c, 0.14)
-			"argiope": # (a branch over the plain, stems below: its orb spun between them)
-				_box(c + Vector3(-0.35, 0.3, -0.05), Vector3(0.03, 0.6, 0.03), Color(0.35, 0.27, 0.18))
-				_box(c + Vector3(-0.05, 0.58, -0.05), Vector3(0.6, 0.02, 0.02), Color(0.35, 0.27, 0.18))
-				for x: float in [-0.2, 0.22]:
-					_box(c + Vector3(x, 0.08, -0.05), Vector3(0.005, 0.16, 0.005), Color(0.36, 0.42, 0.2))
+			"argiope": # (a tree's trunk and a branch over the plain, stems and a post round below: solid, for it to find and moor its orb to)
+				var wood := Color(0.35, 0.27, 0.18)
+				var stem := Color(0.36, 0.42, 0.2)
+				_solid(c + Vector3(-0.38, 0.35, -0.05), Vector3(0.04, 0.7, 0.04), wood)
+				_solid(c + Vector3(-0.08, 0.6, -0.05), Vector3(0.62, 0.025, 0.025), wood)
+				var twig := _solid(c + Vector3(0.14, 0.52, -0.05), Vector3(0.012, 0.16, 0.012), wood) # (a twig down off it)
+				twig.rotation.z = 0.6
+				for st: Vector3 in [Vector3(-0.22, 0.11, -0.05), Vector3(0.24, 0.1, -0.04), Vector3(0.05, 0.07, -0.06), Vector3(0.33, 0.14, -0.05)]:
+					_solid(c + st, Vector3(0.006, st.y * 2.0, 0.006), stem)
+				_solid(c + Vector3(0.36, 0.2, -0.05), Vector3(0.03, 0.4, 0.03), Color(0.45, 0.4, 0.33)) # (a post)
 				sp.place(c, 0.0)
-				sp.spin_orb(c + Vector3(0.0, 0.57, -0.05), c + Vector3(-0.2, 0.15, -0.05), c + Vector3(0.22, 0.14, -0.05))
+				# (the colliders in the world from the next physics step: spun then)
+				get_tree().create_timer(0.3).timeout.connect(_spin_orb.bind(sp, 0))
 			_:
 				sp.place(c, 0.0)
 				sp.wander(c, 0.25)
@@ -382,6 +399,53 @@ func _spider_stations() -> void:
 		if kinds[k] == "fishing":
 			yg.height = func(_x: float, _z: float) -> float: return POND
 		yg.wander(yc, 0.08)
+
+
+## The fishing spider's pond: the game's own water (ocean.gdshader), calm,
+## 30 cm deep over a muddy basin sunk in the plain.
+func _pond(c: Vector3) -> void:
+	var mud := Color(0.16, 0.13, 0.09)
+	const DEEP := 0.3
+	_box(c + Vector3(0.0, -DEEP, 0.0), Vector3(POND_W * 2.0, 0.02, POND_D * 2.0), mud)
+	for sgn: float in [-1.0, 1.0]:
+		_box(c + Vector3(sgn * POND_W, -DEEP * 0.5, 0.0), Vector3(0.01, DEEP, POND_D * 2.0), mud)
+		_box(c + Vector3(0.0, -DEEP * 0.5, sgn * POND_D), Vector3(POND_W * 2.0, DEEP, 0.01), mud)
+	var m := ShaderMaterial.new()
+	m.shader = load("res://shaders/render/ocean.gdshader")
+	# its depth (the shader's map: the floor DEEP down everywhere round here)
+	var img := Image.create(4, 4, false, Image.FORMAT_RF)
+	img.fill(Color(POND - DEEP, 0.0, 0.0, 1.0))
+	m.set_shader_parameter("height_tex", ImageTexture.create_from_image(img))
+	m.set_shader_parameter("map_size", 4.0)
+	m.set_shader_parameter("map_domain", 400.0)
+	m.set_shader_parameter("map_origin", Vector2(-200.0, -200.0))
+	m.set_shader_parameter("sun_direction", _sun_dir)
+	# calm: a breath of wind over a pond, no swell
+	m.set_shader_parameter("sea_state", 0.02)
+	m.set_shader_parameter("swell_height", 0.0)
+	m.set_shader_parameter("peak_length", 2.0)
+	m.set_shader_parameter("choppiness", 0.3)
+	m.set_shader_parameter("absorption", Vector3(1.2, 0.6, 0.5)) # (a pond's water: brown green, not the clear sea's)
+	m.set_shader_parameter("scatter_color", Vector3(0.02, 0.035, 0.02))
+	m.set_shader_parameter("crest_color", Vector3(0.1, 0.18, 0.1))
+	# the surface: a grid of 1 cm cells (its spacing in UV.x, as the sea's)
+	const CELL := 0.01
+	var nx := int(POND_W * 2.0 / CELL)
+	var nz := int(POND_D * 2.0 / CELL)
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for iz in nz:
+		for ix in nx:
+			var q := [Vector2(ix, iz), Vector2(ix + 1, iz), Vector2(ix + 1, iz + 1), Vector2(ix, iz + 1)]
+			for e in [0, 2, 1, 0, 3, 2]:
+				var g: Vector2 = q[e]
+				st.set_uv(Vector2(CELL, 0.0))
+				st.add_vertex(Vector3(-POND_W + g.x * CELL, 0.0, -POND_D + g.y * CELL))
+	var mi := MeshInstance3D.new()
+	mi.mesh = st.commit()
+	mi.material_override = m
+	mi.position = Vector3(c.x, POND, c.z)
+	add_child(mi)
 
 
 func _isopod_station() -> void:
@@ -403,6 +467,39 @@ func _isopod_station() -> void:
 		y.place(c + Vector3(0.06 * (k * 2 - 1), 0.0, 0.08), randf() * TAU)
 		y.grow(0.5, 60.0)
 		y.wander(c + Vector3(0.0, 0.0, 0.08), 0.06)
+
+
+## The garden spider's orb: round a spot among the branch, the stems and
+## the post (a little off each time, its plane a little turned: so another
+## set of contact points each time), moored to what's found there; three
+## fixed points, if not enough is.
+func _spin_orb(sp: Node, k: int) -> void:
+	var c := _station(14)
+	var r := RandomNumberGenerator.new()
+	r.seed = k
+	var centre := c + Vector3(r.randf_range(-0.08, 0.08), r.randf_range(0.28, 0.38), -0.05)
+	var n := Vector3.BACK.rotated(Vector3.UP, r.randf_range(-0.3, 0.3))
+	if not sp.call("spin_orb_auto", centre, n, 0.5):
+		sp.call("spin_orb", c + Vector3(0.0, 0.59, -0.05), c + Vector3(-0.22, 0.2, -0.05), c + Vector3(0.24, 0.18, -0.05))
+
+
+## A box that's solid (a collider: something a web can be moored to).
+func _solid(at: Vector3, size: Vector3, col: Color) -> Node3D:
+	var body := StaticBody3D.new()
+	body.position = at
+	var shape := CollisionShape3D.new()
+	var bs := BoxShape3D.new()
+	bs.size = size
+	shape.shape = bs
+	body.add_child(shape)
+	var mi := MeshInstance3D.new()
+	var b := BoxMesh.new()
+	b.size = size
+	mi.mesh = b
+	mi.material_override = _plain(col)
+	body.add_child(mi)
+	add_child(body)
+	return body
 
 
 ## A fly for each spider to hunt: on the ground before the wolf spider, on
@@ -667,7 +764,7 @@ func _unhandled_input(e: InputEvent) -> void:
 					if sp.kind == "funnel":
 						sp.spin_funnel(c, 0.14)
 					else:
-						sp.spin_orb(c + Vector3(0.0, 0.57, -0.05), c + Vector3(-0.2, 0.15, -0.05), c + Vector3(0.22, 0.14, -0.05))
+						_spin_orb(sp, randi())
 			KEY_O:
 				for c in get_children():
 					if c.get_script() == IsopodScript:

@@ -282,33 +282,94 @@ func spin_funnel(at: Vector3, radius := 0.14) -> void:
 	_mode = "spin_funnel"
 	_stage = 0
 	_st = 0.0
-	# (its ground the sheet, while on it)
-	var base_h := height
-	height = func(x: float, z: float) -> float:
-		if is_instance_valid(w):
-			var y: float = w.call("surface_y", x, z)
-			if y > -1e8:
-				return y
-		return float(base_h.call(x, z)) if base_h.is_valid() else at.y
+	# (its ground the sheet, while it's on it: _ground)
 
 
 ## (The garden spider's.) An orb web spun between top (on a branch), left
-## and right (low: stems, the ground), thread by thread; then at its hub.
+## and right (low: stems, the ground). (Three contact points: spin_orb_at
+## for any number.)
 func spin_orb(top: Vector3, left: Vector3, right: Vector3) -> void:
-	if kind != "argiope":
-		return
+	spin_orb_at([top, left, right])
+
+
+## (The garden spider's.) An orb web spun between whatever contact points
+## it's given (its parent's space; three or more): its frame through
+## them, its hub, radii and spiral fitted to that frame.
+func spin_orb_at(points: Array, normal := Vector3.ZERO) -> bool:
+	if kind != "argiope" or points.size() < 3:
+		return false
 	var w := OrbWeb.new()
-	w.anchors = [top, left, right]
+	w.anchors = points
+	w.normal_hint = normal
 	get_parent().add_child(w)
 	web = w
 	_in_orb = true
-	_web_pos = top
+	var top: Vector3 = points[0]
+	for p: Vector3 in points:
+		if p.y > top.y:
+			top = p
+	_web_pos = top # (it begins up where the first line goes from)
 	_web_head = Vector3.DOWN
 	_path_speed = 0.5
 	_mode = "spin_orb"
 	_stage = 0
 	_st = 0.0
 	w.set("built", -1.0)
+	return true
+
+
+## (The garden spider's.) An orb web round centre in the plane facing
+## `normal`, moored to whatever's there to moor it to: lines cast out from
+## centre every way in that plane (as far as reach) find the stems, the
+## branches, the posts round it (anything with a collider); it spins its web
+## between those it finds. False if there aren't enough of them (three, not
+## all to one side).
+func spin_orb_auto(centre: Vector3, normal := Vector3.BACK, reach := 0.45) -> bool:
+	var pts := find_contacts(centre, normal, reach)
+	if pts.size() < 3:
+		return false
+	return spin_orb_at(pts, normal)
+
+
+## The contact points round centre in the plane facing normal, within
+## reach (its parent's space): where lines cast out from it every way meet
+## something solid; near ones merged. Empty, if none.
+func find_contacts(centre: Vector3, normal := Vector3.BACK, reach := 0.45) -> Array:
+	var parent := get_parent() as Node3D
+	if parent == null or not is_inside_tree():
+		return []
+	var space := get_world_3d().direct_space_state
+	var n := normal.normalized()
+	var up := (Vector3.UP - n * Vector3.UP.dot(n))
+	up = up.normalized() if up.length() > 1e-3 else Vector3.FORWARD
+	var right := up.cross(n).normalized()
+	var found: Array = []
+	var gc := parent.to_global(centre)
+	const RAYS := 360 # (a degree apart: a stem a few mm thick, a hand away, still caught)
+	for k in RAYS:
+		var a := TAU * k / RAYS
+		var dir := (right * cos(a) + up * sin(a))
+		var q := PhysicsRayQueryParameters3D.create(gc, gc + parent.global_transform.basis * dir * reach)
+		var hit := space.intersect_ray(q)
+		if hit.is_empty():
+			continue
+		var p := parent.to_local(hit.position)
+		var near := false
+		for f: Vector3 in found:
+			if f.distance_to(p) < reach * 0.18:
+				near = true
+				break
+		if not near:
+			found.append(p)
+	# (not all to one side: they must go round it)
+	if found.size() >= 3:
+		var sum := Vector2.ZERO
+		for f: Vector3 in found:
+			var d := f - centre
+			sum += Vector2(d.dot(right), d.dot(up)).normalized()
+		if sum.length() / found.size() > 0.7:
+			return []
+	return found
 
 
 # --- thinking ------------------------------------------------------------------------
@@ -583,6 +644,16 @@ func _orb(dt: float) -> void:
 	_pose_legs()
 
 
+## The ground at (x, z): its funnel web's sheet, while it's on it (the
+## grass spider's), else the ground's.
+func _ground(x: float, z: float) -> float:
+	if web is FunnelWeb and is_instance_valid(web):
+		var y: float = web.call("surface_y", x, z)
+		if y > -1e8:
+			return y
+	return super(x, z)
+
+
 ## Along the web toward goal at speed: whether it's still going.
 func _go_web(goal: Vector3, speed: float, dt: float) -> bool:
 	var to := goal - _web_pos
@@ -840,15 +911,20 @@ class FunnelWeb extends Node3D:
 		return st.commit()
 
 
-## The garden spider's orb web (spin_orb): between its anchors (the top on
-## a branch, two low), in their plane: mooring lines and a frame, radii
-## from the hub out, the capture spiral round and round inward, a dense
-## little hub, and the zigzag band of white silk up and down through its
-## middle (the stabilimentum). Every thread in the order it's spun (its
-## vertices' UV.x), drawn so far as built; point(i) where the spider is
-## when it's laid thread i.
+## The garden spider's orb web (spin_orb_at): between its anchors (any
+## number, three or more, wherever they are), in the plane that best fits
+## them: mooring lines from each anchor in to the frame, the frame a
+## polygon through them (taken in a little), the hub above the frame's
+## middle (an orb's lower half the larger), radii out from it to the frame
+## each its own length (more of them the bigger the web), a dense little
+## hub, the capture spiral round and round inward following the frame's
+## shape (as many turns as its size calls for), the zigzag band of white
+## silk up and down through the middle (as long as there's room). Every
+## thread in the order it's spun (its vertices' UV.x), drawn so far as
+## built; point(i) where the spider is when it's laid thread i.
 class OrbWeb extends Node3D:
-	var anchors: Array = [] # top, left, right (its parent's space)
+	var anchors: Array = [] # (its parent's space)
+	var normal_hint := Vector3.ZERO
 	var built := -1.0
 	var _mat: ShaderMaterial
 	var _ends: Array[Vector3] = [] # each thread's end (local)
@@ -856,88 +932,149 @@ class OrbWeb extends Node3D:
 	var _n := Vector3.BACK
 
 	func _ready() -> void:
-		var top: Vector3 = anchors[0]
-		var left: Vector3 = anchors[1]
-		var right: Vector3 = anchors[2]
-		var low := (left + right) * 0.5
-		var hub := low.lerp(top, 0.5)
-		var up := (top - low).normalized()
-		var n := (right - left).cross(up).normalized()
+		# the plane: through their middle, facing the hint or the way that
+		# fits them best (the sum of the turns between them, round it)
+		var c := Vector3.ZERO
+		for p: Vector3 in anchors:
+			c += p
+		c /= anchors.size()
+		var n := normal_hint
+		if n.length() < 1e-3:
+			var srt := anchors.duplicate()
+			var ref: Vector3 = (srt[0] as Vector3) - c
+			srt.sort_custom(func(p: Vector3, q: Vector3) -> bool:
+				return ref.signed_angle_to(p - c, ref.cross(Vector3.UP) if ref.cross(Vector3.UP).length() > 1e-3 else Vector3.BACK) < ref.signed_angle_to(q - c, ref.cross(Vector3.UP) if ref.cross(Vector3.UP).length() > 1e-3 else Vector3.BACK))
+			for i in srt.size():
+				n += ((srt[i] as Vector3) - c).cross((srt[(i + 1) % srt.size()] as Vector3) - c)
+			if n.length() < 1e-6:
+				n = Vector3.BACK
+		n = n.normalized()
+		var up := Vector3.UP - n * Vector3.UP.dot(n)
+		up = up.normalized() if up.length() > 1e-3 else Vector3.FORWARD
 		var x := up.cross(n).normalized()
-		transform = Transform3D(Basis(x, up, n), hub)
+		# the anchors in the plane (2D), round their middle in order
+		var flat: Array[Vector2] = []
+		for p: Vector3 in anchors:
+			var d := p - c
+			flat.append(Vector2(d.dot(x), d.dot(up)))
+		var order_i: Array = range(flat.size())
+		order_i.sort_custom(func(i: int, j: int) -> bool: return flat[i].angle() < flat[j].angle())
+		# the frame: each anchor taken in toward the middle (the mooring
+		# lines between)
+		var frame: Array[Vector2] = []
+		for i: int in order_i:
+			frame.append(flat[i] * 0.72)
+		# the hub: the frame's middle, then up a little (its height's eighth)
+		var mid := Vector2.ZERO
+		var lo := INF
+		var hi := -INF
+		for f in frame:
+			mid += f
+			lo = minf(lo, f.y)
+			hi = maxf(hi, f.y)
+		mid /= frame.size()
+		mid.y += (hi - lo) * 0.12
+		transform = Transform3D(Basis(x, up, n), c + x * mid.x + up * mid.y)
 		_n = n
+		for i in frame.size():
+			frame[i] -= mid
+		var moor: Array[Vector2] = []
+		for i: int in order_i:
+			moor.append(flat[i] - mid)
 		_mat = ShaderMaterial.new()
 		_mat.shader = preload("res://shaders/render/silk.gdshader")
 		_mat.set_shader_parameter("opacity", 0.85)
-		var R := minf(top.distance_to(hub), minf(left.distance_to(hub), right.distance_to(hub))) * 0.62
 		var lines := SurfaceTool.new()
 		lines.begin(Mesh.PRIMITIVE_LINES)
 		var ribbon := SurfaceTool.new()
 		ribbon.begin(Mesh.PRIMITIVE_TRIANGLES)
 		var order := [0]
-		var inv := transform.affine_inverse()
-		var add := func(a: Vector3, b: Vector3) -> void:
+		var add := func(a: Vector2, b: Vector2) -> void:
 			for p in [a, b]:
 				lines.set_uv(Vector2(float(order[0]), 0.0))
-				lines.add_vertex(p)
-			_ends.append(b)
+				lines.add_vertex(Vector3(p.x, p.y, 0.0))
+			_ends.append(Vector3(b.x, b.y, 0.0))
 			order[0] += 1
-		# the frame: a ring of points round the hub, moored to the anchors
-		const FR := 7
-		var frame: Array[Vector3] = []
-		for k in FR:
-			var a := TAU * k / FR + 0.3
-			frame.append(Vector3(cos(a), sin(a), 0.0) * R * 1.12 * (1.0 + 0.06 * sin(k * 2.3)))
-		var lt := inv * top
-		var ll := inv * left
-		var lr := inv * right
-		add.call(lt, frame[1])
-		add.call(frame[1], frame[2])
-		add.call(lt, frame[2])
-		for k in FR:
-			add.call(frame[k], frame[(k + 1) % FR])
-		add.call(frame[3], ll)
-		add.call(frame[4], ll)
-		add.call(frame[5], lr)
-		add.call(frame[6], lr)
-		# the radii, spun across and about (not in turn round)
-		const RADII := 26
-		var ends: Array[Vector3] = []
+		var F := frame.size()
+		# the bridge line first, between the two highest; then each anchor
+		# moored to its frame corner, and the frame round
+		var top_i := 0
+		for i in F:
+			if moor[i].y > moor[top_i].y:
+				top_i = i
+		var next_i := (top_i + 1) % F
+		add.call(moor[top_i], moor[next_i])
+		for i in F:
+			add.call(moor[i], frame[i])
+		for i in F:
+			add.call(frame[i], frame[(i + 1) % F])
+		# how far out to the frame the way a points (a ray from the hub to
+		# its polygon)
+		var to_frame := func(a: float) -> float:
+			var dir := Vector2(cos(a), sin(a))
+			var best := INF
+			for i in F:
+				var p: Vector2 = frame[i]
+				var q: Vector2 = frame[(i + 1) % F]
+				var e := q - p
+				var den := dir.x * e.y - dir.y * e.x
+				if absf(den) < 1e-9:
+					continue
+				var t := (p.x * e.y - p.y * e.x) / den # (along the ray)
+				var u := (p.x * dir.y - p.y * dir.x) / den # (along the edge)
+				if t > 0.0 and u >= -1e-4 and u <= 1.0001:
+					best = minf(best, t)
+			return best if best < INF else 0.1
+		# the radii, as many as its size calls for, spun across and about
+		var size := 0.0
+		for f in frame:
+			size += f.length()
+		size /= F
+		var RADII := clampi(int(size / 0.012), 16, 34)
+		var ends: Array[Vector2] = []
 		for k in RADII:
 			var a := TAU * k / RADII
-			ends.append(Vector3(cos(a), sin(a), 0.0) * R * (1.0 + 0.05 * sin(k * 1.9)))
+			ends.append(Vector2(cos(a), sin(a)) * to_frame.call(a) * 0.98)
+		var step := 7 if RADII % 7 != 0 else 5
 		for j in RADII:
-			var k := (j * 7) % RADII
-			add.call(Vector3.ZERO, ends[k])
+			add.call(Vector2.ZERO, ends[(j * step) % RADII])
 		# the hub: a few tight turns
-		var prev := ends[0] * 0.04
+		var prev := ends[0].normalized() * size * 0.03
 		for i in RADII * 3:
 			var a := TAU * i / RADII
-			var p := Vector3(cos(a), sin(a), 0.0) * R * (0.04 + 0.03 * float(i) / (RADII * 3))
+			var p := Vector2(cos(a), sin(a)) * size * (0.03 + 0.03 * float(i) / (RADII * 3))
 			add.call(prev, p)
 			prev = p
-		# the capture spiral: from the edge inward, crossing each radius
-		var turns := 18
-		prev = ends[0] * 0.95
+		# the capture spiral: inward from the frame, each radius its own
+		# length (the spiral follows the frame's shape), as many turns as
+		# its size calls for
+		var turns := clampi(int(size * 0.75 / 0.011), 8, 30)
+		prev = ends[0] * 0.92
 		for i in turns * RADII:
 			var f := float(i) / (turns * RADII)
-			var k := i % RADII
-			var p := ends[k] * lerpf(0.95, 0.24, f)
+			var e := ends[i % RADII]
+			var inner := size * 0.22 / maxf(e.length(), 1e-4)
+			var p := e * lerpf(0.92, minf(inner, 0.9), f)
 			add.call(prev, p)
 			prev = p
-		# the stabilimentum: a zigzag band up and down from the hub
-		var w := R * 0.05
+		# the stabilimentum: a zigzag band straight up and down from the
+		# hub, as long as there's room
+		var room_up := to_frame.call(PI * 0.5) as float
+		var room_down := to_frame.call(-PI * 0.5) as float
+		var w := size * 0.05
 		for sgn: float in [1.0, -1.0]:
-			for i in 14:
-				var y0 := sgn * R * (0.14 + 0.035 * i)
-				var y1 := sgn * R * (0.14 + 0.035 * (i + 1))
+			var room := room_up if sgn > 0.0 else room_down
+			var n_z := clampi(int(room * 0.55 / (size * 0.035)), 3, 18)
+			for i in n_z:
+				var y0 := sgn * (size * 0.14 + size * 0.035 * i)
+				var y1 := sgn * (size * 0.14 + size * 0.035 * (i + 1))
 				var x0 := w * (1.0 if i % 2 == 0 else -1.0)
 				var x1 := -x0
-				var hw := R * 0.006
+				var hw := size * 0.006
 				var q := [Vector3(x0 - hw, y0, 0.0), Vector3(x1 - hw, y1, 0.0), Vector3(x1 + hw, y1, 0.0), Vector3(x0 + hw, y0, 0.0)]
-				for e in [0, 1, 2, 0, 2, 3]:
+				for e2 in [0, 1, 2, 0, 2, 3]:
 					ribbon.set_uv(Vector2(float(order[0]), 0.0))
-					ribbon.add_vertex(q[e])
+					ribbon.add_vertex(q[e2])
 				_ends.append(Vector3((x0 + x1) * 0.5, y1, 0.0))
 				order[0] += 1
 		var mesh := lines.commit()

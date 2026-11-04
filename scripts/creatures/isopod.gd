@@ -30,8 +30,8 @@ var _radius := 0.1
 var _wait := 0.0
 var _st := 0.0
 var _at := Vector3.ZERO
-var _roll := 0.0 # 0 open .. 1 rolled up
-var _roll_to := 0.0
+var _ball := 0.0 # 0 open .. 1 rolled up into a ball
+var _ball_to := 0.0
 var _chew := 0.0
 var _brood := 0.0 # 0 .. 1: the pouch's eggs
 var _plates: Array[Node3D] = [] # the chain's joints (front ones, then back)
@@ -158,18 +158,18 @@ func wander(centre: Vector3, radius: float) -> void:
 	_centre = centre
 	_radius = radius
 	_wait = 0.0
-	_roll_to = 0.0
+	_ball_to = 0.0
 
 
 func eat(at: Vector3) -> void:
 	_mode = "eat"
 	_at = at
-	_roll_to = 0.0
+	_ball_to = 0.0
 
 
 func roll(seconds := 5.0) -> void:
 	_mode = "roll"
-	_roll_to = 1.0
+	_ball_to = 1.0
 	_st = 0.0
 	_wait = seconds
 	_target = _pos
@@ -212,10 +212,10 @@ func _think(dt: float) -> void:
 				_chew = 1.0
 		"roll":
 			_target = _pos
-			if _wait <= 0.0 and _roll_to > 0.0:
-				_roll_to = 0.0
+			if _wait <= 0.0 and _ball_to > 0.0:
+				_ball_to = 0.0
 				_st = 0.0
-			elif _roll_to == 0.0 and _roll < 0.05:
+			elif _ball_to == 0.0 and _ball < 0.05:
 				_mode = "idle"
 		"lay": # (the eggs into her pouch: it swells)
 			_brood = clampf(_st / 6.0, 0.0, 1.0)
@@ -240,8 +240,8 @@ func _think(dt: float) -> void:
 
 
 func _pose(dt: float) -> void:
-	_roll = move_toward(_roll, _roll_to, dt * 1.6)
-	var k := _roll * _roll * (3.0 - 2.0 * _roll)
+	_ball = move_toward(_ball, _ball_to, dt * 1.6)
+	var k := _ball * _ball * (3.0 - 2.0 * _ball)
 	# rolled: every joint bent down, so the plates close round into a ball
 	for n in _plates:
 		var d: float = n.get_meta("dir")
@@ -300,7 +300,7 @@ func _p_act_secs(name: String) -> float:
 
 
 func _p_mobile() -> bool:
-	return _roll < 0.1
+	return _ball < 0.1
 
 
 func _piloted() -> void:
