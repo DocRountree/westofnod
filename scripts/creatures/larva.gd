@@ -339,7 +339,7 @@ func _tube() -> ArrayMesh:
 		return [Vector3(x, y, sv), nrm, Color(0.5 * cos(a), 0.5 * sin(a), sv - near, clampf(near, 0.0, n - 1.0))]
 	var put := func(v: Array) -> void:
 		st.set_normal(v[1])
-		st.set_custom(0, v[3])
+		st.set_custom(0, v[2])
 		st.add_vertex(v[0])
 	for k in rings - 1:
 		for a_i in ROUND:
