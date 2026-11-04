@@ -21,6 +21,9 @@ extends Node3D
 ##   folded, the gaster pumping
 ## - sting(target): rearing up, wings raised and buzzing, the gaster curled
 ##   under, jabbing (from the air, darting in at it)
+## - lay_eggs(cells, normal): down onto its comb (Wasp.comb), and at each
+##   cell in turn: its back to it, crouching, the gaster curled down into
+##   it, pumping, an egg left at its bottom (Brood's); then settling
 ##
 ## The motor under them, every frame: flight (springing toward a target,
 ## banking, nose up hovering, a jitter), walking on a plane (a tripod gait:
@@ -32,6 +35,7 @@ extends Node3D
 ## Its position is set every frame: put it under a node that isn't moved.
 
 const MM := 0.002 ## m drawn per model mm (twice life size)
+const BroodScript := preload("res://scripts/creatures/brood.gd") # (by path: found whether or not the editor has seen the class yet)
 const BODY_H := 2.3 ## mm the thorax's middle stands over the surface
 const STEP_TIME := 0.07 ## s a leg's swing takes
 
@@ -136,6 +140,7 @@ var _body: Node3D
 var _head: Node3D
 var _mandibles: Array[Node3D] = []
 var _antennae: Array = [] # per side: its segments (MeshInstance3D)
+var eggs: Array[Node3D] = [] ## the eggs it's laid (in its parent)
 var _gaster: Array[Node3D] = []
 var _gaster_mesh: Array[MeshInstance3D] = []
 var _sting: Node3D
@@ -465,6 +470,58 @@ func sting(target: Vector3) -> void:
 	_p.ant_pitch = 0.35
 
 
+## Laying: down onto the comb whose cells' mouths are `cells` (points, the
+## comb's face facing normal), and at each in turn: turning its back to
+## it, the gaster over it, crouching, curling it down into the cell,
+## pumping; an egg left at the cell's bottom (`depth` down). Then settling.
+func lay_eggs(cells: Array, normal := Vector3.UP, depth := 0.012) -> void:
+	var id := _begin()
+	release()
+	normal = normal.normalized()
+	if cells.is_empty():
+		return
+	var first: Vector3 = cells[0]
+	if flying or _pos.distance_to(first) > 0.05 or surface_n.dot(normal) < 0.99:
+		if not flying:
+			if not await _take_off(id):
+				return
+		if not await _touch_down(id, first + _in_plane(normal, 0.015), normal, _in_plane(normal, 1.0).normalized()):
+			return
+	_p.ant_tap = 0.3
+	for c: Vector3 in cells:
+		# the thorax a body's length on from the cell, facing away: the
+		# gaster's tip over it
+		var away := _flat(_pos - c, normal)
+		_walk_target = c + away * 8.5 * MM
+		if not await _until(id, func() -> bool: return _walk_target == Vector3.INF, 4.0):
+			return
+		if not await _turn(id, away):
+			return
+		_p.crouch = 0.8
+		_p.curl = 0.6
+		_p.pump = 0.7
+		_p.ant_down = 0.2
+		if not await _wait(id, 1.5):
+			return
+		var parent := get_parent() as Node3D
+		if parent:
+			var e := BroodScript.egg("wasp")
+			parent.add_child(e)
+			var x := normal.cross(Vector3.FORWARD if absf(normal.z) < 0.9 else Vector3.RIGHT).normalized()
+			e.transform = Transform3D(Basis(x, normal, x.cross(normal)), c - normal * depth)
+			eggs.append(e)
+		_p.curl = 0.1
+		_p.pump = 0.2
+		_p.crouch = 0.3
+		if not await _wait(id, 0.5):
+			return
+	# settling, on guard on its comb
+	_p.ant_tap = 0.0
+	_p.crouch = 0.7
+	_p.pump = 0.35
+	_p.ant_down = 0.15
+
+
 ## Lets go of what it holds (it's left where it is).
 func release() -> void:
 	_holding = null
@@ -497,6 +554,39 @@ static func caterpillar() -> Node3D:
 		mi.material_override = brown if i == 0 else green
 		root.add_child(mi)
 	return root
+
+
+## A small paper comb, for it to lay in (twice life size): seven
+## six-sided cells of grey paper, their mouths up (a real comb hangs mouth
+## down: turned up here, to see in), 6 mm across, 7 mm deep. Its origin at
+## its foot. Returns [the comb, its cells' mouths (the comb's space)].
+static func comb() -> Array:
+	var root := Node3D.new()
+	var paper := StandardMaterial3D.new()
+	paper.albedo_color = Color(0.55, 0.52, 0.47)
+	paper.roughness = 0.95
+	paper.cull_mode = BaseMaterial3D.CULL_DISABLED
+	var cell := CylinderMesh.new()
+	var r := 3.0 * MM / cos(PI / 6.0) # (its corners' radius: 6 mm across the flats)
+	cell.top_radius = r
+	cell.bottom_radius = r
+	cell.height = 7.0 * MM
+	cell.radial_segments = 6
+	cell.rings = 1
+	cell.cap_top = false
+	var mouths := []
+	var spots := [Vector2.ZERO]
+	for k in 6:
+		var a := PI / 6.0 + k * PI / 3.0
+		spots.append(Vector2(cos(a), sin(a)) * 6.0 * MM)
+	for p: Vector2 in spots:
+		var mi := MeshInstance3D.new()
+		mi.mesh = cell
+		mi.material_override = paper
+		mi.position = Vector3(p.x, cell.height * 0.5, p.y)
+		root.add_child(mi)
+		mouths.append(Vector3(p.x, cell.height, p.y))
+	return [root, mouths]
 
 
 # --- action helpers ----------------------------------------------------------

@@ -45,6 +45,10 @@ func _init() -> void:
 	hind_wing = "hemaris_hind"
 	fore_hinge = Vector3(2.0, 2.2, -4.6)
 	hind_hinge = Vector3(1.9, 1.9, -1.2)
+	abdomen_at = Vector3(0.0, -0.1, 0.0)
+	abdomen_tip = Vector3(0.0, -0.5, 12.5)
+	egg_kind = "hemaris"
+	hover_lay = true # (laying hovering, the tip just touched to the leaf)
 	_head_at = Vector3(0.0, -0.8, -12.0)
 
 
@@ -75,13 +79,14 @@ func _build() -> void:
 		var z: float = segs[i][0]
 		var wd: float = segs[i][1]
 		var y := -0.1 - 0.02 * z
-		_part(Vector3(0.0, y, z), Vector3(wd, wd * 0.92, 3.0), segs[i][2], 0.95, null, 0.5)
-		_part(Vector3(0.0, y - wd * 0.22, z), Vector3(wd * 0.8, wd * 0.5, 2.7), cream if i < 2 else burgundy.darkened(0.3), 0.95, null, 0.4)
+		# (on the abdomen's joint: abdomen_at; it curls under to lay)
+		_part(Vector3(0.0, y + 0.1, z), Vector3(wd, wd * 0.92, 3.0), segs[i][2], 0.95, _abdomen, 0.5)
+		_part(Vector3(0.0, y - wd * 0.22 + 0.1, z), Vector3(wd * 0.8, wd * 0.5, 2.7), cream if i < 2 else burgundy.darkened(0.3), 0.95, _abdomen, 0.4)
 	# the tail fan: dark in the middle, yellowish at its edges, spread from
 	# the tip (fanned wider to steady it, hovering: _think)
 	_tuft = Node3D.new()
-	_tuft.position = Vector3(0.0, -0.4, 11.8)
-	_body.add_child(_tuft)
+	_tuft.position = Vector3(0.0, -0.3, 11.8)
+	_abdomen.add_child(_tuft)
 	for k in 5:
 		var a := (k - 2) * 0.32
 		var col := dark if absi(k - 2) < 2 else olive_hi.darkened(0.15)

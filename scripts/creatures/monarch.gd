@@ -51,6 +51,9 @@ func _init() -> void:
 	fore_hinge = Vector3(1.1, 1.5, -4.6)
 	hind_hinge = Vector3(1.1, 1.3, -1.6)
 	_head_at = Vector3(0.0, -0.8, -8.8)
+	abdomen_at = Vector3(0.0, -0.3, 0.0)
+	abdomen_tip = Vector3(0.0, -0.9, 19.6)
+	egg_kind = "monarch"
 
 
 func _build() -> void:
@@ -86,10 +89,11 @@ func _build() -> void:
 		var z: float = segs[i][0]
 		var wd: float = segs[i][1]
 		var y := -0.3 - 0.0025 * z * z # (drooping a little toward its tip)
-		_part(Vector3(0.0, y, z), Vector3(wd, wd * 0.95, 3.1), black, 0.8, null, 0.12)
+		# (on the abdomen's joint: abdomen_at; it curls under to lay)
+		_part(Vector3(0.0, y + 0.3, z), Vector3(wd, wd * 0.95, 3.1), black, 0.8, _abdomen, 0.12)
 		if i < segs.size() - 1:
 			for side: float in [-1.0, 1.0]:
-				_part(Vector3(wd * 0.44 * side, y - wd * 0.18, z), Vector3(0.38, 0.38, 0.5), white, 0.6)
+				_part(Vector3(wd * 0.44 * side, y - wd * 0.18 + 0.3, z), Vector3(0.38, 0.38, 0.5), white, 0.6, _abdomen)
 	# long slender antennae, gradually clubbed
 	_antennae(Vector3(0.6, 1.4, -8.8), 16.0, 1.0, black, 0.17, 0.25)
 	# its forelegs small and folded under the chest; the walking four long

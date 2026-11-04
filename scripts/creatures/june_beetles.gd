@@ -16,6 +16,9 @@ func _init() -> void:
 	body_h = 4.9
 	top_speed = 0.04 # (2 cm/s, twice life size)
 	reach = 9.4
+	egg_kind = "june"
+	egg_back = 9.5
+	lay_tilt = 0.25 # (tail down into the soil)
 	fly_speed = 0.7
 	fly_pitch = 0.7 # (flying steeply, body hanging)
 	apart = 26.0

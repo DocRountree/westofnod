@@ -21,10 +21,18 @@ extends Node3D
 ## - the proboscis: coiled (_tongue 0) or uncoiled to `_tongue_at` (1),
 ##   reaching it if it's near enough
 ##
+## - laying (lay(spots, normals)): to each spot in turn, down onto it (or,
+##   hover_lay, hovering at it), the abdomen curled under, an egg left at
+##   its tip (Brood's), and on to the next; then the species' own again
+## - emerging (emerge(at, normal, head_way)): just out of its pupa, clinging
+##   there, its wings crumpled stubs, pumped out to their full size over
+##   some seconds as it hangs, the abdomen working; then off
+##
 ## Its position is set every frame: put it under a node that isn't moved.
 
 const MM := 0.002 ## m drawn per model mm (twice life size)
 const WINGS := preload("res://scripts/creatures/lepidoptera_wings.gd")
+const BroodScript := preload("res://scripts/creatures/brood.gd")
 
 # what the species sets (_init)
 var body_len := 25.0 ## mm, head to tail
@@ -79,12 +87,35 @@ var _coil: MeshInstance3D
 var _legs: Array[Node3D] = []
 var _head_at := Vector3(0.0, 0.0, -10.0) # mm: where the proboscis leaves the head
 
+# the abdomen (the species builds it under _abdomen, its pivot: curled
+# under to lay)
+var _abdomen: Node3D
+var abdomen_at := Vector3.ZERO ## mm: its joint with the thorax
+var abdomen_tip := Vector3(0.0, 0.0, 12.0) ## mm, from abdomen_at: where an egg leaves it
+var egg_kind := "monarch" ## Brood's
+var hover_lay := false ## laying hovering (the clearwing), not settled
+var eggs: Array[Node3D] = [] ## the eggs it's laid (in its parent)
+var _curl := 0.0
+var _curl_now := 0.0
+var _lay_spots: Array = []
+var _lay_normals: Array = []
+var _lay_i := -1
+var _lay_stage := 0
+var _lay_t := 0.0
+var _after := Callable()
+var _grow := 1.0 # its wings: 0 crumpled stubs (just out of the pupa) .. 1 full
+var _emerging := false
+var _emerge_t := 0.0
+
 
 func _ready() -> void:
 	rng.randomize()
 	_body = Node3D.new()
 	_body.scale = Vector3.ONE * MM
 	add_child(_body)
+	_abdomen = Node3D.new()
+	_abdomen.position = abdomen_at
+	_body.add_child(_abdomen)
 	_build()
 	_build_wings()
 	_build_tongue()
@@ -371,7 +402,12 @@ func _process(dt: float) -> void:
 	if dt <= 0.0 or _body == null:
 		return
 	_t += dt
-	_think(dt)
+	if _lay_i >= 0:
+		_lay_think(dt)
+	elif _emerging:
+		_emerge_think(dt)
+	else:
+		_think(dt)
 	if flying:
 		var to := _target - _pos
 		var want := to * accel * 0.6
@@ -398,6 +434,8 @@ func _process(dt: float) -> void:
 	_flap_now = lerpf(_flap_now, _flap if flying else 0.0, 1.0 - exp(-12.0 * dt))
 	_tongue_now = move_toward(_tongue_now, _tongue, dt * 2.5)
 	_place_body()
+	_curl_now = lerpf(_curl_now, _curl, 1.0 - exp(-6.0 * dt))
+	_abdomen.rotation.x = _curl_now * 0.9
 	_pose_wings(dt)
 	_pose_tongue()
 	for leg in _legs:
@@ -435,6 +473,9 @@ func _pose_wings(dt: float) -> void:
 			up = lerpf(PI * 0.5 - 0.04, -0.03, _open_now)
 		var sweep := (-0.15 if hind else 0.12) + (0.18 * sin(_phase + 1.2) * _flap_now if flying else 0.0)
 		hinge.transform.basis = Basis(Vector3.UP, -sweep * side) * Basis(Vector3.BACK, up * side)
+		if _grow < 0.999: # (just out: small, crumpled, filling out)
+			var crumple := (1.0 - _grow) * (0.5 if k % 2 == 0 else -0.4)
+			hinge.transform.basis = hinge.transform.basis * Basis(Vector3.RIGHT, crumple) * Basis.from_scale(Vector3(lerpf(0.22, 1.0, _grow), 1.0, lerpf(0.35, 1.0, _grow)))
 		hinge.visible = not blurred
 
 
@@ -462,6 +503,120 @@ func _pose_tongue() -> void:
 	x = x.normalized()
 	var y := z.cross(x)
 	_tongue_node.transform = Transform3D(Basis(x, y, z * reach), _head_at)
+
+
+# ---- laying, emerging -----------------------------------------------------------
+
+## Laying an egg at each of spots (points, its parent's space; the surface
+## there facing normals'), one after another; then after (if given: the
+## species' own doing again).
+func lay(spots: Array, normals: Array, after := Callable()) -> void:
+	if spots.is_empty():
+		return
+	_lay_spots = spots
+	_lay_normals = normals
+	_lay_i = 0
+	_lay_stage = 0
+	_lay_t = 0.0
+	_after = after
+	_tongue = 0.0
+	_tongue_at = Vector3.INF
+	_emerging = false
+	take_off()
+
+
+func _lay_think(dt: float) -> void:
+	var spot: Vector3 = _lay_spots[_lay_i]
+	var n: Vector3 = (_lay_normals[_lay_i] as Vector3).normalized()
+	_jitter = 0.0008 if hover_lay else 0.0
+	_look = Vector3.ZERO
+	match _lay_stage:
+		0: # up and over it
+			_flap = 1.0
+			_target = spot + n * 0.07
+			_pitch = 0.2
+			if _pos.distance_to(_target) < 0.02:
+				_lay_stage = 1
+		1: # down to it
+			_flap = 1.0
+			_target = spot + n * (stand + (3.0 if hover_lay else 0.0)) * MM
+			_pitch = 0.1
+			if _pos.distance_to(_target) < 0.008:
+				if not hover_lay:
+					land(spot, n)
+					_open = 0.0
+				_lay_stage = 2
+				_lay_t = 0.0
+		2: # the abdomen curled under, the egg out
+			_curl = 1.0
+			_lay_t += dt
+			if _lay_t > 1.0:
+				_drop_egg(spot, n)
+				_lay_stage = 3
+				_lay_t = 0.0
+		3: # and away to the next
+			_curl = 0.0
+			_lay_t += dt
+			if _lay_t > 0.4:
+				take_off()
+				_lay_i += 1
+				_lay_stage = 0
+				if _lay_i >= _lay_spots.size():
+					_lay_i = -1
+					if _after.is_valid():
+						_after.call()
+
+
+## An egg under its abdomen's tip, on the surface (spot, n).
+func _drop_egg(spot: Vector3, n: Vector3) -> void:
+	var parent := get_parent() as Node3D
+	if parent == null:
+		return
+	var tip := parent.to_local(_abdomen.global_transform * abdomen_tip)
+	var on := tip - n * (tip - spot).dot(n)
+	var e := BroodScript.egg(egg_kind)
+	parent.add_child(e)
+	e.transform = Transform3D(_up_basis(n), on)
+	eggs.append(e)
+
+
+## A basis whose y is n.
+static func _up_basis(n: Vector3) -> Basis:
+	var x := n.cross(Vector3.FORWARD if absf(n.z) < 0.9 else Vector3.RIGHT).normalized()
+	return Basis(x, n, x.cross(n))
+
+
+## Just out of its pupa: clinging at `at` (the surface there facing normal),
+## its head toward head_way, its wings crumpled; they fill out over some
+## seconds as it hangs there, the abdomen pumping; then after (the species'
+## own doing).
+func emerge(at: Vector3, normal: Vector3, head_way: Vector3, after := Callable()) -> void:
+	_lay_i = -1
+	_emerging = true
+	_emerge_t = 0.0
+	_grow = 0.0
+	_after = after
+	land(at, normal)
+	_pos = at + normal.normalized() * stand * MM
+	_heading = head_way.normalized()
+	_open = 0.0
+	_flap = 0.0
+	_tongue = 0.0
+	_tongue_at = Vector3.INF
+
+
+func _emerge_think(dt: float) -> void:
+	_emerge_t += dt
+	_grow = clampf((_emerge_t - 1.0) / 7.0, 0.0, 1.0)
+	_grow = _grow * _grow * (3.0 - 2.0 * _grow)
+	_curl = 0.12 + 0.1 * sin(_emerge_t * 2.5) * (1.0 - _grow) # (pumping blood into the wings)
+	_open = 0.0 if _emerge_t < 9.0 else 0.4 + 0.3 * sin(_emerge_t * 0.8) # (drying: opening and closing them)
+	if _emerge_t > 12.0:
+		_emerging = false
+		_grow = 1.0
+		_curl = 0.0
+		if _after.is_valid():
+			_after.call()
 
 
 # ---- helpers for the species ------------------------------------------------

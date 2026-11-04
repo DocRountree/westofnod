@@ -23,6 +23,9 @@ func _init() -> void:
 	body_h = 1.15
 	top_speed = 0.035
 	reach = 2.8
+	egg_kind = "lady"
+	egg_back = 2.9
+	lay_tilt = 0.3
 	fly_speed = 0.45
 	fly_pitch = 0.45
 	apart = 7.0

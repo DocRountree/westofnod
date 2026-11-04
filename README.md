@@ -183,6 +183,17 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   black-eyed Susan, a yampah and a cattail on the plank), each animation on a key (`godot --path . res://tools/creatures/wasp_demo.tscn`);
   and every other creature beside it, each at its own place (the hummingbird moth and the monarch round a patch of the
   game's flowers, milkweeds among coneflowers, Susans, fleabane, asters and yampah, and a stone, ants round a crumb, June bugs and lady beetles round their leaves), their animations on keys too, Tab following each in turn.
+- Life cycles (not yet in the game): every creature lays eggs (`scripts/creatures/brood.gd`, `Brood`: rice grains,
+  each kind its size and colour): the butterflies one to a leaf (the clearwing hovering), the wasp one to each cell of
+  its comb (`Wasp.comb`, `lay_eggs`), the ant queens and the beetles a pile or a cluster (`AntColony.lay`: the
+  gaster curled under, a beetle tipped tail down). Their larvae (`larva.gd`, `Larva`: a chain of segments on the
+  CPU, painted by `shaders/render/larva.gdshader`): the monarch's banded caterpillar with its filaments, the
+  clearwing's hornworm, the lady beetle's crawling "alligator", the June bug's C-curled white grub, the wasp's and
+  the ants' grubs; caterpillars rippling as they crawl, grubs curling and uncurling. The lepidopterans' pupae
+  (`pupa.gd`, `Pupa`): the monarch's jade, gold-dotted chrysalis, the clearwing's brown pupa in its cocoon; they
+  ripen, split, and the adult comes out, its wings filling out from crumpled stubs (`Lepidoptera.emerge`), then
+  flies. `tools/creatures/life_cycle_demo.tscn`, a station each (keys: 1 all lay, 2 the pupae hatch, 3 new
+  pupae, Tab the next).
 - `scripts/creatures/lepidoptera.gd` (`Lepidoptera`): a butterfly or moth at twice life size, not yet in the game: built
   from parts (furred where the species is), its wings cut to their real outlines and painted, veins, borders and
   spots, above and beneath (`tools/creatures/bake_lepidoptera_wings.py` bakes `data/creatures/lepidoptera_wings.png`

@@ -89,7 +89,8 @@ void vertex() {
 	band_z = CUSTOM0.z;
 	banded = CUSTOM0.w;
 	float walk = INSTANCE_CUSTOM.x;
-	float feed = INSTANCE_CUSTOM.y;
+	float feed = max(INSTANCE_CUSTOM.y, 0.0);
+	float lay = max(-INSTANCE_CUSTOM.y, 0.0); // (laying: the gaster curled under, working)
 	float seed = INSTANCE_CUSTOM.z;
 	float fly = INSTANCE_CUSTOM.w;
 	float t = TIME + seed * 37.0;
@@ -174,7 +175,7 @@ void vertex() {
 	}
 	// the gaster: pumping as it feeds
 	if (part == 14)
-		turn(v, n, petiole, vec3(1.0, 0.0, 0.0), 0.05 * feed * sin(t * 7.0) + 0.03 * sin(t * 1.3));
+		turn(v, n, petiole, vec3(1.0, 0.0, 0.0), 0.05 * feed * sin(t * 7.0) + 0.03 * sin(t * 1.3) + lay * (0.55 + 0.08 * sin(t * 5.0)));
 	// the body bobbing with its steps
 	v.y += 0.00012 * walk * sin(t * stride_hz * 6.2832 * 2.0);
 	VERTEX = v;

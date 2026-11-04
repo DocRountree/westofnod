@@ -48,6 +48,8 @@ func _init() -> void:
 	top_speed = 0.07
 	reach = 3.8
 	apart = 8.0
+	egg_kind = "harvester"
+	egg_back = 4.6
 	colors = {
 		"black": Color(0.44, 0.12, 0.04), # (rust red: the head, the mesosoma)
 		"leg_color": Color(0.5, 0.16, 0.05),

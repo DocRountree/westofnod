@@ -14,6 +14,10 @@ extends MultiMeshInstance3D
 ## - feed(i, food): to the food (its own place round it), and feeding: head
 ##   down, mandibles working, antennae drumming, front legs on it; now and
 ##   then round to another place at it
+## - lay(i, at): to the spot, and laying there: the gaster curled under
+##   (a beetle tipped tail down), an egg left at its tip every few seconds,
+##   shuffling a little between: a pile of them (Brood's eggs, egg_kind;
+##   an ant's: the queen's, so make one of a colony of one, a bigger)
 ## They keep a little apart from one another. They walk on the ground the
 ## height callable gives (x, z -> y), flat at y 0 without one.
 ##
@@ -31,7 +35,12 @@ var top_speed := 0.06 ## m/s, walking (an ant's 3 cm/s, twice life size)
 var reach := 4.6 ## mm from its thorax's middle to its mouth
 var apart := 9.0 ## mm they keep between them
 var shader: Shader = preload("res://shaders/render/ant.gdshader")
+const BroodScript := preload("res://scripts/creatures/brood.gd") # (by path: found whether or not the editor has seen the class yet)
 var colors := {} ## the shader's colours, its own (else an ant's)
+var egg_kind := "carpenter" ## Brood's
+var egg_back := 5.4 ## mm behind its middle its eggs come out
+var lay_tilt := 0.0 ## rad it tips tail down laying (a beetle's; an ant curls its gaster)
+var eggs: Array[Node3D] = [] ## the eggs laid (in its parent), the oldest gone past a hundred
 
 var height: Callable ## (x, z) -> the ground's y; none: 0
 var pos := PackedVector3Array()
@@ -46,6 +55,9 @@ var slot := PackedFloat32Array() # feeding: its place round the food (rad)
 var feed_k := PackedFloat32Array() # 0..1 into feeding
 var wait := PackedFloat32Array() # s till it next changes its mind
 var seed := PackedFloat32Array()
+var lay_k := PackedFloat32Array() # 0..1 into laying
+var lay_at := PackedVector3Array()
+var lay_wait := PackedFloat32Array()
 var rng := RandomNumberGenerator.new()
 var _t := 0.0
 
@@ -85,6 +97,9 @@ func setup(n: int, c: Vector3, r: float) -> void:
 	wait.resize(n)
 	seed.resize(n)
 	task.resize(n)
+	lay_k.resize(n)
+	lay_at.resize(n)
+	lay_wait.resize(n)
 	for i in n:
 		var a := rng.randf() * TAU
 		pos[i] = c + Vector3(cos(a), 0.0, sin(a)) * sqrt(rng.randf()) * r
@@ -100,6 +115,14 @@ func wander(i: int, c: Vector3, r: float) -> void:
 	task[i] = 0
 	centre[i] = c
 	radius[i] = r
+	wait[i] = 0.0
+
+
+## Ant i to the spot `at`, and laying there.
+func lay(i: int, at: Vector3) -> void:
+	task[i] = 3
+	lay_at[i] = at
+	lay_wait[i] = rng.randf_range(1.5, 2.5)
 	wait[i] = 0.0
 
 
@@ -165,9 +188,10 @@ func _process(dt: float) -> void:
 						p += off / l * minf((cell - l) * minf(dt * 6.0, 0.5), top_speed * 0.4 * dt) * crowd # (never faster than they walk: a band going the same way shoved itself back)
 		p.y = height.call(p.x, p.z) if height.is_valid() else 0.0
 		pos[i] = p
-		var at := Transform3D(Basis(Vector3.UP, yaw[i]), p + Vector3.UP * body_h * MM)
+		var at := Transform3D(Basis(Vector3.UP, yaw[i]) * Basis(Vector3.RIGHT, lay_tilt * lay_k[i]), p + Vector3.UP * body_h * MM)
 		multimesh.set_instance_transform(i, at)
-		multimesh.set_instance_custom_data(i, Color(clampf(speed[i] / top_speed, 0.0, 1.0), feed_k[i], seed[i], _fly_of(i)))
+		# (laying: told the shader as feeding's negative)
+		multimesh.set_instance_custom_data(i, Color(clampf(speed[i] / top_speed, 0.0, 1.0), feed_k[i] - lay_k[i], seed[i], _fly_of(i)))
 
 
 ## A flyer's (Beetles): whether i's in the air, moved there (true: not
@@ -184,6 +208,11 @@ func _fly_of(_i: int) -> float:
 ## Where ant i's making for, as it's doing.
 func _think(i: int, dt: float) -> void:
 	wait[i] -= dt
+	if task[i] != 3:
+		lay_k[i] = move_toward(lay_k[i], 0.0, dt * 2.0)
+	if task[i] == 3:
+		_lay_step(i, dt)
+		return
 	if task[i] == 0:
 		feed_k[i] = move_toward(feed_k[i], 0.0, dt * 2.0)
 		if wait[i] <= 0.0 or (pos[i].distance_to(target[i]) < 0.002 and wait[i] > 1.0):
@@ -205,6 +234,39 @@ func _think(i: int, dt: float) -> void:
 		# round to another place at it
 		slot[i] += rng.randf_range(0.6, 1.8) * (1.0 if rng.randf() < 0.5 else -1.0)
 		wait[i] = rng.randf_range(3.0, 7.0)
+
+
+## Laying: at the spot (shuffling a little about it), the gaster under,
+## an egg out at its tip now and then.
+func _lay_step(i: int, dt: float) -> void:
+	feed_k[i] = move_toward(feed_k[i], 0.0, dt * 2.0)
+	if wait[i] <= 0.0:
+		var a := rng.randf() * TAU
+		target[i] = lay_at[i] + Vector3(cos(a), 0.0, sin(a)) * rng.randf() * 1.5 * MM
+		wait[i] = rng.randf_range(4.0, 8.0)
+	var there := Vector2(pos[i].x - target[i].x, pos[i].z - target[i].z).length() < 0.003 and speed[i] < 0.01
+	lay_k[i] = move_toward(lay_k[i], 1.0 if there else 0.0, dt * 1.5)
+	if lay_k[i] > 0.9:
+		lay_wait[i] -= dt
+		if lay_wait[i] <= 0.0:
+			lay_wait[i] = rng.randf_range(2.0, 3.5)
+			_drop_egg(i)
+
+
+## An egg at ant i's tip, on the ground.
+func _drop_egg(i: int) -> void:
+	var parent := get_parent() as Node3D
+	if parent == null:
+		return
+	var back := Basis(Vector3.UP, yaw[i]) * Vector3(rng.randf_range(-0.6, 0.6), 0.0, egg_back + rng.randf_range(-0.5, 0.5)) * MM
+	var p := pos[i] + back
+	p.y = height.call(p.x, p.z) if height.is_valid() else pos[i].y
+	var e := BroodScript.egg(egg_kind)
+	parent.add_child(e)
+	e.global_transform = Transform3D(Basis(Vector3.UP, rng.randf() * TAU), global_transform * p)
+	eggs.append(e)
+	if eggs.size() > 100:
+		eggs.pop_front().queue_free()
 
 
 ## A crumb of food (a sugar crumb, say), for them to feed on: about 3 mm
