@@ -29,8 +29,8 @@ render_mode cull_disabled;
 uniform float z_head = -0.028;
 uniform float z_tail = 0.042;
 uniform vec3 pec_pivots[2];
-uniform vec3 olive : source_color = vec3(0.3, 0.34, 0.24);
-uniform vec3 silver : source_color = vec3(0.62, 0.64, 0.58);
+uniform vec3 olive : source_color = vec3(0.4, 0.43, 0.36);
+uniform vec3 silver : source_color = vec3(0.76, 0.78, 0.76);
 uniform vec3 belly : source_color = vec3(0.86, 0.85, 0.78);
 uniform vec3 spot : source_color = vec3(0.18, 0.16, 0.12);
 uniform vec3 iris : source_color = vec3(0.78, 0.72, 0.48);
@@ -110,7 +110,7 @@ void vertex() {
 	float L = z_tail - z_head;
 	float s = clamp((VERTEX.z - z_head) / L, 0.0, 1.0);
 	v_s = s;
-	float freq = mix(1.6, 6.5, swim);
+	float freq = mix(1.2, 4.8, swim); // (an easy beat)
 	float ph = t * freq * 6.2832;
 	float amp = L * mix(0.025, 0.1, swim);
 	float k = 6.2832 * 0.95;
@@ -145,10 +145,11 @@ void fragment() {
 	float rough = 0.3;
 	float spec = 0.6;
 	float rim = 0.0;
+	float metal = 0.0;
 	if (part == 0 || part == 12) {
 		// olive above, silvery down the sides, pale beneath
 		float ny = normalize(v_rn).y;
-		c = mix(silver, olive, smoothstep(0.1, 0.7, ny));
+		c = mix(silver, olive, smoothstep(0.35, 0.85, ny)); // (silvery, the olive only along its back)
 		c = mix(c, belly, 1.0 - smoothstep(-0.75, -0.2, ny));
 		// its scales: a net of them, each its edge darker, rows of dark
 		// spots down its sides (a sailfin's), iridescent on a male
@@ -165,6 +166,7 @@ void fragment() {
 		if (male) // (his throat and breast orange)
 			c = mix(c, vec3(0.85, 0.55, 0.25), (1.0 - smoothstep(0.12, 0.3, v_s)) * (1.0 - smoothstep(-0.8, -0.2, ny)) * 0.55);
 		rim = male ? 0.45 : 0.25; // (the scales' sheen: a male's blue-green)
+		metal = 0.35; // (the silver of its scales)
 		if (part == 12)
 			c *= 0.55;
 	} else if (part == 1) {
@@ -191,6 +193,8 @@ void fragment() {
 				c = mix(c, vec3(0.25, 0.4, 0.45), 0.15);
 			}
 		}
+		if (part == 5) // (the tail fin's edge, a faint orange)
+			c = mix(c, vec3(0.9, 0.55, 0.25), smoothstep(0.7, 0.98, v_t) * 0.35);
 		if (part == 5 && male) {
 			c = mix(c, vec3(0.85, 0.6, 0.2), (1.0 - smoothstep(0.3, 0.75, v_t)) * 0.5);
 			c = mix(c, vec3(0.1, 0.09, 0.07), smoothstep(0.85, 0.97, v_t));
@@ -201,6 +205,7 @@ void fragment() {
 	ALBEDO = c;
 	ROUGHNESS = rough;
 	SPECULAR = spec;
+	METALLIC = metal;
 	RIM = rim;
 	RIM_TINT = 0.8;
 	if (part >= 3 && part != 11 && part != 12) // (the fins thin: lit through)
