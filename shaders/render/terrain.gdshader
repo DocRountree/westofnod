@@ -19,7 +19,6 @@ render_mode diffuse_burley, specular_schlick_ggx, skip_vertex_transform;
 
 #include "res://shaders/render/height_map.gdshaderinc"
 #include "res://shaders/render/aerial.gdshaderinc"
-#include "res://shaders/render/canopy.gdshaderinc"
 
 global uniform float night; // 0 day .. 1 night (main.gd: a global)
 const float PRAIRIE_NIGHT_DIM = 0.5; // (also ground_cover.gdshader): at night it looks only half again as bright as the forest floor (by day ~2.8x)
@@ -153,9 +152,6 @@ void fragment() {
 	col *= 1.0 - PRAIRIE_NIGHT_DIM * night * clamp(prairie + coast + m.a * (1.0 - rocky * 0.7), 0.0, 1.0);
 	col = mix(col, seabed, 1.0 - smoothstep(-1.0, 0.2, h));
 	col *= mix(1.0, 0.78, (1.0 - smoothstep(0.0, 0.6, h)) * step(-0.3, h)); // damp line
-	// under the forest's canopy (its trees cast no shadows: their stand-in,
-	// canopy.gdshaderinc; as the grass and ferns on it)
-	col *= canopy_light(p, h, forest * (1.0 - rocky) * (1.0 - m.a) * step(0.4, h), fp, night);
 	// past where the trees are drawn (OakTree.VIEW, 600 m), their canopy
 	// painted on the ground, as much of it as the trees there would cover
 	// (from their density by biome: data/population/props/, as Population

@@ -84,12 +84,9 @@ shallows, and don't sway.
 - Shadows: every standing oak casts the same stand-in, a lumpy dome on a
   stalk (`shadow_mesh`); the trees and their leaves cast none and take
   shadows only part way. The dead wood casts its own. In the swamp none of
-  them (standing, dead, saplings, stumps) casts a shadow (`shadowless_in`),
-  nor in the forest any tree of any kind (`Population.SHADOWLESS`): its
-  floor, and the grass and ferns on it, shaded instead by a stand-in for
-  the canopy (`shaders/render/canopy.gdshaderinc`: crowns' shade thrown
-  along the sun's way, light through the gaps and in flecks, the sky's
-  light dimmed).
+  them (standing, dead, saplings, stumps) casts a shadow (`shadowless_in`).
+  The stand-ins are drawn one MultiMesh a stand-in mesh for a whole chunk,
+  every kind and variant sharing it together (`Population._build_proxies`).
 
 `xvfb-run godot --path . --script res://tools/trees/preview.gd -- <out_dir>
 [side | close | leaves | dead | snag | lod]` renders them on a plain.

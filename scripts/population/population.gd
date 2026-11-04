@@ -36,9 +36,6 @@ const LOD_MID := 6.0 ## m up a tree's own axis (at scale 1) its level is measure
 ## its fade, so none is missing between sortings)
 const LOD_SLACK := 6.0
 const BUCKETS_PER_FRAME := 24 ## chunks sorted a frame, at the least (more when many are due)
-## Biomes where no tree casts a shadow, whatever its kind (the forest: its
-## floor shaded by a cheap stand-in for the canopy instead, canopy.gdshaderinc)
-const SHADOWLESS := ["forest"]
 
 @export var actor_radius := 160.0 ## Actors live in the chunks this near the player.
 @export var world_seed := 1
@@ -72,6 +69,7 @@ var _view := Vector3.INF # the camera, on the map (update)
 class _Chunk:
 	var key: Vector2i
 	var groups := {} # prop kind index -> Array[_Group]: what it draws of that kind
+	var proxies: Array[Node3D] = [] # the shadows' stand-ins, all its kinds' together (_build_proxies)
 	var bucket_at := Vector3.INF # the camera (on the map) its trees were last sorted into their levels for
 	var obstacles := PackedFloat32Array() # x, z, radius
 	var walk := PackedFloat32Array() # world segments to stand on (PropKind.walk)
@@ -97,6 +95,9 @@ class _Group:
 	var lo := Vector3.ZERO # their box (on the map)
 	var hi := Vector3.ZERO
 	var levels: Array = [] # [begin, end, MultiMesh, MultiMeshInstance3D, what it last held: -1 not yet, 0 none, 1 all, 2 some]
+	var proxy: Mesh # the shadow's stand-in its trees cast with (their kind's shadow_mesh), or none
+	var proxy_xf := PackedFloat32Array() # 12 floats a tree, from the chunk's corner
+	var proxy_reach := 0.0 # m: its kind's shadow_distance
 	var nodes: Array[Node3D] = []
 
 
@@ -1189,7 +1190,8 @@ func _build_props(ch: _Chunk) -> void:
 	if not _removed.is_empty():
 		_drop_removed(ch)
 	for k in ch.xforms.size():
-		_build_kind(ch, k)
+		_build_kind(ch, k, false)
+	_build_proxies(ch)
 	ch.bucket_at = _view
 
 
@@ -1203,7 +1205,7 @@ func _free_groups(ch: _Chunk, k: int) -> void:
 ## (Re)build what a chunk draws of kind k: its trees in groups drawn alike
 ## (_Group: notched or not, casting shadows or not), each a MultiMesh a
 ## level of detail, sorted (_bucket).
-func _build_kind(ch: _Chunk, k: int) -> void:
+func _build_kind(ch: _Chunk, k: int, proxies := true) -> void:
 	_free_groups(ch, k)
 	var xf: PackedFloat32Array = ch.xforms[k]
 	if xf.is_empty():
@@ -1227,15 +1229,16 @@ func _build_kind(ch: _Chunk, k: int) -> void:
 		_bucket(g, true)
 		groups.append(g)
 	ch.groups[k] = groups
+	if proxies:
+		_build_proxies(ch)
 
 
-## The biomes (indices) a kind casts no shadow in: its own (shadowless_in)
-## and every kind's (SHADOWLESS).
+## The biomes (indices) a kind casts no shadow in (shadowless_in).
 func _shadowless(kind: PropKind) -> PackedInt32Array:
 	var none := PackedInt32Array()
 	if world == null:
 		return none
-	for b in Array(kind.shadowless_in) + SHADOWLESS:
+	for b in kind.shadowless_in:
 		var i := world.biome_names.find(b)
 		if i >= 0:
 			none.append(i)
@@ -1262,6 +1265,12 @@ func _make_group(kind: PropKind, xf: PackedFloat32Array, uids: PackedInt64Array,
 	# origin, which must not be off at the chunk's corner at sea level,
 	# hundreds of metres from the trees. All its levels get the same box
 	# (round every mesh they draw), so they hand over alike.
+	if kind.shadow_mesh and casts:
+		# (the shadows' stand-ins: drawn with every kind's of the chunk
+		# that shares them, _build_proxies)
+		g.proxy = kind.shadow_mesh
+		g.proxy_xf = gx.duplicate()
+		g.proxy_reach = kind.shadow_distance
 	var box := _chunk_box(kind, gx)
 	var mid := box.get_center()
 	for n in idx.size():
@@ -1323,24 +1332,61 @@ func _make_group(kind: PropKind, xf: PackedFloat32Array, uids: PackedInt64Array,
 		add_child(mi)
 		g.nodes.append(mi)
 		g.levels.append([begin, end, mm, mi, -1])
-	if kind.shadow_mesh and casts:
-		# the stand-in, only in the shadow maps (every tree of the group, to
-		# the shadows' distance)
+	return g
+
+
+## The shadows' stand-ins (a species' standing trees all cast the same lumpy
+## dome on a stalk; its saplings a small one), drawn only in the shadow
+## maps: one MultiMesh a stand-in for the whole chunk, every kind and
+## variant that shares it together, not one each (a forest chunk's dozen
+## and more, drawn into every cascade).
+func _build_proxies(ch: _Chunk) -> void:
+	for n in ch.proxies:
+		n.queue_free()
+	ch.proxies.clear()
+	var batches := {} # stand-in mesh -> [transforms (12 floats each, from the chunk's corner), reach]
+	for k in ch.groups:
+		for g: _Group in ch.groups[k]:
+			if g.proxy == null or g.proxy_xf.is_empty():
+				continue
+			if not batches.has(g.proxy):
+				batches[g.proxy] = [PackedFloat32Array(), 0.0]
+			var b: Array = batches[g.proxy]
+			var xf: PackedFloat32Array = b[0]
+			xf.append_array(g.proxy_xf)
+			b[0] = xf # (packed arrays are values: put it back)
+			b[1] = maxf(b[1], g.proxy_reach)
+	var at := Vector3(ch.key.x * CHUNK, 0.0, ch.key.y * CHUNK)
+	for mesh: Mesh in batches:
+		var xf: PackedFloat32Array = batches[mesh][0]
+		# the node at the middle of their box (visibility goes by its origin)
+		var m := mesh.get_aabb()
+		var lo := Vector3.INF
+		var hi := -Vector3.INF
+		for i in range(0, xf.size(), 12):
+			var o := Vector3(xf[i + 3], xf[i + 7], xf[i + 11])
+			var s := Vector3(xf[i], xf[i + 4], xf[i + 8]).length()
+			lo = lo.min(o + m.position * s - Vector3.ONE * m.size.length() * s * 0.5)
+			hi = hi.max(o + m.end * s + Vector3.ONE * m.size.length() * s * 0.5)
+		var mid := (lo + hi) * 0.5
+		for i in range(0, xf.size(), 12):
+			xf[i + 3] -= mid.x
+			xf[i + 7] -= mid.y
+			xf[i + 11] -= mid.z
 		var smm := MultiMesh.new()
 		smm.transform_format = MultiMesh.TRANSFORM_3D
-		smm.mesh = kind.shadow_mesh
-		smm.instance_count = idx.size()
-		smm.buffer = gx
+		smm.mesh = mesh
+		smm.instance_count = xf.size() / 12
+		smm.buffer = xf
 		var smi := MultiMeshInstance3D.new()
 		smi.multimesh = smm
-		smi.position = origin
+		smi.position = at + mid
 		smi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY
-		smi.custom_aabb = box
-		smi.visibility_range_end = kind.shadow_distance
+		smi.custom_aabb = AABB(lo - mid, hi - lo)
+		smi.visibility_range_end = batches[mesh][1]
 		smi.visibility_range_end_margin = CHUNK * 0.5
 		add_child(smi)
-		g.nodes.append(smi)
-	return g
+		ch.proxies.append(smi)
 
 
 ## Puts into each level's MultiMesh only the group's trees near enough its
@@ -1469,6 +1515,9 @@ func _unload(key: Vector2i) -> void:
 		return
 	for k in ch.groups.keys():
 		_free_groups(ch, k)
+	for n in ch.proxies:
+		n.queue_free()
+	ch.proxies.clear()
 	_despawn(ch)
 	_chunks.erase(key)
 
