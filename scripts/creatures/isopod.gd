@@ -1,10 +1,12 @@
 class_name Isopod
 extends "res://scripts/creatures/hexapod.gd" # (by path: found whether or not the editor has seen the class yet)
 ## A pill bug (Armadillidium vulgare), drawn at twice life size (about 30
-## mm long): an oval, high domed, slate grey, glossy, mottled with pale
+## mm long): an oval, high domed, its tail end round, a light slate grey,
+## glossy, mottled with pale
 ## spots; its back plates overlapping, head to tail: the head (its eyes,
 ## its long bent antennae feeling the ground ahead), seven big plates over
-## the body, five small ones, the tail's triangle and its little
+## the body, five small ones narrowing round to its tail, the telson's half
+## disc and its little
 ## uropods; seven pairs of short legs under it, walked in two alternating
 ## sets down the body. Young (mancae: Isopod.new(true)): small, pale, only
 ## six pairs of legs; growing. Not yet in the game
@@ -68,7 +70,7 @@ func _init(young_ := false) -> void:
 
 
 func _build() -> void:
-	var grey := Color(0.58, 0.59, 0.61) if not young else Color(0.8, 0.78, 0.75) # (slate grey, not black)
+	var grey := Color(0.7, 0.71, 0.72) if not young else Color(0.84, 0.82, 0.79) # (a light slate grey)
 	var plate := _banded(grey, 0.0, 0.0, 0.35, 0.75) # (the uropods, the face)
 	var under := _mat(grey.darkened(0.3), 0.6)
 	# the plates, a chain from the middle out both ways (each on the next
@@ -101,7 +103,11 @@ func _build() -> void:
 		# edges flared, its front tucked under the one ahead, its back a
 		# rim lapping the next; spotted (_band)
 		var band := MeshInstance3D.new()
-		band.mesh = _arch(w * 0.5, w * (0.5 if k > 0 else 0.42), l * (1.5 if k < 13 else 1.2), 1.75 if k < 13 else 1.5)
+		# (the tail's plates sloping down to its rounded end, the last
+		# curling right down over it: a smooth half dome behind)
+		var u := clampf(float(k - 8) / 5.0, 0.0, 1.0)
+		var hh := w * (0.5 if k > 0 else 0.42) * (1.0 - 0.3 * u * u)
+		band.mesh = _arch(w * 0.5, hh, l * (1.5 if k < 13 else 1.4), lerpf(1.75, 2.05, u))
 		band.material_override = _band_mat(grey, w * 0.5, l * 1.5, not young and k > 0 and k < 8)
 		nd.add_child(band)
 		if k > 0 and k < 8:
@@ -131,9 +137,9 @@ func _build() -> void:
 	# the tail: the telson a blunt triangle, the uropods short and flat
 	# either side of it, flush with the rim
 	var tail: Node3D = nodes[SEGS - 1]
-	_part(Vector3(0.0, 0.7, 0.55), Vector3(1.4, 0.35, 1.1), plate, tail)
+	_part(Vector3(0.0, 0.45, 0.45), Vector3(2.4, 0.6, 1.5), plate, tail) # (the telson: rounded, a half disc)
 	for side: float in [-1.0, 1.0]:
-		_part(Vector3(1.05 * side, -0.05, 0.45), Vector3(0.8, 0.4, 0.9), plate, tail)
+		_part(Vector3(1.25 * side, -0.1, 0.4), Vector3(1.0, 0.55, 1.0), plate, tail) # (the uropods: round, flush)
 	# the brood pouch (a female's), under her front: swelling with eggs
 	if not young and not male:
 		var pm := _mat(Color(0.88, 0.85, 0.75, 0.75), 0.3)
@@ -145,7 +151,8 @@ func _build() -> void:
 			var e := _part(Vector3(randf_range(-1.0, 1.0), -1.6, -1.8 + randf_range(-1.5, 1.5)), Vector3.ONE * 0.55, em)
 			e.visible = false
 			_eggs.append(e)
-	_build_legs(_mat(grey.lightened(0.25), 0.5), _mat(grey.lightened(0.3), 0.5))
+	var leg := Color(0.24, 0.22, 0.23) if not young else Color(0.6, 0.58, 0.56) # (its legs dark, under its pale shell)
+	_build_legs(_mat(leg, 0.5), _mat(leg.lightened(0.08), 0.5))
 
 
 static var _pill_shader: Shader
@@ -240,7 +247,11 @@ func _plate_len(k: int) -> float:
 
 func _plate_w(k: int) -> float:
 	var t := float(k) / (SEGS - 1)
-	return 7.2 * (0.62 + 0.38 * sin(PI * clampf(t * 1.05 + 0.08, 0.0, 1.0))) * (0.85 if k == 0 else 1.0)
+	var w := 7.2 * (0.62 + 0.38 * sin(PI * clampf(t * 1.05 + 0.08, 0.0, 1.0))) * (0.85 if k == 0 else 1.0)
+	if k > 8: # (its tail end round, seen from above: a half circle)
+		var u := float(k - 8) / 6.0
+		w = maxf(w, 7.2 * 0.62) * sqrt(maxf(1.0 - u * u, 0.0)) * 1.04
+	return w
 
 
 # --- what it does --------------------------------------------------------------
