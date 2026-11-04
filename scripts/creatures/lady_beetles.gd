@@ -94,4 +94,5 @@ func _marks(ball: Callable) -> void:
 		# the head's white patches, on its front
 		var h: Vector3 = shape.neck + (shape.head[0] as Vector3)
 		var hs: Vector3 = shape.head[1]
-		ball.call(h + Vector3(0.3 * side, 0.12, -hs.z * 0.45), Vector3(0.42, 0.1, 0.3), 20, Basis(Vector3.RIGHT, Vector3(0.0, 0.0, -1.0), Vector3.UP))
+		var ha := hs * 0.5
+		_shell_patch(h, ha, Vector3(0.3 * side / ha.x, 0.12 / ha.y, -0.9).normalized(), Vector2(0.21, 0.15), 20)

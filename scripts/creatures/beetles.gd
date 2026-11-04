@@ -156,7 +156,9 @@ func _build_mesh() -> Array:
 				ball.call((p + q) * 0.5, Vector3(r, r, length * 0.11), 6 + s, Basis.looking_at(q - p, Vector3.UP))
 				p = q
 				fp -= 0.08
+	_mark_st = st
 	_marks(ball)
+	_mark_st = null
 	# the legs, standing: as the ant's
 	var hips := []
 	var knees := []
@@ -235,6 +237,9 @@ static func _half(arrays: Array, side: float) -> Array:
 	out[Mesh.ARRAY_VERTEX] = vs
 	out[Mesh.ARRAY_NORMAL] = ns
 	return out
+
+
+var _mark_st: SurfaceTool # (building: the mesh the marks go into)
 
 
 ## The elytron's mark part on a side (23 left, 24 right).
@@ -497,12 +502,71 @@ static func _on_shell(c: Vector3, size: Vector3, x: float, z: float) -> Array:
 	return [p, Basis(t, n, t.cross(n))]
 
 
-## A round mark of radius r (mm) on an ellipsoid's top at (x, z): a flat
-## lens just poking out of the shell there.
-static func _spot(ball: Callable, c: Vector3, size: Vector3, x: float, z: float, r: Vector2, part: int, turn := 0.0) -> void:
-	var on := _on_shell(c, size, x, z)
-	var b: Basis = (on[1] as Basis) * Basis(Vector3.UP, turn)
-	ball.call(on[0], Vector3(r.x * 2.0, 0.14, r.y * 2.0), part, b)
+## A round mark (radii r, mm: across, along) on an ellipsoid's top at (x,
+## z): a patch of the shell's own surface there (out to its rim, if it's
+## past it, round onto its side), lying on it a hair proud: no flat lens
+## standing off the curve. turn: its long way turned (rad, about its normal).
+func _spot(_ball: Callable, c: Vector3, size: Vector3, x: float, z: float, r: Vector2, part: int, turn := 0.0) -> void:
+	var a := size * 0.5
+	var u := Vector2((x - c.x) / a.x, (z - c.z) / a.z)
+	if u.length() > 0.97:
+		u = u.normalized() * 0.97
+	var d := Vector3(u.x, sqrt(maxf(1.0 - u.length_squared(), 0.0)), u.y)
+	_shell_patch(c, a, d, r, part, turn)
+
+
+## A patch of an ellipsoid's surface (centre c, semi-axes a, mm) about the
+## point d (a unit direction, in its unit-sphere space), radii r across
+## and along, turned by turn about its normal; a hair proud (mm), added to
+## the mesh being built as part `part`.
+func _shell_patch(c: Vector3, a: Vector3, d: Vector3, r: Vector2, part: int, turn := 0.0, proud := 0.03) -> void:
+	if _mark_st == null:
+		return
+	d = d.normalized()
+	var p0 := c + a * d
+	var n0 := (d / a).normalized()
+	var t := Vector3.BACK.cross(n0)
+	if t.length_squared() < 1e-6:
+		t = Vector3.RIGHT
+	t = t.normalized().rotated(n0, turn)
+	var b := t.cross(n0).normalized()
+	const RINGS := 4
+	const SECTORS := 16
+	var vs := PackedVector3Array()
+	var ns := PackedVector3Array()
+	var uvs := PackedVector2Array()
+	var idx := PackedInt32Array()
+	var on := func(q: Vector3) -> Array: # (q onto the shell, and out a hair)
+		var e := ((q - c) / a).normalized()
+		var nn := (e / a).normalized()
+		return [c + a * e + nn * proud, nn]
+	var mid: Array = on.call(p0)
+	vs.append(mid[0])
+	ns.append(mid[1])
+	uvs.append(Vector2.ZERO)
+	for k in range(1, RINGS + 1):
+		var f := float(k) / RINGS
+		for j in SECTORS:
+			var ang := TAU * j / SECTORS
+			var v: Array = on.call(p0 + (t * cos(ang) * r.x + b * sin(ang) * r.y) * f)
+			vs.append(v[0])
+			ns.append(v[1])
+			uvs.append(Vector2.ZERO)
+	for j in SECTORS: # (the middle's fan)
+		idx.append_array([0, 1 + j, 1 + (j + 1) % SECTORS])
+	for k in range(1, RINGS):
+		var r0 := 1 + (k - 1) * SECTORS
+		var r1 := 1 + k * SECTORS
+		for j in SECTORS:
+			var j1 := (j + 1) % SECTORS
+			idx.append_array([r0 + j, r1 + j, r0 + j1, r1 + j, r1 + j1, r0 + j1])
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = vs
+	arrays[Mesh.ARRAY_NORMAL] = ns
+	arrays[Mesh.ARRAY_TEX_UV] = uvs
+	arrays[Mesh.ARRAY_INDEX] = idx
+	_add(_mark_st, arrays, Transform3D(), part, 0, false)
 
 
 ## A leaf, for them to eat at: a flat green oval about 8 cm (twice life
