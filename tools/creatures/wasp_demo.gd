@@ -13,8 +13,34 @@ extends Node3D
 ## shader sways the head). For the scale, things from the game: the
 ## player's figure with its axe, and on the plank a pawpaw, a black-eyed
 ## Susan, a yampah and a cattail.
+##
+## And the other creatures beside it, each with its own place:
+## 6 the hummingbird moth searching (darting about the flowers)   7 it feeding
+## at the milkweed   8 the monarch flying   9 it basking on the stone   0 it
+## feeding at the swamp milkweed   A the ants: wandering, or at their crumb
+## B the beetles: walking about, or eating at their leaves
+## Tab: the camera follows the next of them (wasp, moth, monarch, ants,
+## beetles).
 
 var wasp: Wasp
+var moth: HummingbirdMoth
+var monarch: Monarch
+var ants: AntColony
+var beetles: Beetles
+var _ants_feeding := false
+var _beetles_feeding := false
+var _following := 0 # wasp, moth, monarch, ants, beetles
+var _milkweed: Array = [] # the milkweed's flowers (points)
+var _swamp: Array = [] # the swamp milkweed's
+const MOTHS_AT := Vector3(0.9, 0.0, -0.4) # (round the milkweeds)
+const STONE := Vector3(-0.95, 0.04, 0.75)
+const ANTS_AT := Vector3(0.45, 0.0, 0.0)
+const CRUMB := Vector3(0.5, 0.0, 0.05)
+const BEETLES_AT := Vector3(-0.55, 0.0, -0.25)
+const BEETLE_LEAVES := [Vector3(-0.5, 0.0, -0.3), Vector3(-0.62, 0.0, -0.18)]
+const ANT_COUNT := 14
+const BEETLE_COUNT := 8
+const SWARM_R := 0.13 # m: the ants' and beetles' wandering round their places
 var cam: Camera3D
 var prey: Node3D
 var avatar: Avatar
@@ -70,6 +96,7 @@ func _ready() -> void:
 	add_child(ball)
 	_new_prey()
 	_scale_things()
+	_others()
 	wasp = Wasp.new()
 	add_child(wasp)
 	wasp.place(Vector3(0.0, 0.3, 0.0))
@@ -81,9 +108,55 @@ func _ready() -> void:
 	_focus = wasp.global_position
 	_label = Label.new()
 	_label.position = Vector2(12, 8)
-	_label.text = "1 seek food   2 feed on the flower   3 catch the caterpillar (R: a new one)   4 land on the plank   5 sting the ball\nSpace slow motion   F follow on/off   drag: turn round   wheel: nearer / further"
+	_label.text = "Wasp: 1 seek food   2 feed on the flower   3 catch the caterpillar (R: a new one)   4 land on the plank   5 sting the ball\nMoth: 6 search   7 feed at the milkweed   Monarch: 8 fly   9 bask on the stone   0 feed at the swamp milkweed\nA ants: wander / feed   B beetles: walk / eat   Tab follow the next   F follow on/off   Space slow motion   drag: turn round   wheel: nearer / further"
 	add_child(_label)
 	wasp.seek_food(Vector3.ZERO, 0.6)
+
+
+## The other creatures, each at its own place on the plain: the
+## hummingbird moth and the monarch round a clump each of the game's common
+## and swamp milkweed (DemoFlowers), a stone for the monarch to bask on;
+## ants round a crumb; beetles round two leaves.
+func _others() -> void:
+	_milkweed = DemoFlowers.clump(self, "milkweed", Vector2(MOTHS_AT.x + 0.15, MOTHS_AT.z - 0.1), 1.3, Color(0.42, 0.38, 0.28))
+	_swamp = DemoFlowers.clump(self, "swamp_milkweed", Vector2(MOTHS_AT.x - 0.5, MOTHS_AT.z - 0.45), 1.2, Color(0.2, 0.22, 0.14))
+	var stone := _box(STONE - Vector3(0, 0.02, 0), Vector3(0.25, 0.04, 0.18), Color(0.5, 0.48, 0.44))
+	stone.rotation.y = 0.4
+	moth = HummingbirdMoth.new()
+	add_child(moth)
+	moth.place(MOTHS_AT + Vector3(0.0, 0.6, 0.3))
+	moth.search(MOTHS_AT, 0.6, DemoFlowers.heads(_milkweed) + DemoFlowers.heads(_swamp))
+	monarch = Monarch.new()
+	add_child(monarch)
+	monarch.place(MOTHS_AT + Vector3(-0.3, 1.0, 0.2))
+	monarch.fly(MOTHS_AT, 1.0)
+	var crumb := AntColony.crumb()
+	crumb.position = CRUMB
+	add_child(crumb)
+	ants = AntColony.new()
+	add_child(ants)
+	ants.setup(ANT_COUNT, ANTS_AT, SWARM_R)
+	for c in BEETLE_LEAVES:
+		var leaf := Beetles.leaf()
+		leaf.position = c
+		add_child(leaf)
+	beetles = Beetles.new()
+	add_child(beetles)
+	beetles.setup(BEETLE_COUNT, BEETLES_AT, SWARM_R)
+
+
+## What the camera follows (Tab: the next).
+func _followed() -> Vector3:
+	match _following:
+		1:
+			return moth.global_position
+		2:
+			return monarch.global_position
+		3:
+			return ANTS_AT + Vector3(0.0, 0.02, 0.0)
+		4:
+			return BEETLES_AT + Vector3(0.0, 0.02, 0.0)
+	return wasp.global_position
 
 
 ## Things from the game, for the scale: the player's figure (Avatar,
@@ -189,21 +262,60 @@ func _unhandled_input(e: InputEvent) -> void:
 	if e is InputEventKey and e.pressed and not e.echo:
 		match e.keycode:
 			KEY_1:
+				_following = 0
 				_to_flower = false
 				wasp.seek_food(Vector3.ZERO, 0.6)
 			KEY_2:
+				_following = 0
 				# off to the flowers: seeking round them, feeding at a head once near one
 				wasp.seek_food(Vector3(_heads[0][0].x, 0.0, _heads[0][0].z) + Vector3(0, 1.0, 0), 0.25)
 				_to_flower = true
 			KEY_3:
+				_following = 0
 				_to_flower = false
 				wasp.feed_on_insect(prey, LEAF + Vector3(0, 0.002, 0), Vector3.UP)
 			KEY_4:
+				_following = 0
 				_to_flower = false
 				wasp.land(PLANK + Vector3(0, 0.01, 0), Vector3.UP)
 			KEY_5:
+				_following = 0
 				_to_flower = false
 				wasp.sting(BALL + Vector3(0, 0.02, 0))
+			KEY_6:
+				moth.search(MOTHS_AT, 0.6, DemoFlowers.heads(_milkweed) + DemoFlowers.heads(_swamp))
+				_following = 1
+			KEY_7:
+				moth.feed(_milkweed)
+				_following = 1
+			KEY_8:
+				monarch.fly(MOTHS_AT, 1.0)
+				_following = 2
+			KEY_9:
+				monarch.bask(STONE, Vector3.UP)
+				_following = 2
+			KEY_0:
+				monarch.feed(_swamp)
+				_following = 2
+			KEY_A:
+				_ants_feeding = not _ants_feeding
+				for i in ANT_COUNT:
+					if _ants_feeding:
+						ants.feed(i, CRUMB)
+					else:
+						ants.wander(i, ANTS_AT, SWARM_R)
+				_following = 3
+			KEY_B:
+				_beetles_feeding = not _beetles_feeding
+				for i in BEETLE_COUNT:
+					if _beetles_feeding:
+						var leaf: Vector3 = BEETLE_LEAVES[i % BEETLE_LEAVES.size()]
+						beetles.feed(i, leaf + Vector3(randf_range(-0.02, 0.02), 0.0, randf_range(-0.035, 0.035)))
+					else:
+						beetles.wander(i, BEETLES_AT, SWARM_R)
+				_following = 4
+			KEY_TAB:
+				_following = (_following + 1) % 5
 			KEY_R:
 				_new_prey()
 			KEY_F:
@@ -235,7 +347,7 @@ func _process(dt: float) -> void:
 		avatar.grip("r").add_child(Items.model("axe"))
 		_axe_held = true
 	if _follow:
-		_focus = _focus.lerp(wasp.global_position, 1.0 - exp(-6.0 * dt / maxf(Engine.time_scale, 0.01)))
+		_focus = _focus.lerp(_followed(), 1.0 - exp(-6.0 * dt / maxf(Engine.time_scale, 0.01)))
 	var off := Vector3(sin(_yaw) * cos(_pitch), -sin(_pitch), cos(_yaw) * cos(_pitch)) * _dist
 	cam.global_position = _focus + off
 	cam.look_at(_focus, Vector3.UP)

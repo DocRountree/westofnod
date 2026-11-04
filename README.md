@@ -175,7 +175,9 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   on a flower, catch and eat a caterpillar, land and walk about and settle, sting).
   `tools/creatures/wasp_demo.tscn` puts one on a plain with a clump of the game's purple coneflowers, a caterpillar on a
   leaf, a plank and a ball (and for the scale the player's figure with its axe, and a pawpaw, a
-  black-eyed Susan, a yampah and a cattail on the plank), each animation on a key (`godot --path . res://tools/creatures/wasp_demo.tscn`).
+  black-eyed Susan, a yampah and a cattail on the plank), each animation on a key (`godot --path . res://tools/creatures/wasp_demo.tscn`);
+  and every other creature beside it, each at its own place (the hummingbird moth and the monarch round the milkweeds and a
+  stone, ants round a crumb, beetles round two leaves), their animations on keys too, Tab following each in turn.
 - `scripts/creatures/lepidoptera.gd` (`Lepidoptera`): a butterfly or moth at twice life size, not yet in the game: built
   from parts, its wings quads painted by `shaders/render/lepidoptera_wing.gdshader`, flying (beating, gliding, a blur
   past the eye's speed), perching, its proboscis uncoiling to a point. `hummingbird_moth.gd` (`HummingbirdMoth`,
