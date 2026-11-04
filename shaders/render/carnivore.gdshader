@@ -8,7 +8,8 @@ shader_type spatial;
 //   darker along the back; its chin, throat, chest and belly white; its
 //   lower legs black (its stockings); its ears' backs black; its tail
 //   rufous, dark grizzled, its tip white
-// species 2, a coyote; 3, a grey wolf (below)
+// species 2, a coyote; 3, a grey wolf; 4, a black bear; 5, a brown bear
+//   (below)
 // species 1, a bobcat: tawny buff to grey brown, spotted and barred dark
 //   (the legs barred), its belly white, spotted black; the face's ruff
 //   barred; the ears' backs black, a white spot in each, their tufts black;
@@ -24,6 +25,9 @@ uniform int part = 0;
 uniform bool young = false;
 uniform float along = 0.0;
 uniform float ear_len = 80.0;
+uniform int phase = 0; // (a bear's colour: species 4 0 black, 1 cinnamon, 2 brown, 3 blond; species 5 0 brown, 1 grizzled, 2 blond)
+uniform float muzzle_z = -120.0; // (a bear's head: in front of this, its muzzle)
+uniform bool blaze = false; // (a black bear's white chest blaze)
 
 varying vec3 o;
 varying vec3 no;
@@ -81,6 +85,32 @@ void fragment() {
 			c = mix(red * 0.9, vec3(0.2, 0.12, 0.07), 0.35 * vn(o * 0.4)) * grizzle;
 			c = mix(c, white, smoothstep(0.82, 0.92, along));
 		}
+	} else if (species >= 4) {
+		// 4 a black bear: glossy black (or cinnamon, brown, blond), its
+		// muzzle tan, now and then a white blaze on its chest; 5 a brown
+		// bear: brown, darker on its legs, (grizzled: the hairs' tips
+		// silvered over its back and shoulders; or blond), its muzzle paler
+		vec3 base;
+		if (species == 4)
+			base = phase == 0 ? vec3(0.05, 0.045, 0.04) : (phase == 1 ? vec3(0.42, 0.24, 0.12) : (phase == 2 ? vec3(0.27, 0.18, 0.11) : vec3(0.66, 0.52, 0.33)));
+		else
+			base = phase == 2 ? vec3(0.6, 0.46, 0.29) : vec3(0.34, 0.23, 0.14);
+		c = base * (0.85 + 0.3 * vn(o * 0.5) * vn(o * 0.13 + 3.0));
+		if (species == 5) {
+			c = mix(c, c * 0.6, 1.0 - smoothstep(-0.6, 0.2, ny)); // (darker beneath and down the legs)
+			if (phase == 1) // (silver tipped)
+				c = mix(c, vec3(0.72, 0.66, 0.56), smoothstep(0.1, 0.8, ny) * (0.35 + 0.45 * vn(o * 0.7)));
+		}
+		if (part == 3 || part == 4)
+			c *= species == 5 ? 0.6 : 0.85;
+		if (part == 1 && o.z < muzzle_z) // (the muzzle)
+			c = mix(c, species == 4 ? vec3(0.55, 0.42, 0.28) : c * 1.35 + vec3(0.04), 1.0 - smoothstep(muzzle_z - 25.0, muzzle_z, o.z));
+		if (part == 0 && blaze) // (the chest blaze: a white V)
+			c = mix(c, white, (1.0 - smoothstep(14.0, 20.0, abs(o.x) + abs(o.y + 40.0) * 0.4)) * (1.0 - smoothstep(-330.0, -300.0, o.z)) * smoothstep(-470.0, -420.0, o.z));
+		if (part == 7) // (claws)
+			c = species == 5 ? vec3(0.72, 0.66, 0.56) : vec3(0.1, 0.09, 0.08);
+		if (part == 5)
+			c *= 0.9;
 	} else if (species >= 2) {
 		// 2 a coyote: grizzled grey brown above, black-tipped guard hairs
 		// along the back, tawny on its sides, legs, ears and muzzle, its
@@ -144,7 +174,7 @@ void fragment() {
 			c = mix(c, white, (1.0 - smoothstep(-0.4, 0.0, ny)));
 		}
 	}
-	if (part == 7)
+	if (part == 7 && species < 4)
 		c = vec3(0.05, 0.04, 0.03);
 	ALBEDO = c;
 	ROUGHNESS = 0.92;

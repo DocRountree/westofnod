@@ -4,7 +4,8 @@ extends "res://scripts/creatures/hexapod.gd" # (by path: found whether or not th
 ## (RedFox, Bobcat: each its shape, coat and ways, S). Its legs digitigrade:
 ## the shoulder or hip, the upper leg, the lower, the long metapodial (the
 ## hock high behind, the wrist low before), the paw, standing on its toes;
-## the elbows back, the stifles forward. Its gaits by its speed: walking
+## the elbows back, the stifles forward (or, S.plantigrade, a bear's: on its
+## whole sole, the heel down: Ursid). Its gaits by its speed: walking
 ## (each foot in turn, a hind then the fore on its side), trotting (the
 ## diagonals together), galloping (the hinds, a moment's flight, the fores;
 ## the back flexing, the body rising and pitching); each foot planted where
@@ -829,7 +830,13 @@ func _pose_legs() -> void:
 		var lifted := clampf((foot.y - gy) / 50.0, 0.0, 1.0) if not airborne else 1.0
 		var ball := foot + (-fwd * lerpf(0.95, 0.45, lifted) + up * lerpf(0.3, 0.9, lifted)).normalized() * p
 		var mdir: Vector3
-		if hind:
+		if bool(S.get("plantigrade", false)):
+			# (a bear's: flat on its sole, heel down; the heel lifting first
+			# as the foot comes up; the forefoot's wrist a little raised)
+			ball = foot + (-fwd * 0.97 + up * lerpf(0.05, 0.5, lifted)).normalized() * p
+			mdir = (-fwd + up * lerpf(0.06 if hind else 0.22, 1.2, lifted)).normalized()
+			mdir = mdir.lerp(-fwd, maxf(_sit, _lie) * (1.0 if hind else 0.5)).normalized()
+		elif hind:
 			mdir = (-fwd * lerpf(0.35, 0.7, lifted) + up).normalized()
 			mdir = mdir.lerp(-fwd, maxf(_sit, _lie)).normalized() # (sitting, lying: the hock down)
 		else:
@@ -844,7 +851,7 @@ func _pose_legs() -> void:
 		(mesh[1] as MeshInstance3D).transform = _seg(knee, top, r * (1.0 if hind else 0.85))
 		(mesh[3] as MeshInstance3D).transform = Transform3D(Basis().scaled(Vector3.ONE * r * 1.6), knee)
 		var x: Array = _legx[i]
-		(x[0] as MeshInstance3D).transform = _seg(top, ball, r * 0.7)
+		(x[0] as MeshInstance3D).transform = _seg(top, ball, r * (1.0 if bool(S.get("plantigrade", false)) else 0.7))
 		var along := foot - ball
 		var l := maxf(along.length(), 1.0)
 		var z := along / l

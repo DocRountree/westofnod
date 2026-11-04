@@ -259,6 +259,19 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   lupus*: big, deep chested, long legged, big footed, a broad head and deep muzzle, shorter rounder ears; grizzled
   grey, a darker saddle, pale buff legs and flanks, a pale underside and face mask; its tail carried low and straight,
   dark tipped); their pups born dark (a wolf's near black), blind, in the den, growing, playing.
+- `scripts/creatures/ursid.gd`, the bears' ways on the hunters' make, plantigrade (on the whole sole, the heel
+  down, lifting first; the claws out before the toes), heavy, the head low, an ambling walk and a lumbering gallop;
+  their coats by colour phase. Foraging (nose down, sniffing; digging, the forepaws raking the earth back by turns,
+  the head down in the hole, eating what's found); browsing a berry bush (`Ursid.berry_bush()`: stripping the berries
+  with the lips, up on the hind legs for the higher ones); standing up on the hind legs, forepaws hanging, sniffing
+  the air; rubbing its back up and down against a tree (its mark); a rush at its prey, a swipe, pinned; birth in its
+  den (`Ursid.den()`: a hollow under a root mound), the cubs born tiny, near naked, blind (their mother's phase),
+  growing, following her, playing (up on their hind legs together, boxing, tumbling over); mating (he follows her,
+  then mounts her from behind, his forelegs round her waist, mouthing her neck now and then). `black_bear.gd`
+  (`BlackBear`, *Ursus americanus*: no hump, a straight face, a long tan muzzle, tall rounded ears, short curved dark
+  claws; black, cinnamon, brown or blond, now and then a white chest blaze) and `brown_bear.gd` (`BrownBear`, *Ursus
+  arctos*: massive, the shoulder hump, a dished face, a broad muzzle, small round ears, long pale claws; brown,
+  grizzled or blond, darker legs).
 - `scripts/creatures/hare.gd` (`Hare`, on `hexapod.gd`'s motor, its gait its own): a snowshoe hare (*Lepus
   americanus*), life size, in its summer coat (`shaders/render/hare.gdshader`: brown, grizzled, darker along the back,
   white beneath, the hind feet paler, the ears black tipped); long spoon ears turning, laid back, pricked; big eyes
@@ -313,10 +326,10 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   wasp's pouncing on her back, stroking her antennae; the snakes', the male crawling up along her back, chin rubbing,
   their tails twisted together; the mice's, the male following her, mounting from behind, thrusting in bouts, then
   washing. `act("mate", {partner})` for any of them (pilot.gd).
-- Not yet in the game: `tools/creatures/life_cycle_demo.tscn`'s last fourteen stations (F the spiders hunt, S the web
+- Not yet in the game: `tools/creatures/life_cycle_demo.tscn`'s last sixteen stations (F the spiders hunt, S the web
   spiders spin, O the pill bugs roll; E the mice eat, Q wash; H the anoles and scorpions hunt, D the anoles display; B the hares browse, U sit up, T thump,
   X flee, N nurse; J the fox and bobcat hunt, L sleep, I groom, Z mark, A sit, V their young play;
-  . the coyotes and wolves howl; K every pair mates; 1 lay and give birth, 4 hatch, Y the young eat; the last, the desert's plants).
+  . the coyotes and wolves howl; , the bears forage, ; browse, / stand, ' rub; K every pair mates; 1 lay and give birth, 4 hatch, Y the young eat; the last, the desert's plants).
 - Steering, for a future state machine (`scripts/creatures/pilot.gd`): every creature (`Wasp`, the
   lepidopterans, `Grasshopper`, `Mantis`, `Snake`, `Larva`; one of a colony: `AntColony.member(i)`) has the same
   calls: `go(direction, speed, seconds)`, `go_to(point, speed)`, `face(direction)`, `stop()`, `act(name, args)`

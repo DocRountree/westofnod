@@ -32,6 +32,9 @@ extends Node3D
 ## bobcat (life size): a female, a male, her rock den, a hare to hunt
 ## coyote, grey wolf (life size): a female and a male each, her den, prey
 ##   (mice and a hare; a hare)
+## black bear, brown bear (life size): a female, a male and another (their
+##   colour phases: black, cinnamon, brown; brown, grizzled, blond), her
+##   den, berry bushes, a tree to rub on
 ## (every station a male too, but the ants': the female's partner)
 ##
 ## 1 every adult lays its eggs (Brood's: the butterflies one to a leaf, the
@@ -70,6 +73,8 @@ extends Node3D
 ##   sleep   I they groom   Z they mark   A they sit   V their young play
 ##   (1: they give birth in their dens; N: they nurse; K: they mate)
 ## . the coyotes and the wolves howl
+## , the bears forage (digging)   ; they browse the berries   / they stand
+##   up   ' they rub on the tree
 ## Tab / Shift+Tab: the next station   Space slow motion
 ## drag: turn round   wheel: nearer / further
 
@@ -85,7 +90,7 @@ const PupaScript := preload("res://scripts/creatures/pupa.gd")
 
 const NAMES := ["monarch", "hummingbird clearwing", "paper wasp", "carpenter ant (queen)", "red harvester (queen)", "June bug", "convergent lady beetle", "differential grasshopper", "Carolina mantis", "eastern diamondback rattlesnake", "eastern milk snake",
 		"Carolina wolf spider", "six-spotted fishing spider", "grass spider (funnel weaver)", "yellow garden spider", "pill bug", "deer mouse",
-		"green anole", "Arizona bark scorpion", "the desert's plants (not in the game yet)", "snowshoe hare", "red fox", "bobcat", "coyote", "grey wolf"]
+		"green anole", "Arizona bark scorpion", "the desert's plants (not in the game yet)", "snowshoe hare", "red fox", "bobcat", "coyote", "grey wolf", "American black bear", "brown bear (grizzly)"]
 const SpiderScript := preload("res://scripts/creatures/spider.gd")
 const IsopodScript := preload("res://scripts/creatures/isopod.gd")
 const SnakeScript := preload("res://scripts/creatures/snake.gd")
@@ -99,6 +104,9 @@ const BobcatScript := preload("res://scripts/creatures/bobcat.gd")
 const CanidScript := preload("res://scripts/creatures/canid.gd")
 const CoyoteScript := preload("res://scripts/creatures/coyote.gd")
 const WolfScript := preload("res://scripts/creatures/grey_wolf.gd")
+const UrsidScript := preload("res://scripts/creatures/ursid.gd")
+const BlackBearScript := preload("res://scripts/creatures/black_bear.gd")
+const BrownBearScript := preload("res://scripts/creatures/brown_bear.gd")
 const AnoleScript := preload("res://scripts/creatures/anole.gd")
 const ScorpionScript := preload("res://scripts/creatures/scorpion.gd")
 const JoshuaScript := preload("res://scripts/population/joshua_tree.gd")
@@ -163,6 +171,10 @@ var wolf_m: Node3D
 var _coy_den: Node3D
 var _wolf_den: Node3D
 var _hares := {} # station -> its hare (to be hunted)
+var bears: Array = [] # [female, male, another] each kind: black, brown
+var _bear_dens: Array = []
+var _bushes: Array = [] # each kind's
+var _rub_trees: Array = []
 const POND := -0.004 # m: the pond's surface, a little below the plain's
 const POND_W := 0.42 # (its half width, x)
 const POND_D := 0.36 # (its half depth, z)
@@ -174,7 +186,7 @@ var _moth_perch_n := Vector3.BACK
 
 func _station(i: int) -> Vector3:
 	# (the snakes, life size, given more room)
-	return Vector3(i * GAP + (1.2 if i >= 9 else 0.0) + (1.8 if i >= 10 else 0.0) + (1.6 if i >= 11 else 0.0) + (3.0 if i >= 19 else 0.0) + (16.0 if i >= 20 else 0.0) + (4.0 if i >= 21 else 0.0) + (4.0 if i >= 22 else 0.0) + (4.0 if i >= 23 else 0.0) + (5.0 if i >= 24 else 0.0), 0.0, 0.0)
+	return Vector3(i * GAP + (1.2 if i >= 9 else 0.0) + (1.8 if i >= 10 else 0.0) + (1.6 if i >= 11 else 0.0) + (3.0 if i >= 19 else 0.0) + (16.0 if i >= 20 else 0.0) + (4.0 if i >= 21 else 0.0) + (4.0 if i >= 22 else 0.0) + (4.0 if i >= 23 else 0.0) + (5.0 if i >= 24 else 0.0) + (6.0 if i >= 25 else 0.0) + (7.0 if i >= 26 else 0.0), 0.0, 0.0)
 
 
 func _ready() -> void:
@@ -195,7 +207,7 @@ func _ready() -> void:
 	add_child(sun)
 	# the plain, a hole left in it for the fishing spider's pond
 	var x0 := -0.95
-	var x1 := GAP * 24.0 + 64.0
+	var x1 := GAP * 26.0 + 84.0
 	var pc := _station(12)
 	var grass := Color(0.36, 0.4, 0.22)
 	_box(Vector3((x0 + pc.x - POND_W) * 0.5, -0.005, 0.0), Vector3(pc.x - POND_W - x0, 0.01, 3.0), grass)
@@ -229,6 +241,8 @@ func _ready() -> void:
 	_bobcat_station()
 	_coyote_station()
 	_wolf_station()
+	_bear_station(0)
+	_bear_station(1)
 	_male_partners()
 	_new_pupae()
 	_focus = _station(0) + Vector3(0.0, 0.08, 0.0)
@@ -850,6 +864,40 @@ func _station_hare(i: int) -> Node3D:
 	return hr
 
 
+## The bears (kind 0 black, 1 brown): a female, a male and another (each
+## its colour phase), her den, berry bushes, a tree to rub on.
+func _bear_station(kind: int) -> void:
+	var c := _station(25 + kind)
+	_box(c + Vector3(0.0, 0.0006, 0.0), Vector3(7.0, 0.002, 5.0), Color(0.3, 0.38, 0.2))
+	var den := UrsidScript.den(1.0 + 0.3 * kind)
+	den.position = c + Vector3(-2.2, 0.0, -1.6)
+	add_child(den)
+	_bear_dens.append(den)
+	var bushes := []
+	for k in 3:
+		var b := UrsidScript.berry_bush()
+		b.position = c + Vector3(1.0 + 0.9 * k, 0.0, -1.5 + 0.4 * k)
+		add_child(b)
+		bushes.append(b)
+	_bushes.append(bushes)
+	var tree := _box(c + Vector3(2.4, 2.0, 1.4), Vector3(0.35, 4.0, 0.35), Color(0.35, 0.27, 0.18))
+	_rub_trees.append(tree.position * Vector3(1.0, 0.0, 1.0))
+	var sc: Script = BlackBearScript if kind == 0 else BrownBearScript
+	var phases := ["black", "cinnamon", "brown"] if kind == 0 else ["brown", "grizzled", "blond"]
+	var trio := []
+	for j in 3:
+		var b: Node3D = sc.new(false, phases[j])
+		if j == 1:
+			b.set("male", true)
+		add_child(b)
+		b.call("place", c + Vector3(-1.2 + 1.3 * j, 0.0, 0.8 - 0.6 * j), randf() * TAU)
+		if j == 0:
+			b.set("home_den", den)
+		b.call("forage", c, 2.5)
+		trio.append(b)
+	bears.append(trio)
+
+
 ## The anoles and the scorpions hunt: a fly on the ground before each
 ## anole, a cricket before each scorpion (the young: small ones).
 func _lizards_hunt(young_only := false) -> void:
@@ -965,6 +1013,8 @@ func _mate_all() -> void:
 	pairs.append([cat_m, cat_f])
 	pairs.append([coy_m, coy_f])
 	pairs.append([wolf_m, wolf_f])
+	for b: Array in bears:
+		pairs.append([b[1], b[0]])
 	for pr: Array in pairs:
 		if is_instance_valid(pr[0]) and is_instance_valid(pr[1]):
 			pr[0].call("mate", pr[1])
@@ -1184,6 +1234,8 @@ func _lay_all() -> void:
 	cat_f.call("birth", 3, _cat_den)
 	coy_f.call("birth", 5, _coy_den)
 	wolf_f.call("birth", 5, _wolf_den)
+	for k in bears.size():
+		bears[k][0].call("birth", 2 + k, _bear_dens[k])
 
 
 func _hatch_eggs() -> void:
@@ -1297,24 +1349,43 @@ func _unhandled_input(e: InputEvent) -> void:
 				wolf_f.call("hunt", _station_hare(24))
 				wolf_m.call("hunt", _station_hare(24))
 				_go(21)
+			KEY_COMMA:
+				for k in bears.size():
+					for b: Node3D in bears[k]:
+						b.call("forage", _station(25 + k), 2.5)
+				_go(25)
+			KEY_SEMICOLON:
+				for k in bears.size():
+					for j in 3:
+						bears[k][j].call("browse", _bushes[k][j % _bushes[k].size()])
+				_go(25)
+			KEY_SLASH:
+				for k in bears.size():
+					for b: Node3D in bears[k]:
+						b.call("stand", randf_range(4.0, 7.0))
+				_go(25)
+			KEY_APOSTROPHE:
+				for k in bears.size():
+					bears[k][1].call("rub", _rub_trees[k])
+				_go(25)
 			KEY_PERIOD:
 				for c: Node3D in [coy_f, coy_m, wolf_f, wolf_m]:
 					c.call("howl", randf_range(5.0, 8.0))
 			KEY_L:
-				for c: Node3D in [fox_f, fox_m, cat_f, cat_m, coy_f, coy_m, wolf_f, wolf_m]:
+				for c: Node3D in [fox_f, fox_m, cat_f, cat_m, coy_f, coy_m, wolf_f, wolf_m] + bears[0] + bears[1]:
 					c.call("sleep", 20.0)
 			KEY_I:
-				for c: Node3D in [fox_f, fox_m, cat_f, cat_m, coy_f, coy_m, wolf_f, wolf_m]:
+				for c: Node3D in [fox_f, fox_m, cat_f, cat_m, coy_f, coy_m, wolf_f, wolf_m] + bears[0] + bears[1]:
 					c.call("groom")
 			KEY_Z:
-				for c: Node3D in [fox_f, fox_m, cat_f, cat_m, coy_f, coy_m, wolf_f, wolf_m]:
+				for c: Node3D in [fox_f, fox_m, cat_f, cat_m, coy_f, coy_m, wolf_f, wolf_m] + bears[0] + bears[1]:
 					c.call("mark")
 			KEY_A:
-				for c: Node3D in [fox_f, fox_m, cat_f, cat_m, coy_f, coy_m, wolf_f, wolf_m]:
+				for c: Node3D in [fox_f, fox_m, cat_f, cat_m, coy_f, coy_m, wolf_f, wolf_m] + bears[0] + bears[1]:
 					c.call("sit", 8.0)
 			KEY_V:
 				for c in get_children():
-					if c.get_script() in [FoxScript, BobcatScript, CoyoteScript, WolfScript] and c.get("young"):
+					if c.get_script() in [FoxScript, BobcatScript, CoyoteScript, WolfScript, BlackBearScript, BrownBearScript] and c.get("young"):
 						c.call("play")
 			KEY_B:
 				for h: HareScript in [hare_f, hare_m]:
@@ -1334,7 +1405,7 @@ func _unhandled_input(e: InputEvent) -> void:
 				_go(20)
 			KEY_N:
 				hare_f.nurse()
-				for c: Node3D in [fox_f, cat_f, coy_f, wolf_f]:
+				for c: Node3D in [fox_f, cat_f, coy_f, wolf_f, bears[0][0], bears[1][0]]:
 					c.call("nurse")
 				_go(20)
 			KEY_H:
@@ -1377,12 +1448,12 @@ func _unhandled_input(e: InputEvent) -> void:
 ## To station i (the camera further off for the snakes).
 func _go(i: int) -> void:
 	_at = i
-	_dist = 2.2 if i == 9 or i == 10 else (16.0 if i == 19 else (2.4 if i == 20 else ((5.0 if i >= 23 else 3.6) if i >= 21 else minf(_dist, 0.8))))
+	_dist = 2.2 if i == 9 or i == 10 else (16.0 if i == 19 else (2.4 if i == 20 else ((7.5 if i >= 25 else (5.0 if i >= 23 else 3.6)) if i >= 21 else minf(_dist, 0.8))))
 	_say()
 
 
 func _say() -> void:
-	_label.text = "%s   (Tab / Shift+Tab: the next)\n1 all lay eggs   2 the pupae hatch   3 new pupae   4 the eggs hatch   5 new ant eggs\n6 grasshopper hops   7 flies   8 eats   9 mantis strikes the fly   0 flies   G grooms\nR rattlesnake eats   M milk snake eats   C snakes coil   W off again   Y the young eat   P steered\nF the spiders hunt   S the web spiders spin anew   O the pill bugs roll up   K they mate   E the mice eat   Q they wash\nH the anoles and scorpions hunt   D the anoles display   B the hares browse   U sit up   T thump   X flee   N nurse\nJ the fox and bobcat hunt   L sleep   I groom   Z mark   A sit   V the young play   . the coyotes and wolves howl   Space slow motion   drag: turn round   wheel: nearer / further" % NAMES[_at]
+	_label.text = "%s   (Tab / Shift+Tab: the next)\n1 all lay eggs   2 the pupae hatch   3 new pupae   4 the eggs hatch   5 new ant eggs\n6 grasshopper hops   7 flies   8 eats   9 mantis strikes the fly   0 flies   G grooms\nR rattlesnake eats   M milk snake eats   C snakes coil   W off again   Y the young eat   P steered\nF the spiders hunt   S the web spiders spin anew   O the pill bugs roll up   K they mate   E the mice eat   Q they wash\nH the anoles and scorpions hunt   D the anoles display   B the hares browse   U sit up   T thump   X flee   N nurse\nJ the fox and bobcat hunt   L sleep   I groom   Z mark   A sit   V the young play   . the coyotes and wolves howl\n, the bears forage   ; browse   / stand up   ' rub   Space slow motion   drag: turn round   wheel: nearer / further" % NAMES[_at]
 
 
 func _process(dt: float) -> void:
