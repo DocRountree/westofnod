@@ -54,6 +54,10 @@ var _moth_leaves: Array = []
 var _cells: Array = [] # the comb's cells' mouths (the plain's)
 var _pupae: Array = []
 var _ant_eggs: Array = []
+const MOTH_PUPA := Vector3(0.2, 0.002, -0.2) # (off the clearwing's station)
+const MOTH_PUPA_TURN := 0.6
+var _moth_perch := Vector3.ZERO # (a stem by its pupa, to climb and hang from)
+var _moth_perch_n := Vector3.BACK
 
 
 func _station(i: int) -> Vector3:
@@ -137,6 +141,13 @@ func _moth_station() -> void:
 	add_child(worm)
 	worm.place(c + Vector3(-0.2, 0.0, 0.25), Vector3.RIGHT)
 	worm.wander(c + Vector3(-0.2, 0.0, 0.25), 0.08)
+	# a stem by where its pupa lies, for the moth to climb out of the
+	# litter and hang from to dry
+	var fwd := Vector3.FORWARD.rotated(Vector3.UP, MOTH_PUPA_TURN)
+	var stem := c + MOTH_PUPA + fwd * 0.05
+	_box(Vector3(stem.x, 0.08, stem.z), Vector3(0.004, 0.16, 0.004), Color(0.38, 0.33, 0.2))
+	_moth_perch = Vector3(stem.x, 0.075, stem.z) - fwd * 0.002
+	_moth_perch_n = -fwd
 	# the litter the pupa lies in
 	for k in 9:
 		var leaf := Beetles.leaf()
@@ -233,8 +244,10 @@ func _new_pupae() -> void:
 	add_child(ch)
 	_pupae.append(ch)
 	var mp := PupaScript.new("hemaris")
-	mp.position = _station(1) + Vector3(0.2, 0.002, -0.2)
-	mp.rotation.y = 0.6
+	mp.position = _station(1) + MOTH_PUPA
+	mp.rotation.y = MOTH_PUPA_TURN
+	mp.perch_at = _moth_perch
+	mp.perch_normal = _moth_perch_n
 	add_child(mp)
 	_pupae.append(mp)
 

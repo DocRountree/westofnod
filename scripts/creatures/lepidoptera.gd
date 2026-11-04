@@ -104,6 +104,17 @@ var _lay_stage := 0
 var _lay_t := 0.0
 var _after := Callable()
 var _grow := 1.0 # its wings: 0 crumpled stubs (just out of the pupa) .. 1 full
+var _droop := 0.0 # its closed wings let hang back down along it (just out: soft)
+var _emerge_phase := 2
+var _hang_at := Vector3.ZERO
+var _hang_n := Vector3.UP
+var _hang_head := Vector3.FORWARD
+var _out_from := Vector3.ZERO
+var _out_way := Vector3.DOWN
+var _out_n := Vector3.UP
+var _from_p := Vector3.ZERO
+var _from_n := Vector3.UP
+var _from_h := Vector3.FORWARD
 var _emerging := false
 var _emerge_t := 0.0
 
@@ -476,6 +487,8 @@ func _pose_wings(dt: float) -> void:
 		if _grow < 0.999: # (just out: small, crumpled, filling out)
 			var crumple := (1.0 - _grow) * (0.5 if k % 2 == 0 else -0.4)
 			hinge.transform.basis = hinge.transform.basis * Basis(Vector3.RIGHT, crumple) * Basis.from_scale(Vector3(lerpf(0.22, 1.0, _grow), 1.0, lerpf(0.35, 1.0, _grow)))
+		if _droop > 0.001 and not flying: # (closed, let hang back along its body)
+			hinge.transform.basis = Basis(Vector3.RIGHT, 1.1 * _droop) * hinge.transform.basis
 		hinge.visible = not blurred
 
 
@@ -586,37 +599,93 @@ static func _up_basis(n: Vector3) -> Basis:
 	return Basis(x, n, x.cross(n))
 
 
-## Just out of its pupa: clinging at `at` (the surface there facing normal),
-## its head toward head_way, its wings crumpled; they fill out over some
-## seconds as it hangs there, the abdomen pumping; then after (the species'
-## own doing).
-func emerge(at: Vector3, normal: Vector3, head_way: Vector3, after := Callable()) -> void:
+## Just out of its pupa: from out_from (inside the split case, its
+## parent's space; INF: already out) pushing out along out_way (its belly
+## to the case: out_normal its back), its head first; then turning and
+## climbing to hang at `at` (the surface there facing normal), its head
+## toward head_way; there its abdomen swollen, its crumpled wings hanging
+## down along it, pumped out to their full size over some seconds, the
+## abdomen shrinking as it pumps; then dried, opened and closed a while;
+## then after (the species' own doing).
+func emerge(at: Vector3, normal: Vector3, head_way: Vector3, after := Callable(), out_from := Vector3.INF, out_way := Vector3.ZERO, out_normal := Vector3.UP) -> void:
 	_lay_i = -1
 	_emerging = true
 	_emerge_t = 0.0
 	_grow = 0.0
 	_after = after
-	land(at, normal)
-	_pos = at + normal.normalized() * stand * MM
-	_heading = head_way.normalized()
+	_hang_at = at
+	_hang_n = normal.normalized()
+	_hang_head = head_way.normalized()
 	_open = 0.0
 	_flap = 0.0
 	_tongue = 0.0
 	_tongue_at = Vector3.INF
+	if out_from != Vector3.INF and out_way != Vector3.ZERO:
+		_emerge_phase = 0
+		_out_from = out_from
+		_out_way = out_way.normalized()
+		_out_n = out_normal.normalized()
+		land(out_from - _out_n * stand * MM, _out_n)
+		_pos = out_from
+		_heading = _out_way
+	else:
+		_emerge_phase = 2
+		land(at, normal)
+		_pos = at + _hang_n * stand * MM
+		_heading = _hang_head
 
 
 func _emerge_think(dt: float) -> void:
 	_emerge_t += dt
-	_grow = clampf((_emerge_t - 1.0) / 7.0, 0.0, 1.0)
-	_grow = _grow * _grow * (3.0 - 2.0 * _grow)
-	_curl = 0.12 + 0.1 * sin(_emerge_t * 2.5) * (1.0 - _grow) # (pumping blood into the wings)
-	_open = 0.0 if _emerge_t < 9.0 else 0.4 + 0.3 * sin(_emerge_t * 0.8) # (drying: opening and closing them)
-	if _emerge_t > 12.0:
-		_emerging = false
-		_grow = 1.0
-		_curl = 0.0
-		if _after.is_valid():
-			_after.call()
+	match _emerge_phase:
+		0: # pushing out, head first: its body's length along out_way
+			var k := smoothstep(0.0, 1.0, _emerge_t / 2.6)
+			# (in heaves: a push, a rest)
+			k = clampf(k + 0.04 * sin(_emerge_t * 6.0) * (1.0 - k), 0.0, 1.0)
+			_surface_n = _out_n
+			_heading = _out_way
+			_surface_p = _out_from + _out_way * k * body_len * MM * 0.85 - _out_n * stand * MM
+			_grow = 0.0
+			_droop = 1.0
+			_curl = 0.25 * sin(_emerge_t * 4.0) # (working itself out)
+			if _emerge_t > 2.6:
+				_emerge_phase = 1
+				_emerge_t = 0.0
+				_from_p = _surface_p
+				_from_n = _surface_n
+				_from_h = _heading
+		1: # turning, climbing, to hang where it'll dry
+			var k := smoothstep(0.0, 1.0, _emerge_t / 1.8)
+			_surface_p = _from_p.lerp(_hang_at, k)
+			var na := _from_n.angle_to(_hang_n)
+			var nx := _from_n.cross(_hang_n)
+			_surface_n = _from_n.rotated(nx.normalized(), na * k) if nx.length() > 1e-4 else _hang_n
+			var ha := _from_h.angle_to(_hang_head)
+			var hx := _from_h.cross(_hang_head)
+			if hx.length() < 1e-4: # (straight round: about its back)
+				hx = _hang_n
+			_heading = _from_h.rotated(hx.normalized(), ha * k)
+			_curl = 0.1
+			if _emerge_t > 1.8:
+				_emerge_phase = 2
+				_emerge_t = 0.0
+				land(_hang_at, _hang_n)
+				_heading = _hang_head
+		2: # hanging: the wings pumped out, then dried
+			_grow = clampf((_emerge_t - 0.8) / 7.0, 0.0, 1.0)
+			_grow = _grow * _grow * (3.0 - 2.0 * _grow)
+			_curl = 0.12 + 0.1 * sin(_emerge_t * 2.5) * (1.0 - _grow) # (pumping blood into the wings)
+			_droop = clampf(1.0 - (_emerge_t - 8.5) / 1.5, 0.0, 1.0) # (hanging down, till they're stiff)
+			_open = 0.0 if _emerge_t < 9.5 else 0.4 + 0.3 * sin((_emerge_t - 9.5) * 0.8) # (drying: opening and closing them)
+			if _emerge_t > 13.0:
+				_emerging = false
+				_grow = 1.0
+				_droop = 0.0
+				_curl = 0.0
+				if _after.is_valid():
+					_after.call()
+	# its abdomen swollen with the blood it pumps into its wings, going down
+	_abdomen.scale = Vector3.ONE * lerpf(1.35, 1.0, _grow)
 
 
 # ---- helpers for the species ------------------------------------------------

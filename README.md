@@ -192,9 +192,12 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   a joint; the grubs lying on their sides, legs in): the monarch's banded caterpillar with its filaments, the
   clearwing's hornworm, the lady beetle's crawling "alligator", the June bug's C-curled white grub, the wasp's and
   the ants' grubs; caterpillars rippling as they crawl, grubs curling and uncurling. The lepidopterans' pupae
-  (`pupa.gd`, `Pupa`): the monarch's jade, gold-dotted chrysalis, the clearwing's brown pupa in its cocoon; they
-  ripen, split, and the adult comes out, its wings filling out from crumpled stubs (`Lepidoptera.emerge`), then
-  flies. `tools/creatures/life_cycle_demo.tscn`, a station each (keys: 1 all lay, 2 the pupae hatch, 3 new
+  (`pupa.gd`, `Pupa`, lofted shells painted by `shaders/render/pupa.gdshader`): the monarch's jade lantern of a
+  chrysalis on its black stalk, its black and gold crown, gold spots; the clearwing's glossy mahogany pupa, ringed,
+  spiked, in a ragged cocoon in the litter. They ripen (the monarch's going clear, its wings showing through),
+  wriggle, split, and are left empty skins; the adult pushes out (the monarch head first, down; the clearwing out of
+  its cocoon), turns or climbs to hang, its abdomen swollen, its crumpled wings hanging down and pumped out to full
+  size, dried, opened and closed (`Lepidoptera.emerge`); then flies. `tools/creatures/life_cycle_demo.tscn`, a station each (keys: 1 all lay, 2 the pupae hatch, 3 new
   pupae, 4 the eggs hatch, 5 new ant eggs, Tab the next).
 - `scripts/creatures/lepidoptera.gd` (`Lepidoptera`): a butterfly or moth at twice life size, not yet in the game: built
   from parts (furred where the species is), its wings cut to their real outlines and painted, veins, borders and
