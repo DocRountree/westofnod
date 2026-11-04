@@ -31,7 +31,7 @@ extends "res://scripts/creatures/hexapod.gd" # (by path: found whether or not th
 ##   and nursing again. The young: born blind, helpless, wriggling to her;
 ##   growing, eyes open, up and about, playing (stalking, pouncing on one
 ##   another), following her
-## - mate(her): its species' (the fox's tie, the bobcat's nape bite)
+## - mate(her): its species' (the dogs' tie: Canid; the bobcat's nape bite)
 ## Steering (pilot.gd): act hunt {prey}, eat {food}, groom, sit {seconds},
 ## sleep {seconds}, mark, birth {n, den} (a female's), nurse, play (the
 ## young's), mate {partner}.
@@ -967,6 +967,9 @@ func _pose_tail(dt: float) -> void:
 				roll_r = 0.15 * sin(_t * 6.0 + k) * u * float(T.get("twitch", 0.0)) # (its tip twitching)
 			"out":
 				down = float(carry[0]) * 0.4 if k == 0 else 0.0
+			"wag": # (wagging: held up a little, swept side to side)
+				down = float(carry[0]) * 0.5 if k == 0 else float(carry[1]) * 0.3
+				roll_r = 0.45 * sin(_t * 13.0) * (0.3 + 0.7 * u)
 			"wrap": # (round its feet, sitting)
 				down = 0.9 if k == 0 else 0.15
 				roll_r = 0.45 * float(T.get("wrap", 1.0))

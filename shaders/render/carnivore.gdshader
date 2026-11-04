@@ -8,6 +8,7 @@ shader_type spatial;
 //   darker along the back; its chin, throat, chest and belly white; its
 //   lower legs black (its stockings); its ears' backs black; its tail
 //   rufous, dark grizzled, its tip white
+// species 2, a coyote; 3, a grey wolf (below)
 // species 1, a bobcat: tawny buff to grey brown, spotted and barred dark
 //   (the legs barred), its belly white, spotted black; the face's ruff
 //   barred; the ears' backs black, a white spot in each, their tufts black;
@@ -79,6 +80,37 @@ void fragment() {
 		if (part == 6) { // (the brush: grizzled, darker at its middle, its tip white)
 			c = mix(red * 0.9, vec3(0.2, 0.12, 0.07), 0.35 * vn(o * 0.4)) * grizzle;
 			c = mix(c, white, smoothstep(0.82, 0.92, along));
+		}
+	} else if (species >= 2) {
+		// 2 a coyote: grizzled grey brown above, black-tipped guard hairs
+		// along the back, tawny on its sides, legs, ears and muzzle, its
+		// throat and belly pale cream; its tail grizzled, black tipped.
+		// 3 a grey wolf: grizzled grey, a darker saddle, pale buff on its
+		// legs and flanks, its underside and its face's mask pale, its tail
+		// dark tipped
+		bool wolf = species == 3;
+		vec3 back = wolf ? vec3(0.42, 0.4, 0.37) : vec3(0.46, 0.38, 0.29);
+		vec3 side = wolf ? vec3(0.66, 0.6, 0.5) : vec3(0.64, 0.5, 0.33);
+		vec3 pale = wolf ? vec3(0.86, 0.84, 0.78) : vec3(0.88, 0.82, 0.7);
+		if (young) {
+			back = wolf ? vec3(0.16, 0.15, 0.14) : vec3(0.3, 0.26, 0.22);
+			side = wolf ? vec3(0.24, 0.22, 0.2) : vec3(0.4, 0.34, 0.27);
+			pale = side * 1.3;
+		}
+		c = mix(side, back, smoothstep(0.35, 0.85, ny)) * grizzle;
+		float saddle = smoothstep(0.8, 0.98, ny) * (0.4 + 0.6 * vn(o * 0.05));
+		c = mix(c, vec3(0.12, 0.1, 0.09), saddle * (wolf ? 0.55 : 0.4)); // (the black-tipped guard hairs)
+		c = mix(c, pale, under);
+		if (part == 1) // (the face: the muzzle and cheeks paler; a wolf's mask)
+			c = mix(c, pale, (1.0 - smoothstep(-0.4, 0.15, ny)) * (wolf ? 1.0 : 0.7));
+		if (part == 3 || part == 4) // (the legs paler, buff)
+			c = mix(side * 1.05, pale, wolf ? 0.45 : 0.2) * grizzle;
+		if (part == 5) // (the ears: tawny backed, pale furred within)
+			c = o.z > 0.0 ? side * (wolf ? 0.8 : 1.0) : pale * 0.9;
+		if (part == 6) {
+			c = mix(side, back, 0.5 + 0.3 * vn(o * 0.4)) * grizzle;
+			c = mix(c, pale, (1.0 - smoothstep(-0.4, 0.1, ny)) * 0.6);
+			c = mix(c, vec3(0.06, 0.05, 0.05), smoothstep(0.82, 0.92, along)); // (its black tip)
 		}
 	} else {
 		vec3 buff = young ? vec3(0.55, 0.5, 0.44) : vec3(0.64, 0.51, 0.36);

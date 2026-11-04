@@ -1,5 +1,5 @@
 class_name RedFox
-extends "res://scripts/creatures/carnivore.gd" # (by path: found whether or not the editor has seen the class yet)
+extends "res://scripts/creatures/canid.gd" # (by path: found whether or not the editor has seen the class yet)
 ## A red fox (Vulpes vulpes), life size (about 60 cm long and its brush as
 ## long again, 40 cm at the shoulder): slender, long legged; rufous orange
 ## above and down its sides, grizzled darker along its back; its chin,
@@ -8,12 +8,8 @@ extends "res://scripts/creatures/carnivore.gd" # (by path: found whether or not 
 ## pupils slits; big pointed ears, black backed; its brush long and full,
 ## carried low, its tip white. Kits (RedFox.new(true)): born dark grey brown,
 ## blind, in the den (RedFox.den()); growing, their eyes open, about and
-## playing. (Carnivore: its gaits and its ways.)
-## Its own: hunting mice by sound (stalking, still, its head cocked one
-## way then the other, listening; then the pounce, high, arcing, diving
-## nose and forefeet first onto it); marking (a squat); mating: he mounts
-## her, then turns round off her, and they're tied, standing tail to tail,
-## a long while.
+## playing. (Canid, Carnivore: its gaits and its ways: hunting mice by
+## sound, the pounce; the tie.) It doesn't howl.
 
 const SPEC := {
 	"species": 0,
@@ -44,85 +40,3 @@ func _init(young_ := false) -> void:
 	young = young_
 	super(young_, 0.12 if young_ else 0.5)
 	_setup()
-
-
-## A fox's den: a mound of dug earth, its mouth a dark hole at one side
-## (-z), its spoil fanned out before it. Its origin on the ground at its
-## middle.
-static func den() -> Node3D:
-	var root := Node3D.new()
-	var s := SphereMesh.new()
-	s.radius = 0.5
-	s.height = 1.0
-	var earth := StandardMaterial3D.new()
-	earth.albedo_color = Color(0.42, 0.32, 0.22)
-	earth.roughness = 1.0
-	var dark := StandardMaterial3D.new()
-	dark.albedo_color = Color(0.05, 0.04, 0.03)
-	dark.roughness = 1.0
-	for p in [[Vector3(0.0, 0.0, 0.0), Vector3(1.2, 0.5, 1.0), earth], [Vector3(0.0, 0.0, -0.55), Vector3(0.9, 0.12, 0.6), earth],
-			[Vector3(0.0, 0.1, -0.47), Vector3(0.24, 0.22, 0.1), dark]]:
-		var mi := MeshInstance3D.new()
-		mi.mesh = s
-		mi.position = p[0]
-		mi.scale = p[1]
-		mi.material_override = p[2]
-		root.add_child(mi)
-	return root
-
-
-# --- its own ways --------------------------------------------------------------------
-
-## (Listening for it, still: the head cocked one way, then the other.)
-func _attack_ready(_dt: float) -> void:
-	_look_to = Vector2(-0.25, 0.0)
-	_tail_mode = "low"
-
-
-## The pounce: up high, arcing, coming down nose and forefeet first on it.
-func _attack(_dt: float, p: Vector3, _d: float) -> bool:
-	_crouch = 0.0
-	_leap(p, 1.1)
-	return true
-
-
-func _mark(_dt: float) -> void:
-	_sit_to = 0.4 if _st < 2.2 else 0.0 # (a squat)
-	_tail_mode = "out"
-	_neck_to = Vector2(-0.2, 0.0)
-
-
-func _mount() -> Dictionary:
-	# on her from behind, his forelegs clasping her; then off her, turned
-	# round, tied, standing tail to tail
-	var k := 0.0
-	if _mate_stage == "joined":
-		k = clampf((_mate_t - mate_secs * 0.18) / 1.6, 0.0, 1.0)
-	elif _mate_stage == "part":
-		k = 1.0
-	var on_at := Vector3(0.0, 120.0, 235.0)
-	var on_b := Basis(Vector3.RIGHT, 0.4)
-	var tie_at := Vector3(0.0, 0.0, float(S.body_len) + 20.0)
-	var tie_b := Basis(Vector3.UP, PI)
-	var e := k * k * (3.0 - 2.0 * k)
-	var b := Basis(on_b.get_rotation_quaternion().slerp(tie_b.get_rotation_quaternion(), e))
-	var inv := (transform * _body.transform).affine_inverse()
-	var free := {}
-	var grips := {}
-	for i in 4:
-		var side := 1.0 if i % 2 == 1 else -1.0
-		if i < 2 and e < 0.5:
-			grips[i] = Vector3(72.0 * side, 15.0, 110.0)
-		elif i >= 2 and e < 0.5:
-			var w: Vector3 = _mate.call("_out", Vector3(55.0 * side, -body_h, 340.0))
-			w.y = _ground(w.x, w.z)
-			free[i] = inv * w
-		else:
-			free[i] = inv * _home(i)
-	_tail_mode = "out"
-	return {"at": on_at.lerp(tie_at, e), "basis": b, "grips": grips, "free": free}
-
-
-func _after_mate() -> void:
-	_tail_mode = "carry"
-	wander(_home_spot(), _radius)

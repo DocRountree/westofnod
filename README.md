@@ -232,7 +232,7 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   (`Mouse.nest()`), licking each pup clean, then nursing; the pups born pink, hairless, eyes shut, ears folded,
   wriggling where they lie; growing, furred grey, eyes open, up and about, brown as they grow up.
 - `scripts/creatures/carnivore.gd`, the four-legged hunters' make (on `hexapod.gd`'s motor), life size, under
-  `red_fox.gd` (`RedFox`: rufous, grizzled, white beneath, black stockings, a narrow white-sided muzzle, amber slit-pupilled
+  `canid.gd` (the dogs': below) and `red_fox.gd` (`RedFox`: rufous, grizzled, white beneath, black stockings, a narrow white-sided muzzle, amber slit-pupilled
   eyes, big black-backed ears, a full brush tipped white) and `bobcat.gd` (`Bobcat`: tawny to grey, spotted and barred,
   a barred ruff, white about the eyes, black-backed tufted ears with a white spot, a short barred tail black-tipped
   above); coats by `shaders/render/carnivore.gdshader`. Digitigrade legs (upper, lower, the long metapodial, the paw on
@@ -249,6 +249,16 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   wriggling to her, growing, eyes open, following her, playing (stalking, pouncing on one another, tumbling). Mating:
   the fox's tie (he mounts her, then turns round off her, and they stand tail to tail a long while); the bobcat's
   nape bite, brief, then she rolls on her back and he springs away.
+- `scripts/creatures/canid.gd`, the dogs' ways on the hunters' make (`RedFox`, `Coyote`, `GreyWolf`): small prey
+  (a mouse) by sound, the high mousing pounce; bigger (a hare) run down at a gallop, a lunge; marking with a squat;
+  courting and greeting with a wagging tail; the tie; howling (`howl(secs)`: the coyote's and the wolf's, sitting,
+  the head thrown back, the muzzle up, the mouth rounded; a coyote's yips between); dens of dug earth
+  (`Canid.den(scale)`). `coyote.gd` (`Coyote`, *Canis latrans*: lean, long legged, a long narrow muzzle, big upright
+  ears; grizzled grey brown above, black-tipped guard hairs along the back, tawny sides, legs and ears, a pale cream
+  throat and belly, yellow eyes; a bushy black-tipped tail carried low) and `grey_wolf.gd` (`GreyWolf`, *Canis
+  lupus*: big, deep chested, long legged, big footed, a broad head and deep muzzle, shorter rounder ears; grizzled
+  grey, a darker saddle, pale buff legs and flanks, a pale underside and face mask; its tail carried low and straight,
+  dark tipped); their pups born dark (a wolf's near black), blind, in the den, growing, playing.
 - `scripts/creatures/hare.gd` (`Hare`, on `hexapod.gd`'s motor, its gait its own): a snowshoe hare (*Lepus
   americanus*), life size, in its summer coat (`shaders/render/hare.gdshader`: brown, grizzled, darker along the back,
   white beneath, the hind feet paler, the ears black tipped); long spoon ears turning, laid back, pricked; big eyes
@@ -303,10 +313,10 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   wasp's pouncing on her back, stroking her antennae; the snakes', the male crawling up along her back, chin rubbing,
   their tails twisted together; the mice's, the male following her, mounting from behind, thrusting in bouts, then
   washing. `act("mate", {partner})` for any of them (pilot.gd).
-- Not yet in the game: `tools/creatures/life_cycle_demo.tscn`'s last twelve stations (F the spiders hunt, S the web
+- Not yet in the game: `tools/creatures/life_cycle_demo.tscn`'s last fourteen stations (F the spiders hunt, S the web
   spiders spin, O the pill bugs roll; E the mice eat, Q wash; H the anoles and scorpions hunt, D the anoles display; B the hares browse, U sit up, T thump,
   X flee, N nurse; J the fox and bobcat hunt, L sleep, I groom, Z mark, A sit, V their young play;
-  K every pair mates; 1 lay and give birth, 4 hatch, Y the young eat; the last, the desert's plants).
+  . the coyotes and wolves howl; K every pair mates; 1 lay and give birth, 4 hatch, Y the young eat; the last, the desert's plants).
 - Steering, for a future state machine (`scripts/creatures/pilot.gd`): every creature (`Wasp`, the
   lepidopterans, `Grasshopper`, `Mantis`, `Snake`, `Larva`; one of a colony: `AntColony.member(i)`) has the same
   calls: `go(direction, speed, seconds)`, `go_to(point, speed)`, `face(direction)`, `stop()`, `act(name, args)`
