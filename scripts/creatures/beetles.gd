@@ -65,7 +65,7 @@ func _build_mesh() -> Array:
 	# cases meeting down its middle, domed
 	ball.call(Vector3(0.0, -0.35, 0.9), Vector3(3.9, 1.5, 6.2), 0)
 	ball.call(Vector3(0.0, 0.25, -1.45), Vector3(3.8, 1.9, 2.3), 16)
-	for side in [-1.0, 1.0]:
+	for side: float in [-1.0, 1.0]:
 		ball.call(Vector3(1.0 * side, 0.45, 1.45), Vector3(2.15, 2.5, 5.9), 16)
 	ball.call(Vector3(0.0, 0.95, -0.15), Vector3(0.5, 0.25, 0.6), 16) # (the scutellum)
 	# the head: small, tucked under the pronotum's front, the eyes on its sides

@@ -63,7 +63,7 @@ func _build() -> void:
 	_part(Vector3(0.0, -0.4, -2.6), Vector3(4.0, 3.2, 6.4), black, 0.85, null, 0.2) # (its chest, under)
 	# the head: black, two big eyes, white dots round them and on the brow
 	_part(Vector3(0.0, 0.2, -7.6), Vector3(3.6, 3.3, 3.0), black, 0.75, null, 0.15)
-	for side in [-1.0, 1.0]:
+	for side: float in [-1.0, 1.0]:
 		_part(Vector3(1.45 * side, 0.45, -7.9), Vector3(1.7, 2.4, 2.3), eye, 0.22)
 		_part(Vector3(0.55 * side, 1.55, -8.4), Vector3.ONE * 0.55, white, 0.6)
 		_part(Vector3(1.55 * side, -0.85, -7.2), Vector3.ONE * 0.5, white, 0.6)
@@ -88,7 +88,7 @@ func _build() -> void:
 		var y := -0.3 - 0.0025 * z * z # (drooping a little toward its tip)
 		_part(Vector3(0.0, y, z), Vector3(wd, wd * 0.95, 3.1), black, 0.8, null, 0.12)
 		if i < segs.size() - 1:
-			for side in [-1.0, 1.0]:
+			for side: float in [-1.0, 1.0]:
 				_part(Vector3(wd * 0.44 * side, y - wd * 0.18, z), Vector3(0.38, 0.38, 0.5), white, 0.6)
 	# long slender antennae, gradually clubbed
 	_antennae(Vector3(0.6, 1.4, -8.8), 16.0, 1.0, black, 0.17, 0.25)

@@ -827,7 +827,7 @@ static func flower_mesh(kind: String, stems: int, radius: float, seed: int) -> A
 			for k in 5:
 				var at := top * (0.22 + 0.62 * k / 4.0)
 				var pa := face + k * PI * 0.5
-				for sd in [-1.0, 1.0]:
+				for sd: float in [-1.0, 1.0]:
 					var ld := Vector2(cos(pa), sin(pa)) * sd
 					var ll := rng.randf_range(0.11, 0.15) / H
 					var pts := [at, at + Vector3(ld.x * ll * 0.5, ll * 0.22, ld.y * ll * 0.5), at + Vector3(ld.x * ll, ll * 0.15, ld.y * ll)]
@@ -854,7 +854,7 @@ static func flower_mesh(kind: String, stems: int, radius: float, seed: int) -> A
 			for k in 6:
 				var at := fork * (0.2 + 0.75 * k / 5.0)
 				var pa := face + k * PI * 0.5
-				for sd in [-1.0, 1.0]:
+				for sd: float in [-1.0, 1.0]:
 					var ld := Vector2(cos(pa), sin(pa)) * sd
 					var ll := rng.randf_range(0.09, 0.13) / H
 					var pts := [at, at + Vector3(ld.x * ll * 0.5, ll * 0.35, ld.y * ll * 0.5), at + Vector3(ld.x * ll, ll * 0.45, ld.y * ll)]

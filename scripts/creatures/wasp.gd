@@ -359,7 +359,7 @@ func land(at: Vector3, normal := Vector3.UP) -> void:
 	_p.pump = 0.35
 	if not await _wait(id, 0.6):
 		return
-	for side in [-1.0, 1.0]:
+	for side: float in [-1.0, 1.0]:
 		_groom_side = side
 		_p.groom = 1.0
 		_p.head_yaw = -0.25 * side
@@ -1097,7 +1097,7 @@ func _build() -> void:
 	_ball(_body, Vector3(0.0, 1.3, 1.1), Vector3(1.1, 0.5, 0.7), yellow) # (the scutellum)
 	_ball(_body, Vector3(0.0, -0.1, 1.9), Vector3(2.0, 2.2, 1.4), dark) # (the propodeum)
 	_ball(_body, Vector3(0.0, 0.25, -2.2), Vector3(1.0, 1.0, 0.8), dark) # (the neck)
-	for side in [-1.0, 1.0]:
+	for side: float in [-1.0, 1.0]:
 		_ball(_body, Vector3(0.95 * side, 1.15, -0.75), Vector3(0.5, 0.35, 0.6), yellow) # (the tegulae, over the wings' hinges)
 	# the head
 	_head = Node3D.new()
@@ -1106,7 +1106,7 @@ func _build() -> void:
 	_ball(_head, Vector3(0.0, 0.0, -1.0), Vector3(3.3, 2.9, 1.9), brown)
 	_ball(_head, Vector3(0.0, -0.75, -1.85), Vector3(1.3, 1.0, 0.5), yellow) # (the clypeus)
 	_ball(_head, Vector3(0.0, 0.6, -1.85), Vector3(0.9, 0.5, 0.3), yellow) # (between the antennae)
-	for side in [-1.0, 1.0]:
+	for side: float in [-1.0, 1.0]:
 		_ball(_head, Vector3(1.25 * side, 0.15, -1.15), Vector3(0.9, 2.3, 1.4), eye)
 		var piv := Node3D.new()
 		piv.position = Vector3(0.45 * side, -1.2, -1.75)

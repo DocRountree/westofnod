@@ -58,13 +58,13 @@ func _build() -> void:
 	# the shoulder flaps (tegulae) a paler olive
 	_part(Vector3(0.0, 0.7, -3.0), Vector3(7.2, 6.6, 8.4), olive, 0.95, null, 0.6)
 	_part(Vector3(0.0, -1.2, -3.0), Vector3(6.0, 4.2, 7.6), cream, 0.95, null, 0.5)
-	for side in [-1.0, 1.0]:
+	for side: float in [-1.0, 1.0]:
 		var teg := _part(Vector3(2.4 * side, 2.0, -3.8), Vector3(2.6, 2.2, 5.4), olive_hi, 0.95, null, 0.6)
 		teg.rotation.z = -0.4 * side
 	# the head: olive, the big dark eyes; cream palps under the face, the
 	# coiled proboscis between
 	_part(Vector3(0.0, 0.4, -8.0), Vector3(5.0, 4.4, 4.0), olive, 0.95, null, 0.5)
-	for side in [-1.0, 1.0]:
+	for side: float in [-1.0, 1.0]:
 		_part(Vector3(1.95 * side, 0.6, -8.6), Vector3(2.3, 3.1, 2.9), dark, 0.2)
 	_part(Vector3(0.0, -1.5, -9.4), Vector3(3.2, 1.9, 2.4), cream, 0.95, null, 0.5)
 	# the abdomen: stout, tapering, in segments: olive, then the two

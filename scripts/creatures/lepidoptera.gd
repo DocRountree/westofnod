@@ -172,7 +172,7 @@ func _stick(a: Vector3, b: Vector3, r: float, color: Color, parent: Node3D = nul
 ## hook: their tips bent back (a hawk moth's).
 func _antennae(base: Vector3, length: float, club: float, color: Color, thick := 0.18, club_len := 0.22, hook := false) -> void:
 	const N := 10
-	for side in [-1.0, 1.0]:
+	for side: float in [-1.0, 1.0]:
 		var p := Vector3(base.x * side, base.y, base.z)
 		var d := Vector3(0.38 * side, 0.55, -0.74).normalized()
 		for k in N:
@@ -199,7 +199,7 @@ func _antennae(base: Vector3, length: float, club: float, color: Color, thick :=
 ## folded up against the chest, unused (a brush-footed butterfly's).
 func _legs_at(hip: Vector3, length: float, color: Color, reduced_front := false) -> void:
 	for pair in 3:
-		for side in [-1.0, 1.0]:
+		for side: float in [-1.0, 1.0]:
 			var leg := Node3D.new()
 			leg.position = hip + Vector3(0.6 * side, 0.0, (pair - 1) * 1.6)
 			_body.add_child(leg)
@@ -248,7 +248,7 @@ func _build_wings() -> void:
 		hinge.add_child(mi)
 		_hinges.append(hinge)
 	# the blur, a fan each side round the hinges, through the stroke
-	for side in [-1.0, 1.0]:
+	for side: float in [-1.0, 1.0]:
 		var m := ShaderMaterial.new()
 		m.shader = shader
 		m.set_shader_parameter("pattern", pattern)
