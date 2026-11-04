@@ -729,7 +729,7 @@ func _fox_station() -> void:
 ## A deer mouse at the fox's station (a new one, if they're all gone).
 func _fox_mouse() -> Node3D:
 	for m in _fox_mice:
-		if is_instance_valid(m) and not bool(m.get("dead")):
+		if is_instance_valid(m) and not _flag(m, "dead"):
 			if not m.has_meta("hunted"):
 				m.set_meta("hunted", true)
 				return m
@@ -765,7 +765,7 @@ func _bobcat_station() -> void:
 
 
 func _new_cat_hare() -> Node3D:
-	if is_instance_valid(_cat_hare) and not bool(_cat_hare.get("dead")):
+	if is_instance_valid(_cat_hare) and not _flag(_cat_hare, "dead"):
 		return _cat_hare
 	var c := _station(22)
 	var h := HareScript.new()
@@ -832,7 +832,7 @@ func _station_mouse(i: int) -> Node3D:
 ## The hare at station i (a new one if it's been taken).
 func _station_hare(i: int) -> Node3D:
 	var h: Node3D = _hares.get(i)
-	if is_instance_valid(h) and not bool(h.get("dead")):
+	if is_instance_valid(h) and not _flag(h, "dead"):
 		return h
 	var c := _station(i)
 	var hr := HareScript.new()
@@ -903,8 +903,8 @@ func _lizards_hunt(young_only := false) -> void:
 		var sc: Script = c.get_script()
 		if sc != AnoleScript and sc != ScorpionScript:
 			continue
-		var young := bool(c.get("young"))
-		if young_only != young or bool(c.get("dead")) or c.get("_mother") != null:
+		var young := _flag(c, "young")
+		if young_only != young or _flag(c, "dead") or c.get("_mother") != null:
 			continue
 		var p: Vector3 = c.get("_pos")
 		var a := randf() * TAU
@@ -1299,6 +1299,15 @@ func _unhandled_input(e: InputEvent) -> void:
 			_dist = minf(_dist / 0.85, 40.0)
 
 
+## Whether n's flag (a property) is set: false if it hasn't that one (a
+## monarch has no young, a hare no nymph).
+func _flag(n: Object, name: String) -> bool:
+	if n == null or not is_instance_valid(n):
+		return false
+	var v: Variant = n.get(name)
+	return v is bool and v
+
+
 ## Where a creature (or a colony, an egg) is: its own place, its parent's space.
 func _where(n: Node) -> Vector3:
 	if n is MultiMeshInstance3D:
@@ -1356,7 +1365,7 @@ func _act_here(act: String) -> void:
 ## A partner for c (its kind, the other sex, grown, at the station).
 func _partner(c: Node, all: Array) -> Node:
 	for o in all:
-		if o != c and o.get_script() == c.get_script() and bool(o.get("male")) != bool(c.get("male")) and not bool(o.get("young")) and not bool(o.get("nymph")) and not bool(o.get("dead")):
+		if o != c and o.get_script() == c.get_script() and _flag(o, "male") != _flag(c, "male") and not _flag(o, "young") and not _flag(o, "nymph") and not _flag(o, "dead"):
 			return o
 	return null
 
@@ -1364,7 +1373,7 @@ func _partner(c: Node, all: Array) -> Node:
 func _do(c: Node, act: String, all: Array) -> void:
 	var sc: Script = c.get_script()
 	var p := _where(c)
-	var young := bool(c.get("young")) or bool(c.get("nymph"))
+	var young := _flag(c, "young") or _flag(c, "nymph")
 	var st := _station(_at)
 	# hatching: an egg, a pod, an egg case, a sac, a pupa
 	if act == "hatch":
@@ -1389,7 +1398,7 @@ func _do(c: Node, act: String, all: Array) -> void:
 	if act == "mate":
 		if c is Beetles:
 			c.call("mate", 1, 0)
-		elif bool(c.get("male")) and not young and c.has_method("mate"):
+		elif _flag(c, "male") and not young and c.has_method("mate"):
 			var q := _partner(c, all)
 			if q:
 				c.call("mate", q)
@@ -1437,7 +1446,7 @@ func _do(c: Node, act: String, all: Array) -> void:
 			elif c.has_method("wander"):
 				c.call("wander", st if not c.has_method("forage") else st, 0.25 if not (c.has_method("forage") or sc == SnakeScript) else 1.2)
 		"lay":
-			if young or bool(c.get("male")):
+			if young or _flag(c, "male"):
 				return
 			if sc == MonarchScript:
 				c.call("lay", _monarch_leaves.map(func(l): return l[0]), _monarch_leaves.map(func(l): return l[1]), Callable(c, "fly").bind(st, 0.4))
