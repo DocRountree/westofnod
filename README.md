@@ -220,6 +220,33 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   haunches, turning it in its forepaws, nibbling it away; washing its face. The female gives birth in her grass nest
   (`Mouse.nest()`), licking each pup clean, then nursing; the pups born pink, hairless, eyes shut, ears folded,
   wriggling where they lie; growing, furred grey, eyes open, up and about, brown as they grow up.
+- `scripts/creatures/anole.gd` (`Anole`): a green anole (*Anolis carolinensis*), life size: leaf green above,
+  white beneath, finely pebbled, turning brown (still a long while) and green again (`shaders/render/anole.gdshader`:
+  its body and tail one skin bent along a spine, the trunk swinging side to side with its stride, the tail waving
+  after it along the ground); a long pointed head, eyes in turrets, a hinged jaw; four sprawling legs, long splayed
+  toes; the male's pink dewlap flared to display (only his). Darting and stopping, head bobs and push-ups; hunting
+  (watching, creeping, a dash and a snap, chewing); the female digging a hole with her snout and laying one leathery
+  egg in it, covered over (`Anole.AnoleEgg`: a slit, the hatchling out); mating (his display, then on her, his jaws
+  on her nape, his tail twisted under hers).
+- `scripts/creatures/scorpion.gd` (`Scorpion`, on `hexapod.gd`'s eight-legged gait, twice life size): an Arizona
+  bark scorpion (*Centruroides sculpturatus*): straw yellow, slender; carapace and eyes, the mesosoma's tergites,
+  the five-segmented tail (coiled to its side at rest, arched over its back walking) and the telson's curved sting,
+  long slender pedipalps and chelae, chelicerae, pectines. Ambushing, creeping, seizing prey in its chelae and
+  stinging it, tearing at it (`Scorpion.cricket()`); live birth (up on her legs, her forelegs a basket, the white
+  scorplings climbing onto her back and carried, then down and away, yellowing as they grow); mating, the promenade a
+  deux (juddering, his chelae holding hers, to and fro, a sting at her pedipalp, his spermatophore laid and her drawn
+  over it, then he's off).
+- The desert's plants, built whole, not in the game yet (`scripts/population/plant_mesh.gd`, `PlantMesh`: swept and
+  ribbed tubes, tapering blades, spines, ellipsoids, painted per vertex): `joshua_tree.gd` (`JoshuaTree`: the trunk
+  corky low, every branch shaggy with its dead leaves, forking crooked into an open crown, a ball of stiff blue-green
+  dagger leaves at each tip; old, younger, young with its skirt to the ground, in flower), `san_pedro_cactus.gd`
+  (`SanPedroCactus`: blue-green columns rising from the base, broad rounded ribs, felted areoles with a few short
+  spines along the crests, pinched at each year's growth, domed paler tips, corky at the foot; huge white flowers on
+  dark tubes) and `prickly_pear.gd` (`PricklyPear`: obovate pads off one another's rims, glochid tufts and pale spines
+  in diagonal rows, the oldest pads woody; wine-red tunas, yellow flowers). Four variants each, three levels of
+  detail (`build(v)`, `build_lods(v)`); `tools/plants/preview.gd` renders them (`xvfb-run godot --path .
+  --resolution 1600x900 --script res://tools/plants/preview.gd -- <out_dir> [joshua | sanpedro | pear]`), and the
+  life cycle demo's last station has them all.
 - Mating (every species but the ants: their workers don't; `hexapod.gd`'s `mate(partner)` for the walkers, each
   species saying how): a male of each (`male`, set before it's added; told apart only where it must be: the male
   spiders smaller with the swollen bulbs of their palps, the garden spider's male a quarter her size, tan and slender;
@@ -236,9 +263,9 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   wasp's pouncing on her back, stroking her antennae; the snakes', the male crawling up along her back, chin rubbing,
   their tails twisted together; the mice's, the male following her, mounting from behind, thrusting in bouts, then
   washing. `act("mate", {partner})` for any of them (pilot.gd).
-- Not yet in the game: `tools/creatures/life_cycle_demo.tscn`'s last six stations (F the spiders hunt, S the web
-  spiders spin, O the pill bugs roll; E the mice eat, Q wash; K every pair mates; 1 lay and give birth, 4 hatch,
-  Y the young eat).
+- Not yet in the game: `tools/creatures/life_cycle_demo.tscn`'s last nine stations (F the spiders hunt, S the web
+  spiders spin, O the pill bugs roll; E the mice eat, Q wash; H the anoles and scorpions hunt, D the anoles display;
+  K every pair mates; 1 lay and give birth, 4 hatch, Y the young eat; the last, the desert's plants).
 - Steering, for a future state machine (`scripts/creatures/pilot.gd`): every creature (`Wasp`, the
   lepidopterans, `Grasshopper`, `Mantis`, `Snake`, `Larva`; one of a colony: `AntColony.member(i)`) has the same
   calls: `go(direction, speed, seconds)`, `go_to(point, speed)`, `face(direction)`, `stop()`, `act(name, args)`

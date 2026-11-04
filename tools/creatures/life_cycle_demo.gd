@@ -20,6 +20,11 @@ extends Node3D
 ##   spun as it starts), yellow garden spider (its orb spun off a branch),
 ##   pill bugs in leaf litter (a female and young)
 ## deer mouse (life size): a female, a male, her grass nest, seeds
+## green anole (life size): a female, a male (his dewlap), flies to catch
+## Arizona bark scorpion: a female, a male, crickets; on sand, a prickly
+##   pear and a young San Pedro by them
+## the desert's plants (life size, not in the game yet): every Joshua
+##   tree, San Pedro cactus and prickly pear there is
 ## (every station a male too, but the ants': the female's partner)
 ##
 ## 1 every adult lays its eggs (Brood's: the butterflies one to a leaf, the
@@ -46,7 +51,10 @@ extends Node3D
 ## K they mate, each pair its own way (the male mantis eaten, the garden
 ##   spider's male dead on her; the spiders' males first charging their
 ##   palps at a sperm web)
-## E the mice eat (a seed each)   Q they wash   (1 also: the mouse gives
+## E the mice eat (a seed each)   Q they wash   H the anoles and the
+##   scorpions hunt (a fly, a cricket)   D the anoles display (1 also: the
+##   anole lays an egg, the scorpion gives birth, her young onto her back;
+##   4: the anole's eggs hatch; Y: their young hunt; K: they mate too)   (1 also: the mouse gives
 ##   birth in her nest; Y: her young, once they're about, eat)
 ## Tab / Shift+Tab: the next station   Space slow motion
 ## drag: turn round   wheel: nearer / further
@@ -62,13 +70,19 @@ const BroodScript := preload("res://scripts/creatures/brood.gd")
 const PupaScript := preload("res://scripts/creatures/pupa.gd")
 
 const NAMES := ["monarch", "hummingbird clearwing", "paper wasp", "carpenter ant (queen)", "red harvester (queen)", "June bug", "convergent lady beetle", "differential grasshopper", "Carolina mantis", "eastern diamondback rattlesnake", "eastern milk snake",
-		"Carolina wolf spider", "six-spotted fishing spider", "grass spider (funnel weaver)", "yellow garden spider", "pill bug", "deer mouse"]
+		"Carolina wolf spider", "six-spotted fishing spider", "grass spider (funnel weaver)", "yellow garden spider", "pill bug", "deer mouse",
+		"green anole", "Arizona bark scorpion", "the desert's plants (not in the game yet)"]
 const SpiderScript := preload("res://scripts/creatures/spider.gd")
 const IsopodScript := preload("res://scripts/creatures/isopod.gd")
 const SnakeScript := preload("res://scripts/creatures/snake.gd")
 const HopperScript := preload("res://scripts/creatures/grasshopper.gd")
 const MantisScript := preload("res://scripts/creatures/mantis.gd")
 const MouseScript := preload("res://scripts/creatures/mouse.gd")
+const AnoleScript := preload("res://scripts/creatures/anole.gd")
+const ScorpionScript := preload("res://scripts/creatures/scorpion.gd")
+const JoshuaScript := preload("res://scripts/population/joshua_tree.gd")
+const SanPedroScript := preload("res://scripts/population/san_pedro_cactus.gd")
+const PearScript := preload("res://scripts/population/prickly_pear.gd")
 const GAP := 0.9 # m between stations
 
 var cam: Camera3D
@@ -106,6 +120,10 @@ var mouse_f: MouseScript
 var mouse_m: MouseScript
 var _nest: Node3D
 var _seeds: Array = []
+var anole_f: AnoleScript
+var anole_m: AnoleScript
+var scorp_f: ScorpionScript
+var scorp_m: ScorpionScript
 const POND := -0.004 # m: the pond's surface, a little below the plain's
 const POND_W := 0.42 # (its half width, x)
 const POND_D := 0.36 # (its half depth, z)
@@ -117,7 +135,7 @@ var _moth_perch_n := Vector3.BACK
 
 func _station(i: int) -> Vector3:
 	# (the snakes, life size, given more room)
-	return Vector3(i * GAP + (1.2 if i >= 9 else 0.0) + (1.8 if i >= 10 else 0.0) + (1.6 if i >= 11 else 0.0), 0.0, 0.0)
+	return Vector3(i * GAP + (1.2 if i >= 9 else 0.0) + (1.8 if i >= 10 else 0.0) + (1.6 if i >= 11 else 0.0) + (3.0 if i >= 19 else 0.0), 0.0, 0.0)
 
 
 func _ready() -> void:
@@ -138,7 +156,7 @@ func _ready() -> void:
 	add_child(sun)
 	# the plain, a hole left in it for the fishing spider's pond
 	var x0 := -0.95
-	var x1 := GAP * 17.0 + 5.0
+	var x1 := GAP * 20.0 + 22.0
 	var pc := _station(12)
 	var grass := Color(0.36, 0.4, 0.22)
 	_box(Vector3((x0 + pc.x - POND_W) * 0.5, -0.005, 0.0), Vector3(pc.x - POND_W - x0, 0.01, 3.0), grass)
@@ -164,6 +182,9 @@ func _ready() -> void:
 	_spider_stations()
 	_isopod_station()
 	_mouse_station()
+	_anole_station()
+	_scorpion_station()
+	_desert_station()
 	_male_partners()
 	_new_pupae()
 	_focus = _station(0) + Vector3(0.0, 0.08, 0.0)
@@ -527,6 +548,98 @@ func _seed_near(p: Vector3) -> Node3D:
 	return best
 
 
+## The anoles: a female and a male, a little leaf litter.
+func _anole_station() -> void:
+	var c := _station(17)
+	for k in 6:
+		var leaf := Beetles.leaf()
+		leaf.position = c + Vector3(randf_range(-0.15, 0.15), 0.0002 * k, randf_range(-0.15, 0.15))
+		leaf.rotation.y = randf() * TAU
+		leaf.scale = Vector3(0.6, 1.0, 0.6)
+		(leaf.get_child(0) as MeshInstance3D).material_override = _plain(Color(0.4, 0.3, 0.16).lerp(Color(0.3, 0.24, 0.12), randf()))
+		add_child(leaf)
+	anole_f = AnoleScript.new()
+	add_child(anole_f)
+	anole_f.place(c, 0.5)
+	anole_f.wander(c, 0.2)
+	anole_m = AnoleScript.new()
+	anole_m.male = true
+	add_child(anole_m)
+	anole_m.place(c + Vector3(-0.15, 0.0, 0.12), 2.2)
+	anole_m.wander(c, 0.25)
+
+
+## The scorpions, on sand: a female and a male; a prickly pear and a young
+## San Pedro by them.
+func _scorpion_station() -> void:
+	var c := _station(18)
+	_box(c + Vector3(0.0, 0.0006, 0.0), Vector3(0.8, 0.002, 0.8), Color(0.72, 0.62, 0.46))
+	var pear := MeshInstance3D.new()
+	pear.mesh = PearScript.build(1)
+	pear.position = c + Vector3(0.25, 0.0, -0.3)
+	add_child(pear)
+	var sp := MeshInstance3D.new()
+	sp.mesh = SanPedroScript.build(2)
+	sp.position = c + Vector3(-0.3, 0.0, -0.25)
+	add_child(sp)
+	scorp_f = ScorpionScript.new()
+	add_child(scorp_f)
+	scorp_f.place(c, 0.3)
+	scorp_f.wander(c, 0.15)
+	scorp_m = ScorpionScript.new()
+	scorp_m.male = true
+	add_child(scorp_m)
+	scorp_m.place(c + Vector3(-0.12, 0.0, 0.15), 2.0)
+	scorp_m.wander(c, 0.18)
+
+
+## Every Joshua tree, San Pedro and prickly pear (life size, not in the
+## game yet), on a patch of desert.
+func _desert_station() -> void:
+	var c := _station(19)
+	_box(c + Vector3(6.0, 0.0008, -5.0), Vector3(18.0, 0.002, 12.0), Color(0.72, 0.62, 0.46))
+	for v in JoshuaScript.VARIANTS.size():
+		var mi := MeshInstance3D.new()
+		mi.mesh = JoshuaScript.build(v)
+		mi.position = c + Vector3(-1.0 + v * 4.5, 0.0, -9.0)
+		add_child(mi)
+	for v in SanPedroScript.VARIANTS.size():
+		var mi := MeshInstance3D.new()
+		mi.mesh = SanPedroScript.build(v)
+		mi.position = c + Vector3(0.5 + v * 2.6, 0.0, -4.0)
+		add_child(mi)
+	for v in PearScript.VARIANTS.size():
+		var mi := MeshInstance3D.new()
+		mi.mesh = PearScript.build(v)
+		mi.position = c + Vector3(0.5 + v * 2.6, 0.0, -1.2)
+		add_child(mi)
+
+
+## The anoles and the scorpions hunt: a fly on the ground before each
+## anole, a cricket before each scorpion (the young: small ones).
+func _lizards_hunt(young_only := false) -> void:
+	for c in get_children():
+		var sc: Script = c.get_script()
+		if sc != AnoleScript and sc != ScorpionScript:
+			continue
+		var young := bool(c.get("young"))
+		if young_only != young or bool(c.get("dead")) or c.get("_mother") != null:
+			continue
+		var p: Vector3 = c.get("_pos")
+		var a := randf() * TAU
+		var f: Node3D
+		if sc == AnoleScript:
+			f = MantisScript.fly_prey()
+			f.scale = Vector3.ONE * (0.5 if not young else 0.25) # (life size)
+			f.position = p + Vector3(cos(a), 0.0, sin(a)) * (0.12 if not young else 0.05)
+		else:
+			f = ScorpionScript.cricket()
+			f.scale = Vector3.ONE * (1.0 if not young else 0.3)
+			f.position = p + Vector3(cos(a), 0.0, sin(a)) * (0.1 if not young else 0.04)
+		add_child(f)
+		c.call("hunt", f)
+
+
 ## A male for each female (not the ants': their queens').
 func _male_partners() -> void:
 	var m := MonarchScript.new()
@@ -610,6 +723,8 @@ func _mate_all() -> void:
 			sm.place(_station(11 + k) + Vector3(0.2, 0.0, 0.15), 1.0)
 			males["spider%d" % k] = sm
 		pairs.append([sm, spiders[k]])
+	pairs.append([anole_m, anole_f])
+	pairs.append([scorp_m, scorp_f])
 	for pr: Array in pairs:
 		if is_instance_valid(pr[0]) and is_instance_valid(pr[1]):
 			pr[0].call("mate", pr[1])
@@ -820,11 +935,13 @@ func _lay_all() -> void:
 		sp.lay()
 	pillbug.lay()
 	mouse_f.birth(4, _nest)
+	anole_f.lay(_station(17) + Vector3(0.08, 0.0, -0.06))
+	scorp_f.birth(12)
 
 
 func _hatch_eggs() -> void:
 	var all: Array = []
-	for list: Array in [_ant_eggs, monarch.eggs, moth.eggs, wasp.eggs, june.eggs, lady.eggs, milk.eggs]:
+	for list: Array in [_ant_eggs, monarch.eggs, moth.eggs, wasp.eggs, june.eggs, lady.eggs, milk.eggs, anole_f.eggs]:
 		all.append_array(list)
 	for e in all:
 		if is_instance_valid(e):
@@ -907,6 +1024,7 @@ func _unhandled_input(e: InputEvent) -> void:
 				milk.wander(_station(10), 0.55)
 			KEY_Y:
 				_young_eat()
+				_lizards_hunt(true)
 			KEY_P:
 				_pilot_demo()
 			KEY_F:
@@ -923,6 +1041,12 @@ func _unhandled_input(e: InputEvent) -> void:
 						_spin_orb(sp, randi())
 			KEY_K:
 				_mate_all()
+			KEY_H:
+				_lizards_hunt()
+			KEY_D:
+				anole_f.display()
+				anole_m.display()
+				_go(17)
 			KEY_E:
 				for mo: MouseScript in [mouse_f, mouse_m]:
 					mo.eat(_seed_near(mo.get("_pos")))
@@ -955,16 +1079,16 @@ func _unhandled_input(e: InputEvent) -> void:
 ## To station i (the camera further off for the snakes).
 func _go(i: int) -> void:
 	_at = i
-	_dist = 2.2 if i == 9 or i == 10 else minf(_dist, 0.8)
+	_dist = 2.2 if i == 9 or i == 10 else (16.0 if i == 19 else minf(_dist, 0.8))
 	_say()
 
 
 func _say() -> void:
-	_label.text = "%s   (Tab / Shift+Tab: the next)\n1 all lay eggs   2 the pupae hatch   3 new pupae   4 the eggs hatch   5 new ant eggs\n6 grasshopper hops   7 flies   8 eats   9 mantis strikes the fly   0 flies   G grooms\nR rattlesnake eats   M milk snake eats   C snakes coil   W off again   Y the young eat   P steered\nF the spiders hunt   S the web spiders spin anew   O the pill bugs roll up   K they mate   E the mice eat   Q they wash\nSpace slow motion   drag: turn round   wheel: nearer / further" % NAMES[_at]
+	_label.text = "%s   (Tab / Shift+Tab: the next)\n1 all lay eggs   2 the pupae hatch   3 new pupae   4 the eggs hatch   5 new ant eggs\n6 grasshopper hops   7 flies   8 eats   9 mantis strikes the fly   0 flies   G grooms\nR rattlesnake eats   M milk snake eats   C snakes coil   W off again   Y the young eat   P steered\nF the spiders hunt   S the web spiders spin anew   O the pill bugs roll up   K they mate   E the mice eat   Q they wash\nH the anoles and scorpions hunt   D the anoles display   Space slow motion   drag: turn round   wheel: nearer / further" % NAMES[_at]
 
 
 func _process(dt: float) -> void:
-	var want := _station(_at) + Vector3(0.0, 0.08, 0.0)
+	var want := _station(_at) + (Vector3(6.0, 2.0, -5.0) if _at == 19 else Vector3(0.0, 0.08, 0.0))
 	_focus = _focus.lerp(want, 1.0 - exp(-4.0 * dt / maxf(Engine.time_scale, 0.01)))
 	var off := Vector3(sin(_yaw) * cos(_pitch), -sin(_pitch), cos(_yaw) * cos(_pitch)) * _dist
 	cam.global_position = _focus + off
