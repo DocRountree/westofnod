@@ -82,6 +82,7 @@ var _gulp := 0.0
 var _prey: Node3D
 var _mate: Frog
 var _role := ""
+var _mate_len := 12.0 # (how long a mating lasts, s)
 var _held_by: Frog
 var _growing := 0.0
 var _pilot: PilotScript
@@ -395,7 +396,7 @@ func mate(partner: Node3D, secs := 14.0) -> bool:
 	her._role = "female"
 	her._go_mode("courted")
 	_go_mode("mate")
-	_wait = secs
+	_mate_len = secs
 	return true
 
 
@@ -576,7 +577,7 @@ func _mate_think(_dt: float) -> void:
 		1: # (amplexus: on her back, clasped; she swims on, then lays)
 			if _st > 4.0 and her._mode != "lay":
 				her.lay()
-			if _st > _wait and her._mode != "lay":
+			if _st > _mate_len and her._mode != "lay":
 				_end_mate()
 
 
@@ -739,6 +740,8 @@ func _pose(dt: float) -> void:
 	for k in _sacs.size():
 		_sacs[k].visible = _sac > 0.02
 		_sacs[k].scale = Vector3(8.0, 8.0, 9.0) * lerpf(0.3, 1.6, _sac)
+	if not (_mode == "hunt" and _stage == 1):
+		_tongue = move_toward(_tongue, 0.0, dt * 8.0) # (back in)
 	_tongue_mi.visible = _tongue > 0.02
 	_tongue_mi.scale = Vector3(4.0, 2.0, 1.0 + 110.0 * _tongue)
 	_tongue_mi.position = Vector3(0.0, 6.0, -30.0 - 55.0 * _tongue)
@@ -919,6 +922,7 @@ class Eggs extends Node3D:
 	var _done := false
 
 	func _ready() -> void:
+		position = at # (where it is: its parts about it)
 		var s := SphereMesh.new()
 		s.radius = 0.5
 		s.height = 1.0
@@ -936,13 +940,13 @@ class Eggs extends Node3D:
 			j.mesh = s
 			j.material_override = jm
 			j.scale = Vector3.ONE * 0.008
-			j.position = p
+			j.position = p - at
 			add_child(j)
 			var e := MeshInstance3D.new()
 			e.mesh = s
 			e.material_override = em
 			e.scale = Vector3.ONE * 0.0032
-			e.position = p
+			e.position = p - at
 			add_child(e)
 
 	func _process(dt: float) -> void:

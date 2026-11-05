@@ -1234,6 +1234,7 @@ class Eggs extends Node3D:
 	var _done := false
 
 	func _ready() -> void:
+		position = at # (where it is: its parts about it)
 		var s := SphereMesh.new()
 		s.radius = 0.5
 		s.height = 1.0
@@ -1244,7 +1245,7 @@ class Eggs extends Node3D:
 			e.mesh = s
 			e.material_override = m
 			e.scale = Vector3(0.0012, 0.0026, 0.0012)
-			e.position = at + Vector3(0.0035, -0.004 * k, 0.0)
+			e.position = Vector3(0.0035, -0.004 * k, 0.0)
 			add_child(e)
 
 	func _process(dt: float) -> void:

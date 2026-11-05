@@ -82,6 +82,7 @@ var _dig := 0.0
 var _food: Node3D
 var _mate: Turtle
 var _role := ""
+var _mate_len := 12.0 # (how long a mating lasts, s)
 var _pilot: PilotScript
 var _piloting := false
 var rng := RandomNumberGenerator.new()
@@ -347,7 +348,7 @@ func mate(partner: Node3D, secs := 12.0) -> bool:
 	her._role = "female"
 	her._go_mode("courted")
 	_go_mode("mate")
-	_wait = secs
+	_mate_len = secs
 	return true
 
 
@@ -479,7 +480,7 @@ func _mate_think(_dt: float) -> void:
 			_speed = 0.0
 			_yaw = lerp_angle(_yaw, her._yaw + PI, 0.1)
 			_flutter = 1.0 if fmod(_st, 2.5) < 1.6 else 0.0
-			if _st > _wait * 0.6:
+			if _st > _mate_len * 0.6:
 				her._depth_to = maxf(water_y - floor_y - 0.04 * size, 0.0) # (she sinks: accepting)
 				_stage = 2
 				_st = 0.0
@@ -490,7 +491,7 @@ func _mate_think(_dt: float) -> void:
 			_go_to(over, 0.05)
 			_yaw = lerp_angle(_yaw, her._yaw, 0.1)
 			_pitch = lerpf(_pitch, -0.25, 0.1)
-			if _st > _wait * 0.5:
+			if _st > _mate_len * 0.5:
 				_pitch = 0.0
 				her._depth_to = 0.0
 				_end_mate()
@@ -499,7 +500,7 @@ func _mate_think(_dt: float) -> void:
 func _nest_think(_dt: float) -> void:
 	match _stage:
 		0: # (out onto the bank)
-			_go_to(bank, 0.03)
+			_go_to(bank, 0.06)
 			if Vector2(_pos.x - bank.x, _pos.z - bank.z).length() < 0.04:
 				_stage = 1
 				_st = 0.0
@@ -529,7 +530,7 @@ func _nest_think(_dt: float) -> void:
 				_pitch = 0.0
 				_stage = 4
 		4: # (back to the water)
-			_go_to(pond[0], 0.03)
+			_go_to(pond[0], 0.06)
 			if _in_water(_pos):
 				wander(pond[0], 0.4)
 
@@ -767,6 +768,7 @@ class Nest extends Node3D:
 	var _t := 0.0
 
 	func _ready() -> void:
+		position = at # (where it is: its parts about it)
 		var s := SphereMesh.new()
 		s.radius = 0.5
 		s.height = 1.0
@@ -776,7 +778,7 @@ class Nest extends Node3D:
 		d.mesh = s
 		d.material_override = dirt
 		d.scale = Vector3(0.1, 0.012, 0.09)
-		d.position = at + Vector3(0.0, 0.002, 0.0)
+		d.position = Vector3(0.0, 0.002, 0.0)
 		add_child(d)
 		var em := StandardMaterial3D.new()
 		em.albedo_color = Color(0.93, 0.9, 0.84)
@@ -785,7 +787,7 @@ class Nest extends Node3D:
 			e.mesh = s
 			e.material_override = em
 			e.scale = Vector3(0.012, 0.012, 0.018) * 1.6
-			e.position = at + Vector3(randf_range(-0.02, 0.02), 0.008, randf_range(-0.02, 0.02))
+			e.position = Vector3(randf_range(-0.02, 0.02), 0.008, randf_range(-0.02, 0.02))
 			add_child(e)
 			_eggs.append(e)
 
