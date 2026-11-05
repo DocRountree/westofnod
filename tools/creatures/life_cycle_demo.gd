@@ -39,6 +39,7 @@ extends Node3D
 ##   along (no nest)
 ## eastern fox squirrel: a female and a male, their tree (her drey in it),
 ##   nuts to eat (E) and cache (B); F up the tree, D its tail flicked
+## eastern grey squirrel: the same (after the beavers)
 ## North American beaver: a female and a male, a bank with aspens and sticks
 ##   (E eat bark, H fell an aspen and take it to the lodge), a pond and their
 ##   lodge (B swim, X tail slap and dive, M mud on the lodge)
@@ -74,7 +75,7 @@ const PupaScript := preload("res://scripts/creatures/pupa.gd")
 
 const NAMES := ["monarch", "hummingbird clearwing", "paper wasp", "carpenter ant (queen)", "red harvester (queen)", "June bug", "convergent lady beetle", "differential grasshopper", "Carolina mantis", "eastern diamondback rattlesnake", "eastern milk snake",
 		"Carolina wolf spider", "six-spotted fishing spider", "grass spider (funnel weaver)", "yellow garden spider", "pill bug", "deer mouse",
-		"green anole", "Arizona bark scorpion", "snowshoe hare", "red fox", "bobcat", "coyote", "grey wolf", "American black bear", "brown bear (grizzly)", "American bison", "white-tailed deer", "trigonalid wasp", "eastern fox squirrel", "North American beaver"]
+		"green anole", "Arizona bark scorpion", "snowshoe hare", "red fox", "bobcat", "coyote", "grey wolf", "American black bear", "brown bear (grizzly)", "American bison", "white-tailed deer", "trigonalid wasp", "eastern fox squirrel", "North American beaver", "eastern grey squirrel"]
 const SpiderScript := preload("res://scripts/creatures/spider.gd")
 const IsopodScript := preload("res://scripts/creatures/isopod.gd")
 const SnakeScript := preload("res://scripts/creatures/snake.gd")
@@ -96,6 +97,7 @@ const ScorpionScript := preload("res://scripts/creatures/scorpion.gd")
 const BisonScript := preload("res://scripts/creatures/bison.gd")
 const DeerScript := preload("res://scripts/creatures/deer.gd")
 const SquirrelScript := preload("res://scripts/creatures/fox_squirrel.gd")
+const GreySqScript := preload("res://scripts/creatures/grey_squirrel.gd")
 const BeaverScript := preload("res://scripts/creatures/beaver.gd")
 const TrigScript := preload("res://scripts/creatures/trigonalid.gd")
 const GAP := 0.9 # m between stations
@@ -183,7 +185,7 @@ var _moth_perch_n := Vector3.BACK
 
 func _station(i: int) -> Vector3:
 	# (the snakes, life size, given more room)
-	return Vector3(i * GAP + (1.2 if i >= 9 else 0.0) + (1.8 if i >= 10 else 0.0) + (1.6 if i >= 11 else 0.0) + (3.0 if i >= 19 else 0.0) + (4.0 if i >= 20 else 0.0) + (4.0 if i >= 21 else 0.0) + (4.0 if i >= 22 else 0.0) + (5.0 if i >= 23 else 0.0) + (6.0 if i >= 24 else 0.0) + (7.0 if i >= 25 else 0.0) + (9.0 if i >= 26 else 0.0) + (9.0 if i >= 27 else 0.0) + (4.5 if i >= 28 else 0.0) + (3.0 if i >= 29 else 0.0) + (5.0 if i >= 30 else 0.0), 0.0, 0.0)
+	return Vector3(i * GAP + (1.2 if i >= 9 else 0.0) + (1.8 if i >= 10 else 0.0) + (1.6 if i >= 11 else 0.0) + (3.0 if i >= 19 else 0.0) + (4.0 if i >= 20 else 0.0) + (4.0 if i >= 21 else 0.0) + (4.0 if i >= 22 else 0.0) + (5.0 if i >= 23 else 0.0) + (6.0 if i >= 24 else 0.0) + (7.0 if i >= 25 else 0.0) + (9.0 if i >= 26 else 0.0) + (9.0 if i >= 27 else 0.0) + (4.5 if i >= 28 else 0.0) + (3.0 if i >= 29 else 0.0) + (5.0 if i >= 30 else 0.0) + (5.0 if i >= 31 else 0.0), 0.0, 0.0)
 
 
 func _ready() -> void:
@@ -244,6 +246,7 @@ func _ready() -> void:
 	_trig_station()
 	_squirrel_station()
 	_beaver_station()
+	_squirrel_station(31, GreySqScript)
 	_male_partners()
 	_new_pupae()
 	_focus = _station(0) + Vector3(0.0, 0.08, 0.0)
@@ -918,10 +921,10 @@ func _empty_cells() -> Array:
 	return out
 
 
-## The fox squirrels: a female and a male, their tree (her drey up in it),
-## nuts under it.
-func _squirrel_station() -> void:
-	var c := _station(29)
+## The fox squirrels (or the grey: station 31): a female and a male, their
+## tree (her drey up in it), nuts under it.
+func _squirrel_station(at := 29, sc: Script = SquirrelScript) -> void:
+	var c := _station(at)
 	_box(c + Vector3(0.0, 0.0006, 0.0), Vector3(3.0, 0.002, 2.4), Color(0.36, 0.38, 0.2))
 	var made: Array = SquirrelScript.tree(0.12, 4.5)
 	var tree: Node3D = made[0]
@@ -932,10 +935,10 @@ func _squirrel_station() -> void:
 	for k in 6:
 		_sq_nut(c + Vector3(randf_range(-1.0, 1.0), 0.0, randf_range(-0.8, 0.8)))
 	for m in 2:
-		var q: Node3D = SquirrelScript.new()
+		var q: Node3D = sc.new()
 		q.set("male", m == 1)
 		add_child(q)
-		q.set("tree_at", _sq_tree)
+		q.set("tree_at", tree.position)
 		q.set("tree_r", 0.12)
 		if m == 0:
 			q.set("drey", drey)
@@ -1703,7 +1706,7 @@ func _do(c: Node, act: String, all: Array) -> void:
 				c.call("birth", 2)
 			elif sc == HareScript:
 				c.call("birth", 4)
-			elif sc == SquirrelScript:
+			elif (sc == SquirrelScript or sc == GreySqScript):
 				c.call("birth", 3) # (up in her drey)
 			elif sc == BeaverScript:
 				c.call("birth", 3)
@@ -1722,7 +1725,7 @@ func _do(c: Node, act: String, all: Array) -> void:
 		"sleep":
 			if c.has_method("sleep"):
 				c.call("sleep", 20.0)
-			elif sc == HareScript or sc == SquirrelScript:
+			elif sc == HareScript or (sc == SquirrelScript or sc == GreySqScript):
 				c.call("freeze", 12.0) # (still in its form)
 			elif sc == SnakeScript:
 				c.call("coil")
@@ -1735,8 +1738,8 @@ func _do(c: Node, act: String, all: Array) -> void:
 				c.call("search", st, 0.5, _moth_flowers)
 			elif sc == Wasp or sc == TrigScript:
 				c.call("seek_food", st, 0.6 if sc == Wasp else 0.4)
-			elif sc == SquirrelScript and not young: # (F: up its tree)
-				c.call("climb", _sq_tree, randf_range(1.8, 3.0))
+			elif (sc == SquirrelScript or sc == GreySqScript) and not young: # (F: up its tree)
+				c.call("climb", c.get("tree_at"), randf_range(1.8, 3.0))
 			elif sc == HopperScript:
 				var a := randf() * TAU
 				c.call("hop" if young else "fly", st + Vector3(cos(a), 0.0, sin(a)) * (0.2 if young else 0.35))
@@ -1750,7 +1753,7 @@ func _do(c: Node, act: String, all: Array) -> void:
 				c.call("roll", 5.0)
 			elif sc == BeaverScript: # (its tail slapped on the water, and under)
 				c.call("slap")
-			elif sc == HareScript or sc == SquirrelScript: # (a squirrel: up its tree)
+			elif sc == HareScript or (sc == SquirrelScript or sc == GreySqScript): # (a squirrel: up its tree)
 				c.call("flee", p + Vector3(randf_range(-1, 1), 0.0, randf_range(-1, 1)).normalized() * 0.5)
 			elif sc == ScorpionScript and not young:
 				var a := randf() * TAU
@@ -1766,7 +1769,7 @@ func _do(c: Node, act: String, all: Array) -> void:
 				c.call("display")
 			elif sc == HareScript:
 				c.call("thump")
-			elif sc == SquirrelScript:
+			elif (sc == SquirrelScript or sc == GreySqScript):
 				c.call("flick") # (its tail flicked, chattering)
 			elif sc == BisonScript:
 				if _flag(c, "male") and not young:
@@ -1788,7 +1791,7 @@ func _do(c: Node, act: String, all: Array) -> void:
 		"forage":
 			if sc == BeaverScript and not young: # (B: off for a swim)
 				c.call("swim", Vector3(_bv_bank + 1.4, 0.0, st.z), 1.0)
-			elif sc == SquirrelScript and not young: # (B: a nut cached)
+			elif (sc == SquirrelScript or sc == GreySqScript) and not young: # (B: a nut cached)
 				var a := randf() * TAU
 				c.call("cache", _sq_nut_near(p), p + Vector3(cos(a), 0.0, sin(a)) * 0.7)
 			elif sc == DeerScript and not young:
@@ -1820,7 +1823,7 @@ func _do(c: Node, act: String, all: Array) -> void:
 				c.call("ruminate", 12.0) # (lying, chewing its cud)
 			elif c.has_method("sit"):
 				c.call("sit", 8.0)
-			elif sc == HareScript or sc == SquirrelScript:
+			elif sc == HareScript or (sc == SquirrelScript or sc == GreySqScript):
 				c.call("alert")
 			elif sc == MouseScript:
 				c.call("groom")
@@ -1909,7 +1912,7 @@ func _feed(c: Node, act: String, young: bool, p: Vector3, st: Vector3) -> void:
 		c.call("hunt", f)
 	elif sc == HareScript:
 		c.call("eat", _hare_food_near(p, act == "hunt" and not young)) # (H: the willow shoot, sitting up)
-	elif sc == SquirrelScript:
+	elif (sc == SquirrelScript or sc == GreySqScript):
 		if not young:
 			c.call("eat", _sq_nut_near(p))
 	elif sc == BeaverScript:
@@ -1968,7 +1971,7 @@ func _feed(c: Node, act: String, young: bool, p: Vector3, st: Vector3) -> void:
 ## To station i (the camera further off for the snakes).
 func _go(i: int) -> void:
 	_at = i
-	_dist = 4.2 if i == 30 else 2.4 if i == 29 else 0.8 if i == 28 else 2.2 if i == 9 or i == 10 else (2.4 if i == 19 else ((6.0 if i >= 27 else (9.0 if i >= 26 else (7.5 if i >= 24 else (5.0 if i >= 22 else 3.6)))) if i >= 20 else minf(_dist, 0.8)))
+	_dist = 2.4 if i == 31 else 4.2 if i == 30 else 2.4 if i == 29 else 0.8 if i == 28 else 2.2 if i == 9 or i == 10 else (2.4 if i == 19 else ((6.0 if i >= 27 else (9.0 if i >= 26 else (7.5 if i >= 24 else (5.0 if i >= 22 else 3.6)))) if i >= 20 else minf(_dist, 0.8)))
 	_say()
 
 

@@ -379,6 +379,30 @@ void fragment() {
 		if (pt == 5.0)
 			c = rn.z > 0.0 ? rust * 1.15 : mix(grizzle, rust, 0.6);
 		c = mix(vec3(0.88, 0.6, 0.55), c, fur);
+	} else if (species == 12) {
+		// an eastern grey squirrel: grizzled silver grey, washed brown along
+		// its back, over its head and down its legs; its belly, throat and
+		// eye rings white; its ears grey, white behind; its tail grey, the
+		// hairs banded black and tipped white, a silvery fringe; a kit pink
+		// and naked (fur: 0)
+		vec3 grey = vec3(0.52, 0.51, 0.49);
+		vec3 brown = vec3(0.5, 0.39, 0.27);
+		vec3 belly = vec3(0.9, 0.89, 0.86);
+		c = countershade(mix(grey, brown, 0.45) * 0.85, grey, belly, ny, -0.1);
+		c *= 0.8 + 0.4 * vn(rp * 0.4) * vn(rp * 0.1 + 6.0); // (the hairs' bands: grizzled)
+		c = mix(c, brown * 1.05, fw * smoothstep(-0.1, 0.6, ny) * 0.28); // (its head's brown wash)
+		c = mix(c, belly, chin);
+		if (leg)
+			c = mix(mix(grey, brown, 0.5), grey * 0.95, smoothstep(0.5, 0.9, a)) * (0.88 + 0.18 * vn(rp * 0.3));
+		if (pt == 6.0) {
+			float band = smoothstep(0.4, 0.7, vn(rp * 0.12)) * smoothstep(0.3, 0.7, vn(rp * 0.45 + 3.0));
+			vec3 core = mix(grey * 0.95, vec3(0.12, 0.11, 0.1), band * 0.6);
+			c = mix(core, vec3(0.92, 0.91, 0.88), smoothstep(0.75, 0.98, abs(normalize(rn).x)) * 0.75); // (its white fringe)
+			c = mix(c, mix(grey, belly, 0.3), (1.0 - smoothstep(-0.7, -0.3, ny)) * 0.7);
+		}
+		if (pt == 5.0)
+			c = rn.z > 0.0 ? mix(grey, belly, 0.5) : grey * 0.9;
+		c = mix(vec3(0.88, 0.6, 0.55), c, fur);
 	} else if (species == 11) {
 		// a beaver: rich dark brown, glossy, its sides warmer, its belly a
 		// little paler; its feet bare, black; its tail a scaled black paddle
@@ -464,11 +488,11 @@ void fragment() {
 		vec3 dvb = qb / vec3(1.0, sculpt ? almond : 0.72, 1.25);
 		float da = min(length(dva), length(dvb)) / bare_r;
 		float lid = sculpt ? (1.0 - smoothstep(0.98, 1.1, da)) * smoothstep(0.84, 0.95, da) : (1.0 - smoothstep(1.02, 1.22, da)) * smoothstep(0.7, 0.9, da);
-		vec3 rim_c = species == 8 || species == 10 ? c * 0.45 : vec3(0.05, 0.04, 0.035);
+		vec3 rim_c = species == 8 || species == 10 || species == 12 ? c * 0.45 : vec3(0.05, 0.04, 0.035);
 		c = mix(c, rim_c, lid * fw * 0.85);
 		// (ahead of its eyes: its muzzle)
 		float ahead = fw * smoothstep(ea.z - bare_r * 1.2, ea.z - bare_r * 3.5, hp.z);
-		bool rodent = species == 8 || species == 9 || species == 10 || species == 11;
+		bool rodent = species == 8 || species == 9 || species == 10 || species == 11 || species == 12;
 		if (pt == 1.0 && !rodent && !sculpt) // (its lower lip's edge: dark)
 			c = mix(c, vec3(0.06, 0.045, 0.04), smoothstep(0.15, 0.55, ny) * ahead * 0.9);
 		if (pt == 1.0 && sculpt) // (its lower lip: only the thinnest dark edge, hidden under the upper)

@@ -347,6 +347,11 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   head first; fleeing up it; its tail-flicking, chattering alarm; birth up in her leaf drey, the kits pink, naked,
   blind, furred as they grow; the hare's mating chase. The life cycle demo's last station: a female and a male, an
   oak with her drey, nuts under it (E eat, B cache, F climb, X flee up, D flick, 1 birth in the drey).
+- `scripts/creatures/grey_squirrel.gd` (`GreySquirrel`, *Sciurus carolinensis*, on `FoxSquirrel`): an eastern grey
+  squirrel, its model and ways the fox squirrel's, a little larger here (size 0.33); its coat `carnivore.gdshader`'s
+  species 12: grizzled silver grey washed brown along the back, over the head and down the legs, white beneath and
+  round the eyes, the tail grey, its hairs black banded, a white fringe. Its own station in the life cycle demo
+  (after the beavers'), the same keys.
 - `scripts/creatures/hare.gd` (`Hare`, on `hexapod.gd`'s motor, its gait its own): a snowshoe hare (*Lepus
   americanus*), life size, in its summer coat (`carnivore.gdshader`'s species 8: brown, grizzled, darker along the back,
   white beneath, the hind feet paler, the ears black tipped); long spoon ears turning, laid back, pricked; big eyes
