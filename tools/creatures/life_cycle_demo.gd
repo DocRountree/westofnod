@@ -1228,6 +1228,18 @@ func _station_mouse(i: int) -> Node3D:
 	return mo
 
 
+## A grey squirrel about station i, on the ground (prey).
+func _station_squirrel(i: int) -> Node3D:
+	var c := _station(i)
+	var sq: Node3D = GreySqScript.new()
+	add_child(sq)
+	var a := randf() * TAU
+	var at := c + Vector3(cos(a), 0.0, sin(a)) * randf_range(0.9, 1.5)
+	sq.call("place", at, randf() * TAU)
+	sq.call("wander", at, 0.4)
+	return sq
+
+
 ## The hare at station i (a new one if it's been taken).
 func _station_hare(i: int) -> Node3D:
 	var h: Node3D = _hares.get(i)
@@ -2369,16 +2381,19 @@ func _feed(c: Node, act: String, young: bool, p: Vector3, st: Vector3) -> void:
 		if k >= 0: # (each bear its own bush: two at one, their personal space keeps one off it)
 			c.call("browse", _bushes[k][trio.find(c) % (_bushes[k] as Array).size()])
 	elif c.has_method("hunt") and not young: # (the hunters: their prey here)
+		# (each its own diet: mice, squirrels, hares, as it takes them; the
+		# kill carried off in its jaws, eaten from them if it's small)
+		var r := randf()
 		if sc == FoxScript:
-			c.call("hunt", _fox_mouse())
+			c.call("hunt", _fox_mouse() if r < 0.6 else (_station_squirrel(20) if r < 0.85 else _station_hare(20)))
 		elif sc == BobcatScript:
-			c.call("hunt", _new_cat_hare())
+			c.call("hunt", _new_cat_hare() if r < 0.5 else (_station_squirrel(21) if r < 0.8 else _station_mouse(21)))
 		elif sc == CoyoteScript:
-			c.call("hunt", _station_mouse(22) if randf() < 0.5 else _station_hare(22))
+			c.call("hunt", _station_mouse(22) if r < 0.4 else (_station_hare(22) if r < 0.7 else _station_squirrel(22)))
 		elif sc == WolfScript:
-			c.call("hunt", _station_hare(23))
-		else: # (a bear, hunting: the hare here, or a new one)
-			c.call("hunt", _station_hare(_at))
+			c.call("hunt", _station_hare(23) if r < 0.75 else _station_mouse(23))
+		else: # (a bear: a hare, a mouse, a squirrel)
+			c.call("hunt", _station_hare(_at) if r < 0.5 else (_station_mouse(_at) if r < 0.75 else _station_squirrel(_at)))
 
 
 ## To station i (the camera further off for the snakes).
@@ -2393,7 +2408,7 @@ func _say() -> void:
 
 
 func _process(dt: float) -> void:
-	var want := _station(_at) + Vector3(0.0, 0.08, 0.0)
+	var want := _station(_at) + Vector3(0.0, 0.38 if _at == 28 else 0.08, 0.0) # (the trigonalids up at the flowers' heads)
 	_focus = _focus.lerp(want, 1.0 - exp(-4.0 * dt / maxf(Engine.time_scale, 0.01)))
 	var off := Vector3(sin(_yaw) * cos(_pitch), -sin(_pitch), cos(_yaw) * cos(_pitch)) * _dist
 	cam.global_position = _focus + off

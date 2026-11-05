@@ -1,5 +1,6 @@
 class_name Population
 extends Node3D
+const SettingsScript := preload("res://scripts/settings.gd") # (by path: found whether or not the editor has seen its class yet)
 ## Everything that grows or lives on the land: static props (PropKind: trees,
 ## rocks, grass) and actors (ActorKind: NPCs, animals).
 ##
@@ -113,7 +114,7 @@ func _ready() -> void:
 		ia = ia if ia >= 0 else (FIRST_KINDS.size() + 1 + LATE_KINDS.find(String(a.id)) if String(a.id) in LATE_KINDS else FIRST_KINDS.size())
 		ib = ib if ib >= 0 else (FIRST_KINDS.size() + 1 + LATE_KINDS.find(String(b.id)) if String(b.id) in LATE_KINDS else FIRST_KINDS.size())
 		return ia < ib if ia != ib else String(a.id) < String(b.id))
-	Settings.ensure_loaded()
+	SettingsScript.ensure_loaded()
 	OakTree.refresh_view()
 	for k in kinds:
 		if k is PropKind:

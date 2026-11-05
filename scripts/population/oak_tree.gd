@@ -1,4 +1,5 @@
 class_name OakTree
+const SettingsScript := preload("res://scripts/settings.gd") # (by path: found whether or not the editor has seen its class yet)
 ## The English oak (Quercus robur): four hand-set standing trees, a stump,
 ## three dead standing trees, three fallen logs and two saplings (variants 0-12), grown into a
 ## TreeBuilder skeleton and dressed with data/population/textures/oak_*.png
@@ -370,7 +371,7 @@ static func _lod_span(m: ShaderMaterial, level: int) -> void:
 ## The far cards' reach, m: VIEW, or the player's own (Settings: the tree
 ## render distance).
 static func view() -> float:
-	return maxf(Settings.tree_distance, LOD[LOD.size() - 1] + 20.0)
+	return maxf(SettingsScript.tree_distance, LOD[LOD.size() - 1] + 20.0)
 
 
 ## (The cards' materials made before, their reach brought to the setting's:

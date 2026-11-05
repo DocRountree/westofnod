@@ -1,5 +1,6 @@
 class_name GroundCover
 extends Node3D
+const SettingsScript := preload("res://scripts/settings.gd") # (by path: found whether or not the editor has seen its class yet)
 ## Grass and ferns: too many to place one by one (Population), so a grid of
 ## cells follows the camera and works out what grows in each from where
 ## the cell is: the same clump in the same place every time, nothing stored.
@@ -191,7 +192,7 @@ func setup(w: WorldData) -> void:
 		var L := L0.duplicate(true)
 		# (out as far as the player's grass distance, Settings: every layer's
 		# fades and thinning in step, so each still hands on to the next)
-		var gs := Settings.grass_distance
+		var gs := SettingsScript.grass_distance
 		for key in ["fade_in", "fade_out"]:
 			if L.u.has(key):
 				L.u[key] = (L.u[key] as Vector2) * gs

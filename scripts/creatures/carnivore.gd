@@ -51,6 +51,8 @@ var _st := 0.0
 var _stage := 0
 var _prey: Node3D
 var _prey_s := Vector3.ONE
+var _lay := Vector3.ZERO # (where its kill's laid, to eat: the world's)
+var _carry_to := Vector3.ZERO
 var _held := false
 var _born_left := 0
 var _mother: Node3D # (a young one's)
@@ -971,32 +973,82 @@ func _hunt(dt: float) -> void:
 				else:
 					_stage = 1 # (missed: after it again)
 					_st = 0.0
-		5: # to its food, then eating: crouched over it, tearing, chewing
+		5: # to its food (left lying: carrion, a kill set before it); or its kill
+			# in its jaws, carried off a few lengths to eat
 			_crouch = move_toward(_crouch, float(S.eat_crouch), dt)
 			if not _held:
 				_target = p - to.normalized() * float(S.mouth_z) * -MM * size * 0.9
 				if d < -float(S.mouth_z) * MM * size * 1.1 and _speed < 0.05:
 					_target = _pos
 					_turn_to = atan2(-to.x, -to.z)
+					_lay = p
 					_stage = 6
 					_st = 0.0
 			else:
-				_held = false
-				var lay := _out(Vector3(0.0, -body_h, float(S.mouth_z) - 40.0))
-				_prey.global_position = Vector3(lay.x, _ground(lay.x, lay.z), lay.z)
-				_stage = 6
-				_st = 0.0
+				if _st < dt * 1.5: # (where to: on ahead, a few of its lengths)
+					var ahead := Vector3(-sin(_yaw), 0.0, -cos(_yaw))
+					_carry_to = _pos + ahead * float(S.body_len) * MM * size * 3.0
+				_target = _carry_to
+				_pace = float(S.walk) * 1.6
+				_tail_mode = "carry"
+				_neck_to = Vector2(0.15, 0.0) # (its head up, the prey hanging from its jaws)
+				if _st > 5.0 or Vector2(_pos.x - _carry_to.x, _pos.z - _carry_to.z).length() < 0.15:
+					_target = _pos
+					_pace = -1.0
+					var lay := _out(Vector3(0.0, -body_h, float(S.mouth_z) - 40.0))
+					_lay = Vector3(lay.x, _ground(lay.x, lay.z), lay.z)
+					_held = _small_prey() # (a little one eaten from its jaws; a bigger laid down)
+					if not _held:
+						_prey.global_position = _lay
+					_stage = 6
+					_st = 0.0
 		6:
 			_target = _pos
-			_neck_to = Vector2(-0.95, 0.0)
-			_look_to = Vector2(-0.3 + 0.25 * maxf(sin(_st * 2.3), 0.0), 0.25 * sin(_st * 1.7)) # (tearing: pulling up and to the side)
 			_chew = 1.0
-			_jaw_to = 0.3 * maxf(sin(_st * 6.0), 0.0)
 			_prey.scale = _prey_s * maxf(1.0 - _st / 15.0, 0.05)
-			if _st > 15.0:
-				_prey.queue_free()
-				_prey = null
-				groom()
+			if _small_prey(): # (in its jaws: its head up, chewing, working it down, a toss now and then)
+				_held = true
+				_neck_to = Vector2(-0.15, 0.0)
+				_look_to = Vector2(0.15 + 0.2 * maxf(sin(_st * 1.3), 0.0), 0.15 * sin(_st * 0.9))
+				_jaw_to = 0.22 * maxf(sin(_st * 7.0), 0.0)
+				if _st > 9.0:
+					_prey.queue_free()
+					_prey = null
+					_held = false
+					groom()
+			else: # (laid down: its head to it, tearing: a bite, the carcass lifted in its jaws and pulled at, let down)
+				_neck_to = Vector2(-0.95, 0.0)
+				var ph := fmod(_st, 2.4)
+				var pulling := ph > 1.2 and ph < 2.1
+				_look_to = Vector2(-0.3 + (0.55 if pulling else 0.0), 0.25 * sin(_st * 1.7)) # (pulling up and to the side)
+				_jaw_to = 0.08 if pulling else 0.3 * maxf(sin(_st * 6.0), 0.0)
+				if pulling != _held:
+					_held = pulling
+					if not pulling and is_instance_valid(_prey):
+						_prey.global_position = _lay
+				if _st > 15.0:
+					_held = false
+					_prey.queue_free()
+					_prey = null
+					groom()
+
+
+## Whether its prey is small enough to eat from its jaws (about a quarter of
+## its own length or less: a mouse for any of them, a squirrel for a coyote,
+## a wolf or a bear); bigger it's laid down and torn at.
+func _small_prey() -> bool:
+	if not is_instance_valid(_prey):
+		return false
+	var path := (_prey.get_script() as Script).resource_path if _prey.get_script() else ""
+	var plen := 0.3
+	if "mouse" in path:
+		plen = 0.09
+	elif "squirrel" in path:
+		plen = 0.26
+	elif "hare" in path:
+		plen = 0.45
+	var ps := float(_prey.get("size")) / 0.5 if _prey.get("size") != null else 1.0
+	return plen * ps < float(S.body_len) * MM * size * 0.27
 
 
 ## (The species: getting ready to spring, still; and its attack, each frame:
