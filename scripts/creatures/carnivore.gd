@@ -1079,6 +1079,8 @@ func _play(dt: float) -> void:
 # --- the motor: its walk (its gaits' pace), its gait ------------------------------
 
 func _walk(dt: float) -> void:
+	if _mate_role == "male" and _mate_stage in ["seek", "court"] and is_instance_valid(_mate):
+		_target = _around_her(_target) # (round her, never through her)
 	var to := _target - _pos
 	to.y = 0.0
 	var d := to.length()
@@ -1104,10 +1106,10 @@ func _walk(dt: float) -> void:
 
 
 # --- personal space ------------------------------------------------------------
-# (Not collision: each one a circle on the ground, its body's size; two
-# that overlap are eased apart, each its half. Off when they're meant to
-# touch: mating, nursing, suckling, playing, hunting and eating, sparring;
-# the young; the airborne, the dead.)
+# (Not collision: each one a capsule on the ground, from its rump to its
+# muzzle, as wide as its body; two that overlap are eased apart, each its
+# half. Off when they're meant to touch: mating, nursing, suckling,
+# playing, hunting and eating, sparring; the young; the airborne, the dead.)
 
 static var _all: Array = []
 const TOUCHING := ["nurse", "suckle", "play", "hunt", "eat", "spar", "follow", "newborn", "birth", "carry", "piloted"]
@@ -1123,30 +1125,57 @@ func _exit_tree() -> void:
 
 
 func _space_r() -> float:
-	return float(S.body_len) * 0.3 * MM * size
+	return float(S.body_w) * MM * size
+
+
+## (Its capsule's spine on the ground: [rump, muzzle], world xz.)
+func _space_spine() -> Array:
+	var f := Vector2(-sin(_yaw), -cos(_yaw))
+	var c := Vector2(_pos.x, _pos.z)
+	var r := _space_r()
+	return [c - f * maxf(float(S.body_len) * 0.5 * MM * size - r, 0.0), c + f * maxf(absf(float(S.mouth_z)) * 0.85 * MM * size - r, 0.0)]
 
 
 func _touch_ok() -> bool:
 	return young or dead or airborne or _mate_role != "" or _mode in TOUCHING
 
 
+static func _seg_pt(p: Vector2, a: Vector2, b: Vector2) -> Vector2:
+	var ab := b - a
+	return a + ab * clampf((p - a).dot(ab) / maxf(ab.length_squared(), 1e-8), 0.0, 1.0)
+
+
 func _keep_apart() -> void:
 	if _touch_ok():
 		return
+	var me := _space_spine()
+	var a0: Vector2 = me[0]
+	var a1: Vector2 = me[1]
 	for o: Node in _all:
 		if o == self or not is_instance_valid(o) or o.call("_touch_ok"):
 			continue
-		var op: Vector3 = o.get("_pos")
-		var d := Vector2(_pos.x - op.x, _pos.z - op.z)
+		var them: Array = o.call("_space_spine")
+		var b0: Vector2 = them[0]
+		var b1: Vector2 = them[1]
 		var want := _space_r() + float(o.call("_space_r"))
-		var l := d.length()
-		if l >= want:
+		# (the spines' nearest points: the best of each end to the other)
+		var best := INF
+		var pa := a0
+		var pb := b0
+		for q: Array in [[a0, _seg_pt(a0, b0, b1)], [a1, _seg_pt(a1, b0, b1)], [_seg_pt(b0, a0, a1), b0], [_seg_pt(b1, a0, a1), b1]]:
+			var dd := (q[0] as Vector2).distance_to(q[1])
+			if dd < best:
+				best = dd
+				pa = q[0]
+				pb = q[1]
+		if best >= want:
 			continue
-		if l < 1e-4: # (on top of one another: either way)
-			d = Vector2(1.0, 0.0).rotated(float(get_instance_id() % 628) * 0.01)
-			l = 1.0
-			d *= want
-		var push := d / l * (want - minf(l, want)) * 0.5
+		var n := pa - pb
+		if n.length() < 1e-4: # (crossing: apart from each other's middle)
+			n = Vector2(_pos.x, _pos.z) - Vector2((o.get("_pos") as Vector3).x, (o.get("_pos") as Vector3).z)
+			if n.length() < 1e-4:
+				n = Vector2(1.0, 0.0).rotated(float(get_instance_id() % 628) * 0.01)
+		var push := n.normalized() * (want - best) * 0.5
 		_pos.x += push.x
 		_pos.z += push.y
 
@@ -1410,6 +1439,35 @@ func _mate_approach() -> Vector3:
 	return Vector3(0.0, -body_h, float(S.body_len) * 1.2)
 
 
+## (Courting, behind her: where his body's middle is (her body mm) when his
+## head reaches to her tail's root; k, how far it reaches on (1 his nose
+## just touching her, less his chin up on her rump).)
+func _behind_her(k := 1.0) -> Vector3:
+	var hs := maxf(float(_mate.get("size")), 0.01)
+	return Vector3(0.0, -body_h, float(S.body_len) * 0.5 + absf(float(S.mouth_z)) * k * size / hs)
+
+
+## (His way to a point near her, not through her: if the straight line from
+## him crosses her body, first to her side, beside her flank, then behind.)
+func _around_her(p: Vector3) -> Vector3:
+	var hs := float(_mate.get("size")) * MM
+	var hc: Vector3 = _mate.call("_out", Vector3(0.0, 0.0, 0.0))
+	var tail: Vector3 = _mate.call("_out", Vector3(0.0, 0.0, 100.0))
+	var back := Vector2(tail.x - hc.x, tail.z - hc.z).normalized()
+	var r := float(S.body_len) * 0.5 * hs + _space_r()
+	var a := Vector2(_pos.x - hc.x, _pos.z - hc.z)
+	var b := Vector2(p.x - hc.x, p.z - hc.z)
+	var ab := b - a
+	var t := clampf(-a.dot(ab) / maxf(ab.length_squared(), 1e-6), 0.0, 1.0)
+	if (a + ab * t).length() > r * 0.9 or a.dot(back) > r * 0.8:
+		return p # (clear of her, or already behind her)
+	var side := Vector2(-back.y, back.x)
+	if a.dot(side) < 0.0:
+		side = -side
+	var w := side * r * 1.25 + back * r * 0.6
+	return Vector3(hc.x + w.x, p.y, hc.z + w.y)
+
+
 func _mate_leave() -> Vector3:
 	return Vector3(float(S.body_w) * 3.0, -body_h, float(S.body_len) * 0.8)
 
@@ -1423,7 +1481,7 @@ func _mating(dt: float) -> void:
 	_sit_to = 0.0
 	_lie_to = 0.0
 	if _mate_role == "male" and _mate_stage == "court":
-		var nose: Vector3 = _mate.call("_out", Vector3(0.0, -body_h, float(S.body_len) * 0.65)) # (nose to her)
+		var nose: Vector3 = _mate.call("_out", _behind_her(0.95)) # (his nose to her)
 		_target = Vector3(nose.x, _pos.y, nose.z)
 		_neck_to = Vector2(-0.4, 0.0)
 		_sniff = 1.0
@@ -1435,8 +1493,8 @@ func _after_mate() -> void:
 
 
 ## Joined, on her: his pelvis thrusting, in bouts (his body driven forward
-## and back on her, a little tilt with it); his hind legs braced back, a
-## little bent still, his feet planted on the ground behind.
+## and back on her, a little tilt with it); his hind legs braced, bent,
+## his feet planted on the ground under his rump.
 ## (A dict's "thrust": false, the species' own: a canid's tie.)
 func _mount_thrust(m: Dictionary, her_t: Transform3D, hs: float) -> Dictionary:
 	if not bool(m.get("thrust", true)):
@@ -1460,16 +1518,14 @@ func _mount_thrust(m: Dictionary, her_t: Transform3D, hs: float) -> Dictionary:
 		var hp: Vector3 = L.hip
 		var hip_w := t0 * Vector3(hp.x * side, hp.y, hp.z)
 		var fw: Vector3 = cur * (free[i] as Vector3)
-		var reach := (float(L.f) + float(L.t) + float(L.s)) * MM * size * float(S.get("brace", 0.86)) # (braced, not locked straight: the species' own)
+		var reach := (float(L.f) + float(L.t) + float(L.s)) * MM * size * float(S.get("brace", 0.74)) # (braced under his rump, bent, not locked straight: the species' own)
 		# |fw + back * u - hip_w| = reach, for u >= 0
 		var d := fw - hip_w
 		var bq := 2.0 * d.dot(back)
 		var cq := d.length_squared() - reach * reach
 		var disc := bq * bq - 4.0 * cq
 		if disc > 0.0:
-			var u := (-bq + sqrt(disc)) * 0.5
-			if u > 0.0:
-				fw += back * u
+			fw += back * (-bq + sqrt(disc)) * 0.5 # (back if his leg's too bent, forward if it's stretched)
 		fw.y = _ground(fw.x, fw.z)
 		feet_w[i] = fw
 	# (the thrusts: quick, in bouts, a pause between; quicker the smaller he is)

@@ -725,7 +725,7 @@ func _mount() -> Dictionary:
 func _mating(dt: float) -> void:
 	super(dt)
 	if _mate_role == "male" and _mate_stage == "court":
-		var rump: Vector3 = _mate.call("_out", Vector3(0.0, -body_h, float(S.body_len) * 0.9))
+		var rump: Vector3 = _mate.call("_out", _behind_her(0.9))
 		_target = Vector3(rump.x, _pos.y, rump.z)
 		_neck_to = Vector2(-0.35, 0.0) # (his head low and out)
 		_ears_to = -0.4
