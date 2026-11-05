@@ -82,7 +82,11 @@ static func point(P: Dictionary, z: float, phi: float) -> Vector3:
 	var em := Vector3(e.x * side, e.y, e.z)
 	var dis := 0.0
 	# the socket, and its lids' almond rim
-	var q := (p - em) / Vector3(1.0, 0.7, 1.35)
+	var al := float(P.get("almond", 0.7))
+	var sl := float(P.get("slant", 0.0)) # (its outer corner up: the fox's oblique eye)
+	var dq := p - em
+	dq.y -= sl * dq.z # (its long axis tipped: the corner behind raised)
+	var q := dq / Vector3(1.0, al, 1.35)
 	var d := q.length()
 	if d < er:
 		var k := 1.0 - (d / er) * (d / er)
@@ -127,7 +131,7 @@ static func eye_seat(P: Dictionary, ball_r: float) -> Array:
 			best = p
 			phi_best = phi
 	var n: Vector3 = _base(P, e.z, phi_best)[1]
-	var look := (n + Vector3(0.0, 0.0, -0.55)).normalized()
+	var look := (n + Vector3(0.0, 0.0, -float(P.get("look_fwd", 0.55)))).normalized()
 	return [best - n * (ball_r * 0.55 + float(P.socket) * 0.6), look]
 
 

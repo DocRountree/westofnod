@@ -218,6 +218,8 @@ func _build() -> void:
 			m.set_shader_parameter("bare_b", sculpt.eye)
 			m.set_shader_parameter("nose_c", Vector3(0.0, (SculptScript._key(sculpt, "top", zt) + SculptScript._key(sculpt, "bot", zt)) * 0.5 + float(sculpt.nose_r) * 0.25, zt + float(sculpt.nose_r) * 0.4))
 			m.set_shader_parameter("nose_r", sculpt.nose_r)
+			m.set_shader_parameter("almond", float(sculpt.get("almond", 0.72)))
+			m.set_shader_parameter("slant", float(sculpt.get("slant", 0.0)))
 	for side: float in [-1.0, 1.0]:
 		if not sculpt.is_empty():
 			# (its eyeball: the iris's colour all its front, the pupil a slit
@@ -226,14 +228,33 @@ func _build() -> void:
 			em2.clearcoat_enabled = true
 			em2.clearcoat = 0.8
 			em2.clearcoat_roughness = 0.1
-			var ec := Vector3(eat.x * side, eat.y, eat.z)
+			# (an almond: long along its slant, narrow, just proud of its lids)
 			var lk := Vector3(look.x * side, look.y, look.z)
-			var r_ := es.y * 0.5
-			var eb := _part(ec, Vector3.ONE * r_ * 2.0, em2, _head)
+			var er_ := float(sculpt.eye_r)
+			var al := float(sculpt.get("almond", 0.6))
+			var sl := float(sculpt.get("slant", 0.0))
+			var surf := Vector3((sculpt.eye as Vector3).x * side, (sculpt.eye as Vector3).y, (sculpt.eye as Vector3).z)
+			surf = SculptScript.point(sculpt, surf.z, atan2(surf.x, surf.y - (SculptScript._key(sculpt, "top", surf.z) + SculptScript._key(sculpt, "bot", surf.z)) * 0.5))
+			var ec := surf - lk * er_ * 0.16
+			var long_ := Vector3(0.0, sl, 1.0).normalized() # (its long axis: back and a little up)
+			long_ = (long_ - lk * long_.dot(lk)).normalized()
+			var upv := lk.cross(long_).normalized() * side
+			var eb := MeshInstance3D.new()
+			eb.mesh = _sphere
+			eb.material_override = em2
+			_head.add_child(eb)
+			eb.transform = Transform3D(Basis(upv * er_ * 2.1 * al, lk * er_ * 0.75, long_ * er_ * 2.2), ec)
+			if side > 0.0: # (its lids' line drawn round where it actually sits)
+				for m: ShaderMaterial in [face, body]:
+					m.set_shader_parameter("bare_b", surf)
+					m.set_shader_parameter("bare_a", surf * Vector3(-1.0, 1.0, 1.0))
 			_eyes.append(eb)
-			var pu2 := _part(ec + lk * r_ * 0.93, Vector3(r_ * 0.22, r_ * 2.0 * float(E.get("slit", 0.4)) * 0.85, r_ * 0.22), _mat(Color(0.01, 0.008, 0.006), 0.05), _head)
-			pu2.basis = Basis.looking_at(lk, Vector3.UP) * Basis.from_scale(pu2.scale)
-			var lid2 := _part(ec, Vector3.ONE * r_ * 2.15, face, _head)
+			var pu2 := MeshInstance3D.new()
+			pu2.mesh = _sphere
+			pu2.material_override = _mat(Color(0.01, 0.008, 0.006), 0.05)
+			_head.add_child(pu2)
+			pu2.transform = Transform3D(Basis(upv * er_ * 1.8 * al, lk * er_ * 0.2, long_ * er_ * 0.26), ec + lk * er_ * 0.3)
+			var lid2 := _part(ec, Vector3.ONE * er_ * 1.9, face, _head)
 			lid2.visible = false
 			_lids.append(lid2)
 			continue
