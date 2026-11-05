@@ -243,3 +243,151 @@ static func along(a: Vector3, b: Vector3, side := Vector3.RIGHT) -> Transform3D:
 	x = x.normalized()
 	var z := x.cross(y)
 	return Transform3D(Basis(x, y, z), a)
+
+
+# --- the small mammals' make (Hare, Mouse, FoxSquirrel, Beaver): no neck of
+# its own (the head on the body), legs of three bones each --------------------
+
+## The body (torso keys [z, y, half width, half height], the torso's bone)
+## rounding up into the head (head keys in the head's space, at rest hrest)
+## to its nose: one tube; its chest's front apart beneath. along: the body
+## 0..0.6, the head 0.75..1.
+func body_head(torso: int, body_keys: Array, head: int, hrest: Transform3D, head_keys: Array, pw := 2.2, around := 22) -> void:
+	var bk: Array = body_keys.duplicate()
+	bk.sort_custom(func(a: Array, b: Array) -> bool: return float(a[0]) > float(b[0]))
+	var z0 := float(bk[0][0])
+	var z1 := float(bk[bk.size() - 1][0])
+	var h0: Array = head_keys[0]
+	var hz := (hrest * Vector3(0.0, h0[1], h0[0])).z # (where the head's back is, along the body)
+	var gap := float(h0[3]) * 0.6
+	var rings := []
+	for k: Array in bk:
+		if float(k[0]) < hz + gap:
+			continue
+		rings.append(ring(Vector3(0.0, k[1], k[0]), Vector3.RIGHT, Vector3.UP, k[2], k[3], k[3], {torso: 1.0}, 0, 0.6 * (z0 - float(k[0])) / maxf(z0 - z1, 1.0), 0.0, pw))
+	for j in head_keys.size():
+		var k: Array = head_keys[j]
+		var w := {torso: 0.5, head: 0.5} if j == 0 else ({torso: 0.15, head: 0.85} if j == 1 else {head: 1.0})
+		rings.append(ring(hrest * Vector3(0.0, k[1], k[0]), hrest.basis.x, hrest.basis.y, k[2], k[3], k[3], w, 0, 0.75 + 0.25 * j / maxf(head_keys.size() - 1, 1), 0.3 if j == 0 else 1.0, lerpf(pw, 2.0, minf(j / 2.0, 1.0))))
+	tube(smooth(rings, 4), around, head)
+	var chest := []
+	for k: Array in bk:
+		if float(k[0]) < hz + gap + float(h0[3]) * 1.6:
+			chest.append(ring(Vector3(0.0, float(k[1]) - float(k[3]) * 0.12, k[0]), Vector3.RIGHT, Vector3.UP, float(k[2]) * 0.92, float(k[3]) * 0.8, float(k[3]) * 0.95, {torso: 1.0}, 0, 0.6 * (z0 - float(k[0])) / maxf(z0 - z1, 1.0), 0.0, pw))
+	if chest.size() >= 2:
+		tube(smooth(chest, 3), around - 2, head)
+
+
+## A jaw (keys in its own space, at rest jrest) under the head.
+func jaw_tube(head: int, jaw: int, jrest: Transform3D, keys: Array) -> void:
+	var rings := []
+	for j in keys.size():
+		var k: Array = keys[j]
+		rings.append(ring(jrest * Vector3(0.0, k[1], k[0]), jrest.basis.x, jrest.basis.y, k[2], k[3], k[3], {head: 0.5, jaw: 0.5} if j == 0 else {jaw: 1.0}, 0, 0.9, 1.0))
+	tube(smooth(rings, 3), 14, head)
+
+
+## A tail through its joints' bones (rests: each joint's rest transform, the
+## tail running along its z; seg: a joint's length), its radius at each
+## (radii); from inside the body (torso). flat: its depth's share of its
+## width (a beaver's paddle: thin).
+func tail_chain(torso: int, bones: Array, rests: Array, radii: Array, seg: float, flat := 1.0, around := 12) -> void:
+	var rings := []
+	var t0: Transform3D = rests[0]
+	var r0 := float(radii[0])
+	rings.append(ring(t0 * Vector3(0.0, 0.0, -r0 * 1.2), t0.basis.x, t0.basis.y, r0 * 1.1, r0 * 1.1, r0 * 1.1, {torso: 1.0}, 6, 0.0))
+	var n := bones.size()
+	for k in n:
+		var xf: Transform3D = rests[k]
+		var rk := float(radii[k])
+		var wj := {torso: 0.5, bones[0]: 0.5} if k == 0 else {bones[k - 1]: 0.5, bones[k]: 0.5}
+		var fk := lerpf(1.0, flat, clampf(k / 2.0, 0.0, 1.0))
+		rings.append(ring(xf.origin, xf.basis.x, xf.basis.y, rk, rk * fk, rk * fk, wj, 6, float(k) / n))
+		var rn := float(radii[mini(k + 1, n - 1)])
+		var rm := (rk + rn) * 0.5
+		rings.append(ring(xf * Vector3(0.0, 0.0, seg * 0.5), xf.basis.x, xf.basis.y, rm, rm * fk, rm * fk, {bones[k]: 1.0}, 6, (k + 0.5) / n))
+	var last: Transform3D = rests[n - 1]
+	var rl := float(radii[n - 1]) * 0.7
+	rings.append(ring(last * Vector3(0.0, 0.0, seg), last.basis.x, last.basis.y, rl, rl * flat, rl * flat, {bones[n - 1]: 1.0}, 6, 1.0))
+	tube(smooth(rings, 2), around)
+
+
+## A leg of three bones (b: upper, lower, foot) through its joints J (hip,
+## knee, heel, toe; at rest), its radius r; hind: a haunch, round and big,
+## and a long foot; foot_w: the foot's width (times r).
+func leg3(torso: int, b: Array, J: Array, r: float, hind: bool, foot_w := 1.3, a := -1.0, fold := false) -> void:
+	var hip: Vector3 = J[0]
+	var knee: Vector3 = J[1]
+	var heel: Vector3 = J[2]
+	var toe: Vector3 = J[3]
+	if a < 0.0:
+		a = hip.distance_to(knee)
+	var spec := []
+	if hind:
+		spec = [[hip * Vector3(0.45, 1.0, 1.0) + Vector3(0.0, a * 0.35, a * 0.15), 1.8, 2.9, 2.3, {torso: 1.0}],
+			[hip * Vector3(0.72, 1.0, 1.0), 2.3, 3.2, 2.5, {torso: 0.55, b[0]: 0.45}],
+			[(hip * Vector3(0.85, 1.0, 1.0)).lerp(knee, 0.45), 2.1, 2.8, 2.1, {b[0]: 0.85, torso: 0.15}],
+			[knee, 1.45, 1.6, 1.35, {b[0]: 0.5, b[1]: 0.5}],
+			[knee.lerp(heel, 0.3), 1.2, 1.45, 1.0, {b[1]: 1.0}],
+			[knee.lerp(heel, 0.82), 0.78, 0.85, 0.72, {b[1]: 1.0}],
+			[heel, 0.8, 0.95, 0.8, {b[1]: 0.5, b[2]: 0.5}, (heel - knee).normalized()],
+			[heel + (toe - heel).normalized() * r * 1.1, foot_w * 0.7, 0.7, 0.62, {b[1]: 0.15, b[2]: 0.85}, (toe - heel).normalized()],
+			[heel.lerp(toe, 0.4), foot_w, 0.62, 0.62, {b[2]: 1.0}],
+			[heel.lerp(toe, 0.95), foot_w * 0.8, 0.42, 0.45, {b[2]: 1.0}]]
+	else:
+		spec = [[hip * Vector3(0.5, 1.0, 1.0) + Vector3(0.0, a * 0.5, a * 0.05), 1.35, 2.1, 2.1, {torso: 1.0}],
+			[hip * Vector3(0.75, 1.0, 1.0), 1.65, 1.95, 2.1, {torso: 0.55, b[0]: 0.45}],
+			[(hip * Vector3(0.88, 1.0, 1.0)).lerp(knee, 0.5), 1.5, 1.65, 1.7, {b[0]: 0.85, torso: 0.15}],
+			[knee, 1.2, 1.45, 1.15, {b[0]: 0.5, b[1]: 0.5}],
+			[knee.lerp(heel, 0.3), 1.05, 0.95, 1.15, {b[1]: 1.0}],
+			[knee.lerp(heel, 0.85), 0.8, 0.75, 0.82, {b[1]: 1.0}],
+			[heel, 0.82, 0.8, 0.8, {b[1]: 0.5, b[2]: 0.5}, (heel - knee).normalized()],
+			[heel + (toe - heel).normalized() * r * 0.9, foot_w * 0.8, 0.6, 0.62, {b[1]: 0.15, b[2]: 0.85}, (toe - heel).normalized()],
+			[heel.lerp(toe, 0.5), foot_w, 0.55, 0.6, {b[2]: 1.0}],
+			[heel.lerp(toe, 0.95), foot_w * 0.8, 0.4, 0.45, {b[2]: 1.0}]]
+	var pts := []
+	for sp: Array in spec:
+		pts.append(sp[0])
+	var total := 0.0
+	for k in range(1, pts.size()):
+		total += (pts[k] as Vector3).distance_to(pts[k - 1])
+	var dirs := []
+	for k in spec.size():
+		var sp: Array = spec[k]
+		dirs.append(sp[5] if sp.size() > 5 else ((pts[mini(k + 1, pts.size() - 1)] as Vector3) - (pts[maxi(k - 1, 0)] as Vector3)).normalized())
+	var fr := frames(dirs)
+	var rings := []
+	var run := 0.0
+	for k in spec.size():
+		var sp: Array = spec[k]
+		var c: Vector3 = sp[0]
+		if k > 0:
+			run += c.distance_to(pts[k - 1])
+		rings.append(ring(c, fr[k][0], fr[k][1], float(sp[1]) * r, float(sp[2]) * r, float(sp[3]) * r, sp[4], 3 if hind else 2, run / maxf(total, 1e-3), 0.0, 2.0))
+	tube(smooth(rings, 1 if fold else 2), 14) # (a leg folded tight: no curve to overshoot its turns)
+
+
+## Frames along a limb (its rings' directions): the first's side as near
+## the body's right as it can be, its second axis behind; each after it
+## turned from the one before by the least turn (no twist along the limb).
+static func frames(dirs: Array) -> Array:
+	var out := []
+	var d0: Vector3 = dirs[0]
+	var ax := (Vector3.RIGHT - d0 * d0.dot(Vector3.RIGHT)).normalized()
+	var ay := d0.cross(ax).normalized()
+	out.append([ax, ay])
+	for k in range(1, dirs.size()):
+		var a: Vector3 = dirs[k - 1]
+		var b: Vector3 = dirs[k]
+		if a.dot(b) < 0.9999 and a.cross(b).length() > 1e-5:
+			var q := Quaternion(a, b)
+			ax = (q * ax).normalized()
+			ay = (q * ay).normalized()
+		out.append([ax, ay])
+	return out
+
+
+## A leg's three bones, posed (or at rest) through its joints.
+func pose_leg3(b: Array, J: Array) -> void:
+	for q in 3:
+		pose(b[q], along(J[q], J[q + 1]))

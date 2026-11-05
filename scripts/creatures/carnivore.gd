@@ -437,6 +437,10 @@ func _leg_rings(i: int, J: Array, torso: int, b: Array) -> Array:
 	var total := 0.0
 	for k in range(1, pts.size()):
 		total += (pts[k] as Vector3).distance_to(pts[k - 1])
+	var dirs := []
+	for k in spec.size():
+		dirs.append(((pts[mini(k + 1, pts.size() - 1)] as Vector3) - (pts[maxi(k - 1, 0)] as Vector3)).normalized())
+	var fr := SkinScript.frames(dirs) # (turned along it, untwisted)
 	var out := []
 	var run := 0.0
 	for k in spec.size():
@@ -444,9 +448,8 @@ func _leg_rings(i: int, J: Array, torso: int, b: Array) -> Array:
 		var c: Vector3 = sp[0]
 		if k > 0:
 			run += c.distance_to(pts[k - 1])
-		var d: Vector3 = ((pts[mini(k + 1, pts.size() - 1)] as Vector3) - (pts[maxi(k - 1, 0)] as Vector3)).normalized()
-		var ax := (Vector3.RIGHT - d * d.dot(Vector3.RIGHT)).normalized()
-		var ay := d.cross(ax).normalized() # (behind it, for a leg standing; beneath, for a paw)
+		var ax: Vector3 = fr[k][0]
+		var ay: Vector3 = fr[k][1] # (behind it, for a leg standing)
 		out.append(SkinScript.ring(c, ax, ay, float(sp[1]) * r * thick, float(sp[2]) * r * thick, float(sp[3]) * r * thick, sp[4], part, run / maxf(total, 1.0), 0.0, 2.0))
 	return out
 

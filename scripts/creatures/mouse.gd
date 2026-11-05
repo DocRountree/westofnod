@@ -6,7 +6,7 @@ extends "res://scripts/creatures/hexapod.gd" # (by path: found whether or not th
 ## along the spine, white beneath, the line between sharp; white feet; big
 ## black eyes; big rounded ears, nearly bare, pink inside; a pink nose, long
 ## whiskers, orange incisors; the tail sharply two-coloured, dark above,
-## white below (shaders/render/mouse.gdshader). Four legs (hexapod.gd's
+## white below (carnivore.gdshader's species 9, on one skin: MammalSkin). Four legs (hexapod.gd's
 ## motor: its gait a trot, the diagonals together), the forelegs' elbows
 ## back, the hind legs' knees forward and their long feet flat, heel to
 ## toe. Young (Mouse.new(true)): born pink and hairless, eyes shut, ears
@@ -88,38 +88,24 @@ func _init(young_ := false) -> void:
 
 
 func _build() -> void:
-	var shader: Shader = preload("res://shaders/render/mouse.gdshader")
+	var shader: Shader = preload("res://shaders/render/carnivore.gdshader") # (the mammals' coats: its species 9)
 	_fur_mat = ShaderMaterial.new()
 	_fur_mat.shader = shader
-	_tail_mat = ShaderMaterial.new()
-	_tail_mat.shader = shader
-	_tail_mat.set_shader_parameter("part", 1)
-	_tail_mat.set_shader_parameter("back", Color(0.3, 0.22, 0.15))
+	_fur_mat.set_shader_parameter("species", 9)
+	_fur_mat.set_shader_parameter("hair", 3.0)
+	_tail_mat = _fur_mat.duplicate() as ShaderMaterial
+	_tail_mat.set_shader_parameter("part", 6)
 	_paw_mat = _mat(Color(0.93, 0.9, 0.86), 0.7)
 	var pink := _mat(Color(0.9, 0.62, 0.6), 0.45)
 	# the body: the neck, the shoulders, the round of the belly, the
 	# haunches, the rump
-	_torso = MeshInstance3D.new()
-	_torso.mesh = _loft([[-34.0, 3.5, 4.5, 4.5], [-28.0, 3.5, 8.5, 8.5], [-18.0, 3.0, 11.0, 10.5], [-4.0, 3.5, 13.0, 11.5],
-			[12.0, 4.0, 14.0, 12.0], [24.0, 4.0, 13.5, 11.5], [33.0, 3.0, 10.0, 9.0], [38.5, 2.0, 5.0, 5.0], [40.0, 1.5, 1.2, 1.2]], 2.0)
-	_torso.material_override = _fur_mat
-	_body.add_child(_torso)
-	_fur_shells(_torso, 3.0, 7, 0.35) # (its fur: soft, dense)
-	for side: float in [-1.0, 1.0]: # (its haunches, round under the fur)
-		_fur_shells(_part(Vector3(9.0 * side, 2.0, 22.0), Vector3(12.0, 18.0, 20.0), _fur_mat), 3.0, 6, 0.35)
-	# the head, on its neck
+	# its body and head: one skin (_build_skin)
 	_head = Node3D.new()
 	_head.position = Vector3(0.0, 5.5, -30.0)
 	_body.add_child(_head)
-	var hm := MeshInstance3D.new()
-	var head_keys := [[3.0, 0.0, 5.5, 5.5], [-3.0, 1.2, 9.5, 9.0], [-9.0, 1.0, 9.0, 8.0], [-15.0, -0.2, 6.8, 6.2], [-20.0, -1.2, 4.6, 4.4],
-			[-23.5, -1.8, 2.8, 2.7], [-25.0, -2.0, 1.2, 1.2]]
-	hm.mesh = _loft(head_keys, 2.0)
-	hm.material_override = _fur_mat
-	_head.add_child(hm)
-	_fur_shells(hm, 1.6, 5, 0.3)
+	var head_keys := HEAD_KEYS
 	for side: float in [-1.0, 1.0]: # (its whisker pads, plump either side of its nose)
-		_fur_shells(_part(Vector3(2.8 * side, -2.0, -20.5), Vector3(4.6, 4.0, 5.5), _fur_mat, _head), 0.8, 3, 0.25)
+		_part(Vector3(2.8 * side, -2.0, -20.5), Vector3(4.4, 3.8, 5.2), _fur_mat, _head)
 	# the eyes: big, black, bulging, glossy (a pup's shut: lids of skin over them)
 	var eye := _mat(Color(0.02, 0.015, 0.015), 0.02)
 	eye.clearcoat_enabled = true # (wet, glossy, bulging)
@@ -175,7 +161,6 @@ func _build() -> void:
 	_jaw = Node3D.new()
 	_jaw.position = Vector3(0.0, -5.0, -16.0)
 	_head.add_child(_jaw)
-	_part(Vector3(0.0, -0.5, -3.5), Vector3(4.5, 2.6, 8.0), _fur_mat, _jaw)
 	var tooth := _mat(Color(0.86, 0.55, 0.22), 0.3)
 	_stick(Vector3(0.0, -3.0, -23.2), Vector3(0.0, -5.0, -22.6), 0.45, tooth, _head)
 	_stick(Vector3(0.0, -0.5, -7.2), Vector3(0.0, 1.2, -7.6), 0.4, tooth, _jaw)
@@ -185,12 +170,14 @@ func _build() -> void:
 		var n := Node3D.new()
 		n.position = Vector3(0.0, 1.5, 39.0) if k == 0 else Vector3(0.0, 0.0, TAIL_SEG)
 		prev.add_child(n)
-		var r := lerpf(1.7, 0.55, float(k) / (TAIL_N - 1))
-		_stick(Vector3.ZERO, Vector3(0.0, 0.0, TAIL_SEG * 1.05), r, _tail_mat, n)
-		_part(Vector3.ZERO, Vector3.ONE * r * 2.0, _tail_mat, n)
 		_tail.append(n)
 		prev = n
 	_build_legs(_fur_mat, _fur_mat)
+	for i in 4: # (the skin's legs: these carry nothing)
+		for q in 4:
+			(_leg_mesh[i][q] as MeshInstance3D).mesh = null
+	_joints.resize(4)
+	_build_skin()
 	# its feet's toes: long, pink, thin (four before, five behind), each its
 	# little claw
 	for i in 4:
@@ -207,6 +194,95 @@ func _build() -> void:
 	_grow_fur(true)
 
 
+const HEAD_KEYS := [[3.0, 0.0, 5.5, 5.5], [-3.0, 1.2, 9.5, 9.0], [-9.0, 1.0, 9.0, 8.0], [-15.0, -0.2, 6.8, 6.2], [-20.0, -1.2, 4.6, 4.4],
+		[-23.5, -1.8, 2.8, 2.7], [-25.0, -2.0, 1.2, 1.2]]
+const BODY_KEYS := [[-34.0, 3.5, 4.5, 4.5], [-28.0, 3.5, 8.5, 8.5], [-18.0, 3.0, 11.0, 10.5], [-4.0, 3.5, 13.0, 11.5],
+		[12.0, 4.0, 14.0, 12.0], [24.0, 4.0, 13.5, 11.5], [33.0, 3.0, 10.0, 9.0], [38.5, 2.0, 5.0, 5.0], [40.0, 1.5, 1.2, 1.2]]
+const SkinScript := preload("res://scripts/creatures/mammal_skin.gd")
+var _skin: SkinScript
+var _skin_mat: ShaderMaterial
+var _sb := {}
+var _joints: Array = []
+
+
+## Its skin: the body into the head, the jaw, the tail, each leg (standing).
+func _build_skin() -> void:
+	var K: SkinScript = SkinScript.new()
+	var torso := K.bone("torso", Transform3D())
+	var hrest := _head.transform
+	var head := K.bone("head", hrest)
+	var jrest := hrest * _jaw.transform
+	var jaw := K.bone("jaw", jrest)
+	_sb = {"head": head, "jaw": jaw}
+	K.body_head(torso, BODY_KEYS, head, hrest, HEAD_KEYS, 2.0)
+	K.jaw_tube(head, jaw, jrest, [[0.0, -0.5, 2.6, 1.4], [-3.5, -0.5, 2.3, 1.3], [-7.5, -0.4, 1.4, 0.9]])
+	var tb := []
+	var trest := []
+	var prev := Transform3D()
+	var radii := []
+	for k in TAIL_N:
+		prev = prev * _tail[k].transform
+		trest.append(prev)
+		tb.append(K.bone("tail%d" % k, prev))
+		radii.append(lerpf(1.7, 0.5, float(k) / (TAIL_N - 1)))
+	_sb["tail"] = tb
+	K.tail_chain(torso, tb, trest, radii, TAIL_SEG, 1.0, 10)
+	for i in 4:
+		var L: Dictionary = legs[i / 2]
+		var side := 1.0 if i % 2 == 1 else -1.0
+		var hm: Vector2 = L.home
+		var J := _leg3(i, Vector3(hm.x * side, -body_h, hm.y), Vector3.UP, Vector3.FORWARD, false)
+		var bones := []
+		for q in 3:
+			bones.append(K.bone("leg%d_%d" % [i, q], SkinScript.along(J[q], J[q + 1])))
+		_sb["leg%d" % i] = bones
+		K.leg3(torso, bones, J, float(L.r), i >= 2, 1.4 if i >= 2 else 1.2)
+	_skin = K
+	_skin_mat = _fur_mat.duplicate() as ShaderMaterial
+	_skin_mat.set_shader_parameter("skin", true)
+	_torso = K.finish(_body, _skin_mat)
+
+
+## Leg i's joints, its foot at foot: [hip, knee, heel, toe].
+func _leg3(i: int, foot: Vector3, up: Vector3, fwd: Vector3, held: bool) -> Array:
+	var L: Dictionary = legs[i / 2]
+	var hind := i >= 2
+	var side := 1.0 if i % 2 == 1 else -1.0
+	var hp: Vector3 = L.hip
+	var hip := Vector3(hp.x * side, hp.y, hp.z)
+	var s: float = L.s
+	var heel: Vector3
+	if hind:
+		heel = foot + (-fwd * 0.95 + up * 0.3).normalized() * s
+	elif held: # (a paw held up: the wrist under it)
+		heel = foot + Vector3(0.0, -0.6, 0.4).normalized() * s
+	else:
+		heel = foot + (-fwd * 0.3 + up * 0.95).normalized() * s
+	var pl: Vector3 = L.pole
+	var knee := _knee(hip, heel, L.f, L.t, Vector3(pl.x * side, pl.y, pl.z))
+	return [hip, knee, heel, foot]
+
+
+func _skin_pose() -> void:
+	if _skin == null:
+		return
+	_skin.pose(_sb.head, _head.transform)
+	_skin.pose(_sb.jaw, _head.transform * _jaw.transform)
+	var prev := Transform3D()
+	var tb: Array = _sb.tail
+	for k in _tail.size():
+		prev = prev * _tail[k].transform
+		_skin.pose(tb[k], prev)
+	for i in 4:
+		if _joints[i] != null:
+			_skin.pose_leg3(_sb["leg%d" % i], _joints[i])
+
+
+## (No shells: its coat is painted, carnivore.gdshader's species 9.)
+func _fur_shells(_mi: MeshInstance3D, _len_mm: float, _shells := 8, _spacing := -1.0) -> void:
+	pass
+
+
 ## The fur as it grows in (a pup's): its share by size, grey then brown;
 ## the eyes open, the ears up.
 func _grow_fur(force := false) -> void:
@@ -218,9 +294,10 @@ func _grow_fur(force := false) -> void:
 	_fur_set = k
 	var grey := Color(0.4, 0.4, 0.42)
 	var brown := Color(0.46, 0.33, 0.21)
-	_fur_mat.set_shader_parameter("fur", g)
-	_fur_mat.set_shader_parameter("back", grey.lerp(brown, adult))
-	_tail_mat.set_shader_parameter("fur", g)
+	for m: ShaderMaterial in [_fur_mat, _tail_mat, _skin_mat]:
+		if m:
+			m.set_shader_parameter("fur", g)
+			m.set_shader_parameter("mouse_back", grey.lerp(brown, adult))
 	_paw_mat.albedo_color = Color(0.9, 0.62, 0.58).lerp(Color(0.93, 0.9, 0.86), g)
 	var open := not young or size > 0.27
 	for l in _lids:
@@ -644,18 +721,11 @@ func _pose_legs() -> void:
 			foot = Vector3(dg.x * side, dg.y, dg.z)
 		else:
 			foot = inv * _feet[i]
-		var s: float = L.s
 		var held := _pose_foot[i] != null and not hind
-		var heel: Vector3
-		if hind:
-			heel = foot + (-fwd * 0.95 + up * 0.3).normalized() * s
-		elif held: # (a paw held up: the wrist under it)
-			heel = foot + Vector3(0.0, -0.6, 0.4).normalized() * s
-		else:
-			heel = foot + (-fwd * 0.3 + up * 0.95).normalized() * s
-		var pl: Vector3 = L.pole
-		var pole := Vector3(pl.x * side, pl.y, pl.z)
-		var knee := _knee(hip, heel, L.f, L.t, pole)
+		var J := _leg3(i, foot, up, fwd, held)
+		var knee: Vector3 = J[1]
+		var heel: Vector3 = J[2]
+		_joints[i] = J
 		var r: float = L.r
 		var m: Array = _leg_mesh[i]
 		(m[0] as MeshInstance3D).transform = _seg(hip, knee, r * float(L.femur_r))
@@ -670,6 +740,7 @@ func _pose_legs() -> void:
 			var z := along.normalized() if along.length() > 1e-4 else -fwd
 			var xx := z.cross(up).normalized()
 			_toes[i].transform = Transform3D(Basis(xx, up, -z), foot)
+	_skin_pose()
 
 
 # --- steering (pilot.gd): its behaviours ----------------------------------------

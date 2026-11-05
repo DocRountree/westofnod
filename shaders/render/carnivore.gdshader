@@ -39,6 +39,10 @@ uniform float front_z = -400.0;
 uniform vec3 bare_a = vec3(0.0, -1e6, 0.0);
 uniform vec3 bare_b = vec3(0.0, -1e6, 0.0);
 uniform float bare_r = 0.0;
+uniform float to_cream = 0.0; // (a part gone to cream: a hare's eye ring)
+uniform float fur = 1.0; // (a mouse pup's: 0 bare pink skin .. 1 furred)
+uniform vec3 mouse_back : source_color = vec3(0.46, 0.33, 0.21); // (a deer mouse's)
+uniform float line_y = -0.28; // (its belly's edge: the normal's y there)
 uniform float hair = 20.0; // (its coat's length, mm: the grain's size)
 
 
@@ -225,6 +229,38 @@ void fragment() {
 			c = vec3(0.04, 0.035, 0.03);
 		if (pt == 6.0)
 			c = mix(hindc, fore, smoothstep(0.6, 0.9, a));
+	} else if (species == 8) {
+		// a snowshoe hare in its summer coat: brown, grizzled, darker along
+		// its back; white beneath and its chin; its big hind feet paler; its
+		// ears brown backed, black tipped, buff within; its tail white
+		// beneath, dark above
+		vec3 brown = vec3(0.45, 0.34, 0.22);
+		vec3 dark = vec3(0.29, 0.22, 0.15);
+		c = countershade(dark, brown, white, ny, -0.45);
+		c *= 0.86 + 0.28 * vn(rp * 0.35) * vn(rp * 0.09 + 4.0); // (the hairs' bands: grizzled)
+		c = mix(c, white, chin);
+		if (leg) {
+			c = mix(brown * 1.05, vec3(0.8, 0.72, 0.6), hind ? smoothstep(0.55, 0.75, a) : 0.25 * smoothstep(0.5, 0.9, a));
+			c = mix(c, white * 0.95, (1.0 - smoothstep(-0.4, 0.0, ny)) * (1.0 - smoothstep(0.2, 0.5, a)) * 0.6);
+		}
+		if (pt == 6.0)
+			c = mix(white, dark * 1.1, smoothstep(0.0, 0.5, ny));
+		if (pt == 5.0) {
+			c = mix(brown * 0.95, vec3(0.78, 0.64, 0.55), rn.z < 0.0 ? 0.55 : 0.0);
+			c = mix(c, vec3(0.05, 0.045, 0.04), smoothstep(ear_len * 0.78, ear_len * 0.86, rp.y));
+		}
+	} else if (species == 9) {
+		// a deer mouse: rich brown above (back), sharply white beneath and
+		// on its feet; its tail two-toned, dark above, white below; a pup
+		// pink (fur: 0) as it's born, then grey, then brown
+		vec3 top = mouse_back;
+		c = mix(top, white, 1.0 - smoothstep(line_y - 0.06, line_y + 0.06, ny));
+		c *= 0.9 + 0.2 * vn(rp * 0.6);
+		if (leg)
+			c = mix(c, white * 0.96, smoothstep(0.3, 0.5, a));
+		if (pt == 6.0)
+			c = mix(white * 0.92, top * 0.75, smoothstep(-0.05, 0.15, ny)) * (0.92 + 0.08 * step(0.5, fract(a * 60.0)));
+		c = mix(vec3(0.9, 0.6, 0.56), c, fur);
 	} else {
 		// a white-tailed deer: summer red brown, darker down its spine;
 		// winter grey brown; white beneath and inside its legs, its chin, a
@@ -273,8 +309,9 @@ void fragment() {
 				c = mix(vec3(0.5, 0.42, 0.32), vec3(0.85, 0.8, 0.7), 0.4 + 0.4 * vn(rp * 0.08));
 		}
 	}
-	if (pt == 4.0 && species != 6 && species != 7) // (paws: the toes' fur, darker)
+	if (pt == 4.0 && species < 6) // (paws: the toes' fur, darker)
 		c *= 0.7;
+	c = mix(c, vec3(0.8, 0.72, 0.6), to_cream);
 	// the fur's grain (strands lying back along the body, down the legs) and
 	// a soft mottling; the bison's front curled in wool
 	bool bare = pt == 4.0 || pt == 7.0;

@@ -244,7 +244,7 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
 - `scripts/creatures/mouse.gd` (`Mouse`, on `hexapod.gd`'s motor with four legs, trotting): a deer mouse
   (*Peromyscus maniculatus*), life size: brown above, grizzled, white beneath with the sharp line between, white feet,
   big black eyes, big round ears pink inside, whiskers, orange incisors, its long tail dark above and white below
-  (`shaders/render/mouse.gdshader`); mammal legs (the elbows back, the knees forward, the long hind feet flat heel to
+  (`carnivore.gdshader`'s species 9); mammal legs (the elbows back, the knees forward, the long hind feet flat heel to
   toe). Scurrying, stopping to sniff (nose, whiskers and ears going), sitting up to look; eating a seed sat up on its
   haunches, turning it in its forepaws, nibbling it away; washing its face. The female gives birth in her grass nest
   (`Mouse.nest()`), licking each pup clean, then nursing; the pups born pink, hairless, eyes shut, ears folded,
@@ -316,7 +316,7 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   her, his head low, then mounting briefly). The life cycle demo's last station: a summer doe with twins and a buck
   in velvet; two winter bucks and a winter doe; a shrub to browse (B), a sapling to rub (M).
 - `scripts/creatures/hare.gd` (`Hare`, on `hexapod.gd`'s motor, its gait its own): a snowshoe hare (*Lepus
-  americanus*), life size, in its summer coat (`shaders/render/hare.gdshader`: brown, grizzled, darker along the back,
+  americanus*), life size, in its summer coat (`carnivore.gdshader`'s species 8: brown, grizzled, darker along the back,
   white beneath, the hind feet paler, the ears black tipped); long spoon ears turning, laid back, pricked; big eyes
   high on its sides, the split lip and twitching nose, whiskers, a powder-puff tail; slender forelegs, the huge flat
   furred hind feet. Hopping (the hind feet pushing off together, a moment in the air, the forefeet down one then the
@@ -379,11 +379,15 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   coil, sting, scatter), D display / call, V the young play, N nurse, B forage, S spin a web, M mark, A sit, W back to
   their own ways, P steered (pilot.gd); each creature doing it its own way (the hunters' prey set before them, the
   fishing spider's a molly come up from the pond).
-- Fur (`hexapod.gd`'s `_fur_shells`): the mammals' coats in shells, copies of each furred part a little further out
-  along its normals, their hairs thinning to the tips, combed down and back, darker at the roots (the mouse's,
-  the hare's and the hunters' shaders take it); with it their bodies fuller: shoulder and haunch muscle, the
-  whisker pads, glossy dark-rimmed eyes, nostrils, the lips' line, toe pads and claws, rounded lower legs; the
-  mouse's thin translucent ears, its pink toes, its tail's rings.
+- The mammals' look (`scripts/creatures/mammal_skin.gd`, `MammalSkin`): each one skin, not parts stacked. Its rings
+  are swept into tubes (the body rounding up through the neck into the head to its nose, the jaw, each leg from
+  inside its shoulder or haunch to its toes, the tail), every vertex weighted to the bones the animal's own motor
+  already moves (torso, neck, head, jaw, each tail joint, each leg's segments), blended where they meet, framed
+  without twist down each limb, and skinned on the GPU; eyes, nose, ears, horns, antlers, hooves, claws, whiskers
+  stay rigid on their joints. Their coats are all `shaders/render/carnivore.gdshader`'s (species 0-7 the hunters,
+  bison and deer; 8 the hare; 9 the deer mouse): painted, not shelled (no fur shells, no instance uniforms):
+  broad countershaded colour, each species' marks in soft gradients, a fine grain along the hair's lie and a
+  gentle mottling, wrapped diffuse and a velvet rim; the bison's front in curled wool.
 - Steering, for a future state machine (`scripts/creatures/pilot.gd`): every creature (`Wasp`, the
   lepidopterans, `Grasshopper`, `Mantis`, `Snake`, `Larva`; one of a colony: `AntColony.member(i)`) has the same
   calls: `go(direction, speed, seconds)`, `go_to(point, speed)`, `face(direction)`, `stop()`, `act(name, args)`
