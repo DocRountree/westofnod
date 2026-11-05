@@ -17,6 +17,9 @@ const KINDS := {
 	# OakTree the acorn, above; bears: how many a tree bears at most, Foraging)
 	"pawpaw": {"name": "Pawpaw", "stack": 1, "shape": "pawpaw", "size": Vector3(0.055, 0.11, 0.05), "color": Color(0.55, 0.62, 0.24)},
 	"crabapple": {"name": "Crabapple", "stack": 32, "shape": "crabapple", "size": Vector3(0.026, 0.024, 0.026), "color": Color(0.72, 0.16, 0.1)},
+	"black_cherry": {"name": "Black cherry", "stack": 64, "shape": "cherry", "size": Vector3(0.01, 0.01, 0.01), "color": Color(0.14, 0.03, 0.06), "bears": 20}, # (BlackCherryTree: up in its crown, in drooping clusters)
+	"raspberry": {"name": "Raspberry", "stack": 64, "shape": "raspberry", "size": Vector3(0.016, 0.017, 0.016), "color": Color(0.74, 0.08, 0.16), "bears": 18}, # (RaspberryBush)
+	"blueberry": {"name": "Blueberry", "stack": 64, "shape": "blueberry", "size": Vector3(0.011, 0.01, 0.011), "color": Color(0.27, 0.32, 0.52), "bears": 22}, # (BlueberryBush: dusky under its bloom)
 	"walnut": {"name": "Black walnut", "stack": 5, "shape": "walnut", "size": Vector3(0.046, 0.044, 0.046), "color": Color(0.43, 0.5, 0.18)}, # (in its green husk, as picked)
 	# flowers and cattails (GroundCover: picked where they grow, Foraging):
 	# a stem, its head(s) the petals' colour round the disc's
@@ -58,7 +61,7 @@ static func model(id: String) -> Node3D:
 	var k: Dictionary = KINDS.get(id, {"shape": "box", "size": Vector3.ONE * 0.05, "color": Color.MAGENTA})
 	if k.shape == "axe":
 		return _axe()
-	if k.shape in ["pawpaw", "crabapple", "walnut", "acorn"]:
+	if k.shape in ["pawpaw", "crabapple", "walnut", "acorn", "cherry", "raspberry", "blueberry"]:
 		return _fruit(k)
 	if k.shape == "flower":
 		return _flower(k)
@@ -320,6 +323,29 @@ static func _fruit(k: Dictionary) -> Node3D:
 		var stalk := _part(CylinderMesh.new(), Vector3(0.0022, 0.03, 0.0022), Color(0.36, 0.32, 0.2))
 		stalk.position.y = k.size.y * 0.5 + 0.014
 		root.add_child(stalk)
+		return root
+	if k.shape == "cherry": # (glossy; its long stalk)
+		(body.material_override as StandardMaterial3D).roughness = 0.2
+		var cs := _part(CylinderMesh.new(), Vector3(0.0012, 0.03, 0.0012), Color(0.35, 0.4, 0.18))
+		cs.position.y = 0.019
+		root.add_child(cs)
+		return root
+	if k.shape == "raspberry": # (a cap of drupelets)
+		(body.material_override as StandardMaterial3D).roughness = 0.5
+		for i in 26:
+			var y := lerpf(-0.9, 0.85, fposmod(i * 0.618, 1.0))
+			var a := i * 2.4
+			var dir := Vector3(cos(a) * sqrt(1.0 - y * y), y, sin(a) * sqrt(1.0 - y * y))
+			var dr := _part(SphereMesh.new(), Vector3.ONE * 0.0055, (k.color as Color).lightened(0.08 * fposmod(i * 0.37, 1.0)))
+			(dr.material_override as StandardMaterial3D).roughness = 0.35
+			dr.position = dir * (k.size as Vector3) * 0.47
+			root.add_child(dr)
+		return root
+	if k.shape == "blueberry": # (dusky under its bloom; the little crown at its tip)
+		(body.material_override as StandardMaterial3D).roughness = 0.85
+		var cr := _part(SphereMesh.new(), Vector3(0.0045, 0.0015, 0.0045), (k.color as Color).darkened(0.5))
+		cr.position.y = (k.size as Vector3).y * 0.48
+		root.add_child(cr)
 		return root
 	if k.shape == "walnut":
 		# the husk's freckles: a few small pale spots round it

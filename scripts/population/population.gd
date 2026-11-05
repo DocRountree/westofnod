@@ -22,6 +22,7 @@ extends Node3D
 const CHUNK := 64.0
 const PROP_DIR := "res://data/population/props/"
 const FIRST_KINDS := ["oak", "pawpaw"] ## Placed first, in this order (as before the other trees came: see _ready)
+const LATE_KINDS := ["black_cherry", "raspberry", "blueberry"] ## Placed last, in this order (come later: the others' places and uids kept as they were)
 const ACTOR_DIR := "res://data/population/actors/"
 const APPLY_PER_FRAME := 2 ## Generated chunks added to the scene per frame, at most (playing).
 var apply_per_frame := APPLY_PER_FRAME ## (more while the world loads, behind its screen)
@@ -109,8 +110,8 @@ func _ready() -> void:
 	kinds.sort_custom(func(a, b) -> bool:
 		var ia := FIRST_KINDS.find(String(a.id))
 		var ib := FIRST_KINDS.find(String(b.id))
-		ia = ia if ia >= 0 else FIRST_KINDS.size()
-		ib = ib if ib >= 0 else FIRST_KINDS.size()
+		ia = ia if ia >= 0 else (FIRST_KINDS.size() + 1 + LATE_KINDS.find(String(a.id)) if String(a.id) in LATE_KINDS else FIRST_KINDS.size())
+		ib = ib if ib >= 0 else (FIRST_KINDS.size() + 1 + LATE_KINDS.find(String(b.id)) if String(b.id) in LATE_KINDS else FIRST_KINDS.size())
 		return ia < ib if ia != ib else String(a.id) < String(b.id))
 	Settings.ensure_loaded()
 	OakTree.refresh_view()

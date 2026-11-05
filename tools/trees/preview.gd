@@ -2,7 +2,8 @@ extends SceneTree
 ## Renders a species' variants in a row on a plain, for looking at the
 ## models (the oak's; or with maple, sycamore, lodgepole, cypress, pawpaw or
 ## crabapple, theirs: MapleTree, SycamoreTree, LodgepolePine, BaldCypress,
-## PawpawTree, CrabappleTree; or walnut, WalnutTree; tulip, TulipTree).
+## PawpawTree, CrabappleTree; or walnut, WalnutTree; tulip, TulipTree; cherry,
+## raspberry, blueberry: BlackCherryTree, RaspberryBush, BlueberryBush).
 ## xvfb-run godot --path . --resolution 1600x900 --script res://tools/trees/preview.gd -- <out_dir> [maple | sycamore | lodgepole | cypress | pawpaw | crabapple | walnut | tulip] [lod] [side | pair | pair2 | close | bark | leaves | dead | snag | saplings]
 
 var out := "user://"
@@ -40,6 +41,15 @@ func _init() -> void:
 	elif args.has("tulip"):
 		S = TulipTree
 		species = "tulip trees"
+	elif args.has("cherry"):
+		S = BlackCherryTree
+		species = "black cherries"
+	elif args.has("raspberry"):
+		S = RaspberryBush
+		species = "raspberries"
+	elif args.has("blueberry"):
+		S = BlueberryBush
+		species = "blueberries"
 	_name = species
 	var root3 := Node3D.new()
 	get_root().add_child(root3)
@@ -72,6 +82,8 @@ func _init() -> void:
 		spread = 0.6 # (slim)
 	elif S == PawpawTree or S == CrabappleTree:
 		spread = 0.35 # (small trees)
+	elif S == RaspberryBush or S == BlueberryBush:
+		spread = 0.06 # (bushes)
 	for i in at.size():
 		at[i] *= spread
 	S.build(0)

@@ -217,7 +217,15 @@ static func _fruit_mesh(id: String) -> Mesh:
 	m.rings = 6
 	var mat := StandardMaterial3D.new()
 	mat.albedo_color = Items.color_of(id)
-	mat.roughness = 0.6
+	mat.roughness = {"black_cherry": 0.2, "raspberry": 0.55, "blueberry": 0.85}.get(id, 0.6) # (a cherry glossy; a blueberry under its bloom)
+	if id == "raspberry": # (its drupelets: the surface bumped)
+		var n := FastNoiseLite.new()
+		n.frequency = 0.9
+		var img := n.get_image(64, 64, false, false, true)
+		var tex := ImageTexture.create_from_image(img)
+		mat.normal_enabled = true
+		mat.normal_texture = tex
+		mat.uv1_scale = Vector3(4, 4, 1)
 	m.material = mat
 	return m
 

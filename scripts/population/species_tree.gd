@@ -55,6 +55,7 @@ var far_bark := Color(0, 0, 0, 0)
 ## climbed (and stood on).
 var climb_limb_r := 0.05
 var fruit := "" ## The item its grown trees bear (Items: "pawpaw", ...), "" none.
+var fruit_band := Vector2(0.0, 0.66) ## Where up its crown its fruit hang (shares of its height, from its bottom): a bush's all over
 var lichen := true ## Lichen on its bark (false: none on any of its kinds; their moss as ever).
 
 var _cache := {} # variant -> [mesh, lods]
@@ -291,9 +292,13 @@ func fruit_spots(v: int) -> PackedVector3Array:
 			var r := RandomNumberGenerator.new()
 			r.seed = int(variants[v].seed) * 7 + 3
 			var spots: Array[Vector3] = []
+			var cr: float = c[0]
+			var lo := bottom + minf(0.3, (top - bottom) * 0.15) + (top - bottom) * fruit_band.x
+			var hi := bottom + (top - bottom) * fruit_band.y
+			var drop := minf(0.1, cr * 0.06) # (hanging below the twig: a bush's berries close under it)
 			for sp in tb.sprigs:
 				var q: Vector3 = tb.pos[sp[0]]
-				if q.y > bottom + 0.3 and q.y < bottom + (top - bottom) * 0.66 and Vector2(q.x, q.z).length() > 0.5:
+				if q.y > lo and q.y < hi and Vector2(q.x, q.z).length() > minf(0.5, cr * 0.35):
 					spots.append(q)
 			# a few spread out: each far from those before
 			for i in 24:
@@ -309,7 +314,7 @@ func fruit_spots(v: int) -> PackedVector3Array:
 					if d > far:
 						far = d
 						best = cand
-				out.append(best + Vector3(r.randf_range(-0.05, 0.05), -0.1, r.randf_range(-0.05, 0.05))) # (hanging below the twig)
+				out.append(best + Vector3(r.randf_range(-0.05, 0.05) * drop * 10.0, -drop, r.randf_range(-0.05, 0.05) * drop * 10.0)) # (hanging below the twig)
 		_fruit_spots[v] = out
 	return _fruit_spots[v]
 
