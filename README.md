@@ -267,9 +267,12 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   on land its threat (up on its legs, gaping, lunging and snapping); mating in the water (he's on her back, claws
   over her shell's rim, biting at her head); nesting on the bank.
 - `scripts/creatures/sea_turtle.gd` (`SeaTurtle`): a green sea turtle (*Chelonia mydas*), life size (a metre of shell),
-  on the box turtle's make: its shell a low smooth teardrop, olive brown, fine rays out over each scute; a pale
-  plastron; a blunt head too big to draw in; skin a mosaic of dark scales outlined cream; long flat foreflippers (a
-  claw on each leading edge, a male's long and curved) and short round hind ones; a male's tail long. Flying through
+  on the box turtle's make: its shell a low, broad, smooth teardrop, its scutes edge to edge, thin pale seams between
+  them, each a soft sunburst of brown, olive and amber streaks out from its growth centre; a pale plastron; a blunt
+  head too big to draw in, big dark eyes; head and flippers a mosaic of dark scales, darkest in their middles, each
+  outlined in yellow cream, the neck yellow olive and finely scaled; its foreflippers long swept-back wings, tapering
+  to a point, thick along their leading edge (each its own mesh), a claw there (a male's long and curved); its hind
+  flippers broad round paddles; their undersides pale; a male's tail long. Flying through
   the water on its foreflippers' slow strokes (the hind ones steering), at one depth then another, up to breathe;
   resting on the bottom; grazing seagrass; away fast when alarmed (it can't hide); the male on the female's back at
   the surface, his claws over her shell's front; the female up the beach heaving on both foreflippers together, her

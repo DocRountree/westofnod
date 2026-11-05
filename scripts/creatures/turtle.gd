@@ -143,6 +143,7 @@ var _legs: Array = [] # [hip, upper, lower, foot, fore?, side, claws]
 var _tail_n: Node3D
 var _tail_mi: MeshInstance3D
 var _skin: ShaderMaterial
+var _skins: Array[ShaderMaterial] = [] ## every material of its skin (turtle_inv set on each)
 
 static var _sphere: SphereMesh
 static var _shell_sh: Shader
@@ -434,6 +435,7 @@ uniform vec3 plast : source_color;
 uniform vec3 smudge : source_color;
 uniform vec3 under : source_color;
 uniform float rays = 1.0;
+uniform float seam_w = 0.035; // (how wide its seams)
 uniform float blots = 1.0; // (its blotches at the growth centres: a box turtle's; streaks alone otherwise)
 uniform float algae = 0.0;
 uniform float hw = 52.0;
@@ -472,7 +474,7 @@ void fragment() {
 	if (rr > 0.84 || o.y < rim + 1.0) { // (the marginals: a ring round its rim)
 		float cell = ang / 6.2832 * 24.0 + 0.5;
 		float f = fract(cell);
-		s = 1.0 - smoothstep(0.0, 0.07, min(f, 1.0 - f));
+		s = 1.0 - smoothstep(0.0, seam_w * 2.0, min(f, 1.0 - f));
 		s = max(s, 1.0 - smoothstep(0.0, 0.025, abs(rr - 0.84)) * step(rim + 1.0, o.y));
 		float ca = (floor(cell) + 0.5 - 0.5) / 24.0 * 6.2832;
 		rel = (q - vec2(sin(ca), -cos(ca)) * 1.0) * vec2(1.0, 1.0);
@@ -485,7 +487,7 @@ void fragment() {
 			float d = length((q - cc) * (k < 5 ? vec2(1.25, 1.0) : vec2(1.0, 1.1)));
 			if (d < d1) { d2 = d1; d1 = d; best = cc; } else if (d < d2) { d2 = d; }
 		}
-		s = 1.0 - smoothstep(0.0, 0.035, d2 - d1);
+		s = 1.0 - smoothstep(0.0, seam_w, d2 - d1);
 		vec2 are = best + (abs(best.x) > 0.1 ? vec2(-sign(best.x) * 0.12, 0.1) : vec2(0.0, 0.1)); // (its growth centre: behind, toward the middle)
 		rel = q - are;
 	}
@@ -500,6 +502,8 @@ void fragment() {
 	blot = max(blot, smoothstep(0.72, 0.8, vn(q * 11.0 + 3.0)) * 0.7) * blots; // (flecks)
 	streak = mix(streak, smoothstep(0.55, 0.95, sin(a * 22.0 + 5.0 * vn(q * 7.0) + 3.0 * vn(q * 23.0))) * smoothstep(0.02, 0.05, dr) * (0.45 + 0.55 * vn(q * 13.0 + vec2(a * 2.0, 0.0))), 1.0 - blots); // (fine rays, all over each scute, if not blotched)
 	vec3 rc = mix(ray, ray * vec3(1.0, 0.75, 0.5), vn(q * 4.0)); // (yellow to orange)
+	rc = mix(rc, rc * vec3(0.75, 0.85, 0.6), (1.0 - blots) * vn(q * 6.0 + 4.0)); // (olive, in places, if rayed)
+	c *= 1.0 - (1.0 - blots) * 0.25 * smoothstep(0.4, 0.8, vn(q * 10.0 + vec2(a * 1.5, 0.0))); // (dark streaks among them, mottled)
 	c = mix(c, rc * bright, clamp(streak + blot, 0.0, 1.0) * rays * 0.85);
 	// (its growth rings round its areola)
 	float ring = abs(fract(dr * 34.0) - 0.5);
@@ -529,6 +533,8 @@ uniform float spots = 0.5;
 uniform float bumps = 0.3;
 uniform float scale = 1.0;
 uniform float mosaic = 0.0; // (its scales outlined pale: a sea turtle's)
+uniform float cell = 3.2; // (how big they are)
+uniform float seam_w = 0.06; // (how wide the pale between them)
 uniform vec3 edge : source_color = vec3(0.82, 0.74, 0.52);
 uniform mat4 turtle_inv;
 varying vec3 wp;
@@ -577,9 +583,10 @@ void fragment() {
 	}
 	c = mix(c, spot, sp);
 	if (mosaic > 0.0) { // (big polygonal scales, dark, each outlined pale)
-		vec2 cc = cells2(p / 3.2);
-		float seam = 1.0 - smoothstep(0.03, 0.09, cc.y - cc.x);
-		c = mix(c * (0.85 + 0.3 * h3(floor(p / 3.2))), edge, seam * mosaic);
+		vec2 cc = cells2(p / cell);
+		float seam = 1.0 - smoothstep(seam_w * 0.5, seam_w * 1.5, cc.y - cc.x);
+		float inner = smoothstep(0.0, 0.6, cc.y - cc.x); // (each scale darker in its middle, paler toward its rim)
+		c = mix(c * (0.75 + 0.35 * h3(floor(p / cell))) * mix(1.25, 0.8, inner), edge, seam * mosaic);
 	}
 	c = mix(pale, c, smoothstep(-0.55, -0.05, n.y));
 	ALBEDO = c;
@@ -617,6 +624,7 @@ func _build() -> void:
 	shell.set_shader_parameter("rays", float(C.rays) * (0.6 if young else 1.0))
 	shell.set_shader_parameter("algae", C.algae)
 	shell.set_shader_parameter("blots", float(C.get("blots", 1.0)))
+	shell.set_shader_parameter("seam_w", float(C.get("seam_w", 0.035)))
 	shell.set_shader_parameter("hw", float(P.wid) * 0.5)
 	shell.set_shader_parameter("hl", float(P.len) * 0.5)
 	shell.set_shader_parameter("rim", P.rim)
@@ -1076,7 +1084,10 @@ func _place() -> void:
 		_body.scale = Vector3.ONE * _mm * size
 		var inv := (global_transform if is_inside_tree() else transform).affine_inverse()
 		var k := _mm * size
-		_skin.set_shader_parameter("turtle_inv", Projection(Transform3D(inv.basis / k, inv.origin / k)))
+		var ti := Projection(Transform3D(inv.basis / k, inv.origin / k))
+		_skin.set_shader_parameter("turtle_inv", ti)
+		for m in _skins:
+			m.set_shader_parameter("turtle_inv", ti)
 
 
 ## (How far up its plastron is off the ground: walking, sat, shut.)

@@ -32,21 +32,21 @@ extends "res://scripts/creatures/turtle.gd" # (by path: found whether or not the
 
 const SEA := {
 	"aquatic": true, "mm": 0.001, "flipper": true,
-	"shell": {"len": 1000.0, "wid": 820.0, "ht": 300.0, "rim": 70.0, "dome": [1.5, 0.7], "flare": [-80.0, 0.0],
+	"shell": {"len": 1000.0, "wid": 820.0, "ht": 235.0, "rim": 62.0, "dome": [1.9, 0.62], "flare": [-80.0, 0.0],
 			"notch": 12.0, "teeth": 0.0, "keels": [], "knobs": 0.0, "lip": 18.0},
-	"plastron": {"hinge": false, "cross": false, "wid": 0.4, "th": 14.0, "hinge_z": 0.0},
-	"col": {"shell": Color(0.3, 0.25, 0.12), "ray": Color(0.55, 0.42, 0.18), "seam": Color(0.2, 0.15, 0.07),
+	"plastron": {"hinge": false, "cross": false, "wid": 0.34, "th": 12.0, "hinge_z": 0.0},
+	"col": {"shell": Color(0.34, 0.24, 0.12), "ray": Color(0.58, 0.48, 0.26), "seam": Color(0.78, 0.7, 0.52),
 			"plast": Color(0.86, 0.8, 0.6), "smudge": Color(0.8, 0.72, 0.5),
-			"skin": Color(0.3, 0.23, 0.14), "spot": Color(0.3, 0.23, 0.14), "spots": 0.0, "under": Color(0.86, 0.8, 0.62),
-			"eye_m": Color(0.22, 0.16, 0.09), "eye_f": Color(0.22, 0.16, 0.09), "algae": 0.08, "rays": 0.85, "bumps": 0.2,
-			"mosaic": 1.0, "edge": Color(0.84, 0.76, 0.55), "blots": 0.0},
-	"head": [[-160.0, 8.0, 20.0, -48.0], [-150.0, 32.0, 44.0, -50.0], [-128.0, 52.0, 60.0, -52.0], [-95.0, 66.0, 70.0, -55.0], [-55.0, 70.0, 70.0, -56.0], [-15.0, 64.0, 62.0, -54.0], [0.0, 58.0, 56.0, -50.0]],
-	"jaw": [[-150.0, 14.0, -40.0, -58.0], [-130.0, 36.0, -42.0, -66.0], [-95.0, 52.0, -44.0, -70.0], [-50.0, 58.0, -46.0, -66.0], [-15.0, 54.0, -46.0, -60.0]],
-	"jaw_at": Vector3(0.0, -36.0, -20.0),
-	"eye": [Vector3(47.0, 22.0, -96.0), 13.0],
-	"neck": {"root": Vector3(0.0, 140.0, -340.0), "in": Vector3(0.0, 140.0, -430.0), "out": Vector3(0.0, 150.0, -480.0), "reach": 40.0, "r": 72.0},
+			"skin": Color(0.17, 0.12, 0.07), "spot": Color(0.17, 0.12, 0.07), "spots": 0.0, "under": Color(0.82, 0.74, 0.5),
+			"eye_m": Color(0.06, 0.05, 0.04), "eye_f": Color(0.06, 0.05, 0.04), "algae": 0.05, "rays": 0.7, "bumps": 0.15,
+			"mosaic": 1.0, "edge": Color(0.8, 0.7, 0.4), "blots": 0.0, "seam_w": 0.012},
+	"head": [[-192.0, 9.6, 24.0, -57.6], [-180.0, 38.4, 52.8, -60.0], [-153.6, 62.4, 72.0, -62.4], [-114.0, 79.2, 84.0, -66.0], [-66.0, 84.0, 84.0, -67.2], [-18.0, 76.8, 74.4, -64.8], [0.0, 69.6, 67.2, -60.0]],
+	"jaw": [[-180.0, 16.8, -48.0, -69.6], [-156.0, 43.2, -50.4, -79.2], [-114.0, 62.4, -52.8, -84.0], [-60.0, 69.6, -55.2, -79.2], [-18.0, 64.8, -55.2, -72.0]],
+	"jaw_at": Vector3(0.0, -43.0, -24.0),
+	"eye": [Vector3(60.0, 31.0, -120.0), 19.0],
+	"neck": {"root": Vector3(0.0, 92.0, -330.0), "in": Vector3(0.0, 100.0, -440.0), "out": Vector3(0.0, 108.0, -500.0), "reach": 40.0, "r": 64.0}, # (out from under the front of its shell)
 	"fore": Vector3(290.0, 140.0, -270.0), "hind": Vector3(250.0, 110.0, 330.0),
-	"leg_r": 50.0, "reach": 15.0, "foot": 40.0, "claws": 1, "claw": 22.0, "claw_m_fore": 50.0, "claw_m_hind": 18.0, "claw_mm": 3.0, "draw_in": 0.1, "lower_flat": 0.35,
+	"leg_r": 50.0, "reach": 15.0, "foot": 40.0, "claws": 0, "claw": 22.0, "claw_m_fore": 50.0, "claw_m_hind": 18.0, "claw_mm": 3.0, "draw_in": 0.1, "lower_flat": 0.35,
 	"flipper_fore": 400.0, "flipper_w_fore": 190.0, "flipper_hind": 180.0, "flipper_w_hind": 150.0, "foot_flat": 0.12,
 	"stand": 12.0,
 	"tail": {"at": Vector3(0.0, 100.0, 430.0), "len": 90.0, "len_m": 380.0, "r": 30.0, "crest": 0},
@@ -54,10 +54,107 @@ const SEA := {
 }
 
 var _breathe := 20.0 # (s till it goes up to breathe)
+var _flippers: Array[Node3D] = [] # (each leg's blade, its own mesh: posed at its elbow)
+var _flip_at := {} # leg index -> [elbow, wrist] (its shell's mm), as posed
+var _neck_skin: ShaderMaterial
+
+const FORE_LEN := 560.0 ## mm, a foreflipper from its elbow to its tip
+const FORE_CHORD := 175.0
+const HIND_LEN := 220.0
+const HIND_CHORD := 150.0
 
 
 func _spec() -> Dictionary:
 	return SEA
+
+
+## Its flippers, each a blade of its own (FORE: a long wing, swept back,
+## tapering to a point, thick along its leading edge; HIND: a broad round
+## paddle), in place of the legs' forearm and foot; a claw on each
+## foreflipper's leading edge. Its neck its own skin: yellow olive, finely
+## scaled, wrinkled.
+func _build_head_extra() -> void:
+	for i in _legs.size():
+		var L: Array = _legs[i]
+		var fore: bool = L[4]
+		var side: float = L[5]
+		(L[2] as Node3D).visible = false
+		(L[3] as Node3D).visible = false
+		var n := Node3D.new()
+		_shell_n.add_child(n)
+		var mi := MeshInstance3D.new()
+		mi.mesh = _flipper_mesh(fore, side)
+		mi.material_override = _skin
+		n.add_child(mi)
+		if fore:
+			var claw := _limb(_mat(Color(0.3, 0.26, 0.2), 0.5), n, 0.85)
+			var at := Vector3(FORE_LEN * 0.36, 2.0, -FORE_CHORD * 0.2 * side)
+			_seg_to(claw, at, at + Vector3(10.0, 0.0, -(16.0 if not male else 34.0) * side), 4.0 if not male else 6.0)
+		_flippers.append(n)
+	_neck_skin = _skin.duplicate() as ShaderMaterial
+	_neck_skin.set_shader_parameter("base", Color(0.5, 0.42, 0.22))
+	_neck_skin.set_shader_parameter("edge", Color(0.72, 0.64, 0.4))
+	_neck_skin.set_shader_parameter("cell", 1.3)
+	_neck_skin.set_shader_parameter("seam_w", 0.12)
+	_neck_skin.set_shader_parameter("bumps", 0.6)
+	_neck_mi.material_override = _neck_skin
+	_skins.append(_neck_skin)
+	_skin.set_shader_parameter("cell", 3.0)
+	_skin.set_shader_parameter("seam_w", 0.035)
+
+
+## A flipper's blade (mm; along +x from its elbow, its chord back along +z
+## (on the left, side -1, mirrored), flat across y): its planform, its
+## thickness, a section rounded at its leading edge, thinning to its
+## trailing edge; the fore one swept back to a point.
+static func _flipper_mesh(fore: bool, side: float) -> ArrayMesh:
+	const N := 18
+	const M := 9
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var length := FORE_LEN if fore else HIND_LEN
+	var chord := FORE_CHORD if fore else HIND_CHORD
+	var rows: Array = []
+	for i in N + 1:
+		var t := float(i) / N
+		var c: float
+		var sweep: float
+		var th: float
+		if fore: # (a wing: broad at its wrist, swept back, tapering to a point)
+			c = chord * (0.62 + 0.55 * sin(PI * minf(t / 0.45, 1.0) * 0.5)) * (1.0 - smoothstep(0.3, 1.0, t) * 0.94)
+			sweep = length * 0.32 * t * t
+			th = lerpf(42.0, 7.0, pow(t, 0.7))
+		else: # (a paddle: broad, round ended)
+			c = chord * sqrt(maxf(1.0 - pow((t - 0.45) / 0.58, 2.0), 0.02))
+			sweep = length * 0.25 * t * t
+			th = lerpf(30.0, 8.0, t)
+		var row: Array = []
+		for j in M + 1:
+			var u := float(j) / M # (0 its leading edge .. 1 its trailing)
+			var thick := th * 0.5 * sqrt(maxf(u, 0.0)) * (1.0 - u) * 2.3 + 0.6 # (round in front, thin behind)
+			row.append([Vector3(t * length, thick, (sweep + (u - 0.12) * c) * side), Vector3(t * length, -thick * 0.7, (sweep + (u - 0.12) * c) * side)])
+		rows.append(row)
+	var quad := func(a: Vector3, b: Vector3, c: Vector3, d: Vector3, flip: bool) -> void:
+		if flip:
+			st.add_vertex(a); st.add_vertex(c); st.add_vertex(b)
+			st.add_vertex(a); st.add_vertex(d); st.add_vertex(c)
+		else:
+			st.add_vertex(a); st.add_vertex(b); st.add_vertex(c)
+			st.add_vertex(a); st.add_vertex(c); st.add_vertex(d)
+	var mir := side < 0.0
+	for i in N:
+		for j in M:
+			for k in 2: # (its top, its underside)
+				var a: Vector3 = rows[i][j][k]
+				var b: Vector3 = rows[i + 1][j][k]
+				var c: Vector3 = rows[i + 1][j + 1][k]
+				var d: Vector3 = rows[i][j + 1][k]
+				quad.call(a, b, c, d, (k == 1) != mir)
+	for i in N: # (its edges, closed)
+		for j: int in [0, M]:
+			quad.call(rows[i][j][0], rows[i + 1][j][0], rows[i + 1][j][1], rows[i][j][1], (j == 0) == mir)
+	st.generate_normals()
+	return st.commit()
 
 
 ## (m: deep as it goes, its shell's back on the bottom)
@@ -201,6 +298,27 @@ func _end_mate() -> void:
 ## land both foreflippers heaving together; digging, its hind flippers
 ## (Turtle's); mounted, his foreflippers over her shell's front.
 func _pose_leg_extra(L: Array, out: Vector3, foot: Vector3) -> Array:
+	var r := _pose_flipper(L, out, foot)
+	_flip_at[_legs.find(L)] = r
+	return r
+
+
+## Its blades on its elbows, turned along the forearm, flat (their tops
+## up, as near as the way they point lets them).
+func _pose(dt: float) -> void:
+	super(dt)
+	for i in _flippers.size():
+		if not _flip_at.has(i):
+			continue
+		var e: Vector3 = _flip_at[i][0]
+		var w: Vector3 = _flip_at[i][1]
+		var x := (w - e).normalized()
+		var up := Vector3.UP - x * x.dot(Vector3.UP)
+		var y := up.normalized() if up.length() > 0.05 else Vector3.BACK
+		_flippers[i].transform = Transform3D(Basis(x, y, x.cross(y)), e)
+
+
+func _pose_flipper(L: Array, out: Vector3, foot: Vector3) -> Array:
 	var side: float = L[5]
 	var fore: bool = L[4]
 	var hip: Vector3 = (L[0] as Node3D).position
