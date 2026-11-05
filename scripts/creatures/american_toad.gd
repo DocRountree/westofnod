@@ -12,7 +12,7 @@ extends "res://scripts/creatures/frog.gd" # (by path: found whether or not the e
 ## before it, shimmering; a female's eggs laid in two long strings of
 ## jelly, tangled in the weed on the bottom. Its tadpoles black, small.
 
-const TOAD_BODY := [[-30.0, 0.8, 11.0, 8.4], [-28.6, 5.2, 13.8, 7.0], [-24.5, 10.8, 17.4, 5.2], [-18.5, 14.8, 20.0, 3.6], [-10.0, 17.0, 22.4, 2.0], [-1.0, 18.2, 25.0, 0.4], [8.0, 18.8, 27.0, -0.4], [16.0, 17.4, 27.4, 0.2], [22.0, 14.2, 25.0, 2.2], [26.5, 9.4, 21.4, 4.6], [29.5, 4.2, 17.0, 7.0], [30.6, 0.6, 14.0, 9.4]] # (squat and rotund: its back a high dome, its belly full)
+const TOAD_BODY := [[-30.0, 0.8, 10.58, 8.4], [-28.6, 5.2, 12.71, 7.0], [-24.5, 10.8, 15.45, 5.2], [-18.5, 14.8, 17.38, 3.6], [-10.0, 17.0, 19.14, 2.0], [-1.0, 18.2, 21.06, 0.4], [8.0, 18.8, 22.62, -0.4], [16.0, 17.4, 23.05, 0.2], [22.0, 14.2, 21.35, 2.2], [26.5, 9.4, 18.71, 4.6], [29.5, 4.2, 15.40, 7.0], [30.6, 0.6, 13.26, 9.4]] # (squat and rotund: its back a high dome, its belly full)
 
 
 func _sections() -> Array:
@@ -30,7 +30,7 @@ func _skin_opts() -> Dictionary:
 
 
 func _eye_y() -> float:
-	return 18.4
+	return 16.0
 
 
 func _leg_k() -> float:
@@ -66,11 +66,11 @@ func _tad_cols() -> Array: # (black, a little bronze speckled)
 ## the gland.
 func _build_extra() -> void:
 	for side: float in [-1.0, 1.0]:
-		var g := _part(Vector3(11.0 * side, 18.4, -8.0), Vector3(8.5, 6.0, 15.0), _skin, _frog)
+		var g := _part(Vector3(11.0 * side, 15.6, -8.0), Vector3(8.5, 6.0, 15.0), _skin, _frog)
 		g.rotation = Vector3(0.12, -0.3 * side, -0.35 * side)
-		var c1 := _part(Vector3(4.8 * side, 20.2, -19.5), Vector3(2.4, 2.6, 11.0), _skin, _frog) # (inside its eye)
+		var c1 := _part(Vector3(4.8 * side, 17.6, -19.5), Vector3(2.4, 2.6, 11.0), _skin, _frog) # (inside its eye)
 		c1.rotation.y = 0.12 * side
-		var c2 := _part(Vector3(7.8 * side, 19.8, -13.2), Vector3(6.5, 2.4, 2.6), _skin, _frog) # (behind it)
+		var c2 := _part(Vector3(7.8 * side, 17.2, -13.2), Vector3(6.5, 2.4, 2.6), _skin, _frog) # (behind it)
 		c2.rotation.z = -0.3 * side
 
 

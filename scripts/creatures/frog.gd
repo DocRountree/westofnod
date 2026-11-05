@@ -287,10 +287,10 @@ void fragment() {
 		c = mix(c, vec3(0.85, 0.84, 0.7), lip_s * 0.9);
 		// (a pale line down the middle of its back)
 		c = mix(c, halo * 1.15, stripe * (1.0 - smoothstep(0.5, 1.1, ax)) * smoothstep(-22.0, -16.0, p.z) * (1.0 - smoothstep(24.0, 30.0, p.z)) * smoothstep(0.4, 0.7, n.y));
-		float can = (1.0 - smoothstep(0.4, 0.9, abs(p.y - (12.2 + 0.15 * (p.z + 34.0))))) * smoothstep(-35.0, -32.0, p.z) * (1.0 - smoothstep(-24.0, -21.0, p.z)) * sw;
+		float can = (1.0 - smoothstep(0.4, 0.9, abs(p.y - (11.4 + 0.13 * (p.z + 34.0))))) * smoothstep(-35.0, -32.0, p.z) * (1.0 - smoothstep(-24.0, -21.0, p.z)) * sw;
 		c = mix(c, spot, can * 0.8);
 		// its tympanum: a brown disc behind its eye, a pale dot in it
-		float td = length(vec2(p.y - 13.4, p.z + 11.0));
+		float td = length(vec2(p.y - 12.4, p.z + 11.0));
 		float tym = (1.0 - smoothstep(3.0, 3.5, td)) * smoothstep(0.6, 0.85, abs(n.x)) * (1.0 - warts * 0.6);
 		c = mix(c, mix(vec3(0.34, 0.28, 0.17), vec3(0.62, 0.56, 0.4), 1.0 - smoothstep(0.5, 0.9, td)), tym);
 	} else {
@@ -342,7 +342,7 @@ void fragment() {
 ## broad and flat, no neck, widest at its shoulders, the sacral hump over
 ## its hips, its back sloping down to the vent; each section domed above,
 ## flat below; the dorsolateral folds raised along its back.
-const LEOPARD_BODY := [[-36.0, 0.6, 8.6, 6.4], [-34.5, 3.2, 10.0, 5.4], [-31.0, 6.6, 12.4, 4.4], [-26.0, 10.0, 15.2, 3.2], [-19.0, 12.8, 17.6, 2.2], [-11.0, 14.0, 19.0, 1.2], [-2.0, 14.4, 20.6, 0.2], [7.0, 14.6, 22.6, -0.2], [15.0, 14.0, 24.4, 0.6], [21.0, 12.2, 23.6, 2.0], [26.0, 9.0, 20.6, 4.0], [30.0, 4.6, 16.6, 6.4], [31.6, 0.6, 13.6, 8.6]] # (its back rising from its head to the sacral hump over its hips; its belly round, sagging a little)
+const LEOPARD_BODY := [[-36.0, 0.6, 8.29, 6.4], [-34.5, 3.2, 9.36, 5.4], [-31.0, 6.6, 11.28, 4.4], [-26.0, 10.0, 13.52, 3.2], [-19.0, 12.8, 15.44, 2.2], [-11.0, 14.0, 16.51, 1.2], [-2.0, 14.4, 17.74, 0.2], [7.0, 14.6, 19.41, -0.2], [15.0, 14.0, 21.07, 0.6], [21.0, 12.2, 20.58, 2.0], [26.0, 9.0, 18.28, 4.0], [30.0, 4.6, 15.17, 6.4], [31.6, 0.6, 12.90, 8.6]] # (its back rising from its head to the sacral hump over its hips; its belly round, sagging a little)
 static var _body_ms := {} # (sections -> its mesh)
 
 
@@ -472,7 +472,7 @@ func _skin_opts() -> Dictionary:
 
 
 func _eye_y() -> float: ## (mm up: its eyes, high on its head)
-	return 15.6
+	return 14.4
 
 
 func _leg_k() -> float: ## (its legs' length, of a leopard frog's)
