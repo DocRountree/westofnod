@@ -168,7 +168,7 @@ func _build() -> void:
 	var prev: Node3D = _body
 	for k in TAIL_N:
 		var n := Node3D.new()
-		n.position = Vector3(0.0, 1.5, 39.0) if k == 0 else Vector3(0.0, 0.0, TAIL_SEG)
+		n.position = Vector3(0.0, -0.5, 38.0) if k == 0 else Vector3(0.0, 0.0, TAIL_SEG)
 		prev.add_child(n)
 		_tail.append(n)
 		prev = n
@@ -224,7 +224,7 @@ func _build_skin() -> void:
 		prev = prev * _tail[k].transform
 		trest.append(prev)
 		tb.append(K.bone("tail%d" % k, prev))
-		radii.append(lerpf(1.7, 0.5, float(k) / (TAIL_N - 1)))
+		radii.append(lerpf(2.3, 0.8, float(k) / (TAIL_N - 1)))
 	_sb["tail"] = tb
 	K.tail_chain(torso, tb, trest, radii, TAIL_SEG, 1.0, 10)
 	for i in 4:
@@ -673,7 +673,7 @@ func _pose(dt: float) -> void:
 	var sway := 0.4 if _speed > 0.01 else 0.12
 	for k in _tail.size():
 		var n := _tail[k]
-		var down := ([0.55, 0.35, 0.25, -1.15][k] as float) if k < 4 else 0.0
+		var down := ([0.18, 0.16, 0.12, 0.04, -0.08, -0.12, -0.12, -0.1, -0.06, -0.02][k] as float) if k < 10 else 0.0 # (a smooth arc: down off its rump, then along the ground, no kink)
 		if k == 0:
 			down -= _pitch
 		n.rotation = Vector3(down, sway * 0.25 * sin(_t * 2.2 - k * 0.5) * (0.4 + float(k) / TAIL_N), 0.0)

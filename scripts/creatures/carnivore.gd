@@ -191,7 +191,8 @@ func _build() -> void:
 	_jaw = Node3D.new()
 	_jaw.position = S.jaw_at
 	_head.add_child(_jaw)
-	_part(Vector3(0.0, 4.0, -20.0), Vector3(30.0, 4.0, 60.0) * float(S.get("mouth", 1.0)), _mat(Color(0.5, 0.28, 0.28), 0.5), _jaw) # (its tongue, the mouth's floor)
+	var tl_ := minf(60.0 * float(S.get("mouth", 1.0)), absf(float((S.jaw as Array)[(S.jaw as Array).size() - 1][0])) * 0.85) # (its tongue no longer than its jaw)
+	_part(Vector3(0.0, 4.0, -tl_ * 0.4), Vector3(30.0 * float(S.get("mouth", 1.0)), 4.0, tl_), _mat(Color(0.5, 0.28, 0.28), 0.5), _jaw) # (its tongue, the mouth's floor)
 	var E: Dictionary = S.eye
 	# (each eye set on the head's surface, bulging from it; the fur bare
 	# round it)
@@ -218,6 +219,8 @@ func _build() -> void:
 			m.set_shader_parameter("bare_b", sculpt.eye)
 			m.set_shader_parameter("nose_c", Vector3(0.0, (SculptScript._key(sculpt, "top", zt) + SculptScript._key(sculpt, "bot", zt)) * 0.5 + float(sculpt.nose_r) * 0.25, zt + float(sculpt.nose_r) * 0.4))
 			m.set_shader_parameter("nose_r", sculpt.nose_r)
+			var nc: Color = (S.nose as Dictionary).color
+			m.set_shader_parameter("nose_col", Vector3(nc.r, nc.g, nc.b))
 			m.set_shader_parameter("almond", float(sculpt.get("almond", 0.72)))
 			m.set_shader_parameter("slant", float(sculpt.get("slant", 0.0)))
 	for side: float in [-1.0, 1.0]:
@@ -253,7 +256,8 @@ func _build() -> void:
 			pu2.mesh = _sphere
 			pu2.material_override = _mat(Color(0.01, 0.008, 0.006), 0.05)
 			_head.add_child(pu2)
-			pu2.transform = Transform3D(Basis(upv * er_ * 1.8 * al, lk * er_ * 0.2, long_ * er_ * 0.26), ec + lk * er_ * 0.3)
+			var pup: Vector2 = sculpt.get("pupil", Vector2(1.8 * al, 0.26)) # (its height and length, of its eye's radius: a fox's slit, a dog's round, a deer's bar)
+			pu2.transform = Transform3D(Basis(upv * er_ * pup.x, lk * er_ * 0.2, long_ * er_ * pup.y), ec + lk * er_ * 0.3)
 			var lid2 := _part(ec, Vector3.ONE * er_ * 1.9, face, _head)
 			lid2.visible = false
 			_lids.append(lid2)
@@ -316,7 +320,7 @@ func _build() -> void:
 		en.set_meta("side", side)
 		_fur_shells(_mesh(_ear_mesh(float(R.len), float(R.width), float(R.get("point", 1.0)), 0.22 if sculpt.is_empty() else 0.34, 0.35 if sculpt.is_empty() else 0.6), ear_m, en), fl * 0.2, 4)
 		if R.get("tuft", 0.0) > 0.0:
-			_stick(Vector3(0.0, float(R.len) * 0.95, 0.0), Vector3(-3.0 * side, float(R.len) + float(R.tuft), 2.0), 2.2, _coat(7), en)
+			_stick(Vector3(0.0, float(R.len) * 0.95, 0.0), Vector3(-3.0 * side, float(R.len) + float(R.tuft), 2.0), 1.5, _mat(Color(0.06, 0.05, 0.045), 0.6), en) # (its tufts black)
 		_ear_nodes.append(en)
 	# the face's own (a bobcat's ruff)
 	for r: Array in []: # (a bobcat's ruff: painted on its face now, not blobs)
@@ -596,6 +600,9 @@ static func _ear_mesh(len_: float, width: float, point: float, thick := 0.22, cu
 	var ring := func(i: int, k: int) -> Array:
 		var t := float(i) / RINGS
 		var hw := width * 0.5 * pow(1.0 - t, point) * (0.82 + 0.45 * sin(PI * minf(t * 1.25, 1.0))) * (1.0 - smoothstep(0.82, 1.0, t) * 0.6) + 1.0
+		if point < 0.5: # (a bear's: round, a half disc on a short stalk)
+			var u := clampf((t - 0.4) / 0.6, 0.0, 1.0)
+			hw = width * 0.5 * (0.8 + 0.2 * minf(t / 0.4, 1.0)) * sqrt(maxf(1.0 - u * u, 0.0)) + 1.0
 		var a := TAU * float(k % ROUND) / ROUND
 		var x := sin(a) * hw
 		var z := cos(a) * maxf(hw * thick * (1.0 - 0.6 * t), 2.0)

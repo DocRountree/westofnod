@@ -412,7 +412,11 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   their tips, darker at their roots), gathered in locks, the surface bump-mapped by them so the light breaks up on
   the coat (fading out far off, where they'd shimmer), matte, a velvet rim; the bison's front in curled wool. The
   faces: almond eyes set in, dark-lidded; the lip line along the jaw to the mouth's corner; whisker spots in rows;
-  the muzzle darker toward the nose; the ears furred pale within, their backs the species' own.
+  the muzzle darker toward the nose; the ears furred pale within, their backs the species' own. The heads of the
+  fox, bobcat, coyote, wolf, both bears, bison, deer and beaver are sculpted (`scripts/creatures/sculpt_head.gd`,
+  `SculptHead`: each species' `sculpt` in its SPEC, fitted to photographs): cross-sections changing along the head,
+  its profile's own line, the eye sockets, lids, brows, cheeks, stop, whisker pads and lips pushed in or out; the
+  lower jaw tucked under the lips; the nose leather and the face's marks painted on (`carnivore.gdshader`'s `sculpt`).
 - Steering, for a future state machine (`scripts/creatures/pilot.gd`): every creature (`Wasp`, the
   lepidopterans, `Grasshopper`, `Mantis`, `Snake`, `Larva`; one of a colony: `AntColony.member(i)`) has the same
   calls: `go(direction, speed, seconds)`, `go_to(point, speed)`, `face(direction)`, `stop()`, `act(name, args)`

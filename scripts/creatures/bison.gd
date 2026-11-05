@@ -39,7 +39,7 @@ const SPEC := {
 	"neck_at": Vector3(0.0, 0.0, -950.0), "neck": [[50.0, 0.0, 260.0, 350.0], [-150.0, -30.0, 230.0, 310.0], [-280.0, -60.0, 200.0, 260.0]], "neck_pitch": -0.35,
 	"head_at": Vector3(0.0, -40.0, -270.0),
 	"head": [[60.0, 0.0, 190.0, 230.0], [-80.0, -20.0, 205.0, 235.0], [-220.0, -60.0, 175.0, 195.0], [-360.0, -110.0, 140.0, 150.0], [-450.0, -140.0, 120.0, 118.0], [-480.0, -150.0, 80.0, 80.0]],
-	"jaw_at": Vector3(0.0, -160.0, -150.0), "jaw": [[0.0, -20.0, 140.0, 40.0], [-200.0, -40.0, 110.0, 30.0], [-310.0, -30.0, 70.0, 20.0]], "mouth": 3.0,
+	"jaw_at": Vector3(0.0, -226.7, -192.0), "jaw": [[0.0, 0.0, 84.2, 55.2], [-91.0, -18.7, 99.2, 56.7], [-182.0, -17.1, 67.7, 44.0]], "mouth": 3.0,
 	"mouth_z": -1700.0,
 	"eye": {"at": Vector3(150.0, 30.0, -200.0), "size": Vector3(36.0, 30.0, 38.0), "color": Color(0.16, 0.1, 0.06), "slit": 0.22},
 	"nose": {"at": Vector3(0.0, -135.0, -478.0), "size": Vector3(130.0, 90.0, 60.0), "color": Color(0.06, 0.05, 0.05)},
@@ -53,6 +53,18 @@ const SPEC := {
 	"stalk_from": 6.0, "spring": 2.5, "stalk_crouch": 0.1, "stalk_neck": -0.2, "eat_crouch": 0.0,
 	"sit_drop": 300.0, "sit_pitch": 0.3, "lie_h": 480.0,
 	"mate_secs": 6.0,
+	# its head sculpted (SculptHead), from photographs: massive, carried low; its forehead broad and flat under its wool, its face long and deep; its muzzle broad, its nose wide and black; its eyes set far out on its head's sides
+	"sculpt": {
+		"z": [60.0, 20.0, -20.0, -70.0, -120.0, -180.0, -240.0, -300.0, -360.0, -420.0, -478.0],
+		"top": [200.0, 228.0, 232.0, 222.0, 196.0, 155.0, 108.0, 62.0, 22.0, -14.0, -50.0],
+		"bot": [-200.0, -240.0, -255.0, -258.0, -256.0, -250.0, -244.0, -238.0, -232.0, -226.0, -210.0],
+		"w": [170.0, 205.0, 210.0, 200.0, 185.0, 165.0, 145.0, 128.0, 115.0, 105.0, 85.0],
+		"wl": [175.0, 210.0, 215.0, 205.0, 185.0, 160.0, 140.0, 124.0, 112.0, 102.0, 85.0],
+		"pw": [2.0, 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.6, 2.6, 2.5, 2.3],
+		"eye": Vector3(145.0, 20.0, -190.0), "eye_r": 18.0, "socket": 2.5, "lid": 2.5,
+		"brow": 12.0, "cheek": 6.0, "stop": 3.0, "pads": 0.0, "flews": 2.00, "nose_r": 70.0,
+		"almond": 0.62, "slant": 0.05, "look_fwd": 0.45, "pupil": Vector2(0.35, 0.90),
+	},
 }
 
 var _rival: Node3D
@@ -90,13 +102,14 @@ func _build_extra() -> void:
 		for side: float in [-1.0, 1.0]:
 			var p := Vector3(150.0 * side, 120.0, -70.0)
 			var d := Vector3(side, 0.15, -0.1).normalized()
-			var r := 32.0
-			for k in 6:
-				var q := p + d * 45.0
+			var r := 34.0
+			for k in 11: # (smooth: short steps, tapering)
+				var q := p + d * 24.0
 				_stick(p, q, r, horn, _head)
+				_part(q, Vector3.ONE * r * 2.0 * 0.88, horn, _head) # (the joint rounded over)
 				p = q
-				d = (d + Vector3(-side * 0.32, 0.45, 0.0)).normalized()
-				r *= 0.8
+				d = (d + Vector3(-side * 0.17, 0.24, 0.0)).normalized()
+				r *= 0.88
 	# its hooves: cloven (the walker's paws' pads: two halves, no claws)
 	for i in 4:
 		var pw := _legx[i][1] as MeshInstance3D

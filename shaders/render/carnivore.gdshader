@@ -46,6 +46,7 @@ uniform float line_y = -0.28; // (its belly's edge: the normal's y there)
 uniform bool sculpt = false; // (its head sculpted: SculptHead; its nose leather painted here)
 uniform vec3 nose_c = vec3(0.0, 0.0, -1e5);
 uniform float nose_r = 1.0;
+uniform vec3 nose_col = vec3(0.045, 0.038, 0.036); // (its nose leather: black, or a cat's pink)
 uniform float almond = 0.72; // (its eye's opening: height to length)
 uniform float slant = 0.0; // (its outer corner raised)
 uniform float hair = 20.0; // (its coat's length, mm: the grain's size)
@@ -155,14 +156,43 @@ void fragment() {
 		vec3 buff = young ? vec3(0.52, 0.46, 0.4) : vec3(0.62, 0.47, 0.31);
 		vec3 grey = young ? vec3(0.44, 0.4, 0.36) : vec3(0.44, 0.38, 0.3);
 		vec3 dark = vec3(0.13, 0.1, 0.08);
-		c = countershade(grey, buff, white, ny, -0.3);
-		float sp = spots(rp, young ? 26.0 : 34.0, 0.4);
+		c = countershade(grey, buff, mix(white, buff, sculpt ? fw : 0.0), ny, -0.3);
+		float sp = spots(rp * vec3(1.0, 1.0, 0.75), young ? 22.0 : 24.0, 0.36);
 		c = mix(c, dark, sp * (1.0 - smoothstep(0.75, 0.98, ny)) * (1.0 - fw) * (young ? 0.85 : 0.7));
 		c = mix(c, mix(white, dark, spots(rp, 40.0, 0.3) * 0.8), (1.0 - smoothstep(-0.55, -0.2, ny)) * (1.0 - fw));
-		c = mix(c, white, chin);
-		c = mix(c, white, snout * 0.8);
+		if (!sculpt) {
+			c = mix(c, white, chin);
+			c = mix(c, white, snout * 0.8);
+		}
 		float bars = fw * smoothstep(0.6, 0.9, sin(hp.y * 0.35 + hp.z * 0.12)) * (1.0 - snout) * smoothstep(-0.6, 0.2, ny) * (1.0 - smoothstep(0.5, 0.9, ny));
-		c = mix(c, dark, bars * 0.3 * smoothstep(25.0, 45.0, abs(hp.x)));
+		if (!sculpt)
+			c = mix(c, dark, bars * 0.3 * smoothstep(25.0, 45.0, abs(hp.x)));
+		if (sculpt && fw > 0.5 && !young) {
+			vec3 hq = vec3(abs(hp.x), hp.y, hp.z);
+			// (its forehead: fine dark lines back over its crown)
+			float fs = smoothstep(0.75, 0.95, sin(hq.x * 0.42 + 0.6)) * smoothstep(0.45, 0.85, ny) * smoothstep(bare_b.z - bare_r * 0.5, bare_b.z + bare_r * 1.5, hp.z);
+			c = mix(c, dark, fs * 0.55);
+			// (white round its eyes)
+			float ed = length((hq - bare_b) / vec3(1.0, 0.75, 1.0));
+			c = mix(c, white, (1.0 - smoothstep(bare_r * 1.0, bare_r * 1.45, ed)) * 0.55);
+			// (its muzzle, lips, chin and the ruff under its cheeks white, below a line from its nose back under its eye)
+			float liny = mix(nose_c.y - nose_r * 0.5, bare_b.y - bare_r * 1.3, clamp((hp.z - nose_c.z) / max(bare_b.z - nose_c.z, 1.0), 0.0, 1.8));
+			float low = 1.0 - smoothstep(liny - 3.0, liny + 3.0, hp.y);
+			c = mix(c, white, low * 0.9);
+			c = mix(c, white, (1.0 - smoothstep(-0.7, -0.35, ny)));
+			// (the black bars, two, sweeping back and down across its ruff from its eye's back corner)
+			for (int k = 0; k < 2; k++) {
+				vec2 b0 = vec2(bare_b.z + bare_r * (1.1 + 0.2 * float(k)), bare_b.y - bare_r * (0.2 + 1.3 * float(k)));
+				vec2 bd = normalize(vec2(1.0, -0.55));
+				vec2 pq = vec2(hp.z, hp.y) - b0;
+				float tb = clamp(dot(pq, bd), 0.0, bare_r * 3.6);
+				float db = length(pq - bd * tb);
+				c = mix(c, dark, (1.0 - smoothstep(bare_r * 0.1, bare_r * 0.22, db)) * smoothstep(0.3, 0.7, abs(normalize(rn).x)) * 0.85);
+			}
+			// (its whisker pads: rows of dark spots, the whiskers' roots)
+			float pad = smoothstep(bare_b.z - bare_r * 1.6, bare_b.z - bare_r * 2.6, hp.z) * smoothstep(0.3, 0.6, abs(normalize(rn).x));
+			c = mix(c, dark, spots(vec3(hp.x * 0.5, hp.y * 1.6, hp.z), 3.5, 0.3) * pad * low * 0.7);
+		}
 		if (leg) {
 			c = mix(buff, grey, 0.3);
 			c = mix(c, dark, smoothstep(0.55, 0.85, sin(a * 40.0)) * (1.0 - smoothstep(0.6, 0.9, a)) * 0.55);
@@ -173,7 +203,7 @@ void fragment() {
 			c = mix(c, mix(dark, white, 1.0 - smoothstep(-0.2, 0.2, ny)), smoothstep(0.78, 0.86, a));
 		}
 		if (pt == 5.0)
-			c = rn.z < 0.0 ? /*(its back: away from its cup)*/ mix(vec3(0.08, 0.07, 0.06), white, (1.0 - smoothstep(ear_len * 0.12, ear_len * 0.2, length(rp.xy - vec2(0.0, ear_len * 0.45))))) : mix(white * 0.8, buff, 0.3);
+			c = rn.z < 0.0 ? /*(its back: away from its cup)*/ mix(vec3(0.08, 0.07, 0.06), white, (1.0 - smoothstep(ear_len * 0.12, ear_len * 0.2, length(rp.xy - vec2(0.0, ear_len * 0.45))))) : mix(mix(white * 0.8, buff, 0.45), vec3(0.1, 0.08, 0.06), smoothstep(0.75, 1.0, abs(rp.x) / max(ear_len * 0.36 * (1.0 - rp.y / max(ear_len, 1.0)) + 1.0, 1.0)));
 	} else if (species == 2 || species == 3) {
 		// 2 a coyote: grizzled grey brown above, black tipped down its back,
 		// tawny on its sides, legs, ears and muzzle; its throat and belly
@@ -181,18 +211,19 @@ void fragment() {
 		// grey, a darker saddle, pale buff legs and flanks, its underside
 		// and the mask of its face pale; the tail dark tipped.
 		bool wolf = species == 3;
-		vec3 back = wolf ? vec3(0.24, 0.23, 0.215) : vec3(0.36, 0.29, 0.21);
-		vec3 side = wolf ? vec3(0.44, 0.41, 0.36) : vec3(0.58, 0.43, 0.27);
-		vec3 pale = wolf ? vec3(0.8, 0.78, 0.72) : vec3(0.84, 0.77, 0.64);
+		vec3 back = wolf ? vec3(0.3, 0.29, 0.27) : vec3(0.42, 0.36, 0.29);
+		vec3 side = wolf ? vec3(0.52, 0.48, 0.42) : vec3(0.64, 0.47, 0.3);
+		vec3 pale = wolf ? vec3(0.84, 0.81, 0.74) : vec3(0.86, 0.8, 0.68);
 		if (young) {
 			back = wolf ? vec3(0.17, 0.16, 0.15) : vec3(0.32, 0.27, 0.23);
 			side = wolf ? vec3(0.25, 0.23, 0.21) : vec3(0.42, 0.35, 0.28);
 			pale = side * 1.3;
 		}
-		c = countershade(back, side, pale, ny, -0.3);
+		c = countershade(back, side, mix(pale, side, sculpt ? fw : 0.0), ny, -0.3); // (a sculpted face: its pale painted below)
 		c = mix(c, back * 0.55, smoothstep(0.8, 0.98, ny) * (1.0 - fw) * (wolf ? 0.5 : 0.35) * (0.6 + 0.4 * vn(rp * 0.02)));
-		c = mix(c, wolf ? pale : side * 1.05, fw * smoothstep(0.2, -0.3, ny));
-		c = mix(c, pale, chin);
+		if (!sculpt)
+			c = mix(c, wolf ? pale : side * 1.05, fw * smoothstep(0.2, -0.3, ny));
+		c = mix(c, pale, sculpt ? fw * (1.0 - smoothstep(-0.85, -0.5, ny)) : chin);
 		if (leg)
 			c = mix(side * 1.04, pale, (wolf ? 0.4 : 0.15) + 0.3 * smoothstep(0.4, 0.9, a));
 		if (pt == 6.0) {
@@ -200,8 +231,33 @@ void fragment() {
 			c = mix(c, pale, (1.0 - smoothstep(-0.4, 0.1, ny)) * 0.6);
 			c = mix(c, vec3(0.07, 0.06, 0.055), smoothstep(0.8, 0.92, a));
 		}
+		if (!young && !leg && pt != 5.0) { // (grizzled: the guard hairs' black tips and pale bands, in locks)
+			float up = smoothstep(-0.1, 0.7, ny) * (1.0 - fw * 0.5);
+			c = mix(c, back * 0.35, smoothstep(0.5, 0.9, vn(rp * vec3(0.16, 0.16, 0.04) + vec3(0.0, 0.0, vn(rp * 0.05) * 3.0))) * (wolf ? 0.5 : 0.4) * up);
+			c = mix(c, pale, smoothstep(0.55, 0.9, vn(rp * vec3(0.2, 0.2, 0.05) + 5.0)) * 0.22 * up);
+		}
+		if (sculpt && fw > 0.5 && !young) {
+			vec3 hq = vec3(abs(hp.x), hp.y, hp.z);
+			float sd = smoothstep(0.2, 0.55, abs(normalize(rn).x));
+			float fore = smoothstep(bare_b.z - bare_r * 0.5, bare_b.z - bare_r * 3.0, hp.z); // (ahead of its eyes: its muzzle)
+			vec3 tawny = wolf ? vec3(0.52, 0.45, 0.36) : vec3(0.6, 0.43, 0.27);
+			// (its muzzle's top and round its eyes: tawny; its forehead grizzled)
+			c = mix(c, tawny, fore * smoothstep(-0.1, 0.5, ny) * (wolf ? 0.6 : 0.7));
+			c = mix(c, tawny, (1.0 - smoothstep(bare_r * 1.1, bare_r * 2.2, length(hq - bare_b))) * (wolf ? 0.3 : 0.7));
+			// (its upper lips, cheeks and throat pale, below a line from its nose back under its eye)
+			float liny = mix(nose_c.y - nose_r * (wolf ? 1.2 : 1.5), bare_b.y - bare_r * (wolf ? 2.6 : 3.2), clamp((hp.z - nose_c.z) / max(bare_b.z - nose_c.z, 1.0), 0.0, 1.6));
+			c = mix(c, wolf ? vec3(0.86, 0.84, 0.8) : vec3(0.88, 0.84, 0.76), (1.0 - smoothstep(liny - 4.0, liny + 4.0, hp.y)) * sd);
+			if (wolf) { // (its mask: a pale spot over each eye, its cheeks' ruff buff)
+				float brow = 1.0 - smoothstep(bare_r * 0.6, bare_r * 1.4, length((hq - bare_b - vec3(-bare_r * 0.1, bare_r * 1.3, bare_r * 0.3)) / vec3(1.0, 0.5, 1.6)));
+				c = mix(c, pale, brow * 0.7);
+				c = mix(c, vec3(0.74, 0.68, 0.58), smoothstep(bare_b.z + bare_r, bare_b.z + bare_r * 3.5, hp.z) * smoothstep(0.4, 0.8, abs(normalize(rn).x)) * (1.0 - smoothstep(0.2, 0.6, ny)) * 0.7);
+			}
+			// (the dark line along its upper lid, out to its eye's back corner)
+			vec3 qe = (hq - bare_b - vec3(0.0, bare_r * 0.45, bare_r * 0.5)) / vec3(1.0, 0.35, 1.5);
+			c = mix(c, vec3(0.08, 0.06, 0.05), (1.0 - smoothstep(bare_r * 0.7, bare_r * 1.0, length(qe))) * 0.6);
+		}
 		if (pt == 5.0)
-			c = rn.z < 0.0 ? /*(its back: away from its cup)*/ side * (wolf ? 0.8 : 1.0) : mix(pale * 0.85, side, 0.35);
+			c = rn.z < 0.0 ? /*(its back: away from its cup)*/ (wolf ? mix(side, back, 0.4) : vec3(0.6, 0.38, 0.2)) : mix(pale * 0.8, side, 0.55);
 	} else if (species == 4 || species == 5) {
 		// 4 a black bear: glossy black (or cinnamon, brown, blond), its
 		// muzzle tan, now and then a white blaze on its chest. 5 a brown
@@ -210,7 +266,7 @@ void fragment() {
 		// paler.
 		vec3 base;
 		if (species == 4)
-			base = phase == 0 ? vec3(0.1, 0.088, 0.08) : (phase == 1 ? vec3(0.45, 0.26, 0.13) : (phase == 2 ? vec3(0.28, 0.19, 0.11) : vec3(0.68, 0.54, 0.34)));
+			base = phase == 0 ? vec3(0.13, 0.11, 0.1) : (phase == 1 ? vec3(0.45, 0.26, 0.13) : (phase == 2 ? vec3(0.28, 0.19, 0.11) : vec3(0.68, 0.54, 0.34)));
 		else
 			base = phase == 2 ? vec3(0.62, 0.48, 0.3) : vec3(0.35, 0.24, 0.14);
 		c = base;
@@ -220,6 +276,11 @@ void fragment() {
 				c = mix(c, vec3(0.74, 0.67, 0.56), smoothstep(0.1, 0.85, ny) * (0.35 + 0.4 * vn(rp * 0.03)) * (1.0 - fw * 0.5));
 		} else {
 			c = mix(c, c * 0.8, 1.0 - smoothstep(-0.6, 0.0, ny));
+		}
+		if (!young && !leg && pt < 4.0) { // (the coat in locks: darker roots between, lighter tips (a grizzly's silvered))
+			vec3 lq = rp * vec3(0.06, 0.06, 0.014) + vec3(0.0, 0.0, vn(rp * 0.02) * 2.0);
+			c = mix(c, c * 0.7, smoothstep(0.4, 0.9, vn(lq)) * 0.4);
+			c = mix(c, species == 5 ? vec3(0.62, 0.52, 0.38) : c * 1.5 + vec3(0.02), smoothstep(0.55, 0.95, vn(lq * 1.3 + 7.0)) * (species == 5 ? 0.22 : 0.15) * smoothstep(-0.3, 0.6, ny));
 		}
 		if (leg)
 			c *= mix(1.0, species == 5 ? 0.6 : 0.85, smoothstep(0.3, 0.8, a));
@@ -236,14 +297,26 @@ void fragment() {
 		// dark chocolate brown, the wool there long and curled; behind its
 		// shoulders lighter, browner, short; its belly no paler; a calf red
 		// orange (a "red dog")
-		vec3 fore = young ? vec3(0.56, 0.31, 0.14) : vec3(0.11, 0.075, 0.05);
-		vec3 hindc = young ? vec3(0.6, 0.35, 0.17) : vec3(0.4, 0.28, 0.17);
+		// (from photographs: its head, beard and legs near black brown; the
+		// cape over its hump and shoulders paler, a golden tawny; behind it
+		// darker brown again)
+		vec3 fore = young ? vec3(0.56, 0.31, 0.14) : vec3(0.15, 0.1, 0.065);
+		vec3 cape = young ? vec3(0.58, 0.33, 0.15) : vec3(0.46, 0.31, 0.16);
+		vec3 hindc = young ? vec3(0.6, 0.35, 0.17) : vec3(0.27, 0.18, 0.11);
 		float front = 1.0 - smoothstep(front_z - 250.0, front_z + 250.0, rp.z);
-		if (pt == 1.0 || pt == 5.0 || fw > 0.0 || a > 0.55)
-			front = 1.0;
-		c = mix(hindc, fore, front);
+		c = mix(hindc, cape, front * smoothstep(-0.5, 0.1, ny));
+		c = mix(c, fore, front * (1.0 - smoothstep(-0.7, -0.3, ny)));
+		if (pt == 1.0 || pt == 5.0 || fw > 0.3)
+			c = fore;
+		else if (a > 0.55 && pt == 0.0) // (its neck: the cape over, dark under)
+			c = mix(fore, cape, smoothstep(-0.2, 0.5, ny) * 0.85);
+		if (!young && !leg) { // (the wool in locks, the tips paler)
+			vec3 lq = rp * vec3(0.05, 0.05, 0.03);
+			c = mix(c, c * 0.6, smoothstep(0.4, 0.9, vn(lq)) * 0.5);
+			c = mix(c, c * 1.5 + vec3(0.03), smoothstep(0.6, 0.95, vn(lq * 1.4 + 3.0)) * 0.35);
+		}
 		if (leg)
-			c = mix(fore, hindc * 0.7, hind ? 0.5 : 0.0) * mix(1.0, 0.75, smoothstep(0.4, 0.9, a));
+			c = mix(fore, hindc * 0.8, hind ? 0.4 : 0.0) * mix(1.0, 0.8, smoothstep(0.4, 0.9, a));
 		if (pt == 4.0)
 			c = vec3(0.05, 0.045, 0.04);
 		if (pt == 7.0)
@@ -255,13 +328,15 @@ void fragment() {
 		// its back; white beneath and its chin; its big hind feet paler; its
 		// ears brown backed, black tipped, buff within; its tail white
 		// beneath, dark above
-		vec3 brown = vec3(0.45, 0.34, 0.22);
-		vec3 dark = vec3(0.29, 0.22, 0.15);
-		c = countershade(dark, brown, white, ny, -0.45);
+		// (from photographs: grey brown, grizzled, its face and crown warmer, rufous; its chin and lips pale; its feet and lower legs white)
+		vec3 brown = vec3(0.44, 0.36, 0.27);
+		vec3 dark = vec3(0.3, 0.25, 0.19);
+		c = countershade(dark, brown, mix(white, brown * 1.1, fw), ny, -0.45);
+		c = mix(c, vec3(0.52, 0.34, 0.18), fw * smoothstep(-0.3, 0.4, ny) * 0.6);
 		c *= 0.86 + 0.28 * vn(rp * 0.35) * vn(rp * 0.09 + 4.0); // (the hairs' bands: grizzled)
-		c = mix(c, white, chin);
+		c = mix(c, white, fw * (1.0 - smoothstep(-0.85, -0.55, ny)));
 		if (leg) {
-			c = mix(brown * 1.05, vec3(0.8, 0.72, 0.6), hind ? smoothstep(0.55, 0.75, a) : 0.25 * smoothstep(0.5, 0.9, a));
+			c = mix(brown * 1.05, white * 0.97, hind ? smoothstep(0.5, 0.68, a) : smoothstep(0.45, 0.65, a));
 			c = mix(c, white * 0.95, (1.0 - smoothstep(-0.4, 0.0, ny)) * (1.0 - smoothstep(0.2, 0.5, a)) * 0.6);
 		}
 		if (pt == 6.0)
@@ -409,7 +484,7 @@ void fragment() {
 		if (sculpt) { // (its nose pad: black leather, moist, pebbled; its nostrils, commas, either side)
 			vec3 nd = (hp - nose_c) / vec3(1.0, 0.82, 0.7);
 			leather = 1.0 - smoothstep(nose_r * 0.88, nose_r * 1.04, length(nd));
-			vec3 leath = vec3(0.045, 0.038, 0.036) * (0.85 + 0.3 * vn(hp * 1.6));
+			vec3 leath = nose_col * (0.85 + 0.3 * vn(hp * 1.6));
 			c = mix(c, leath, leather);
 			for (int k = 0; k < 2; k++) {
 				float sd = k == 0 ? -1.0 : 1.0;

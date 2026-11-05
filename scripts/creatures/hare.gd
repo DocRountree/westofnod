@@ -35,7 +35,7 @@ extends "res://scripts/creatures/hexapod.gd" # (by path: found whether or not th
 
 const FORE := {"hip": Vector3(28.0, -30.0, -95.0), "f": 62.0, "t": 72.0, "s": 34.0, "home": Vector2(30.0, -112.0), "dangle": Vector3(26.0, -60.0, -150.0), "pole": Vector3(0.1, 0.0, 1.0), "r": 9.0, "femur_r": 1.9}
 const HIND := {"hip": Vector3(42.0, -8.0, 100.0), "f": 92.0, "t": 98.0, "s": 118.0, "home": Vector2(46.0, 18.0), "dangle": Vector3(40.0, -50.0, 190.0), "pole": Vector3(0.2, 0.1, -1.0), "r": 12.0, "femur_r": 2.4}
-const EAR_LEN := 75.0
+const EAR_LEN := 100.0
 
 var young := false
 var leverets: Array[Node3D] = [] ## her young
@@ -118,14 +118,14 @@ func _build() -> void:
 	var ring := _coat_mat(0, 0.75) # (the pale ring round each eye)
 	# (each set on the head's surface, high on its side, bulging; the fur
 	# bare round it, the pale ring just behind it)
-	var ex := _surface_x(HEAD_KEYS, -42.0, 16.0) - 1.6
+	var ex := _surface_x(HEAD_KEYS, -42.0, 16.0) - 3.2
 	head_fur.set_shader_parameter("bare_a", Vector3(-ex, 16.0, -42.0))
 	head_fur.set_shader_parameter("bare_b", Vector3(ex, 16.0, -42.0))
 	head_fur.set_shader_parameter("bare_r", 15.0)
 	for side: float in [-1.0, 1.0]:
-		_part(Vector3(ex * side, 16.0, -42.0), Vector3(16.0, 19.0, 20.0), eye, _head)
-		_part(Vector3((ex - 4.0) * side, 16.0, -42.0), Vector3(14.0, 24.0, 25.0), ring, _head)
-		_part(Vector3(9.0 * side, -9.0, -80.0), Vector3(18.0, 16.0, 22.0), head_fur, _head) # (its whisker pads)
+		_part(Vector3(ex * side, 16.0, -42.0), Vector3(15.0, 19.0, 21.0), eye, _head)
+		_part(Vector3((ex - 4.5) * side, 16.0, -42.0), Vector3(13.0, 23.0, 25.0), ring, _head)
+		_part(Vector3(10.0 * side, -8.0, -82.0), Vector3(20.0, 18.0, 22.0), head_fur, _head) # (its whisker pads)
 		_part(Vector3(28.0 * side, 16.0, -42.0), Vector3(19.0, 22.0, 23.0), head_fur, _head) # (its lids round it)
 	_nose = Node3D.new()
 	_nose.position = Vector3(0.0, -8.0, -94.0)
@@ -173,7 +173,7 @@ func _build() -> void:
 	_build_skin(fur)
 
 
-const HEAD_KEYS := [[18.0, 0.0, 30.0, 30.0], [-8.0, 8.0, 40.0, 38.0], [-40.0, 6.0, 38.0, 34.0], [-66.0, -3.0, 29.0, 26.0], [-86.0, -9.0, 19.0, 18.0], [-96.0, -11.0, 9.0, 9.0]]
+const HEAD_KEYS := [[18.0, 0.0, 30.0, 30.0], [-8.0, 8.0, 40.0, 40.0], [-36.0, 6.0, 40.0, 37.0], [-58.0, 0.0, 34.0, 32.0], [-76.0, -2.0, 28.0, 27.0], [-90.0, -4.0, 20.0, 22.0], [-98.0, -5.0, 10.0, 13.0]] # (from photographs: blunt, its muzzle deep)
 const BODY_KEYS := [[-150.0, 22.0, 34.0, 38.0], [-122.0, 16.0, 50.0, 56.0], [-62.0, 6.0, 60.0, 64.0], [10.0, 10.0, 64.0, 68.0],
 		[78.0, 20.0, 70.0, 74.0], [122.0, 24.0, 64.0, 64.0], [148.0, 22.0, 42.0, 44.0], [158.0, 18.0, 12.0, 12.0]]
 const SkinScript := preload("res://scripts/creatures/mammal_skin.gd")
@@ -206,7 +206,7 @@ func _build_skin(mat: ShaderMaterial) -> void:
 	_skin = K
 	mat = mat.duplicate() as ShaderMaterial # (its own: the rigid parts keep theirs)
 	mat.set_shader_parameter("skin", true)
-	var ex := _surface_x(HEAD_KEYS, -42.0, 16.0) - 1.6
+	var ex := _surface_x(HEAD_KEYS, -42.0, 16.0) - 3.2
 	mat.set_shader_parameter("bare_a", Vector3(-ex, 16.0, -42.0))
 	mat.set_shader_parameter("bare_b", Vector3(ex, 16.0, -42.0))
 	mat.set_shader_parameter("bare_r", 15.0)
@@ -251,7 +251,7 @@ static func _ear_mesh() -> ArrayMesh:
 	var ring := func(i: int, k: int) -> Array:
 		var t := float(i) / RINGS
 		var y := t * EAR_LEN
-		var hw := 15.0 * sin(PI * clampf(t * 0.92 + 0.08, 0.0, 1.0)) * (1.0 - 0.15 * t) + 1.0
+		var hw := 16.5 * sin(PI * clampf(t * 0.92 + 0.08, 0.0, 1.0)) * (1.0 - 0.15 * t) + 1.0
 		var a := TAU * float(k % ROUND) / ROUND
 		var x := sin(a) * hw
 		var z := cos(a) * 4.5 * (1.0 - 0.5 * t)

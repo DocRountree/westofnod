@@ -43,12 +43,12 @@ const SPEC := {
 	"neck_at": Vector3(0.0, 30.0, -280.0), "neck": [[40.0, 0.0, 95.0, 92.0], [-30.0, 0.0, 86.0, 82.0], [-80.0, 0.0, 80.0, 76.0]], "neck_pitch": 0.12,
 	"head_at": Vector3(0.0, 0.0, -90.0),
 	"head": [[50.0, 0.0, 80.0, 75.0], [-10.0, 10.0, 86.0, 78.0], [-60.0, 5.0, 76.0, 66.0], [-110.0, -10.0, 56.0, 50.0], [-140.0, -18.0, 40.0, 38.0], [-152.0, -20.0, 22.0, 22.0]],
-	"jaw_at": Vector3(0.0, -45.0, -40.0), "jaw": [[0.0, 0.0, 46.0, 22.0], [-60.0, -5.0, 38.0, 18.0], [-95.0, -5.0, 24.0, 12.0]], "mouth": 1.0,
+	"jaw_at": Vector3(0.0, -59.7, -58.0), "jaw": [[0.0, 0.0, 42.6, 19.4], [-37.5, 4.0, 47.6, 19.3], [-75.0, 18.2, 25.7, 12.2]], "mouth": 1.0,
 	"mouth_z": -420.0,
 	"eye": {"at": Vector3(52.0, 26.0, -52.0), "size": Vector3(14.0, 13.0, 15.0), "color": Color(0.03, 0.025, 0.02), "slit": 0.9},
 	"nose": {"at": Vector3(0.0, -12.0, -150.0), "size": Vector3(42.0, 26.0, 22.0), "color": Color(0.05, 0.045, 0.04)},
 	"whisker": 65.0,
-	"ear": {"at": Vector3(62.0, 56.0, 16.0), "len": 30.0, "width": 34.0, "point": 0.3, "tilt_back": 0.35, "spread": 0.45},
+	"ear": {"at": Vector3(58.0, 52.0, 14.0), "len": 30.0, "width": 34.0, "point": 0.3, "tilt_back": 0.35, "spread": 0.45},
 	"tail": {"base": Vector3(0.0, 0.0, 295.0), "n": 5, "seg": 64.0, "radii": [44.0, 66.0, 80.0, 82.0, 66.0], "carry": [0.32, 0.04], "wrap": 0.1, "flat": 0.2},
 	"fore": {"hip": Vector3(85.0, -60.0, -180.0), "a": 70.0, "b": 72.0, "m": 42.0, "p": 46.0, "home": Vector2(100.0, -200.0), "r": 27.0},
 	"hind": {"hip": Vector3(95.0, -30.0, 180.0), "a": 95.0, "b": 98.0, "m": 70.0, "p": 82.0, "home": Vector2(118.0, 175.0), "r": 37.0},
@@ -57,6 +57,18 @@ const SPEC := {
 	"stalk_from": 3.0, "spring": 1.0, "stalk_crouch": 0.0, "stalk_neck": 0.0, "eat_crouch": 0.2,
 	"sit_drop": 60.0, "sit_pitch": 0.95, "lie_h": 120.0,
 	"mate_secs": 6.0,
+	# its head sculpted (SculptHead), from photographs: broad and round, blunt; its eyes small, set high; its muzzle deep, the whisker pads full; its nose broad, dark
+	"sculpt": {
+		"z": [50.0, 25.0, 0.0, -25.0, -50.0, -75.0, -95.0, -112.0, -128.0, -142.0, -154.0],
+		"top": [50.0, 74.0, 80.0, 80.0, 74.0, 64.0, 54.0, 44.0, 34.0, 22.0, 8.0],
+		"bot": [-50.0, -68.0, -74.0, -74.0, -70.0, -62.0, -54.0, -46.0, -40.0, -34.0, -26.0],
+		"w": [64.0, 82.0, 86.0, 84.0, 78.0, 68.0, 58.0, 50.0, 42.0, 32.0, 18.0],
+		"wl": [68.0, 86.0, 90.0, 88.0, 82.0, 72.0, 62.0, 54.0, 46.0, 34.0, 18.0],
+		"pw": [2.0, 2.0, 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.6, 2.5, 2.2],
+		"eye": Vector3(40.0, 34.0, -56.0), "eye_r": 7.5, "socket": 0.8, "lid": 1.0,
+		"brow": 2.0, "cheek": 3.0, "stop": 1.0, "pads": 3.4, "flews": 0.80, "nose_r": 15.0,
+		"almond": 0.78, "slant": 0.00, "look_fwd": 0.60, "pupil": Vector2(0.60, 0.60),
+	},
 }
 
 var wet: Callable ## (x, z) -> whether it's water there (its pond)
@@ -89,8 +101,9 @@ func _build_extra() -> void:
 	# its incisors: great, orange, chisel edged
 	var tooth := _mat(Color(0.85, 0.42, 0.12), 0.3)
 	for side: float in [-1.0, 1.0]:
-		_stick(Vector3(7.0 * side, -38.0, -141.0), Vector3(7.5 * side, -74.0, -137.0), 6.5, tooth, _head)
-		_stick(Vector3(6.0 * side, 4.0, -88.0), Vector3(6.0 * side, 22.0, -94.0), 5.5, tooth, _jaw)
+		_stick(Vector3(6.5 * side, -26.0, -138.0), Vector3(7.0 * side, -62.0, -142.0), 6.5, tooth, _head) # (the upper, out from under its lip)
+		var jf: Array = (S.jaw as Array)[(S.jaw as Array).size() - 1]
+		_stick(Vector3(5.5 * side, float(jf[1]) - 2.0, float(jf[0]) + 8.0), Vector3(5.5 * side, float(jf[1]) + 16.0, float(jf[0]) + 2.0), 5.0, tooth, _jaw) # (the lower, up behind them)
 	# its hands' claws (the forefeet only: the hind's webbed toes bare)
 	var claw := _mat(Color(0.12, 0.1, 0.08), 0.35)
 	for i in 2:
