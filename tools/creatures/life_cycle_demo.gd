@@ -56,6 +56,9 @@ extends Node3D
 ##   hatchling (Z / A bask, F soak in the puddle, X shut in its shell, E eat
 ##   a mushroom, K he courts and mounts her, 1 her nest dug and laid, 2 it
 ##   hatching)
+## green sea turtle: a female and a male in the sea, a hatchling on the beach
+##   (Z / A rest on the bottom, F graze the seagrass, X away fast, E eat, K he
+##   mounts her at the surface, 1 her nest dug on the beach, 2 it hatching)
 ## common snapping turtle: a female and a male in a muddy pond, a hatchling
 ##   (Z / A ambush on the bottom, F dive, X its threat: up, gaping, lunging
 ##   (on land), E a strike, K he mounts her in the water, 1 her nest, 2 it
@@ -95,7 +98,7 @@ const PupaScript := preload("res://scripts/creatures/pupa.gd")
 
 const NAMES := ["monarch", "hummingbird clearwing", "paper wasp", "carpenter ant (queen)", "red harvester (queen)", "June bug", "convergent lady beetle", "differential grasshopper", "Carolina mantis", "eastern diamondback rattlesnake", "eastern milk snake",
 		"Carolina wolf spider", "six-spotted fishing spider", "grass spider (funnel weaver)", "yellow garden spider", "pill bug", "deer mouse",
-		"green anole", "Arizona bark scorpion", "snowshoe hare", "red fox", "bobcat", "coyote", "grey wolf", "American black bear", "brown bear (grizzly)", "American bison", "white-tailed deer", "trigonalid wasp", "eastern fox squirrel", "North American beaver", "eastern grey squirrel", "blue-winged grasshopper", "common green darner", "moose", "northern leopard frog", "eastern box turtle", "common snapping turtle"]
+		"green anole", "Arizona bark scorpion", "snowshoe hare", "red fox", "bobcat", "coyote", "grey wolf", "American black bear", "brown bear (grizzly)", "American bison", "white-tailed deer", "trigonalid wasp", "eastern fox squirrel", "North American beaver", "eastern grey squirrel", "blue-winged grasshopper", "common green darner", "moose", "northern leopard frog", "eastern box turtle", "common snapping turtle", "green sea turtle"]
 const SpiderScript := preload("res://scripts/creatures/spider.gd")
 const IsopodScript := preload("res://scripts/creatures/isopod.gd")
 const SnakeScript := preload("res://scripts/creatures/snake.gd")
@@ -122,6 +125,7 @@ const MooseScript := preload("res://scripts/creatures/moose.gd")
 const FrogScript := preload("res://scripts/creatures/frog.gd")
 const TurtleScript := preload("res://scripts/creatures/turtle.gd")
 const SnapScript := preload("res://scripts/creatures/snapping_turtle.gd")
+const SeaScript := preload("res://scripts/creatures/sea_turtle.gd")
 const SquirrelScript := preload("res://scripts/creatures/fox_squirrel.gd")
 const GreySqScript := preload("res://scripts/creatures/grey_squirrel.gd")
 const BeaverScript := preload("res://scripts/creatures/beaver.gd")
@@ -219,6 +223,9 @@ const TURTLE_DEEP := 0.05
 const SNAP_PW := 1.2 # (the snapping turtles' pond)
 const SNAP_PD := 0.9
 const SNAP_DEEP := 0.45
+const SEA_PW := 3.2 # (the sea turtles' sea)
+const SEA_PD := 2.4
+const SEA_DEEP := 1.1
 const MOTH_PUPA := Vector3(0.2, 0.002, -0.2) # (off the clearwing's station)
 const MOTH_PUPA_TURN := 0.6
 var _moth_perch := Vector3.ZERO # (a stem by its pupa, to climb and hang from)
@@ -227,7 +234,7 @@ var _moth_perch_n := Vector3.BACK
 
 func _station(i: int) -> Vector3:
 	# (the snakes, life size, given more room)
-	return Vector3(i * GAP + (1.2 if i >= 9 else 0.0) + (1.8 if i >= 10 else 0.0) + (1.6 if i >= 11 else 0.0) + (3.0 if i >= 19 else 0.0) + (4.0 if i >= 20 else 0.0) + (4.0 if i >= 21 else 0.0) + (4.0 if i >= 22 else 0.0) + (5.0 if i >= 23 else 0.0) + (6.0 if i >= 24 else 0.0) + (7.0 if i >= 25 else 0.0) + (9.0 if i >= 26 else 0.0) + (9.0 if i >= 27 else 0.0) + (4.5 if i >= 28 else 0.0) + (3.0 if i >= 29 else 0.0) + (5.0 if i >= 30 else 0.0) + (5.0 if i >= 31 else 0.0) + (2.0 if i >= 32 else 0.0) + (4.0 if i >= 33 else 0.0) + (6.0 if i >= 34 else 0.0) + (6.0 if i >= 35 else 0.0) + (3.0 if i >= 36 else 0.0) + (3.0 if i >= 37 else 0.0), 0.0, 0.0)
+	return Vector3(i * GAP + (1.2 if i >= 9 else 0.0) + (1.8 if i >= 10 else 0.0) + (1.6 if i >= 11 else 0.0) + (3.0 if i >= 19 else 0.0) + (4.0 if i >= 20 else 0.0) + (4.0 if i >= 21 else 0.0) + (4.0 if i >= 22 else 0.0) + (5.0 if i >= 23 else 0.0) + (6.0 if i >= 24 else 0.0) + (7.0 if i >= 25 else 0.0) + (9.0 if i >= 26 else 0.0) + (9.0 if i >= 27 else 0.0) + (4.5 if i >= 28 else 0.0) + (3.0 if i >= 29 else 0.0) + (5.0 if i >= 30 else 0.0) + (5.0 if i >= 31 else 0.0) + (2.0 if i >= 32 else 0.0) + (4.0 if i >= 33 else 0.0) + (6.0 if i >= 34 else 0.0) + (6.0 if i >= 35 else 0.0) + (3.0 if i >= 36 else 0.0) + (3.0 if i >= 37 else 0.0) + (7.5 if i >= 38 else 0.0), 0.0, 0.0)
 
 
 func _ready() -> void:
@@ -303,6 +310,7 @@ func _ready() -> void:
 	_frog_station()
 	_turtle_station()
 	_snap_station()
+	_sea_station()
 	_male_partners()
 	_new_pupae()
 	_focus = _station(0) + Vector3(0.0, 0.08, 0.0)
@@ -745,17 +753,42 @@ func _snap_station() -> void:
 		t.call("wander", c, 0.6)
 
 
+## The green sea turtles: a stretch of sea (1.1 m deep), a sandy beach to
+## nest on; a female, a male (his long tail), a hatchling.
+func _sea_station() -> void:
+	var c := _station(38)
+	_pond(c, SEA_PW, SEA_PD, SEA_DEEP)
+	var bank := c + Vector3(-SEA_PW - 1.2, 0.0, 0.3)
+	_box(bank + Vector3(0.0, 0.0008, 0.0), Vector3(2.0, 0.002, 4.4), Color(0.78, 0.7, 0.52)) # (the beach)
+	var land := func(_x: float, _z: float) -> float: return 0.0
+	for m in 3:
+		var t: Node3D = SeaScript.new(m == 2)
+		if m == 1:
+			t.set("male", true)
+		t.set("water_y", POND)
+		t.set("floor_y", -SEA_DEEP + 0.01)
+		t.set("pond", [c, Vector2(SEA_PW, SEA_PD)])
+		t.set("height", land)
+		t.set("bank", bank)
+		add_child(t)
+		var at := c + (Vector3(-1.0 + 1.4 * m, 0.0, 0.4) if m < 2 else Vector3(-SEA_PW - 0.6, 0.0, 0.8)) # (the hatchling on the beach)
+		t.call("place", at, randf() * TAU)
+		t.call("wander", c, 1.5)
+
+
 ## (A turtle: what each key has it do.)
 func _turtle_do(c: Node, act: String, young: bool) -> void:
 	var p := _where(c)
-	var snap: bool = c.get_script() == SnapScript
+	var snap: bool = c.get_script() == SnapScript or c.get_script() == SeaScript
 	match act:
 		"eat", "hunt":
 			var a := randf() * TAU
 			var at := p + Vector3(cos(a), 0.0, sin(a)) * (0.3 if snap else 0.2)
 			var f: Node3D
-			if snap: # (on the bottom by it: weed; or a fly at the surface)
-				at.y = (-SNAP_DEEP + 0.03) if act == "eat" else POND
+			if snap: # (on the bottom by it: weed (seagrass); or a fly at the surface)
+				var deep := SEA_DEEP if c.get_script() == SeaScript else SNAP_DEEP
+				at = p + Vector3(cos(a), 0.0, sin(a)) * (0.9 if c.get_script() == SeaScript else 0.3)
+				at.y = (-deep + 0.03) if act == "eat" else POND
 				f = TurtleScript.weed_of(at) if act == "eat" else FrogScript.fly_of(at)
 			else: # (a mushroom on the forest floor; or a fly)
 				at.y = 0.0
@@ -772,7 +805,7 @@ func _turtle_do(c: Node, act: String, young: bool) -> void:
 		"alarm":
 			c.call("withdraw")
 		"wander", "forage":
-			c.call("wander", _station(37 if snap else 36), 0.6)
+			c.call("wander", _station(38 if c.get_script() == SeaScript else (37 if snap else 36)), 1.5 if c.get_script() == SeaScript else 0.6)
 
 
 func _mantis_station() -> void:
@@ -877,7 +910,7 @@ func _spider_stations() -> void:
 ## 30 cm deep over a muddy basin sunk in the plain.
 ## The ponds sunk in the plain: [centre, half width (x), half depth (z), deep] each, by x.
 func _ponds() -> Array:
-	return [[_station(12), POND_W, POND_D, 0.3], [_station(34), MOOSE_PW, MOOSE_PD, MOOSE_DEEP], [_station(35), FROG_PW, FROG_PD, FROG_DEEP], [_station(36), TURTLE_PW, TURTLE_PD, TURTLE_DEEP], [_station(37), SNAP_PW, SNAP_PD, SNAP_DEEP]]
+	return [[_station(12), POND_W, POND_D, 0.3], [_station(34), MOOSE_PW, MOOSE_PD, MOOSE_DEEP], [_station(35), FROG_PW, FROG_PD, FROG_DEEP], [_station(36), TURTLE_PW, TURTLE_PD, TURTLE_DEEP], [_station(37), SNAP_PW, SNAP_PD, SNAP_DEEP], [_station(38), SEA_PW, SEA_PD, SEA_DEEP]]
 
 
 func _pond(c: Vector3, pw := POND_W, pd := POND_D, deep := 0.3) -> void:
@@ -1997,7 +2030,7 @@ func _do(c: Node, act: String, all: Array) -> void:
 	if sc == FrogScript:
 		_frog_do(c, act, young)
 		return
-	if sc == TurtleScript or sc == SnapScript:
+	if sc == TurtleScript or sc == SnapScript or sc == SeaScript:
 		_turtle_do(c, act, young)
 		return
 	if c is Beetles or c is AntColony:
@@ -2351,7 +2384,7 @@ func _feed(c: Node, act: String, young: bool, p: Vector3, st: Vector3) -> void:
 ## To station i (the camera further off for the snakes).
 func _go(i: int) -> void:
 	_at = i
-	_dist = 1.6 if i == 35 or i == 36 else 9.0 if i == 34 else 2.2 if i == 33 else 0.8 if i == 32 else 2.4 if i == 31 else 4.2 if i == 30 else 2.4 if i == 29 else 0.8 if i == 28 else 2.2 if i == 9 or i == 10 else (2.4 if i == 19 else ((6.0 if i >= 27 else (9.0 if i >= 26 else (7.5 if i >= 24 else (5.0 if i >= 22 else 3.6)))) if i >= 20 else minf(_dist, 0.8)))
+	_dist = 5.0 if i == 38 else 1.6 if i == 35 or i == 36 else 9.0 if i == 34 else 2.2 if i == 33 else 0.8 if i == 32 else 2.4 if i == 31 else 4.2 if i == 30 else 2.4 if i == 29 else 0.8 if i == 28 else 2.2 if i == 9 or i == 10 else (2.4 if i == 19 else ((6.0 if i >= 27 else (9.0 if i >= 26 else (7.5 if i >= 24 else (5.0 if i >= 22 else 3.6)))) if i >= 20 else minf(_dist, 0.8)))
 	_say()
 
 

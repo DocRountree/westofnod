@@ -31,12 +31,12 @@ extends "res://scripts/creatures/turtle.gd" # (by path: found whether or not the
 const SNAP := {
 	"aquatic": true,
 	"shell": {"len": 300.0, "wid": 250.0, "ht": 100.0, "rim": 28.0, "dome": [1.7, 0.85], "flare": [4.0, 2.0],
-			"notch": 7.0, "teeth": 14.0, "keels": [[0.0, 9.0], [0.5, 7.0]], "knobs": 8.0, "lip": 9.0},
+			"notch": 7.0, "teeth": 24.0, "keels": [[0.0, 10.0], [0.5, 8.0]], "knobs": 16.0, "knob_sharp": 1.0, "lip": 9.0},
 	"plastron": {"hinge": false, "cross": true, "wid": 0.26, "th": 9.0, "hinge_z": 0.0},
-	"col": {"shell": Color(0.22, 0.19, 0.12), "ray": Color(0.3, 0.26, 0.16), "seam": Color(0.1, 0.085, 0.06),
+	"col": {"shell": Color(0.22, 0.17, 0.1), "ray": Color(0.09, 0.07, 0.045), "seam": Color(0.1, 0.085, 0.06),
 			"plast": Color(0.66, 0.6, 0.42), "smudge": Color(0.42, 0.36, 0.24),
 			"skin": Color(0.21, 0.2, 0.15), "spot": Color(0.3, 0.28, 0.21), "spots": 0.06, "under": Color(0.62, 0.57, 0.44),
-			"eye_m": Color(0.56, 0.45, 0.2), "eye_f": Color(0.56, 0.45, 0.2), "algae": 0.22, "rays": 0.0, "bumps": 0.55},
+			"eye_m": Color(0.56, 0.45, 0.2), "eye_f": Color(0.56, 0.45, 0.2), "algae": 0.12, "rays": 0.7, "blots": 0.0, "bumps": 1.1},
 	"head": [[-96.0, 2.5, 6.0, -17.0], [-92.0, 8.0, 15.0, -15.0], [-82.0, 17.0, 25.0, -17.0], [-64.0, 26.0, 35.0, -22.0], [-40.0, 33.0, 41.0, -27.0], [-14.0, 34.0, 40.0, -28.0], [0.0, 30.0, 33.0, -25.0]],
 	"jaw": [[-89.0, 4.0, -13.0, -19.0], [-80.0, 13.0, -14.0, -26.0], [-58.0, 25.0, -16.0, -32.0], [-28.0, 31.0, -16.0, -31.0], [-8.0, 30.0, -16.0, -26.0]],
 	"jaw_at": Vector3(0.0, -10.0, -12.0),
@@ -57,10 +57,48 @@ func _spec() -> Dictionary:
 
 
 func _build_head_extra() -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 7
+	var J: Vector3 = S.jaw_at
 	for side: float in [-1.0, 1.0]: # (the barbels under its chin)
 		var b := _limb(_skin, _jaw_n, 0.7)
-		var a := Vector3(9.0 * side, -30.0, -60.0) - (S.jaw_at as Vector3)
+		var a := Vector3(9.0 * side, -30.0, -60.0) - J
 		_seg_to(b, a, a + Vector3(1.5 * side, -9.0, 2.0), 2.6)
+	# its skin's spikes: fleshy tubercles, pointed, along its jaw and under its
+	# chin, behind its jaw's corner, and round its neck behind its head
+	for k in 26: # (its jaw's: along each side and under it)
+		var sec: Array = (S.jaw as Array)[rng.randi_range(1, (S.jaw as Array).size() - 1)]
+		var side := -1.0 if k % 2 == 0 else 1.0
+		var under := rng.randf() < 0.4
+		var z := float(sec[0]) + rng.randf_range(-8.0, 8.0)
+		var at := Vector3((rng.randf_range(-0.5, 0.5) if under else 0.85) * float(sec[1]) * side, float(sec[3]) + (2.0 if under else 6.0), z) - J
+		var out := (Vector3(0.0, -1.0, 0.0) if under else Vector3(side, -0.6, 0.0)).normalized()
+		_spike(_jaw_n, at, out, rng.randf_range(6.0, 13.0), rng.randf_range(1.8, 3.2))
+	for k in 34: # (round its neck, behind its head)
+		var a := rng.randf_range(0.6, TAU - 0.6) # (not on top)
+		var z := rng.randf_range(8.0, 70.0)
+		var rr := float(S.neck.r) * 0.92
+		var out := Vector3(sin(a), cos(a) * 0.9, 0.0)
+		_spike(_neck_n, Vector3(sin(a) * rr, -12.0 + cos(a) * rr * 0.8, z), (out + Vector3(0.0, 0.0, 0.3)).normalized(), rng.randf_range(7.0, 16.0), rng.randf_range(2.2, 4.0))
+	for k in 16: # (behind its jaw's corners, its cheeks)
+		var side := -1.0 if k % 2 == 0 else 1.0
+		var at := Vector3(side * rng.randf_range(28.0, 34.0), rng.randf_range(-20.0, 4.0), rng.randf_range(-30.0, -4.0))
+		_spike(_head, at, Vector3(side, rng.randf_range(-0.3, 0.3), 0.2).normalized(), rng.randf_range(5.0, 10.0), rng.randf_range(1.6, 2.8))
+	# its tail's: a row of small spikes down each side, beside its crest
+	var T: Dictionary = S.tail
+	var tl := float(T.len_m if male else T.len)
+	for k in 14:
+		var f := (float(k) + 0.5) / 14.0
+		var side := -1.0 if k % 2 == 0 else 1.0
+		var at := Vector3(side * float(T.r) * (1.0 - f * 0.8) * 0.8, -tl * 0.15 * f + float(T.r) * 0.25 * (1.0 - f), tl * f)
+		_spike(_tail_n, at, Vector3(side, 0.5, 0.25).normalized(), float(T.r) * (1.0 - f * 0.6) * 0.55, float(T.r) * 0.16 * (1.0 - f * 0.5))
+
+
+## A spike of its skin at `at` (its parent's mm), pointing `dir`: a cone l
+## long, r round at its foot.
+func _spike(parent: Node3D, at: Vector3, dir: Vector3, l: float, r: float) -> void:
+	var c := _limb(_skin, parent, 0.95)
+	_seg_to(c, at - dir * r * 0.6, at + dir * l, r)
 
 
 func _go_mode(m: String) -> void:
@@ -152,7 +190,7 @@ func _eat_think(_dt: float) -> void:
 		return
 	var fp := _food.global_position if _food.is_inside_tree() else _food.position
 	var d := Vector3(fp.x - _pos.x, 0.0, fp.z - _pos.z)
-	var reach := (absf(float((S.neck.out as Vector3).z)) + 90.0) * MM * size
+	var reach := (absf(float((S.neck.out as Vector3).z)) + 90.0) * _mm * size
 	match _stage:
 		0:
 			_go_to(fp - d.normalized() * reach * 0.8, float(S.walk))
@@ -192,7 +230,7 @@ func _mate_think(_dt: float) -> void:
 	match _stage:
 		0: # (to her)
 			_depth_to = her._depth
-			var over := her._pos + hb * Vector3(0.0, 0.0, float(S.shell.len) * 0.2 * MM * size)
+			var over := her._pos + hb * Vector3(0.0, 0.0, float(S.shell.len) * 0.2 * _mm * size)
 			_go_to(over, float(S.swim))
 			if Vector2(_pos.x - over.x, _pos.z - over.z).length() < 0.05:
 				_stage = 1
@@ -200,8 +238,8 @@ func _mate_think(_dt: float) -> void:
 		1, 2: # (on her back, gripping her shell; both down to the bottom)
 			_stage = 2
 			her._depth_to = maxf(water_y - floor_y, 0.0)
-			var on := her._pos + hb * Vector3(0.0, 0.0, float(S.shell.len) * 0.12 * MM * size)
-			on.y = her._pos.y + float(S.shell.ht) * 0.85 * MM * her.size
+			var on := her._pos + hb * Vector3(0.0, 0.0, float(S.shell.len) * 0.12 * _mm * size)
+			on.y = her._pos.y + float(S.shell.ht) * 0.85 * _mm * her.size
 			_pos = _pos.lerp(on, 0.1)
 			_yaw = lerp_angle(_yaw, her._yaw, 0.1)
 			_pitch = lerpf(_pitch, -0.08, 0.1)

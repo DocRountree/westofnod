@@ -258,12 +258,22 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   from behind leaning back near upright; the female's nest dug with her hind feet, her eggs laid and covered
   (`Nest`), the hatchlings out of it.
 - `scripts/creatures/snapping_turtle.gd` (`SnappingTurtle`): a common snapping turtle (*Chelydra serpentina*), on the
-  box turtle's make: a low broad rough shell, three keels of knobs, the rear rim toothed, olive brown with algae; a
-  small cross-shaped plastron (it can't hide); a huge head, hooked beak, chin barbels; tubercled grey skin; thick
-  legs, big claws, webbed feet; a tail as long as its shell with a saw crest. Walking the pond's bottom, surfacing
+  box turtle's make: a low broad rough shell, three keels, each scute rising to a pyramid's point behind its middle,
+  the rear rim sharply toothed, dark brown, fine dark lines radiating over each scute, a little algae; a small
+  cross-shaped plastron (it can't hide); a huge head, hooked beak, chin barbels; grey skin knobbed all over with
+  rounded tubercles, and spiked: fleshy pointed tubercles along its jaw and under its chin, on its cheeks, round its
+  neck and down each side of its tail; thick legs, big claws, webbed feet; a tail as long as its shell with a saw crest. Walking the pond's bottom, surfacing
   to breathe; lying in ambush on the bottom, mouth a little open; striking (its neck shot out, jaws snapped shut);
   on land its threat (up on its legs, gaping, lunging and snapping); mating in the water (he's on her back, claws
   over her shell's rim, biting at her head); nesting on the bank.
+- `scripts/creatures/sea_turtle.gd` (`SeaTurtle`): a green sea turtle (*Chelonia mydas*), life size (a metre of shell),
+  on the box turtle's make: its shell a low smooth teardrop, olive brown, fine rays out over each scute; a pale
+  plastron; a blunt head too big to draw in; skin a mosaic of dark scales outlined cream; long flat foreflippers (a
+  claw on each leading edge, a male's long and curved) and short round hind ones; a male's tail long. Flying through
+  the water on its foreflippers' slow strokes (the hind ones steering), at one depth then another, up to breathe;
+  resting on the bottom; grazing seagrass; away fast when alarmed (it can't hide); the male on the female's back at
+  the surface, his claws over her shell's front; the female up the beach heaving on both foreflippers together, her
+  nest dug and laid, back to the sea; the hatchlings down the beach to the water.
 - `scripts/creatures/dragonfly.gd` (`Dragonfly`): a common green darner (*Anax junius*), drawn at twice life size,
   its own flying motor (quick to turn and stop, hovering, banking). Its head nearly all eye, its face yellow green
   with the dark bullseye on its brow; a grass green thorax; ten abdominal segments in a chain (curling), the first

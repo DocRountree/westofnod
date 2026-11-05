@@ -94,6 +94,7 @@ var bank := Vector3.INF
 var basks: Array = []
 var nests: Array[Node3D] = []
 var S: Dictionary
+var _mm := MM ## m drawn per model mm (its spec's "mm": a sea turtle's life size)
 
 var _pos := Vector3.ZERO
 var _yaw := 0.0
@@ -157,6 +158,7 @@ func _init(young_ := false) -> void:
 	young = young_
 	S = _spec()
 	size = float(S.young_size) if young_ else 1.0
+	_mm = float(S.get("mm", MM))
 	rng.randomize()
 
 
@@ -333,8 +335,12 @@ static func _shell_mesh(P: Dictionary) -> ArrayMesh:
 			for sd: float in ([1.0] if float(kl[0]) == 0.0 else [-1.0, 1.0]):
 				y += float(kl[1]) * exp(-pow((X - sd * float(kl[0])) / 0.12, 2.0)) * (1.0 - r * r)
 		if float(P.knobs) > 0.0:
+			var sharp := float(P.get("knob_sharp", 0.0)) # (0 round knobs .. 1 pyramids, their points behind each scute's middle)
 			for c: Vector2 in cen:
-				y += float(P.knobs) * exp(-((Vector2(X, Z) - Vector2(c.x * 0.9, c.y)).length_squared()) / 0.012) * (1.0 - r * r * 0.6)
+				var dq := Vector2(X, Z) - Vector2(c.x * 0.9, c.y + 0.07 * sharp)
+				var round_ := exp(-dq.length_squared() / 0.012)
+				var point := exp(-(absf(dq.x) * 1.3 + absf(dq.y)) / 0.075) # (a pyramid's: its faces flat, its ridges to its point)
+				y += float(P.knobs) * lerpf(round_, point, sharp) * (1.0 - r * r * 0.6)
 		var back := smoothstep(0.2, -0.8, cos(a))
 		y += float((P.flare as Array)[1]) * back * smoothstep(0.8, 1.0, r) # (its rim flared up behind)
 		return Vector3(x, y, z)
@@ -428,6 +434,7 @@ uniform vec3 plast : source_color;
 uniform vec3 smudge : source_color;
 uniform vec3 under : source_color;
 uniform float rays = 1.0;
+uniform float blots = 1.0; // (its blotches at the growth centres: a box turtle's; streaks alone otherwise)
 uniform float algae = 0.0;
 uniform float hw = 52.0;
 uniform float hl = 70.0;
@@ -490,7 +497,8 @@ void fragment() {
 	float streak = smoothstep(0.5, 0.9, st) * smoothstep(0.03, 0.08, dr) * (1.0 - smoothstep(0.14, 0.3, dr + 0.12 * vn(q * 8.0)));
 	streak *= smoothstep(0.35, 0.6, vn(q * 7.0 + vec2(a, 0.0))); // (some broken, some gone)
 	float blot = (1.0 - smoothstep(0.03, 0.09, dr + 0.05 * (vn(q * 18.0) - 0.5))) * 0.9;
-	blot = max(blot, smoothstep(0.72, 0.8, vn(q * 11.0 + 3.0)) * 0.7); // (flecks)
+	blot = max(blot, smoothstep(0.72, 0.8, vn(q * 11.0 + 3.0)) * 0.7) * blots; // (flecks)
+	streak = mix(streak, smoothstep(0.55, 0.95, sin(a * 22.0 + 5.0 * vn(q * 7.0) + 3.0 * vn(q * 23.0))) * smoothstep(0.02, 0.05, dr) * (0.45 + 0.55 * vn(q * 13.0 + vec2(a * 2.0, 0.0))), 1.0 - blots); // (fine rays, all over each scute, if not blotched)
 	vec3 rc = mix(ray, ray * vec3(1.0, 0.75, 0.5), vn(q * 4.0)); // (yellow to orange)
 	c = mix(c, rc * bright, clamp(streak + blot, 0.0, 1.0) * rays * 0.85);
 	// (its growth rings round its areola)
@@ -520,6 +528,8 @@ uniform vec3 pale : source_color;
 uniform float spots = 0.5;
 uniform float bumps = 0.3;
 uniform float scale = 1.0;
+uniform float mosaic = 0.0; // (its scales outlined pale: a sea turtle's)
+uniform vec3 edge : source_color = vec3(0.82, 0.74, 0.52);
 uniform mat4 turtle_inv;
 varying vec3 wp;
 float h3(vec3 p) { return fract(sin(dot(p, vec3(12.9898, 78.233, 37.719))) * 43758.5453); }
@@ -538,6 +548,17 @@ float cells(vec3 p) { // (distance to the nearest of its scattered points, 0 .. 
 	}
 	return best;
 }
+vec2 cells2(vec3 p) { // (nearest and next nearest of its scattered points)
+	vec3 i = floor(p);
+	float d1 = 9.0;
+	float d2 = 9.0;
+	for (int x = -1; x <= 1; x++) for (int y = -1; y <= 1; y++) for (int z = -1; z <= 1; z++) {
+		vec3 k = i + vec3(float(x), float(y), float(z));
+		float d = length(p - k - vec3(h3(k), h3(k + 1.3), h3(k + 2.7)));
+		if (d < d1) { d2 = d1; d1 = d; } else if (d < d2) { d2 = d; }
+	}
+	return vec2(d1, d2);
+}
 void vertex() { wp = (turtle_inv * (MODEL_MATRIX * vec4(VERTEX, 1.0))).xyz; }
 void fragment() {
 	vec3 n = (inverse(VIEW_MATRIX) * vec4(NORMAL, 0.0)).xyz;
@@ -555,10 +576,15 @@ void fragment() {
 		sp = max(sp, 1.0 - smoothstep(0.85, 1.0, d + 0.25 * (vn(p * 1.2) - 0.5)));
 	}
 	c = mix(c, spot, sp);
+	if (mosaic > 0.0) { // (big polygonal scales, dark, each outlined pale)
+		vec2 cc = cells2(p / 3.2);
+		float seam = 1.0 - smoothstep(0.03, 0.09, cc.y - cc.x);
+		c = mix(c * (0.85 + 0.3 * h3(floor(p / 3.2))), edge, seam * mosaic);
+	}
 	c = mix(pale, c, smoothstep(-0.55, -0.05, n.y));
 	ALBEDO = c;
 	// (its scales: bumped)
-	float h = smoothstep(0.0, 1.0, 1.0 - cells(p / 2.4));
+	float h = 1.0 - smoothstep(0.0, 0.62, cells(p / 3.6)); // (each scale a rounded dome, the skin between creased)
 	vec3 dpx = dFdx(VERTEX);
 	vec3 dpy = dFdy(VERTEX);
 	float dhx = dFdx(h);
@@ -590,6 +616,7 @@ func _build() -> void:
 		shell.set_shader_parameter(kv[0], C[kv[1]] if kv[1] != "under" else C.skin)
 	shell.set_shader_parameter("rays", float(C.rays) * (0.6 if young else 1.0))
 	shell.set_shader_parameter("algae", C.algae)
+	shell.set_shader_parameter("blots", float(C.get("blots", 1.0)))
 	shell.set_shader_parameter("hw", float(P.wid) * 0.5)
 	shell.set_shader_parameter("hl", float(P.len) * 0.5)
 	shell.set_shader_parameter("rim", P.rim)
@@ -649,6 +676,9 @@ func _build() -> void:
 	_skin.set_shader_parameter("spots", C.spots)
 	_skin.set_shader_parameter("bumps", C.bumps)
 	_skin.set_shader_parameter("scale", float(P.len) / 140.0)
+	_skin.set_shader_parameter("mosaic", float(C.get("mosaic", 0.0)))
+	if C.has("edge"):
+		_skin.set_shader_parameter("edge", C.edge)
 	# the neck and head
 	var N: Dictionary = S.neck
 	_neck_mi = _limb(_skin, _shell_n, 0.1)
@@ -681,7 +711,6 @@ func _build() -> void:
 		_part(Vector3(at.x * side, at.y, at.z), Vector3.ONE * r * 2.0, em, _head) # (its eye)
 		_part(Vector3((at.x + r * 0.55) * side, at.y + 0.2, at.z - 0.2), Vector3(r * 0.9, r * 0.9, r * 0.9), _mat(Color(0.02, 0.02, 0.02), 0.1), _head) # (its pupil)
 		_part(Vector3(at.x * side * 0.97, at.y + r * 0.55, at.z + 0.3), Vector3(r * 2.3, r * 0.8, r * 2.3), _skin, _head) # (its lid)
-	_build_head_extra()
 	# the legs: stumpy, scaled, clawed
 	var claw := _mat(Color(0.3, 0.27, 0.2), 0.45)
 	for fore: bool in [true, false]:
@@ -707,9 +736,10 @@ func _build() -> void:
 		var c := _limb(_skin, _tail_n, 0.9)
 		var at := Vector3(0.0, -tl * 0.15 * f + float(T.r) * (1.0 - f * 0.85) * 0.75, tl * f)
 		_seg_to(c, at, at + Vector3(0.0, float(T.r) * (1.0 - f * 0.6) * 1.1, float(T.r) * 0.45), float(T.r) * 0.45 * (1.0 - f * 0.6), 2.4)
+	_build_head_extra()
 
 
-## (The species' own, on its head: a snapper's barbels.)
+## (The species' own, once it's all built: a snapper's barbels and spikes.)
 func _build_head_extra() -> void:
 	pass
 
@@ -913,7 +943,7 @@ func _eat_think(_dt: float) -> void:
 		return
 	var fp := _food.global_position if _food.is_inside_tree() else _food.position
 	var d := Vector3(fp.x - _pos.x, 0.0, fp.z - _pos.z)
-	var reach := (absf(float((S.neck.out as Vector3).z)) + float(S.neck.reach)) * MM * size
+	var reach := (absf(float((S.neck.out as Vector3).z)) + float(S.neck.reach)) * _mm * size
 	if d.length() > reach and _stage == 0:
 		_go_to(fp - d.normalized() * reach * 0.9, float(S.walk) * 1.3)
 		return
@@ -942,7 +972,7 @@ func _mate_think(_dt: float) -> void:
 		_end_mate()
 		return
 	var hb := Basis(Vector3.UP, her._yaw)
-	var L := float(S.shell.len) * MM * size
+	var L := float(S.shell.len) * _mm * size
 	match _stage:
 		0: # (to just behind her)
 			var behind := her._pos + hb * Vector3(0.0, 0.0, L * 0.85)
@@ -997,7 +1027,7 @@ func _nest_think(_dt: float) -> void:
 				var n := Nest.new()
 				n.maker = get_script()
 				n.turtle = self
-				n.at = _pos + Basis(Vector3.UP, _yaw) * Vector3(0.0, 0.0, float(S.shell.len) * 0.6 * MM * size)
+				n.at = _pos + Basis(Vector3.UP, _yaw) * Vector3(0.0, 0.0, float(S.shell.len) * 0.6 * _mm * size)
 				n.at.y = _ground_at(n.at.x, n.at.z)
 				get_parent().add_child(n)
 				nests.append(n)
@@ -1040,12 +1070,12 @@ func _move(dt: float) -> void:
 
 func _place() -> void:
 	var b := Basis.from_euler(Vector3(_pitch, _yaw, _roll))
-	var piv := Basis(Vector3.UP, _yaw) * Vector3(0.0, 0.0, _pivot_z * MM * size) # (its pitch about that point, on the ground)
-	transform = Transform3D(b, _pos + piv - b * Vector3(0.0, 0.0, _pivot_z * MM * size) + Vector3(0.0, _lift, 0.0))
+	var piv := Basis(Vector3.UP, _yaw) * Vector3(0.0, 0.0, _pivot_z * _mm * size) # (its pitch about that point, on the ground)
+	transform = Transform3D(b, _pos + piv - b * Vector3(0.0, 0.0, _pivot_z * _mm * size) + Vector3(0.0, _lift, 0.0))
 	if _body:
-		_body.scale = Vector3.ONE * MM * size
+		_body.scale = Vector3.ONE * _mm * size
 		var inv := (global_transform if is_inside_tree() else transform).affine_inverse()
-		var k := MM * size
+		var k := _mm * size
 		_skin.set_shader_parameter("turtle_inv", Projection(Transform3D(inv.basis / k, inv.origin / k)))
 
 
@@ -1121,11 +1151,15 @@ func _pose(dt: float) -> void:
 		foot = tuck.lerp(foot, lim)
 		var r := float(S.leg_r)
 		_seg_to(L[1], hip, out, r * (0.6 + 0.4 * lim))
-		_seg_to(L[2], out, foot, r * 0.85 * (0.6 + 0.4 * lim), 0.8)
+		_seg_to(L[2], out, foot, r * 0.85 * (0.6 + 0.4 * lim), float(S.get("lower_flat", 0.8)))
 		var fdir := (foot - out).normalized()
 		var fl := Vector3(fdir.x, 0.0, fdir.z).normalized() if absf(fdir.y) < 0.98 else Vector3(0.0, 0.0, -1.0 if fore else 1.0)
-		var ftip := foot + fl * float(S.foot) * k
-		_seg_to(L[3], foot, ftip, float(S.foot) * 0.5 * (0.6 + 0.4 * lim), 0.45) # (the foot, broad and flat)
+		if bool(S.get("flipper", false)):
+			fl = fdir # (a flipper: on along the arm, wherever it's turned)
+		var f_len := float(S.get("flipper_fore" if fore else "flipper_hind", float(S.foot) * k))
+		var f_w := float(S.get("flipper_w_fore" if fore else "flipper_w_hind", float(S.foot) * k))
+		var ftip := foot + fl * f_len
+		_seg_to(L[3], foot, ftip, f_w * 0.5 * (0.6 + 0.4 * lim), float(S.get("foot_flat", 0.45))) # (the foot, broad and flat; a flipper's long blade)
 		var cl: Array = L[6]
 		var long_ := float(S.claw_m_hind if not fore else S.claw_m_fore) if male and not young else float(S.claw)
 		for c in cl.size():
@@ -1133,7 +1167,8 @@ func _pose(dt: float) -> void:
 			var cdir := Basis(Vector3.UP, spread) * fl
 			var c0 := ftip - fl * 2.0 * k
 			var curl := Vector3(0.0, -0.4, 0.0) if not fore and male else Vector3(0.0, -0.15, 0.0)
-			_seg_to(cl[c], c0, c0 + (cdir + curl).normalized() * long_ * k * lim, 0.9 * k * (1.0 + long_ / 20.0))
+			var ck := 1.0 if S.has("claw_mm") else k # (a spec's claws in mm: not by its size's measure)
+			_seg_to(cl[c], c0, c0 + (cdir + curl).normalized() * long_ * ck * lim, 0.9 * ck * (1.0 + long_ / 20.0) * (S.get("claw_mm", 1.0) as float))
 		(L[3] as MeshInstance3D).visible = lim > 0.2
 		for c in cl:
 			(c as MeshInstance3D).visible = lim > 0.2
