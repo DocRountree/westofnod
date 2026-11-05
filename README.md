@@ -223,6 +223,20 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   black-eyed Susan, a yampah and a cattail on the plank), each animation on a key (`godot --path . res://tools/creatures/wasp_demo.tscn`);
   and every other creature beside it, each at its own place (the hummingbird moth and the monarch round a patch of the
   game's flowers, milkweeds among coneflowers, Susans, fleabane, asters and yampah, and a stone, ants round a crumb, June bugs and lady beetles round their leaves), their animations on keys too, Tab following each in turn.
+- `scripts/creatures/dragonfly.gd` (`Dragonfly`): a common green darner (*Anax junius*), drawn at twice life size,
+  its own flying motor (quick to turn and stop, hovering, banking). Its head nearly all eye, its face yellow green
+  with the dark bullseye on its brow; a grass green thorax; ten abdominal segments in a chain (curling), the first
+  two green, then a male's sky blue, a female's brownish violet, a black stripe down the back, a male's claspers;
+  four long clear wings netted with veins (a shader), each with its pterostigma, beating fore and hind out of step,
+  held out flat at rest; six legs a basket under it in flight, gripping a perch. Patrolling over the water, darting
+  and hovering; perching on a reed's tip, its head turning; hunting midges (`Dragonfly.midges()`: a drifting swarm)
+  swept up in its legs and chewed; the female laying her eggs into stems under the water (pale specks, `Eggs`, that
+  hatch into nymphs). Mating: he seizes her by the head with his claspers (tandem), to a perch, the wheel (her abdomen
+  curled forward under his to its base), then off in tandem to the water where she lays while he holds her. The
+  nymph (a naiad: mottled olive, broad headed, wing pads, its hinged mask shot out at prey) walks the pond's floor and
+  grows; then climbs a reed out of the water, its back splits, and the adult comes out pale, its wings crumpled,
+  swelling and hardening, its colour coming, the empty skin left on the reed. The life cycle demo's last station: a
+  little pond with reeds and midges, a male, a female and two nymphs.
 - `scripts/creatures/hexapod.gd`: a walking insect built from parts (feet planted in a tripod gait, legs reaching
   hip to foot; leaps, flights, falls on a thread), under `grasshopper.gd` (`Grasshopper`: a differential
   grasshopper, its herringboned hind legs; walking, hopping, flying, eating; laying an egg pod in the soil, which

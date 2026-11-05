@@ -42,6 +42,11 @@ extends Node3D
 ## eastern grey squirrel: the same (after the beavers)
 ## blue-winged grasshopper: a female, a male and a nymph, gravel to lay in,
 ##   a leaf; F its flight (the hindwings blue, black banded)
+## common green darner: a male and a female over a little pond, reeds in it
+##   (perches, and stems to lay in and climb out on), midges; two nymphs on
+##   the pond's floor (E hunt / strike, Z perch, 1 lay, K mate: tandem, the
+##   wheel, laying in tandem; F a nymph out of the water and emerging, the
+##   adults patrolling; 2 the eggs hatching)
 ## North American beaver: a female and a male, a bank with aspens and sticks
 ##   (E eat bark, H fell an aspen and take it to the lodge), a pond and their
 ##   lodge (B swim, X tail slap and dive, M mud on the lodge)
@@ -77,12 +82,13 @@ const PupaScript := preload("res://scripts/creatures/pupa.gd")
 
 const NAMES := ["monarch", "hummingbird clearwing", "paper wasp", "carpenter ant (queen)", "red harvester (queen)", "June bug", "convergent lady beetle", "differential grasshopper", "Carolina mantis", "eastern diamondback rattlesnake", "eastern milk snake",
 		"Carolina wolf spider", "six-spotted fishing spider", "grass spider (funnel weaver)", "yellow garden spider", "pill bug", "deer mouse",
-		"green anole", "Arizona bark scorpion", "snowshoe hare", "red fox", "bobcat", "coyote", "grey wolf", "American black bear", "brown bear (grizzly)", "American bison", "white-tailed deer", "trigonalid wasp", "eastern fox squirrel", "North American beaver", "eastern grey squirrel", "blue-winged grasshopper"]
+		"green anole", "Arizona bark scorpion", "snowshoe hare", "red fox", "bobcat", "coyote", "grey wolf", "American black bear", "brown bear (grizzly)", "American bison", "white-tailed deer", "trigonalid wasp", "eastern fox squirrel", "North American beaver", "eastern grey squirrel", "blue-winged grasshopper", "common green darner"]
 const SpiderScript := preload("res://scripts/creatures/spider.gd")
 const IsopodScript := preload("res://scripts/creatures/isopod.gd")
 const SnakeScript := preload("res://scripts/creatures/snake.gd")
 const HopperScript := preload("res://scripts/creatures/grasshopper.gd")
 const BlueHopperScript := preload("res://scripts/creatures/blue_winged_grasshopper.gd")
+const DragonflyScript := preload("res://scripts/creatures/dragonfly.gd")
 const MantisScript := preload("res://scripts/creatures/mantis.gd")
 const MouseScript := preload("res://scripts/creatures/mouse.gd")
 const MolliesScript := preload("res://scripts/creatures/mollies.gd")
@@ -125,6 +131,8 @@ var _cells: Array = [] # the comb's cells' mouths (the plain's)
 var _moth_flowers: Array = [] # the clearwing's flowers' heads (its nectar)
 var _sq_nuts: Array = [] # (the squirrels' nuts, on the ground)
 var _sq_tree := Vector3.ZERO
+var _df_midges: Array = [] # (the darners' prey)
+var _df_centre := Vector3.ZERO
 var _bv_saplings: Array = [] # (the beavers': to fell)
 var _bv_sticks: Array = [] # (to eat)
 var _bv_bank := 0.0 # (where the bank ends, x)
@@ -188,7 +196,7 @@ var _moth_perch_n := Vector3.BACK
 
 func _station(i: int) -> Vector3:
 	# (the snakes, life size, given more room)
-	return Vector3(i * GAP + (1.2 if i >= 9 else 0.0) + (1.8 if i >= 10 else 0.0) + (1.6 if i >= 11 else 0.0) + (3.0 if i >= 19 else 0.0) + (4.0 if i >= 20 else 0.0) + (4.0 if i >= 21 else 0.0) + (4.0 if i >= 22 else 0.0) + (5.0 if i >= 23 else 0.0) + (6.0 if i >= 24 else 0.0) + (7.0 if i >= 25 else 0.0) + (9.0 if i >= 26 else 0.0) + (9.0 if i >= 27 else 0.0) + (4.5 if i >= 28 else 0.0) + (3.0 if i >= 29 else 0.0) + (5.0 if i >= 30 else 0.0) + (5.0 if i >= 31 else 0.0) + (2.0 if i >= 32 else 0.0), 0.0, 0.0)
+	return Vector3(i * GAP + (1.2 if i >= 9 else 0.0) + (1.8 if i >= 10 else 0.0) + (1.6 if i >= 11 else 0.0) + (3.0 if i >= 19 else 0.0) + (4.0 if i >= 20 else 0.0) + (4.0 if i >= 21 else 0.0) + (4.0 if i >= 22 else 0.0) + (5.0 if i >= 23 else 0.0) + (6.0 if i >= 24 else 0.0) + (7.0 if i >= 25 else 0.0) + (9.0 if i >= 26 else 0.0) + (9.0 if i >= 27 else 0.0) + (4.5 if i >= 28 else 0.0) + (3.0 if i >= 29 else 0.0) + (5.0 if i >= 30 else 0.0) + (5.0 if i >= 31 else 0.0) + (2.0 if i >= 32 else 0.0) + (4.0 if i >= 33 else 0.0), 0.0, 0.0)
 
 
 func _ready() -> void:
@@ -251,6 +259,7 @@ func _ready() -> void:
 	_beaver_station()
 	_squirrel_station(31, GreySqScript)
 	_blue_hopper_station()
+	_dragonfly_station()
 	_male_partners()
 	_new_pupae()
 	_focus = _station(0) + Vector3(0.0, 0.08, 0.0)
@@ -436,6 +445,101 @@ func _blue_hopper_station() -> void:
 	add_child(ny)
 	ny.call("place", c + Vector3(-0.1, 0.0, 0.12), 2.0)
 	ny.call("wander", c + Vector3(-0.1, 0.0, 0.12), 0.1)
+
+
+## The green darners: a little pond (its banks low, its water 9 cm deep),
+## reeds standing in it (their tips perches; their stems to lay in and
+## climb out on), a swarm of midges over it; a male and a female; two
+## nymphs on its floor.
+const DF_WATER := 0.09
+func _dragonfly_station() -> void:
+	var c := _station(33)
+	_df_centre = c
+	var half := Vector2(0.6, 0.45)
+	_box(c + Vector3(0.0, 0.002, 0.0), Vector3(half.x * 2.0, 0.004, half.y * 2.0), Color(0.18, 0.15, 0.1)) # (its mud floor)
+	for sgn: float in [-1.0, 1.0]: # (its banks)
+		_box(c + Vector3(sgn * (half.x + 0.06), DF_WATER * 0.6, 0.0), Vector3(0.12, DF_WATER * 1.2, half.y * 2.0 + 0.24), Color(0.36, 0.38, 0.22))
+		_box(c + Vector3(0.0, DF_WATER * 0.6, sgn * (half.y + 0.06)), Vector3(half.x * 2.0, DF_WATER * 1.2, 0.12), Color(0.36, 0.38, 0.22))
+	var w := MeshInstance3D.new()
+	var pm := PlaneMesh.new()
+	pm.size = half * 2.0
+	w.mesh = pm
+	var wm := StandardMaterial3D.new()
+	wm.albedo_color = Color(0.16, 0.28, 0.26, 0.6)
+	wm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	wm.roughness = 0.06
+	wm.metallic_specular = 0.8
+	w.material_override = wm
+	w.position = c + Vector3(0.0, DF_WATER, 0.0)
+	add_child(w)
+	var stems := []
+	var perches := []
+	for k in 7: # (reeds)
+		var a := float(k) / 7.0 * TAU + randf_range(-0.3, 0.3)
+		var foot := c + Vector3(cos(a) * half.x * randf_range(0.3, 0.8), 0.0, sin(a) * half.y * randf_range(0.3, 0.8))
+		var top := randf_range(0.28, 0.45)
+		_box(foot + Vector3(0.0, top * 0.5, 0.0), Vector3(0.006, top, 0.006), Color(0.34, 0.46, 0.18))
+		stems.append([foot, foot + Vector3(0.0, top, 0.0)])
+		perches.append(foot + Vector3(0.0, top + 0.003, 0.0))
+	_df_new_midges(8)
+	var land := func(_x: float, _z: float) -> float: return 0.0
+	for m in 4:
+		var d: Node3D = DragonflyScript.new(m >= 2)
+		if m == 1:
+			d.set("male", true)
+		d.set("water_y", c.y + DF_WATER)
+		d.set("floor_y", c.y + 0.004)
+		d.set("pond", [c, half])
+		d.set("stems", stems)
+		d.set("perches", perches)
+		d.set("height", land)
+		add_child(d)
+		if m < 2:
+			d.call("place", c + Vector3(-0.3 + 0.6 * m, 0.4, 0.0), randf() * TAU)
+			d.call("patrol", c, 0.9)
+		else:
+			d.call("place", c + Vector3(-0.2 + 0.4 * (m - 2), 0.0, 0.1), randf() * TAU)
+
+
+func _df_new_midges(n: int) -> void:
+	for mg: Node3D in DragonflyScript.midges(n, _df_centre, 0.6):
+		add_child(mg)
+		_df_midges.append(mg)
+
+
+## (A darner, adult or nymph: what each key has it do.)
+func _dragonfly_do(c: Node, act: String, young: bool) -> void:
+	var p := _where(c)
+	match act:
+		"eat", "hunt":
+			if young:
+				var a := randf() * TAU
+				c.call("strike", p + Vector3(cos(a), 0.0, sin(a)) * 0.02)
+			else:
+				var live := _df_midges.filter(func(m) -> bool: return is_instance_valid(m) and not m.get("caught"))
+				if live.size() < 3:
+					_df_new_midges(6)
+					live = _df_midges.filter(func(m) -> bool: return is_instance_valid(m) and not m.get("caught"))
+				live.sort_custom(func(m1, m2) -> bool: return (m1 as Node3D).position.distance_to(p) < (m2 as Node3D).position.distance_to(p))
+				c.call("hunt", live[0])
+		"lay":
+			if not young and not _flag(c, "male"):
+				c.call("lay")
+		"fly":
+			if young:
+				c.call("emerge")
+			else:
+				c.call("patrol", _df_centre, 0.9)
+		"sleep", "sit":
+			if not young:
+				c.call("perch")
+		"alarm":
+			c.call("flee", _df_centre + Vector3(randf_range(-0.5, 0.5), 0.0, randf_range(-0.5, 0.5)))
+		"wander":
+			if young:
+				c.call("crawl", _df_centre, 0.35)
+			else:
+				c.call("patrol", _df_centre, 0.9)
 
 
 func _mantis_station() -> void:
@@ -1650,6 +1754,9 @@ func _do(c: Node, act: String, all: Array) -> void:
 				c.call("mate", q)
 		return
 	# the colonies
+	if sc == DragonflyScript:
+		_dragonfly_do(c, act, young)
+		return
 	if c is Beetles or c is AntColony:
 		var col := c as AntColony
 		var n := col.pos.size()
@@ -1998,7 +2105,7 @@ func _feed(c: Node, act: String, young: bool, p: Vector3, st: Vector3) -> void:
 ## To station i (the camera further off for the snakes).
 func _go(i: int) -> void:
 	_at = i
-	_dist = 0.8 if i == 32 else 2.4 if i == 31 else 4.2 if i == 30 else 2.4 if i == 29 else 0.8 if i == 28 else 2.2 if i == 9 or i == 10 else (2.4 if i == 19 else ((6.0 if i >= 27 else (9.0 if i >= 26 else (7.5 if i >= 24 else (5.0 if i >= 22 else 3.6)))) if i >= 20 else minf(_dist, 0.8)))
+	_dist = 2.2 if i == 33 else 0.8 if i == 32 else 2.4 if i == 31 else 4.2 if i == 30 else 2.4 if i == 29 else 0.8 if i == 28 else 2.2 if i == 9 or i == 10 else (2.4 if i == 19 else ((6.0 if i >= 27 else (9.0 if i >= 26 else (7.5 if i >= 24 else (5.0 if i >= 22 else 3.6)))) if i >= 20 else minf(_dist, 0.8)))
 	_say()
 
 
