@@ -17,6 +17,7 @@ extends RefCounted
 ## role / mode (TOUCHING).
 
 static var all: Array = []
+const MAX_PUSH := 0.04 ## m a frame, at most: eased apart, never thrown
 const TOUCHING := ["nurse", "suckle", "play", "hunt", "eat", "spar", "follow", "newborn", "birth", "carry", "piloted",
 		"mate", "courted", "amplexus", "lay", "nest", "feed", "strike", "tadpole", "mount", "mounted", "groom_other"]
 
@@ -47,15 +48,22 @@ static func touching(n: Object) -> bool:
 
 
 ## Its body's drawn length and half width (m), from its meshes' bounds in its
-## own space (worked out once; legs and antennae make it a little long).
+## own space (legs and antennae make it a little long). Worked out again
+## every couple of seconds: it grows, and its parts are scaled to its size
+## only once it's placed (measured before, a frog read as 54 m long).
+const REMEASURE := 120 ## frames
+const MAX_LEN := 6.0 ## m: anything longer is a measure gone wrong (none so long)
 static func _dims(n: Node3D) -> Vector2:
-	if n.has_meta("space_dims"):
+	var now := Engine.get_process_frames()
+	if n.has_meta("space_dims") and now - int(n.get_meta("space_at", 0)) < REMEASURE and n.get_meta("space_dims") != Vector2.ZERO:
 		return n.get_meta("space_dims")
 	var box := _aabb(n, Transform3D())
 	var s := n.global_basis.get_scale() if n.is_inside_tree() else Vector3.ONE
 	var d := Vector2(box.size.z * absf(s.z) * 0.8, box.size.x * absf(s.x) * 0.3)
-	if d.x > 0.0005:
-		n.set_meta("space_dims", d)
+	if d.x > MAX_LEN or d.y > MAX_LEN * 0.25:
+		d = Vector2.ZERO # (not yet scaled to its size: no capsule till it is)
+	n.set_meta("space_dims", d)
+	n.set_meta("space_at", now)
 	return d
 
 
@@ -153,4 +161,4 @@ static func keep_apart(n: Node3D) -> void:
 			nrm = (a0 + a1) * 0.5 - (b0 + b1) * 0.5
 			if nrm.length() < 1e-4:
 				nrm = Vector2(1.0, 0.0).rotated(float(n.get_instance_id() % 628) * 0.01)
-		_push(n, nrm.normalized() * (want - best) * 0.5)
+		_push(n, nrm.normalized() * minf((want - best) * 0.5, MAX_PUSH))
