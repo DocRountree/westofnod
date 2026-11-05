@@ -362,7 +362,7 @@ func _pose(dt: float) -> void:
 		var hp: Vector3 = L.hip
 		var hw := to_world * Vector3(hp.x * side, hp.y, hp.z)
 		if i >= 2: # (the hind feet flat under its hips, toes forward)
-			var f := hw + fwd * float(L.s) * 0.6
+			var f := hw + fwd * float(L.s) * 0.6 * MM * size # (mm, its own: to the world's metres)
 			f.y = _ground(f.x, f.z)
 			_pose_foot[i] = inv * f
 		else: # (the forepaws hanging before it, loose; boxing, a cub's)
