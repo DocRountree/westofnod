@@ -47,8 +47,8 @@ signal action_finished(name: String, ok: bool)
 const PilotScript := preload("res://scripts/creatures/pilot.gd")
 const PersonalSpace := preload("res://scripts/creatures/personal_space.gd")
 const MM := 0.002 ## m drawn per model mm (twice life size)
-const GREEN := Color(0.38, 0.5, 0.24)
-const BROWN := Color(0.4, 0.36, 0.22)
+const GREEN := Color(0.3, 0.42, 0.19)
+const BROWN := Color(0.36, 0.3, 0.2)
 
 var male := false
 var young := false ## a tadpole (then a froglet)
@@ -107,7 +107,7 @@ var _skin_mats: Array[ShaderMaterial] = []
 static var _sphere: SphereMesh
 static var _cyl: CylinderMesh
 static var _skin_sh: Shader
-static var _body_m: ArrayMesh
+static var _eye_sh: Shader
 static var _limb_m: ArrayMesh
 var _body_skin: ShaderMaterial
 var _webs: Array[MeshInstance3D] = []
@@ -133,7 +133,6 @@ func _ready() -> void:
 		_cyl.bottom_radius = 0.5
 		_cyl.height = 1.0
 		_cyl.radial_segments = 8
-		_body_m = _body_mesh()
 		_limb_m = _limb_mesh()
 	_body = Node3D.new()
 	add_child(_body)
@@ -208,6 +207,12 @@ uniform vec3 spot : source_color = vec3(0.075, 0.065, 0.04);
 uniform vec3 halo : source_color = vec3(0.62, 0.62, 0.4);
 uniform vec3 belly : source_color = vec3(0.9, 0.88, 0.8);
 uniform float spots = 1.0;
+uniform float folds = 1.0; // (its dorsolateral folds: a leopard frog's; none a toad's)
+uniform float lip = 1.0; // (its upper lip's pale stripe)
+uniform float warts = 0.0; // (its skin warty: a toad's; the warts a little paler, rusty at their tips)
+uniform float stripe = 0.0; // (a pale line down the middle of its back)
+uniform float belly_spots = 0.0; // (its belly speckled dark: a toad's)
+uniform float spot_size = 1.0; // (its spots' size: a toad's bigger, fewer)
 uniform bool body_space = false; // (its body's own mesh: painted in its mm)
 uniform bool tadpole = false;
 uniform float seed = 0.0;
@@ -226,6 +231,18 @@ void vertex() {
 	wp = (frog_inv * (MODEL_MATRIX * vec4(VERTEX, 1.0))).xyz;
 	bp = VERTEX;
 	on = NORMAL;
+}
+// (nearest and next of scattered points: its warts)
+vec2 cells2(vec3 p) {
+	vec3 i = floor(p);
+	float d1 = 9.0;
+	float d2 = 9.0;
+	for (int x = -1; x <= 1; x++) for (int y = -1; y <= 1; y++) for (int z = -1; z <= 1; z++) {
+		vec3 k = i + vec3(float(x), float(y), float(z));
+		float d = length(p - k - vec3(h3(k), h3(k + 1.3), h3(k + 2.7)));
+		if (d < d1) { d2 = d1; d1 = d; } else if (d < d2) { d2 = d; }
+	}
+	return vec2(d1, d2);
 }
 // (its spots on a plane (u, v): in loose rows, oval along v; [spot, halo])
 vec2 spotted(vec2 q, vec2 cellsz, float keep) {
@@ -255,10 +272,10 @@ void fragment() {
 		float ax = abs(p.x);
 		// the folds: raised, cream bronze, down each side of its back
 		float rx = 9.0 + 1.6 * smoothstep(-14.0, 10.0, p.z) - 0.8 * smoothstep(14.0, 28.0, p.z);
-		float fold = (1.0 - smoothstep(0.45, 0.95, abs(ax - rx))) * smoothstep(-15.0, -11.0, p.z) * (1.0 - smoothstep(25.0, 29.0, p.z)) * smoothstep(0.2, 0.5, n.y);
+		float fold = (1.0 - smoothstep(0.45, 0.95, abs(ax - rx))) * smoothstep(-15.0, -11.0, p.z) * (1.0 - smoothstep(25.0, 29.0, p.z)) * smoothstep(0.2, 0.5, n.y) * folds;
 		// its spots: on its back (from above), on its sides (from the side)
-		vec2 top = spotted(vec2(p.x + 50.0, p.z), vec2(6.6, 8.0), p.z < -20.0 ? 0.25 : 0.62);
-		vec2 sid = spotted(vec2(p.z + 50.0, p.y + (p.x > 0.0 ? 0.0 : 31.0)), vec2(7.0, 5.6), 0.55);
+		vec2 top = spotted(vec2(p.x + 50.0, p.z), vec2(6.6, 8.0) * spot_size, p.z < -20.0 ? 0.25 : 0.62);
+		vec2 sid = spotted(vec2(p.z + 50.0, p.y + (p.x > 0.0 ? 0.0 : 31.0)), vec2(7.0, 5.6) * spot_size, 0.55);
 		float sw = smoothstep(0.35, 0.75, abs(n.x));
 		vec2 sp = mix(top, sid, sw) * spots * (1.0 - fold);
 		sp *= smoothstep(-0.25, 0.15, n.y); // (none on its belly)
@@ -266,13 +283,15 @@ void fragment() {
 		c = mix(c, spot, sp.x);
 		c = mix(c, mix(c, halo * 1.1, 0.7), fold);
 		// its upper lip's pale stripe; the dark line from its nostril to its eye
-		float lip = (1.0 - smoothstep(0.6, 1.2, abs(p.y - 4.6))) * (1.0 - smoothstep(-8.0, -4.0, p.z)) * smoothstep(-35.0, -31.0, p.z) * sw;
-		c = mix(c, vec3(0.85, 0.84, 0.7), lip * 0.9);
-		float can = (1.0 - smoothstep(0.4, 0.9, abs(p.y - (10.5 + 0.12 * (p.z + 34.0))))) * smoothstep(-35.0, -32.0, p.z) * (1.0 - smoothstep(-24.0, -21.0, p.z)) * sw;
+		float lip_s = (1.0 - smoothstep(0.6, 1.2, abs(p.y - 6.4))) * (1.0 - smoothstep(-8.0, -4.0, p.z)) * smoothstep(-35.0, -31.0, p.z) * sw * lip;
+		c = mix(c, vec3(0.85, 0.84, 0.7), lip_s * 0.9);
+		// (a pale line down the middle of its back)
+		c = mix(c, halo * 1.15, stripe * (1.0 - smoothstep(0.5, 1.1, ax)) * smoothstep(-22.0, -16.0, p.z) * (1.0 - smoothstep(24.0, 30.0, p.z)) * smoothstep(0.4, 0.7, n.y));
+		float can = (1.0 - smoothstep(0.4, 0.9, abs(p.y - (12.2 + 0.15 * (p.z + 34.0))))) * smoothstep(-35.0, -32.0, p.z) * (1.0 - smoothstep(-24.0, -21.0, p.z)) * sw;
 		c = mix(c, spot, can * 0.8);
 		// its tympanum: a brown disc behind its eye, a pale dot in it
-		float td = length(vec2(p.y - 10.8, p.z + 11.0));
-		float tym = (1.0 - smoothstep(3.0, 3.5, td)) * smoothstep(0.6, 0.85, abs(n.x));
+		float td = length(vec2(p.y - 13.4, p.z + 11.0));
+		float tym = (1.0 - smoothstep(3.0, 3.5, td)) * smoothstep(0.6, 0.85, abs(n.x)) * (1.0 - warts * 0.6);
 		c = mix(c, mix(vec3(0.34, 0.28, 0.17), vec3(0.62, 0.56, 0.4), 1.0 - smoothstep(0.5, 0.9, td)), tym);
 	} else {
 		vec3 n = (inverse(VIEW_MATRIX) * vec4(NORMAL, 0.0)).xyz;
@@ -288,12 +307,30 @@ void fragment() {
 			pale = 0.25;
 		}
 	}
-	c = mix(mix(belly, vec3(0.86, 0.8, 0.5), pale), c, smoothstep(-0.4, 0.05, up));
+	vec3 bel = mix(belly, vec3(0.86, 0.8, 0.5), pale);
+	bel = mix(bel, spot * 2.2, belly_spots * smoothstep(0.62, 0.7, vn(wp * 520.0))); // (speckled)
+	c = mix(bel, c, smoothstep(-0.4, 0.05, up));
+	// (its warts: rounded, scattered, the big ones on its back; a little paler, rusty at their tips)
+	float wh = 0.0;
+	if (warts > 0.0) {
+		vec3 wq = body_space ? bp / 2.3 : wp * 250.0;
+		vec2 cc = cells2(wq);
+		wh = (1.0 - smoothstep(0.0, 0.55, cc.x)) * warts;
+		c = mix(c, c * vec3(1.25, 1.05, 0.8) + vec3(0.05, 0.02, 0.0), wh * smoothstep(-0.2, 0.3, up) * 0.6);
+		vec3 dpx = dFdx(VERTEX);
+		vec3 dpy = dFdy(VERTEX);
+		vec3 r1 = cross(dpy, NORMAL);
+		vec3 r2 = cross(NORMAL, dpx);
+		float det = dot(dpx, r1);
+		vec3 grad = sign(det) * (dFdx(wh) * r1 + dFdy(wh) * r2);
+		float near = 1.0 - smoothstep(0.4, 1.4, length(VERTEX));
+		NORMAL = normalize(abs(det) * NORMAL - grad * 1.3 * near);
+	}
 	ALBEDO = c;
 	// (moist: a soft sheen; granular)
-	ROUGHNESS = 0.6 - 0.1 * vn(bp * 1.4);
-	SPECULAR = 0.35;
-	CLEARCOAT = 0.08;
+	ROUGHNESS = 0.68 - 0.1 * vn(bp * 1.4) + 0.2 * warts; // (moist, not glossy; a toad's skin dry)
+	SPECULAR = 0.28;
+	CLEARCOAT = 0.04;
 	CLEARCOAT_ROUGHNESS = 0.5;
 }
 """
@@ -305,11 +342,18 @@ void fragment() {
 ## broad and flat, no neck, widest at its shoulders, the sacral hump over
 ## its hips, its back sloping down to the vent; each section domed above,
 ## flat below; the dorsolateral folds raised along its back.
-static func _body_mesh() -> ArrayMesh:
-	# z, half width, top, bottom
-	var S := [[-36.0, 0.6, 6.4, 4.6], [-34.5, 3.2, 7.4, 3.8], [-31.0, 6.6, 9.2, 3.0], [-26.0, 10.0, 11.6, 2.2],
-			[-19.0, 13.0, 13.6, 1.7], [-11.0, 14.4, 14.6, 1.3], [-2.0, 14.6, 15.4, 1.0], [7.0, 14.8, 16.6, 1.0],
-			[15.0, 14.2, 17.8, 1.4], [21.0, 12.4, 17.2, 2.2], [26.0, 9.0, 15.2, 3.6], [30.0, 4.6, 12.4, 5.6], [31.6, 0.6, 10.0, 7.4]]
+const LEOPARD_BODY := [[-36.0, 0.6, 8.6, 6.4], [-34.5, 3.2, 10.0, 5.4], [-31.0, 6.6, 12.4, 4.4], [-26.0, 10.0, 15.2, 3.2], [-19.0, 12.8, 17.6, 2.2], [-11.0, 14.0, 19.0, 1.2], [-2.0, 14.4, 20.6, 0.2], [7.0, 14.6, 22.6, -0.2], [15.0, 14.0, 24.4, 0.6], [21.0, 12.2, 23.6, 2.0], [26.0, 9.0, 20.6, 4.0], [30.0, 4.6, 16.6, 6.4], [31.6, 0.6, 13.6, 8.6]] # (its back rising from its head to the sacral hump over its hips; its belly round, sagging a little)
+static var _body_ms := {} # (sections -> its mesh)
+
+
+## Its body and head: one skin lofted through sections S [z, half width,
+## top, bottom] from its snout's tip to its vent (mm, x right, y up, z
+## back); each section domed above, flat below; its dorsolateral folds
+## raised along its back (folds).
+static func _body_mesh(S: Array = LEOPARD_BODY, folds := true) -> ArrayMesh:
+	var key := str(S) + str(folds)
+	if _body_ms.has(key):
+		return _body_ms[key]
 	const AROUND := 40
 	const ALONG := 48
 	var at := func(z: float) -> Array:
@@ -336,11 +380,11 @@ static func _body_mesh() -> ArrayMesh:
 			var ph := TAU * float(k) / AROUND
 			var sn := sin(ph)
 			var cs := cos(ph)
-			var pw := 2.1 if cs > 0.0 else 3.2
+			var pw := 2.1 if cs > 0.0 else 2.6 # (its back domed, its belly round under it)
 			var x := signf(sn) * pow(absf(sn), 2.0 / pw) * hw
 			var hh := (float(sc[2]) - mid) if cs > 0.0 else (mid - float(sc[3]))
 			var y := mid + signf(cs) * pow(absf(cs), 2.0 / pw) * hh
-			if cs > 0.0: # (its folds, raised)
+			if cs > 0.0 and folds: # (its folds, raised)
 				var rx := 9.0 + 1.6 * smoothstep(-14.0, 10.0, z) - 0.8 * smoothstep(14.0, 28.0, z)
 				y += 0.9 * exp(-pow((absf(x) - rx) / 1.1, 2.0)) * smoothstep(-15.0, -11.0, z) * (1.0 - smoothstep(25.0, 29.0, z))
 			st.set_uv(Vector2(float(k) / AROUND, t))
@@ -354,7 +398,9 @@ static func _body_mesh() -> ArrayMesh:
 			st.add_index(a); st.add_index(b); st.add_index(c)
 			st.add_index(a); st.add_index(c); st.add_index(d)
 	st.generate_normals()
-	return st.commit()
+	var m := st.commit()
+	_body_ms[key] = m
+	return m
 
 
 ## The web between a hind foot's toes (its foot's frame: z along it, the
@@ -408,17 +454,121 @@ static func _limb_mesh() -> ArrayMesh:
 	return st.commit()
 
 
+# --- the species' make (a leopard frog's; AmericanToad its own) -----------------
+
+func _sections() -> Array:
+	return LEOPARD_BODY
+
+
+func _has_folds() -> bool:
+	return true
+
+
+## Its skin: its ground (picked from these), spots, halos, and the shader's
+## switches (folds, lip, warts, stripe, belly_spots, spot_size).
+func _skin_opts() -> Dictionary:
+	return {"backs": [GREEN, GREEN, Color(0.36, 0.44, 0.2), BROWN, Color(0.34, 0.36, 0.2)], "folds": 1.0, "lip": 1.0,
+		"spot": Color(0.035, 0.03, 0.02), "halo": Color(0.7, 0.66, 0.42)}
+
+
+func _eye_y() -> float: ## (mm up: its eyes, high on its head)
+	return 15.6
+
+
+func _leg_k() -> float: ## (its legs' length, of a leopard frog's)
+	return 1.0
+
+
+func _leap_max() -> float: ## (m, its longest hop: drawn)
+	return 0.45
+
+
+func _iris() -> Color:
+	return Color(0.78, 0.62, 0.24)
+
+
+func _single_sac() -> bool: ## (a toad's: one, under its chin; a leopard frog's paired, over its arms)
+	return false
+
+
+func _web_k() -> float: ## (how far its hind toes are webbed: a toad's only at their bases)
+	return 1.0
+
+
+func _egg_strings() -> bool: ## (a toad's eggs in long strings; a leopard frog's a clump)
+	return false
+
+
+func _tad_cols() -> Array: ## (its tadpoles': ground, flecks, belly)
+	return [Color(0.3, 0.28, 0.16), Color(0.62, 0.55, 0.3), Color(0.78, 0.76, 0.66)]
+
+
+## (The species' own parts, once it's built: a toad's glands and crests.)
+func _build_extra() -> void:
+	pass
+
+
+## Its eye: the iris gold, mottled dark, brighter in a ring round the pupil;
+## the pupil a level oval, black, on the side it looks out of.
+func _eye_mat(side: float) -> ShaderMaterial:
+	if _eye_sh == null:
+		_eye_sh = Shader.new()
+		_eye_sh.code = """shader_type spatial;
+uniform vec3 iris : source_color = vec3(0.78, 0.62, 0.24);
+uniform vec3 look = vec3(0.85, 0.25, -0.45);
+varying vec3 o;
+float h3(vec3 p) { return fract(sin(dot(p, vec3(12.9898, 78.233, 37.719))) * 43758.5453); }
+float vn(vec3 p) {
+	vec3 i = floor(p); vec3 f = fract(p); f = f * f * (3.0 - 2.0 * f);
+	return mix(mix(mix(h3(i), h3(i + vec3(1,0,0)), f.x), mix(h3(i + vec3(0,1,0)), h3(i + vec3(1,1,0)), f.x), f.y),
+		mix(mix(h3(i + vec3(0,0,1)), h3(i + vec3(1,0,1)), f.x), mix(h3(i + vec3(0,1,1)), h3(i + vec3(1,1,1)), f.x), f.y), f.z);
+}
+void vertex() { o = VERTEX; }
+void fragment() {
+	vec3 d = normalize(o);
+	vec3 l = normalize(look);
+	vec3 u = normalize(cross(vec3(0.0, 1.0, 0.0), l)); // (across, level)
+	vec3 v = cross(l, u); // (up)
+	float fu = dot(d, u);
+	float fv = dot(d, v);
+	float front = dot(d, l);
+	float pupil = (1.0 - smoothstep(0.9, 1.0, length(vec2(fu / 0.36, fv / 0.19)))) * step(0.0, front);
+	float r = length(vec2(fu, fv * 1.4));
+	vec3 c = iris * (0.75 + 0.4 * vn(o * 40.0)); // (mottled)
+	c = mix(c, iris * 0.35, smoothstep(0.55, 0.8, vn(o * 22.0 + 3.0)) * 0.6); // (dark reticulation)
+	c = mix(c, iris * 1.35, (1.0 - smoothstep(0.42, 0.52, r)) * step(0.0, front) * 0.6); // (bright round the pupil)
+	c *= mix(0.45, 1.0, smoothstep(-0.2, 0.5, front)); // (darker round the back, under its lids)
+	c = mix(c, vec3(0.01), pupil);
+	ALBEDO = c;
+	ROUGHNESS = 0.08;
+	SPECULAR = 0.7;
+	CLEARCOAT = 1.0;
+}
+"""
+	var m := ShaderMaterial.new()
+	m.shader = _eye_sh
+	m.set_shader_parameter("iris", _iris())
+	m.set_shader_parameter("look", Vector3(0.85 * side, 0.3, -0.45))
+	return m
+
+
 func _build() -> void:
 	_skin = ShaderMaterial.new()
 	_skin.shader = _skin_shader()
 	_skin_mats.append(_skin)
-	var col := GREEN if rng.randf() < 0.65 else BROWN
+	var O := _skin_opts()
+	var backs: Array = O.backs
+	var col: Color = backs[rng.randi() % backs.size()]
 	_skin.set_shader_parameter("back", col)
 	_body_skin = ShaderMaterial.new()
 	_body_skin.shader = _skin_shader()
 	_body_skin.set_shader_parameter("back", col)
 	_body_skin.set_shader_parameter("body_space", true)
 	_body_skin.set_shader_parameter("seed", rng.randf() * 100.0)
+	for m: ShaderMaterial in [_skin, _body_skin]:
+		for k: String in ["folds", "lip", "warts", "stripe", "belly_spots", "spot_size", "spot", "halo", "belly"]:
+			if O.has(k):
+				m.set_shader_parameter(k, O[k])
 	var eye := _mat(Color(0.72, 0.58, 0.22), 0.1)
 	eye.clearcoat_enabled = true
 	eye.clearcoat = 1.0
@@ -427,32 +577,36 @@ func _build() -> void:
 	_frog = Node3D.new()
 	_body.add_child(_frog)
 	var bm := MeshInstance3D.new() # (its body and head: one skin)
-	bm.mesh = _body_m
+	bm.mesh = _body_mesh(_sections(), _has_folds())
 	bm.material_override = _body_skin
 	_frog.add_child(bm)
 	_throat_mi = _part(Vector3(0.0, 2.6, -18.0), Vector3(20.0, 4.0, 16.0), _mat(Color(0.88, 0.86, 0.78), 0.45), _frog)
 	for side: float in [-1.0, 1.0]:
 		var e := Node3D.new()
-		e.position = Vector3(8.6 * side, 13.4, -19.0) # (set into its head, bulging from it)
+		e.position = Vector3(8.6 * side, _eye_y(), -19.0) # (set into its head, bulging from it)
 		_frog.add_child(e)
-		_part(Vector3.ZERO, Vector3(8.5, 8.0, 9.0), eye, e)
-		_part(Vector3(2.5 * side, 0.6, -0.8), Vector3(3.4, 1.6, 4.4), dark, e) # (its pupil, horizontal)
+		_part(Vector3.ZERO, Vector3(8.5, 8.0, 9.0), _eye_mat(side), e) # (its iris gold, its pupil level: _eye_mat)
 		_part(Vector3(0.2 * side, 2.0, 0.6), Vector3(8.6, 3.0, 8.6), _skin, e) # (its lid, over the eye's top)
 		_eyes.append(e)
-		if male:
+		if male and not _single_sac():
 			var sc := _part(Vector3(14.5 * side, 6.0, -8.0), Vector3(8.0, 8.0, 9.0), _mat(Color(0.5, 0.52, 0.38, 0.85), 0.25), _frog) # (his vocal sac)
 			sc.visible = false
 			_sacs.append(sc)
+	if male and _single_sac(): # (one, under his chin, round as it fills)
+		var sc := _part(Vector3(0.0, 2.0, -22.0), Vector3(14.0, 14.0, 14.0), _mat(Color(0.82, 0.8, 0.7, 0.9), 0.2), _frog)
+		sc.visible = false
+		_sacs.append(sc)
 	_tongue_mi = _part(Vector3(0.0, 6.0, -30.0), Vector3(4.0, 2.0, 1.0), _mat(Color(0.85, 0.45, 0.45), 0.3), _frog)
 	_tongue_mi.visible = false
+	_build_extra()
 	# its legs: the hind long, folded in a Z; the fore short
 	var foot := _skin
 	for side: float in [-1.0, 1.0]:
 		var hip := Node3D.new()
-		hip.position = Vector3(11.0 * side, 6.0, 22.0)
+		hip.position = Vector3(11.0 * side, 6.0, 22.0 * lerpf(1.0, _leg_k(), 0.3))
 		_frog.add_child(hip)
 		var toes: Array = []
-		var tm := _mat(Color(0.42, 0.44, 0.26), 0.4)
+		var tm := _mat(col.lerp(Color(0.6, 0.55, 0.4), 0.25), 0.5) # (its toes its own colour, a little paler)
 		for k in 5:
 			toes.append(_bone(tm, _frog))
 		var thigh := _bone(_skin, _frog)
@@ -464,11 +618,13 @@ func _build() -> void:
 		_hind.append([hip, thigh, shin, ft, side, toes])
 		var wmi := MeshInstance3D.new() # (the webs between its toes)
 		wmi.mesh = _web_mesh()
-		var wm := _mat(Color(0.42, 0.44, 0.27, 0.8), 0.5)
+		var wc := col.lerp(Color(0.6, 0.55, 0.4), 0.2)
+		var wm := _mat(Color(wc.r, wc.g, wc.b, 0.8), 0.5)
 		wm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 		wm.cull_mode = BaseMaterial3D.CULL_DISABLED
 		wmi.material_override = wm
 		_frog.add_child(wmi)
+		wmi.scale = Vector3.ONE * _web_k()
 		_webs.append(wmi)
 		var sh := Node3D.new()
 		sh.position = Vector3(10.0 * side, 4.0, -8.0)
@@ -482,9 +638,10 @@ func _build() -> void:
 	var tad := ShaderMaterial.new()
 	tad.shader = _skin_shader()
 	_skin_mats.append(tad)
-	tad.set_shader_parameter("back", Color(0.3, 0.28, 0.16))
-	tad.set_shader_parameter("spot", Color(0.62, 0.55, 0.3)) # (gold flecks)
-	tad.set_shader_parameter("belly", Color(0.78, 0.76, 0.66))
+	var tc := _tad_cols()
+	tad.set_shader_parameter("back", tc[0])
+	tad.set_shader_parameter("spot", tc[1]) # (gold flecks)
+	tad.set_shader_parameter("belly", tc[2])
 	tad.set_shader_parameter("spots", 0.6)
 	tad.set_shader_parameter("tadpole", true)
 	_part(Vector3(0.0, 6.0, -2.0), Vector3(22.0, 17.0, 30.0), tad, _tadpole)
@@ -823,6 +980,7 @@ func _lay_think(_dt: float) -> void:
 			_throat = 0.5 + 0.5 * sin(_t * 4.0)
 			if _st > 4.0:
 				var e := Eggs.new()
+				e.strings = _egg_strings()
 				e.maker = get_script()
 				e.at = Vector3(_pos.x, lerpf(water_y, floor_y, 0.35), _pos.z + 0.03)
 				e.frog = self
@@ -842,7 +1000,7 @@ func _leap(to: Vector3) -> void:
 	var d := Vector3(to.x - _pos.x, 0.0, to.z - _pos.z)
 	if d.length() < 0.005:
 		return
-	var dist := minf(d.length(), 0.45 * size + 0.05) # (as far as it can)
+	var dist := minf(d.length(), _leap_max() * size + 0.05) # (as far as it can)
 	d = d.normalized()
 	_face(d * 10.0)
 	var t := 0.18 + dist * 0.6
@@ -924,17 +1082,50 @@ func _pose(dt: float) -> void:
 	if not _frog.visible:
 		return
 	_crouch = move_toward(_crouch, 1.0 if _airborne else (0.6 if _mode == "float" or _mode == "call" else 0.0), dt * 6.0)
-	var ext := _kick * (1.0 if _airborne or _mode == "swim" else 0.0) # (its hind legs thrown out straight)
+	var ext := _kick if _airborne else 0.0 # (its hind legs thrown out straight)
 	_kick = move_toward(_kick, 0.0, dt * 2.0)
-	# its hind legs: folded in a Z under it, or out straight behind
+	var lk := _leg_k()
+	var wet := _in_water(_pos) and not _airborne and not (young and dev < 1.0)
+	var swimming := wet and _mode == "swim"
+	var floating := wet and not swimming and _role != "male"
+	# (swimming: the stroke, as _move drives it: a kick, both legs thrust back
+	# together; a glide, legs straight behind, together; then drawn up again,
+	# knees out, feet turned out, ready)
+	var sp := fmod(_st, 0.8) / 0.8
+	var stroke := smoothstep(0.0, 0.3, sp) * (1.0 - smoothstep(0.62, 1.0, sp))
+	# its hind legs: folded in a Z under it, out straight behind, or swimming
 	for L: Array in _hind:
 		var side: float = L[4]
 		var hip: Vector3 = (L[0] as Node3D).position
-		var knee := hip.lerp(hip + Vector3(10.0 * side, -2.0, 18.0), ext).lerp(hip + Vector3(8.0 * side, -3.0, -10.0), (1.0 - ext))
-		var ankle := hip.lerp(hip + Vector3(12.0 * side, -3.0, 44.0), ext).lerp(hip + Vector3(14.0 * side, -4.0, 10.0), (1.0 - ext))
-		var toe := hip.lerp(hip + Vector3(14.0 * side, -4.0, 72.0), ext).lerp(hip + Vector3(8.0 * side, -5.5, -14.0), (1.0 - ext))
-		_seg_to(L[1], hip, knee, 6.0)
-		_seg_to(L[2], knee, ankle, 4.0)
+		# (sitting: the thigh forward and out along its side, the shin folded
+		# back outside it and lower, beside it, not inside it; the foot forward
+		# again under the shin, outside both)
+		var sit_k := Vector3(11.0 * side, -3.5, -9.0)
+		var sit_a := Vector3(20.0 * side, -5.5, 11.0)
+		var sit_t := Vector3(17.0 * side, -6.5, -13.0)
+		var out_k := Vector3(10.0 * side, -2.0, 18.0)
+		var out_a := Vector3(12.0 * side, -3.0, 44.0)
+		var out_t := Vector3(14.0 * side, -4.0, 72.0)
+		var k_: Vector3 = out_k.lerp(sit_k, 1.0 - ext)
+		var a_: Vector3 = out_a.lerp(sit_a, 1.0 - ext)
+		var t_: Vector3 = out_t.lerp(sit_t, 1.0 - ext)
+		if swimming:
+			var rec_k := Vector3(18.0 * side, -1.0, 4.0) # (drawn up: knees out wide, feet out)
+			var rec_a := Vector3(12.0 * side, -1.0, 22.0)
+			var rec_t := Vector3(26.0 * side, -1.5, 16.0)
+			var glide := Vector3(-3.0 * side, -1.0, 0.0) * stroke # (together, behind)
+			k_ = rec_k.lerp(out_k * Vector3(0.8, 1.0, 1.0), stroke)
+			a_ = rec_a.lerp(out_a * Vector3(0.45, 1.0, 1.04), stroke) + glide
+			t_ = rec_t.lerp(out_t * Vector3(0.25, 1.0, 1.06), stroke) + glide
+		elif floating: # (at rest in the water: legs spread out behind, splayed, a little bent)
+			k_ = Vector3(16.0 * side, -3.0, 10.0)
+			a_ = Vector3(20.0 * side, -5.0, 30.0)
+			t_ = Vector3(28.0 * side, -6.0, 46.0)
+		var knee := hip + k_ * lk
+		var ankle := hip + a_ * lk
+		var toe := hip + t_ * lk
+		_seg_to(L[1], hip, knee, 5.3)
+		_seg_to(L[2], knee, ankle, 3.6)
 		_seg_to(L[3], ankle, toe, 2.4)
 		var toes: Array = L[5]
 		for k in toes.size(): # (long toes, webbed: fanned out from the foot's end)
@@ -944,23 +1135,29 @@ func _pose(dt: float) -> void:
 			_seg_to(toes[k], toe, t2, 1.1)
 		var fz := (toe - ankle).normalized() # (its web: along the foot, fanned with its toes)
 		var fx := Vector3.UP.cross(fz).normalized() if absf(fz.y) < 0.98 else Vector3.RIGHT
-		_webs[_hind.find(L)].transform = Transform3D(Basis(fx, fz.cross(fx), fz), toe)
+		_webs[_hind.find(L)].transform = Transform3D(Basis(fx, fz.cross(fx), fz).scaled(Vector3.ONE * _web_k()), toe)
 	for L: Array in _fore:
 		var side: float = L[3]
 		var sh: Vector3 = (L[0] as Node3D).position
 		var clasp := _role == "male" and is_instance_valid(_held_by)
 		var elbow := sh + (Vector3(8.0 * side, -4.0, 4.0) if not clasp else Vector3(6.0 * side, -6.0, -6.0))
 		var hand := elbow + (Vector3(-1.0 * side, -6.0, -8.0) if not clasp else Vector3(-8.0 * side, -6.0, -8.0))
+		if swimming: # (laid back along its sides, out of the way)
+			elbow = sh + Vector3(5.0 * side, -1.5, 6.0)
+			hand = elbow + Vector3(1.0 * side, -1.0, 10.0)
+		elif floating and not clasp: # (out a little before it, holding it level)
+			elbow = sh + Vector3(9.0 * side, -3.0, -2.0)
+			hand = elbow + Vector3(4.0 * side, -3.0, -6.0)
 		_seg_to(L[1], sh, elbow, 2.3)
 		_seg_to(L[2], elbow, hand, 2.4)
 		_seg_to(L[4], hand, hand + Vector3(-2.0 * side, -1.0, -3.0), 1.6)
-	_body.rotation.x = lerpf(0.25, -0.1, _crouch) * (0.0 if _mode == "float" else 1.0) # (sat up on its forelegs, or flat)
+	_body.rotation.x = lerpf(0.25, -0.1, _crouch) * (0.0 if wet else 1.0) # (sat up on its forelegs, or flat in the water)
 	_throat_mi.scale = Vector3(22.0, 6.0 + 2.5 * _throat, 18.0)
 	for e in _eyes:
-		e.position.y = 13.4 - 4.0 * _gulp # (pulled down to push its prey down)
+		e.position.y = _eye_y() - 4.0 * _gulp # (pulled down to push its prey down)
 	for k in _sacs.size():
 		_sacs[k].visible = _sac > 0.02
-		_sacs[k].scale = Vector3(8.0, 8.0, 9.0) * lerpf(0.3, 1.25, _sac)
+		_sacs[k].scale = (Vector3(14.0, 11.0, 14.0) * lerpf(0.3, 1.9, _sac)) if _single_sac() else (Vector3(8.0, 8.0, 9.0) * lerpf(0.3, 1.25, _sac))
 	if not (_mode == "hunt" and _stage == 1):
 		_tongue = move_toward(_tongue, 0.0, dt * 8.0) # (back in)
 	_tongue_mi.visible = _tongue > 0.02
@@ -1139,6 +1336,7 @@ class Eggs extends Node3D:
 	var maker: Script
 	var frog: Node3D
 	var at := Vector3.ZERO
+	var strings := false ## (a toad's: two long strings, tangled in the weed, not a clump)
 	var left := 60.0
 	var _done := false
 
@@ -1155,6 +1353,32 @@ class Eggs extends Node3D:
 		em.albedo_color = Color(0.06, 0.05, 0.04)
 		var rng := RandomNumberGenerator.new()
 		rng.randomize()
+		if strings: # (two strands of jelly, each a row of black eggs, wandering over the bottom)
+			for sd: float in [-1.0, 1.0]:
+				var p := Vector3(sd * 0.006, 0.0, 0.0)
+				var a := rng.randf() * TAU
+				for k in 70:
+					a += rng.randf_range(-0.35, 0.35)
+					var q := p + Vector3(cos(a), 0.0, sin(a)) * 0.006 + Vector3(0.0, rng.randf_range(-0.001, 0.001), 0.0)
+					var tube := MeshInstance3D.new()
+					var cm := CylinderMesh.new()
+					cm.top_radius = 0.0035
+					cm.bottom_radius = 0.0035
+					cm.height = 0.0065
+					cm.radial_segments = 6
+					tube.mesh = cm
+					tube.material_override = jm
+					tube.position = (p + q) * 0.5
+					tube.basis = Basis.looking_at(q - p, Vector3.UP) * Basis(Vector3.RIGHT, PI * 0.5)
+					add_child(tube)
+					var e := MeshInstance3D.new()
+					e.mesh = s
+					e.material_override = em
+					e.scale = Vector3.ONE * 0.0026
+					e.position = q
+					add_child(e)
+					p = q
+			return
 		for k in 60:
 			var p := at + Vector3(rng.randf_range(-1, 1), rng.randf_range(-0.7, 0.7), rng.randf_range(-1, 1)).limit_length(1.0) * 0.03
 			var j := MeshInstance3D.new()

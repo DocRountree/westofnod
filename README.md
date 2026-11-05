@@ -242,11 +242,18 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   upper-lip stripe, a dark line from nostril to eye, its tympanum a brown disc with a pale dot, a white belly; bulging
   golden eyes with level pupils, set into its head; its legs tapered and barred dark across, long hind legs folded
   in a Z, the hind feet webbed; a male's dark thumb pads and paired vocal sacs. Sitting, its throat pulsing; hopping (a ballistic
-  leap, its legs thrown out straight); swimming in kicks and floating with only its eyes out; catching a fly
+  leap, its legs thrown out straight); swimming in strokes (both legs kicked back together, a glide with them straight behind, then drawn up again, knees out, feet turned out; its forelegs laid back along its sides) and floating with its legs splayed behind, only its eyes out; its body deep, rising to the sacral hump over its hips, its belly round; its eyes gold, mottled, the pupil a level oval; sitting, its shins folded back beside its thighs, outside them; catching a fly
   (`Frog.fly_of()`) with a flick of its tongue and gulping (its eyes pulled in); a male calling, his sacs swelling in
   bouts; fleeing in leaps for the water; amplexus (on her back, clasped behind her arms) and her egg mass laid on a
   stem under the water (`Eggs`: black eggs in clear jelly). The tadpoles hatch, swim and graze, grow their hind legs,
   then their forelegs, their tails shrinking away, and hop out onto the bank as froglets.
+- `scripts/creatures/american_toad.gd` (`AmericanToad`): an American toad (*Anaxyrus americanus*), on the leopard
+  frog's make (its species hooks: body sections, skin, legs, eyes, sacs, eggs): squat and rotund, its back a high
+  dome, its snout short and blunt, its legs short (short hops); its skin dry and warty all over (a bumped shader),
+  brown, reddish or olive, a faint pale line down its back, big dark spots round its warts, its belly speckled; a
+  kidney-shaped parotoid gland behind each eye and the bony crests between and behind them; no dorsolateral folds,
+  no lip stripe; its iris copper gold; a male's long trill, one round vocal sac swelling under his chin; its eggs in
+  two long strings of jelly over the bottom; its tadpoles black.
 - `scripts/creatures/turtle.gd` (`Turtle`): an eastern box turtle (*Terrapene carolina carolina*), twice life size,
   on a species' make (a spec: `SnappingTurtle` has its own). Its carapace its own mesh (a high dome, a low keel, the
   rim flared behind) painted from its scutes' centres: brown, irregular yellow and orange streaks and blotches out

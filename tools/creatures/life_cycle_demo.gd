@@ -52,6 +52,9 @@ extends Node3D
 ## northern leopard frog: a female and a male on the bank of a little pond,
 ##   reeds in it, tadpoles (E hunt: a fly; D his call; K amplexus, 1 her egg
 ##   mass; F a hop, a tadpole changing; X into the water; 2 the eggs hatching)
+## American toad: a female and a male by a little pond, tadpoles (black)
+##   (E hunt: a fly; D his long trill, his sac swelling under his chin; K
+##   amplexus, 1 her egg strings; F a short hop; B swim; X a hop away)
 ## eastern box turtle: a female and a male on the forest floor, a puddle, a
 ##   hatchling (Z / A bask, F soak in the puddle, X shut in its shell, E eat
 ##   a mushroom, K he courts and mounts her, 1 her nest dug and laid, 2 it
@@ -98,7 +101,7 @@ const PupaScript := preload("res://scripts/creatures/pupa.gd")
 
 const NAMES := ["monarch", "hummingbird clearwing", "paper wasp", "carpenter ant (queen)", "red harvester (queen)", "June bug", "convergent lady beetle", "differential grasshopper", "Carolina mantis", "eastern diamondback rattlesnake", "eastern milk snake",
 		"Carolina wolf spider", "six-spotted fishing spider", "grass spider (funnel weaver)", "yellow garden spider", "pill bug", "deer mouse",
-		"green anole", "Arizona bark scorpion", "snowshoe hare", "red fox", "bobcat", "coyote", "grey wolf", "American black bear", "brown bear (grizzly)", "American bison", "white-tailed deer", "trigonalid wasp", "eastern fox squirrel", "North American beaver", "eastern grey squirrel", "blue-winged grasshopper", "common green darner", "moose", "northern leopard frog", "eastern box turtle", "common snapping turtle", "green sea turtle"]
+		"green anole", "Arizona bark scorpion", "snowshoe hare", "red fox", "bobcat", "coyote", "grey wolf", "American black bear", "brown bear (grizzly)", "American bison", "white-tailed deer", "trigonalid wasp", "eastern fox squirrel", "North American beaver", "eastern grey squirrel", "blue-winged grasshopper", "common green darner", "moose", "northern leopard frog", "eastern box turtle", "common snapping turtle", "green sea turtle", "American toad"]
 const SpiderScript := preload("res://scripts/creatures/spider.gd")
 const IsopodScript := preload("res://scripts/creatures/isopod.gd")
 const SnakeScript := preload("res://scripts/creatures/snake.gd")
@@ -123,6 +126,7 @@ const BisonScript := preload("res://scripts/creatures/bison.gd")
 const DeerScript := preload("res://scripts/creatures/deer.gd")
 const MooseScript := preload("res://scripts/creatures/moose.gd")
 const FrogScript := preload("res://scripts/creatures/frog.gd")
+const ToadScript := preload("res://scripts/creatures/american_toad.gd")
 const TurtleScript := preload("res://scripts/creatures/turtle.gd")
 const SnapScript := preload("res://scripts/creatures/snapping_turtle.gd")
 const SeaScript := preload("res://scripts/creatures/sea_turtle.gd")
@@ -234,7 +238,7 @@ var _moth_perch_n := Vector3.BACK
 
 func _station(i: int) -> Vector3:
 	# (the snakes, life size, given more room)
-	return Vector3(i * GAP + (1.2 if i >= 9 else 0.0) + (1.8 if i >= 10 else 0.0) + (1.6 if i >= 11 else 0.0) + (3.0 if i >= 19 else 0.0) + (4.0 if i >= 20 else 0.0) + (4.0 if i >= 21 else 0.0) + (4.0 if i >= 22 else 0.0) + (5.0 if i >= 23 else 0.0) + (6.0 if i >= 24 else 0.0) + (7.0 if i >= 25 else 0.0) + (9.0 if i >= 26 else 0.0) + (9.0 if i >= 27 else 0.0) + (4.5 if i >= 28 else 0.0) + (3.0 if i >= 29 else 0.0) + (5.0 if i >= 30 else 0.0) + (5.0 if i >= 31 else 0.0) + (2.0 if i >= 32 else 0.0) + (4.0 if i >= 33 else 0.0) + (6.0 if i >= 34 else 0.0) + (6.0 if i >= 35 else 0.0) + (3.0 if i >= 36 else 0.0) + (3.0 if i >= 37 else 0.0) + (7.5 if i >= 38 else 0.0), 0.0, 0.0)
+	return Vector3(i * GAP + (1.2 if i >= 9 else 0.0) + (1.8 if i >= 10 else 0.0) + (1.6 if i >= 11 else 0.0) + (3.0 if i >= 19 else 0.0) + (4.0 if i >= 20 else 0.0) + (4.0 if i >= 21 else 0.0) + (4.0 if i >= 22 else 0.0) + (5.0 if i >= 23 else 0.0) + (6.0 if i >= 24 else 0.0) + (7.0 if i >= 25 else 0.0) + (9.0 if i >= 26 else 0.0) + (9.0 if i >= 27 else 0.0) + (4.5 if i >= 28 else 0.0) + (3.0 if i >= 29 else 0.0) + (5.0 if i >= 30 else 0.0) + (5.0 if i >= 31 else 0.0) + (2.0 if i >= 32 else 0.0) + (4.0 if i >= 33 else 0.0) + (6.0 if i >= 34 else 0.0) + (6.0 if i >= 35 else 0.0) + (3.0 if i >= 36 else 0.0) + (3.0 if i >= 37 else 0.0) + (7.5 if i >= 38 else 0.0) + (3.5 if i >= 39 else 0.0), 0.0, 0.0)
 
 
 func _ready() -> void:
@@ -308,6 +312,7 @@ func _ready() -> void:
 	_dragonfly_station()
 	_moose_station()
 	_frog_station()
+	_frog_station(39, ToadScript)
 	_turtle_station()
 	_snap_station()
 	_sea_station()
@@ -632,8 +637,8 @@ func _moose_station() -> void:
 
 ## The leopard frogs: a little pond (20 cm deep), reeds standing in it, a
 ## female and a male on its bank, three tadpoles in it.
-func _frog_station() -> void:
-	var c := _station(35)
+func _frog_station(idx := 35, sc: Script = FrogScript) -> void:
+	var c := _station(idx)
 	_pond(c, FROG_PW, FROG_PD, FROG_DEEP)
 	var stems := []
 	for k in 5:
@@ -643,7 +648,7 @@ func _frog_station() -> void:
 		stems.append([foot, Vector3(foot.x, top, foot.z)])
 	var land := func(_x: float, _z: float) -> float: return 0.0
 	for m in 5:
-		var fr: Node3D = FrogScript.new(m >= 2)
+		var fr: Node3D = sc.new(m >= 2)
 		if m == 1:
 			fr.set("male", true)
 		fr.set("water_y", POND)
@@ -664,12 +669,13 @@ func _frog_station() -> void:
 func _frog_do(c: Node, act: String, young: bool) -> void:
 	var p := _where(c)
 	var tad := young and float(c.get("dev")) < 1.0
+	var home: Vector3 = (c.get("pond") as Array)[0] # (its station's pond: the frogs', the toads')
 	match act:
 		"eat", "hunt":
 			if not tad:
 				var a := randf() * TAU
 				var at := p + Vector3(cos(a), 0.0, sin(a)) * 0.12
-				at.y = 0.0 if absf(at.x - _station(35).x) > FROG_PW or absf(at.z) > FROG_PD else POND
+				at.y = 0.0 if absf(at.x - home.x) > FROG_PW or absf(at.z - home.z) > FROG_PD else POND
 				var fl := FrogScript.fly_of(at)
 				add_child(fl)
 				c.call("hunt", fl)
@@ -690,7 +696,7 @@ func _frog_do(c: Node, act: String, young: bool) -> void:
 				c.call("flee", p + Vector3(randf_range(-1, 1), 0.0, randf_range(-1, 1)) * 0.1)
 		"forage":
 			if not tad:
-				c.call("swim", _station(35) + Vector3(randf_range(-0.3, 0.3), 0.0, randf_range(-0.2, 0.2)))
+				c.call("swim", home + Vector3(randf_range(-0.3, 0.3), 0.0, randf_range(-0.2, 0.2)))
 		"wander":
 			if not tad:
 				c.call("wander", p, 0.2)
@@ -910,7 +916,7 @@ func _spider_stations() -> void:
 ## 30 cm deep over a muddy basin sunk in the plain.
 ## The ponds sunk in the plain: [centre, half width (x), half depth (z), deep] each, by x.
 func _ponds() -> Array:
-	return [[_station(12), POND_W, POND_D, 0.3], [_station(34), MOOSE_PW, MOOSE_PD, MOOSE_DEEP], [_station(35), FROG_PW, FROG_PD, FROG_DEEP], [_station(36), TURTLE_PW, TURTLE_PD, TURTLE_DEEP], [_station(37), SNAP_PW, SNAP_PD, SNAP_DEEP], [_station(38), SEA_PW, SEA_PD, SEA_DEEP]]
+	return [[_station(12), POND_W, POND_D, 0.3], [_station(34), MOOSE_PW, MOOSE_PD, MOOSE_DEEP], [_station(35), FROG_PW, FROG_PD, FROG_DEEP], [_station(36), TURTLE_PW, TURTLE_PD, TURTLE_DEEP], [_station(37), SNAP_PW, SNAP_PD, SNAP_DEEP], [_station(38), SEA_PW, SEA_PD, SEA_DEEP], [_station(39), FROG_PW, FROG_PD, FROG_DEEP]]
 
 
 func _pond(c: Vector3, pw := POND_W, pd := POND_D, deep := 0.3) -> void:
@@ -2039,7 +2045,7 @@ func _do(c: Node, act: String, all: Array) -> void:
 	if sc == DragonflyScript:
 		_dragonfly_do(c, act, young)
 		return
-	if sc == FrogScript:
+	if sc == FrogScript or sc == ToadScript:
 		_frog_do(c, act, young)
 		return
 	if sc == TurtleScript or sc == SnapScript or sc == SeaScript:
@@ -2399,7 +2405,7 @@ func _feed(c: Node, act: String, young: bool, p: Vector3, st: Vector3) -> void:
 ## To station i (the camera further off for the snakes).
 func _go(i: int) -> void:
 	_at = i
-	_dist = 5.0 if i == 38 else 1.6 if i == 35 or i == 36 else 9.0 if i == 34 else 2.2 if i == 33 else 0.8 if i == 32 else 2.4 if i == 31 else 4.2 if i == 30 else 2.4 if i == 29 else 0.8 if i == 28 else 2.2 if i == 9 or i == 10 else (2.4 if i == 19 else ((6.0 if i >= 27 else (9.0 if i >= 26 else (7.5 if i >= 24 else (5.0 if i >= 22 else 3.6)))) if i >= 20 else minf(_dist, 0.8)))
+	_dist = 5.0 if i == 38 else 1.6 if i == 35 or i == 36 or i == 39 else 9.0 if i == 34 else 2.2 if i == 33 else 0.8 if i == 32 else 2.4 if i == 31 else 4.2 if i == 30 else 2.4 if i == 29 else 0.8 if i == 28 else 2.2 if i == 9 or i == 10 else (2.4 if i == 19 else ((6.0 if i >= 27 else (9.0 if i >= 26 else (7.5 if i >= 24 else (5.0 if i >= 22 else 3.6)))) if i >= 20 else minf(_dist, 0.8)))
 	_say()
 
 
