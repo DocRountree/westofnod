@@ -179,7 +179,7 @@ static func _arch(hw: float, hh: float, l: float, reach: float) -> ArrayMesh:
 	for i in ARCH_ROUND:
 		for j in ARCH_ALONG:
 			var q := [pt.call(i, j), pt.call(i + 1, j), pt.call(i + 1, j + 1), pt.call(i, j + 1)]
-			for e in [0, 2, 1, 0, 3, 2]:
+			for e in [0, 1, 2, 0, 2, 3]: # (wound to face out: its outside the front face, lit as it should be)
 				var v: Array = q[e]
 				st.set_normal(v[1])
 				st.add_vertex(v[0])
