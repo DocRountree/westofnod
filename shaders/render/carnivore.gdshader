@@ -125,7 +125,7 @@ void fragment() {
 			c = mix(c, white, smoothstep(0.84, 0.92, a));
 		}
 		if (pt == 5.0)
-			c = rn.z > 0.0 ? vec3(0.07, 0.05, 0.045) : mix(white * 0.92, vec3(0.1, 0.07, 0.05), smoothstep(ear_len * 0.8, ear_len, rp.y));
+			c = rn.z < 0.0 ? /*(its back: away from its cup)*/ vec3(0.07, 0.05, 0.045) : mix(vec3(0.86, 0.8, 0.7), vec3(0.1, 0.07, 0.05), smoothstep(ear_len * 0.8, ear_len, rp.y));
 	} else if (species == 1) {
 		// a bobcat: tawny buff to grey brown, spotted dark down its sides and
 		// legs, barred on its legs; white beneath, spotted black; white
@@ -152,7 +152,7 @@ void fragment() {
 			c = mix(c, mix(dark, white, 1.0 - smoothstep(-0.2, 0.2, ny)), smoothstep(0.78, 0.86, a));
 		}
 		if (pt == 5.0)
-			c = rn.z > 0.0 ? mix(vec3(0.08, 0.07, 0.06), white, (1.0 - smoothstep(ear_len * 0.12, ear_len * 0.2, length(rp.xy - vec2(0.0, ear_len * 0.45))))) : white * 0.85;
+			c = rn.z < 0.0 ? /*(its back: away from its cup)*/ mix(vec3(0.08, 0.07, 0.06), white, (1.0 - smoothstep(ear_len * 0.12, ear_len * 0.2, length(rp.xy - vec2(0.0, ear_len * 0.45))))) : mix(white * 0.8, buff, 0.3);
 	} else if (species == 2 || species == 3) {
 		// 2 a coyote: grizzled grey brown above, black tipped down its back,
 		// tawny on its sides, legs, ears and muzzle; its throat and belly
@@ -180,7 +180,7 @@ void fragment() {
 			c = mix(c, vec3(0.07, 0.06, 0.055), smoothstep(0.8, 0.92, a));
 		}
 		if (pt == 5.0)
-			c = rn.z > 0.0 ? side * (wolf ? 0.8 : 1.0) : pale * 0.9;
+			c = rn.z < 0.0 ? /*(its back: away from its cup)*/ side * (wolf ? 0.8 : 1.0) : mix(pale * 0.85, side, 0.35);
 	} else if (species == 4 || species == 5) {
 		// 4 a black bear: glossy black (or cinnamon, brown, blond), its
 		// muzzle tan, now and then a white blaze on its chest. 5 a brown
@@ -246,7 +246,7 @@ void fragment() {
 		if (pt == 6.0)
 			c = mix(white, dark * 1.1, smoothstep(0.0, 0.5, ny));
 		if (pt == 5.0) {
-			c = mix(brown * 0.95, vec3(0.78, 0.64, 0.55), rn.z < 0.0 ? 0.55 : 0.0);
+			c = mix(brown * 0.95, vec3(0.78, 0.64, 0.55), rn.z > 0.0 ? 0.55 : 0.0);
 			c = mix(c, vec3(0.05, 0.045, 0.04), smoothstep(ear_len * 0.78, ear_len * 0.86, rp.y));
 		}
 	} else if (species == 9) {
@@ -281,7 +281,7 @@ void fragment() {
 			c = mix(c, rust, 1.0 - smoothstep(-0.5, -0.1, ny));
 		}
 		if (pt == 5.0)
-			c = rn.z < 0.0 ? rust * 1.15 : mix(grizzle, rust, 0.6);
+			c = rn.z > 0.0 ? rust * 1.15 : mix(grizzle, rust, 0.6);
 		c = mix(vec3(0.88, 0.6, 0.55), c, fur);
 	} else if (species == 11) {
 		// a beaver: rich dark brown, glossy, its sides warmer, its belly a
@@ -324,8 +324,8 @@ void fragment() {
 		}
 		if (fw > 0.0) {
 			vec3 face = mix(coat, spine, smoothstep(0.4, 0.95, ny));
-			float ring = max(1.0 - smoothstep(bare_r * 0.9, bare_r * 1.08, length(hp - bare_a)), 1.0 - smoothstep(bare_r * 0.9, bare_r * 1.08, length(hp - bare_b)));
-			face = mix(face, white, ring * 0.75);
+			float ring = max(1.0 - smoothstep(bare_r * 1.2, bare_r * 1.42, length(hp - bare_a)), 1.0 - smoothstep(bare_r * 1.2, bare_r * 1.42, length(hp - bare_b)));
+			face = mix(face, white, ring * 0.45);
 			float band = smoothstep(muzzle_z - 30.0, muzzle_z - 12.0, hp.z) * (1.0 - smoothstep(muzzle_z + 10.0, muzzle_z + 30.0, hp.z));
 			face = mix(face, white, band * 0.9);
 			face = mix(face, vec3(0.13, 0.085, 0.06), (1.0 - smoothstep(muzzle_z - 40.0, muzzle_z - 25.0, hp.z)) * smoothstep(-0.2, 0.4, ny));
@@ -339,7 +339,7 @@ void fragment() {
 		if (pt == 4.0)
 			c = vec3(0.07, 0.065, 0.06);
 		if (pt == 5.0)
-			c = rn.z > 0.0 ? mix(coat * 0.9, vec3(0.1, 0.08, 0.06), smoothstep(ear_len * 0.85, ear_len, rp.y)) : mix(white * 0.88, vec3(0.1, 0.08, 0.06), smoothstep(ear_len * 0.9, ear_len, rp.y));
+			c = rn.z < 0.0 ? /*(its back: away from its cup)*/ mix(coat * 0.9, vec3(0.1, 0.08, 0.06), smoothstep(ear_len * 0.85, ear_len, rp.y)) : mix(mix(white * 0.82, coat, 0.2), vec3(0.1, 0.08, 0.06), smoothstep(ear_len * 0.9, ear_len, rp.y));
 		if (pt == 6.0)
 			c = mix(white, mix(coat, spine * 0.8, 0.6), smoothstep(0.1, 0.55, ny));
 		if (pt == 7.0) {
@@ -352,12 +352,47 @@ void fragment() {
 	if (pt == 4.0 && species < 6) // (paws: the toes' fur, darker)
 		c *= 0.7;
 	c = mix(c, vec3(0.8, 0.72, 0.6), to_cream);
-	// the fur's grain (strands lying back along the body, down the legs) and
-	// a soft mottling; the bison's front curled in wool
+	// the face's finer marks (its skin's; every species): the lids' dark rims
+	// round its eyes, almond shaped; the lip line along its jaw's edge and
+	// into the corner of its mouth; the rows of whisker spots on its muzzle;
+	// its muzzle darker toward its nose
+	if (skin && fw > 0.0 && bare_r > 0.0) {
+		vec3 ea = bare_a;
+		vec3 eb = bare_b;
+		vec3 dva = (hp - ea) / vec3(1.0, 0.72, 1.25); // (almond: long, narrow)
+		vec3 dvb = (hp - eb) / vec3(1.0, 0.72, 1.25);
+		float da = min(length(dva), length(dvb)) / bare_r;
+		float lid = (1.0 - smoothstep(1.02, 1.22, da)) * smoothstep(0.7, 0.9, da);
+		vec3 rim_c = species == 8 || species == 10 ? c * 0.45 : vec3(0.05, 0.04, 0.035);
+		c = mix(c, rim_c, lid * fw * 0.85);
+		// (ahead of its eyes: its muzzle)
+		float ahead = fw * smoothstep(ea.z - bare_r * 1.2, ea.z - bare_r * 3.5, hp.z);
+		bool rodent = species == 8 || species == 9 || species == 10 || species == 11;
+		if (pt == 1.0 && !rodent) // (its lower lip's edge: dark)
+			c = mix(c, vec3(0.06, 0.045, 0.04), smoothstep(0.15, 0.55, ny) * ahead * 0.9);
+		if (pt == 0.0 && !rodent) // (and the upper's, along the head's underside to its mouth's corner)
+			c = mix(c, vec3(0.07, 0.05, 0.045), (1.0 - smoothstep(-0.9, -0.62, ny)) * smoothstep(0.2, 0.6, ahead) * 0.7);
+		if (species < 4 || rodent) { // (the whisker spots, in rows along its muzzle's sides)
+			float side = smoothstep(0.25, 0.6, abs(normalize(rn).x));
+			float wsp = spots(vec3(hp.x * 0.5, hp.y * 1.7, hp.z), bare_r * 0.42, 0.28);
+			c = mix(c, c * 0.45, wsp * side * smoothstep(0.4, 0.8, ahead) * (1.0 - smoothstep(-0.2, 0.25, ny)) * 0.8);
+		}
+		c = mix(c, c * 0.78, smoothstep(0.6, 1.0, ahead) * smoothstep(0.1, 0.6, ny) * 0.6); // (its nose's bridge)
+	}
+	// the fur: fine strands lying the way its hair lies (back along the body
+	// and head, down the legs, out along the tail), each a little lighter at
+	// its tip, darker at its root; the strands gathered in locks; a soft
+	// mottling. Its grain in the light, too: the surface bumped by the
+	// strands and the locks (fading out where they'd shimmer, far off).
 	bool bare = pt == 4.0 || pt == 7.0 || (species == 11 && ((pt == 6.0 && a > 0.12) || (leg && a > 0.7)));
-	float s = clamp(hair * 0.1, 0.6, 6.0);
-	vec3 q = leg ? vec3(rp.x / s, rp.y / (s * 5.0), rp.z / s) : vec3(rp.x / s, rp.y / s, rp.z / (s * 5.0));
-	float grain = vn(q) * 0.6 + vn(q * 2.3 + 11.0) * 0.4;
+	float s = clamp(hair * 0.06, 0.3, 4.0); // (a strand's width, mm)
+	vec3 stretch = leg ? vec3(1.0, 7.0, 1.0) : vec3(1.0, 1.0, 7.0);
+	vec3 q = rp / (s * stretch);
+	vec3 qc = rp / (s * 6.0 * stretch * 0.6);
+	float fine_vis = 1.0 - smoothstep(0.35, 1.2, length(fwidth(q)));
+	float lock_vis = 1.0 - smoothstep(0.35, 1.2, length(fwidth(qc)));
+	float strand = vn(q) * 0.6 + vn(q * 2.2 + 11.0) * 0.4;
+	float locks = vn(qc) * 0.7 + vn(qc * 1.9 + 4.0) * 0.3;
 	float mott = vn(rp * 0.012 + 3.0);
 	float wool = 0.0;
 	if (species == 6 && !young) {
@@ -366,16 +401,28 @@ void fragment() {
 			front = 1.0;
 		wool = front * (pt == 0.0 || leg || pt == 1.0 ? 1.0 : 0.0);
 		float curl = vn(rp * 0.06) * 0.5 + vn(rp * 0.13 + 5.0) * 0.5;
-		c *= mix(1.0, 0.68 + 0.45 * curl, wool);
+		c *= mix(1.0, 0.62 + 0.55 * curl, wool);
 	}
-	if (!bare)
-		c *= (0.88 + 0.24 * grain) * (0.93 + 0.14 * mott);
-	ALBEDO = clamp(c, 0.0, 1.0);
-	// (its grain in the light: the normal stirred a little; more in wool)
+	float h = mix(0.5, strand, fine_vis) * 0.55 + mix(0.5, locks, lock_vis) * 0.45;
 	if (!bare) {
-		float amp = 0.07 + 0.18 * wool;
-		vec3 g = vec3(vn(q * 1.7 + 2.0), vn(q * 1.7 + 9.0), 0.0) - vec3(0.5, 0.5, 0.0);
-		NORMAL = normalize(NORMAL + (VIEW_MATRIX * vec4(g * amp, 0.0)).xyz);
+		c *= mix(0.74, 1.2, h); // (tips lighter, roots darker)
+		c *= 0.92 + 0.16 * mott;
+		c = mix(c, c * vec3(1.06, 1.03, 0.98), smoothstep(0.7, 0.9, strand) * fine_vis * 0.5); // (a few paler hairs)
+	}
+	ALBEDO = clamp(c, 0.0, 1.0);
+	if (!bare) {
+		// (bump: the height h's slope across the screen, onto the surface)
+		vec3 dpdx = dFdx(VERTEX);
+		vec3 dpdy = dFdy(VERTEX);
+		float dhdx = dFdx(h);
+		float dhdy = dFdy(h);
+		vec3 n = normalize(NORMAL);
+		vec3 r1 = cross(dpdy, n);
+		vec3 r2 = cross(n, dpdx);
+		float det = dot(dpdx, r1);
+		float k = s * 0.0012 * (1.0 + 2.5 * wool) * clamp(hair / 20.0, 0.5, 2.0);
+		vec3 grad = sign(det) * (dhdx * r1 + dhdy * r2);
+		NORMAL = normalize(abs(det) * n - grad * k);
 	}
 	if (pt == 7.0) { // (horn, antler, claw: hard, a sheen)
 		ROUGHNESS = species == 7 && phase == 0 ? 0.85 : 0.4;
@@ -384,13 +431,20 @@ void fragment() {
 		ROUGHNESS = 0.45;
 		SPECULAR = 0.45;
 	} else {
-		ROUGHNESS = (species == 4 && phase == 0) || species == 11 ? 0.6 : 0.86; // (a black bear's coat glossy; a beaver's)
-		if (bare)
-			ROUGHNESS = 0.5;
-		SPECULAR = 0.28;
-		RIM = 0.25;
-		RIM_TINT = 0.7;
+		// (fur: matte, a soft sheen on its guard hairs; a velvet rim where
+		// it turns from the light, its hairs' fuzz against the sky)
+		ROUGHNESS = (species == 4 && phase == 0) || species == 11 ? 0.78 : 0.95;
+		SPECULAR = 0.14;
+		if (bare) {
+			ROUGHNESS = 0.55;
+			SPECULAR = 0.3;
+		}
+		RIM = bare ? 0.05 : 0.45;
+		RIM_TINT = 0.85;
 	}
-	if (pt == 5.0) // (light through its ears)
-		BACKLIGHT = vec3(0.12, 0.06, 0.04);
+	if (pt == 5.0) { // (its ears: thin, a little light through them; no rim to wash them out)
+		BACKLIGHT = vec3(0.1, 0.05, 0.035);
+		RIM = 0.08;
+		ALBEDO *= 0.82;
+	}
 }

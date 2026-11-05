@@ -283,7 +283,7 @@ func jaw_tube(head: int, jaw: int, jrest: Transform3D, keys: Array) -> void:
 	var rings := []
 	for j in keys.size():
 		var k: Array = keys[j]
-		rings.append(ring(jrest * Vector3(0.0, k[1], k[0]), jrest.basis.x, jrest.basis.y, k[2], k[3], k[3], {head: 0.5, jaw: 0.5} if j == 0 else {jaw: 1.0}, 0, 0.9, 1.0))
+		rings.append(ring(jrest * Vector3(0.0, k[1], k[0]), jrest.basis.x, jrest.basis.y, k[2], k[3], k[3], {head: 0.5, jaw: 0.5} if j == 0 else {jaw: 1.0}, 1, 0.9, 1.0)) # (part 1: its jaw)
 	tube(smooth(rings, 3), 14, head)
 
 

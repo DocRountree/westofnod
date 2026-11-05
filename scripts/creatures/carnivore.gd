@@ -196,7 +196,7 @@ func _build() -> void:
 	# round it)
 	var es: Vector3 = E.size
 	var eat: Vector3 = E.at
-	eat.x = _surface_x(S.head, eat.z, eat.y) - es.x * 0.3
+	eat.x = _surface_x(S.head, eat.z, eat.y) - es.x * 0.22
 	face.set_shader_parameter("bare_a", Vector3(-eat.x, eat.y, eat.z))
 	face.set_shader_parameter("bare_b", Vector3(eat.x, eat.y, eat.z))
 	face.set_shader_parameter("bare_r", es.y * 0.85)
@@ -210,9 +210,9 @@ func _build() -> void:
 		em.clearcoat_enabled = true # (the cornea's wet gloss)
 		em.clearcoat = 0.55
 		em.clearcoat_roughness = 0.25
-		var e := _part(Vector3(at.x * side, at.y, at.z), E.size * Vector3(0.8, 1.0, 1.0), em, _head)
+		var e := _part(Vector3(at.x * side, at.y, at.z), E.size * Vector3(0.72, 0.8, 1.05), em, _head) # (almond: the lids over its top and bottom)
 		_eyes.append(e)
-		_part(Vector3((at.x - es.x * 0.12) * side, at.y, at.z), es * Vector3(0.8, 1.14, 1.14), _mat(Color(0.05, 0.04, 0.035), 0.55), _head) # (its lids' dark rim)
+		_part(Vector3((at.x - es.x * 0.12) * side, at.y, at.z), es * Vector3(0.72, 0.9, 1.2), _mat(Color(0.05, 0.04, 0.035), 0.55), _head) # (its lids' dark rim)
 		var pu := _part(Vector3((at.x + es.x * 0.34) * side, at.y, at.z - 1.0), Vector3(1.5, es.y * float(E.get("slit", 0.4)), es.z * 0.32), _mat(Color(0.015, 0.012, 0.01), 0.02), _head)
 		pu.rotation.y = 0.0
 		var lid := _part(Vector3(at.x * side, at.y, at.z) * 1.0, (E.size as Vector3) * 1.08, face, _head)
@@ -235,7 +235,7 @@ func _build() -> void:
 			var a := deg_to_rad(-18.0 + 9.0 * k)
 			var d := Vector3(side * cos(a), sin(a) * 0.4, 0.45).normalized()
 			if float(S.get("whisker", 70.0)) > 0.0:
-				_stick(wp + Vector3(12.0 * side, -12.0, 20.0), wp + Vector3(12.0 * side, -12.0, 20.0) + d * float(S.get("whisker", 70.0)), 0.35, wd, _head)
+				_stick(wp + Vector3(12.0 * side, -12.0, 20.0), wp + Vector3(12.0 * side, -12.0, 20.0) + d * float(S.get("whisker", 70.0)), 0.22, wd, _head)
 	# the ears
 	var R: Dictionary = S.ear
 	var ear_m := _coat(5)
@@ -340,7 +340,7 @@ func _build_skin(mat: ShaderMaterial) -> void:
 	var jk: Array = S.jaw
 	for j in jk.size():
 		var k: Array = jk[j]
-		rings.append(SkinScript.ring(jrest * Vector3(0.0, k[1], k[0]), jrest.basis.x, jrest.basis.y, k[2], k[3], k[3], {head: 0.5, jaw: 0.5} if j == 0 else {jaw: 1.0}, 0, 0.9, 1.0))
+		rings.append(SkinScript.ring(jrest * Vector3(0.0, k[1], k[0]), jrest.basis.x, jrest.basis.y, k[2], k[3], k[3], {head: 0.5, jaw: 0.5} if j == 0 else {jaw: 1.0}, 1, 0.9, 1.0)) # (part 1: its jaw, its lip's edge dark)
 	K.tube(SkinScript.smooth(rings, 3), 14, head)
 	# the tail
 	var T: Dictionary = S.tail

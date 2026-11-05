@@ -123,7 +123,7 @@ func _build() -> void:
 		for k in 5:
 			var a := deg_to_rad(-20.0 + 10.0 * k)
 			var d := Vector3(side * cos(a), sin(a) * 0.5, 0.35).normalized()
-			_stick(Vector3.ZERO, d * (48.0 + 8.0 * sin(k * 1.3)), 0.45, wd, w)
+			_stick(Vector3.ZERO, d * (48.0 + 8.0 * sin(k * 1.3)), 0.25, wd, w)
 		_whiskers.append(w)
 	# the ears: short, rounded, upright
 	for side: float in [-1.0, 1.0]:

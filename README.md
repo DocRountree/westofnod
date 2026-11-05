@@ -408,8 +408,11 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   without twist down each limb, and skinned on the GPU; eyes, nose, ears, horns, antlers, hooves, claws, whiskers
   stay rigid on their joints. Their coats are all `shaders/render/carnivore.gdshader`'s (species 0-7 the hunters,
   bison and deer; 8 the hare; 9 the deer mouse): painted, not shelled (no fur shells, no instance uniforms):
-  broad countershaded colour, each species' marks in soft gradients, a fine grain along the hair's lie and a
-  gentle mottling, wrapped diffuse and a velvet rim; the bison's front in curled wool.
+  broad countershaded colour, each species' marks in soft gradients; fine strands along the hair's lie (paler at
+  their tips, darker at their roots), gathered in locks, the surface bump-mapped by them so the light breaks up on
+  the coat (fading out far off, where they'd shimmer), matte, a velvet rim; the bison's front in curled wool. The
+  faces: almond eyes set in, dark-lidded; the lip line along the jaw to the mouth's corner; whisker spots in rows;
+  the muzzle darker toward the nose; the ears furred pale within, their backs the species' own.
 - Steering, for a future state machine (`scripts/creatures/pilot.gd`): every creature (`Wasp`, the
   lepidopterans, `Grasshopper`, `Mantis`, `Snake`, `Larva`; one of a colony: `AntColony.member(i)`) has the same
   calls: `go(direction, speed, seconds)`, `go_to(point, speed)`, `face(direction)`, `stop()`, `act(name, args)`
