@@ -449,6 +449,9 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   `SculptHead`: each species' `sculpt` in its SPEC, fitted to photographs): cross-sections changing along the head,
   its profile's own line, the eye sockets, lids, brows, cheeks, stop, whisker pads and lips pushed in or out; the
   lower jaw tucked under the lips; the nose leather and the face's marks painted on (`carnivore.gdshader`'s `sculpt`).
+  A grown male's external genitals as seen on him standing (`Carnivore._build_male`, each species' `male_parts`): the
+  prepuce along his belly, furred as the belly is (a bison bull's and a buck's tufted at the tip), and the scrotum
+  between and behind his thighs (a bobcat's high under his tail, a bull's hanging).
 - Steering, for a future state machine (`scripts/creatures/pilot.gd`): every creature (`Wasp`, the
   lepidopterans, `Grasshopper`, `Mantis`, `Snake`, `Larva`; one of a colony: `AntColony.member(i)`) has the same
   calls: `go(direction, speed, seconds)`, `go_to(point, speed)`, `face(direction)`, `stop()`, `act(name, args)`

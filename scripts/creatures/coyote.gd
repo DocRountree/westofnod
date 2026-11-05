@@ -12,6 +12,7 @@ extends "res://scripts/creatures/canid.gd" # (by path: found whether or not the 
 ## tie.) Howling, its yips between.
 
 const SPEC := {
+	"male_parts": {"sheath": [75.0, 170.0, 10.0], "scrotum": [290.0, 17.0, 0.2]}, # (a grown male's: Carnivore._build_male)
 	"species": 2,
 	"body": [[-350.0, 37.5, 54.0, 66.0], [-281.2, 12.5, 81.6, 110.4], [-150.0, 12.5, 88.8, 108.0], [0.0, 18.8, 79.2, 91.2], [150.0, 31.2, 79.2, 88.8], [268.8, 37.5, 74.4, 81.6], [327.5, 43.8, 45.6, 48.0], [347.5, 43.8, 16.8, 16.8]],
 	"body_h": 388.1, "body_len": 700.0, "body_w": 86.4,

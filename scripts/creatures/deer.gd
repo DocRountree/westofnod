@@ -42,6 +42,7 @@ extends "res://scripts/creatures/carnivore.gd" # (by path: found whether or not 
 ## {with}, birth (a doe's), nurse, play (a fawn's), mate {partner}.
 
 const SPEC := {
+	"male_parts": {"sheath": [130.0, 300.0, 15.0], "tuft": 45.0, "scrotum": [440.0, 36.0, 0.7]}, # (a grown male's: Carnivore._build_male)
 	"brace": 0.74, # (mounted, his hind feet nearer under his rump)
 	"species": 7, "hooves": true,
 	"body": [[-540.0, 30.0, 112.0, 150.0], [-450.0, 0.0, 160.0, 215.0], [-260.0, -12.0, 175.0, 226.0], [-30.0, 0.0, 168.0, 204.0],

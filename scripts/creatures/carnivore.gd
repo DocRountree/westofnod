@@ -356,7 +356,63 @@ func _build() -> void:
 		for q in 4:
 			(_leg_mesh[i][q] as MeshInstance3D).mesh = null
 	_build_skin(body)
+	_build_male()
 	_build_extra()
+
+
+## A grown male's external genitals (S.male_parts: the species' own), as
+## seen on him standing: the prepuce (its sheath) along his belly, furred
+## as the belly is (a bison's and a buck's with the tuft of long hair at its
+## tip); the scrotum between and behind his thighs (a cat's high, tucked
+## under his tail; a bull's hanging). Rigid, on the body.
+func _build_male() -> void:
+	var mp: Dictionary = S.get("male_parts", {})
+	if not male or young or mp.is_empty():
+		return
+	var coat := _coat(0)
+	if mp.has("sheath"):
+		var sh: Array = mp.sheath # [z from, z to, radius]
+		var z0 := float(sh[0])
+		var z1 := float(sh[1])
+		var r := float(sh[2])
+		var zm := (z0 + z1) * 0.5
+		var mid := Vector3(0.0, _belly_y(zm) - r * 0.45, zm)
+		var front := Vector3(0.0, _belly_y(z0) - r * 0.75, z0 + r * 0.6)
+		var p := _part(mid, Vector3(r * 2.0, r * 1.9, z1 - z0), coat)
+		p.look_at_from_position(mid, mid + (mid - front), Vector3.UP) # (its front end a little lower: the orifice forward)
+		p.scale = Vector3(r * 2.0, r * 1.9, z1 - z0)
+		if float(mp.get("tuft", 0.0)) > 0.0: # (the hair at its tip, long, hanging)
+			var tl := float(mp.tuft)
+			var tc := _coat(1)
+			for k in 5:
+				var a := float(k) / 5.0 * TAU
+				var o := Vector3(cos(a) * r * 0.35, 0.0, sin(a) * r * 0.35)
+				_stick(front + o, front + o * 1.6 + Vector3(0.0, -tl, tl * 0.15), r * 0.22, tc, _body)
+	if mp.has("scrotum"):
+		var sc: Array = mp.scrotum # [z, radius, drop (how far below the belly line, of its radius)]
+		var z := float(sc[0])
+		var r := float(sc[1])
+		var c := Vector3(0.0, _belly_y(z) - r * float(sc[2]), z)
+		for side: float in [-1.0, 1.0]:
+			_part(c + Vector3(r * 0.42 * side, 0.0, 0.0), Vector3(r * 1.15, r * 1.6, r * 1.35), coat)
+
+
+## (Its body's underside, mm: the body's keys, at z.)
+func _belly_y(z: float) -> float:
+	var bk: Array = (S.body as Array).duplicate()
+	bk.sort_custom(func(a: Array, b: Array) -> bool: return float(a[0]) < float(b[0]))
+	var bf := float(S.get("belly", 1.0))
+	var lo: Array = bk[0]
+	for k: Array in bk:
+		if float(k[0]) <= z:
+			lo = k
+	var hi: Array = lo
+	for k: Array in bk:
+		if float(k[0]) >= z:
+			hi = k
+			break
+	var f := 0.0 if float(hi[0]) == float(lo[0]) else (z - float(lo[0])) / (float(hi[0]) - float(lo[0]))
+	return lerpf(float(lo[1]) - float(lo[3]) * bf, float(hi[1]) - float(hi[3]) * bf, f)
 
 
 ## Its skin: one tube through its body (rump to chest), one up its neck

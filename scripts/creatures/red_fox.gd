@@ -12,6 +12,7 @@ extends "res://scripts/creatures/canid.gd" # (by path: found whether or not the 
 ## sound, the pounce; the tie.) It doesn't howl.
 
 const SPEC := {
+	"male_parts": {"sheath": [60.0, 135.0, 8.5], "scrotum": [232.0, 14.0, 0.2]}, # (a grown male's: Carnivore._build_male)
 	"species": 0,
 	"body": [[-280.0, 30.0, 45.0, 55.0], [-225.0, 10.0, 68.0, 92.0], [-120.0, 10.0, 74.0, 90.0], [0.0, 15.0, 66.0, 76.0],
 			[120.0, 25.0, 66.0, 74.0], [215.0, 30.0, 62.0, 68.0], [262.0, 35.0, 38.0, 40.0], [278.0, 35.0, 14.0, 14.0]],

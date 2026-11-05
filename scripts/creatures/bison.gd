@@ -31,6 +31,7 @@ extends "res://scripts/creatures/carnivore.gd" # (by path: found whether or not 
 ## {partner}.
 
 const SPEC := {
+	"male_parts": {"sheath": [250.0, 600.0, 32.0], "tuft": 170.0, "scrotum": [800.0, 70.0, 1.0]}, # (a grown male's: Carnivore._build_male)
 	"brace": 0.72, # (mounted, his hind feet nearer under his rump)
 	"species": 6, "hooves": true,
 	"body": [[-1050.0, 100.0, 200.0, 300.0], [-900.0, 215.0, 330.0, 585.0], [-600.0, 260.0, 380.0, 640.0], [-250.0, 165.0, 360.0, 535.0],

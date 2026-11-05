@@ -11,6 +11,7 @@ extends "res://scripts/creatures/ursid.gd" # (by path: found whether or not the 
 
 const PHASES := {"black": 0, "cinnamon": 1, "brown": 2, "blond": 3}
 const SPEC := {
+	"male_parts": {"sheath": [170.0, 300.0, 18.0], "scrotum": [470.0, 26.0, 0.3]}, # (a grown male's: Carnivore._build_male)
 	"species": 4, "plantigrade": true,
 	"body": [[-560.0, 40.0, 120.0, 150.0], [-480.0, 20.0, 180.0, 228.0], [-300.0, 10.0, 200.0, 242.0], [-80.0, 10.0, 205.0, 238.0],
 			[150.0, 25.0, 210.0, 238.0], [380.0, 55.0, 200.0, 228.0], [520.0, 60.0, 150.0, 158.0], [580.0, 55.0, 60.0, 60.0]],

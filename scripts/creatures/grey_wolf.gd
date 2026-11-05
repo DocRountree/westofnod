@@ -11,6 +11,7 @@ extends "res://scripts/creatures/canid.gd" # (by path: found whether or not the 
 ## running its prey down; the tie.) Howling, long, its head thrown back.
 
 const SPEC := {
+	"male_parts": {"sheath": [90.0, 205.0, 13.0], "scrotum": [350.0, 22.0, 0.2]}, # (a grown male's: Carnivore._build_male)
 	"species": 3,
 	"body": [[-420.0, 45.0, 69.8, 85.2], [-337.5, 15.0, 105.4, 142.6], [-180.0, 15.0, 114.7, 139.5], [0.0, 22.5, 102.3, 117.8], [180.0, 37.5, 102.3, 114.7], [322.5, 45.0, 96.1, 105.4], [393.0, 52.5, 58.9, 62.0], [417.0, 52.5, 21.7, 21.7]],
 	"body_h": 514.5, "body_len": 840.0, "body_w": 111.6,
