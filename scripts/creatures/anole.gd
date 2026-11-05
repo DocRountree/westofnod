@@ -489,6 +489,7 @@ func _walk(dt: float) -> void:
 		want = minf(pace, d * 4.0) * clampf(1.0 - absf(turn) / 1.6, 0.0, 1.0)
 	_speed = move_toward(_speed, want, dt * 2.0)
 	_pos += Vector3(-sin(_yaw), 0.0, -cos(_yaw)) * _speed * dt
+	PersonalSpace.keep_apart(self)
 	ground_y = _ground(_pos.x, _pos.z)
 	_pos.y = ground_y
 

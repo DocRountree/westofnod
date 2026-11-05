@@ -45,6 +45,7 @@ extends Node3D
 
 signal action_finished(name: String, ok: bool)
 const PilotScript := preload("res://scripts/creatures/pilot.gd")
+const PersonalSpace := preload("res://scripts/creatures/personal_space.gd")
 const MM := 0.002 ## m drawn per model mm (twice life size)
 const GREEN := Color(0.38, 0.5, 0.24)
 const BROWN := Color(0.4, 0.36, 0.22)
@@ -884,7 +885,22 @@ func _move(dt: float) -> void:
 		_kick = 1.0 if stroke else move_toward(_kick, 0.0, dt * 3.0)
 		_face(to)
 		_pos += to.normalized() * (0.18 if stroke else 0.05) * dt * size * 2.0
+	PersonalSpace.keep_apart(self)
 	_pos.y = _ground(_pos.x, _pos.z)
+
+
+func _enter_tree() -> void:
+	PersonalSpace.join(self)
+
+
+func _exit_tree() -> void:
+	PersonalSpace.leave(self)
+
+
+## (May it touch another: a tadpole, in the air, in amplexus, laying; a
+## male calling, floating among the others.)
+func _touch_ok() -> bool:
+	return young or _airborne or _role != "" or is_instance_valid(_held_by) or _mode in ["courted", "mate", "lay", "hunt", "call", "float"]
 
 
 # --- the pose -------------------------------------------------------------------

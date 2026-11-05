@@ -37,6 +37,7 @@ extends Node3D
 
 signal action_finished(name: String, ok: bool)
 const PilotScript := preload("res://scripts/creatures/pilot.gd")
+const PersonalSpace := preload("res://scripts/creatures/personal_space.gd")
 
 const SPINE := 40
 const KINDS := {
@@ -518,6 +519,7 @@ func _think(dt: float) -> void:
 			_dir = _dir.rotated(Vector3.UP, clampf(steer * 3.0 * dt, -2.5 * dt, 2.5 * dt))
 			way = _dir.rotated(Vector3.UP, 0.3 * sin(_phase))
 		_pos += way * _speed * slow * dt
+		PersonalSpace.keep_apart(self)
 		ground_y = _ground(_pos.x, _pos.z)
 		_pos.y = ground_y
 		_keep_clear(clear)
@@ -1101,3 +1103,36 @@ class Egg extends Node3D:
 				_shell.scale = _shell.scale.lerp(Vector3(0.03, 0.006, 0.03), 1.0 - exp(-dt * 0.6))
 		if young and is_instance_valid(young) and young.get("_mode") == "peek":
 			young.set("_peek", 3.0 if _t < 0.9 else float(young.get("_peek")))
+
+
+
+func _enter_tree() -> void:
+	PersonalSpace.join(self)
+
+
+func _exit_tree() -> void:
+	PersonalSpace.leave(self)
+
+
+## (Its personal space: from its head back along the first third of it, as
+## thick as it is: its body behind follows its head's way.)
+func _space_spine() -> Array:
+	var h := Vector2(_pos.x, _pos.z)
+	var back := h - Vector2(_dir.x, _dir.z).normalized() * float(K.len) * size * 0.3
+	if _trail.size() > 4:
+		var want := float(K.len) * size * 0.3
+		var acc := 0.0
+		for i in range(1, _trail.size()):
+			acc += _trail[i].distance_to(_trail[i - 1])
+			if acc >= want:
+				back = Vector2(_trail[i].x, _trail[i].z)
+				break
+	return [back, h]
+
+
+func _space_r() -> float:
+	return float(K.r) * size
+
+
+func _touch_ok() -> bool:
+	return young or _mate_role != "" or _mode in ["coil", "strike", "eat", "hunt", "lay", "birth", "hatch", "mate"]

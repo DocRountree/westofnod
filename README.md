@@ -277,6 +277,12 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   resting on the bottom; grazing seagrass; away fast when alarmed (it can't hide); the male on the female's back at
   the surface, his claws over her shell's front; the female up the beach heaving on both foreflippers together, her
   nest dug and laid, back to the sea; the hatchlings down the beach to the water.
+- `scripts/creatures/personal_space.gd`: personal space for every creature with a body of its own (the hexapods,
+  the mammals, the turtles, the frogs, the snakes; not those a shader draws and moves: the ant colonies, beetles,
+  fish schools): not collision, but each a capsule on the ground from its rump to its head as wide as its body (from
+  its spec, or its drawn size), two that overlap, whatever their kinds, eased apart, each its half; off where they're
+  meant to touch (mating, nursing, playing, hunting and eating, sparring, nesting, basking; the young; one in the air;
+  one above the other: in a web, on a stem).
 - `scripts/creatures/dragonfly.gd` (`Dragonfly`): a common green darner (*Anax junius*), drawn at twice life size,
   its own flying motor (quick to turn and stop, hovering, banking). Its head nearly all eye, its face yellow green
   with the dark bullseye on its brow; a grass green thorax; ten abdominal segments in a chain (curling), the first
@@ -341,7 +347,10 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   feet sitting and round its nose asleep. Wandering (sniffing, looking, sitting, marking: the fox squatting, the bobcat
   scraping); hunting (stalking low and slow, freezing; the fox listening, head cocked, then its high arcing pounce
   diving nose first; the bobcat treading, tail tip twitching, then the rush and the spring), the prey (a deer mouse,
-  a snowshoe hare: anything with die()) killed, carried, eaten (tearing, chewing, it shrinking away); grooming (a
+  a snowshoe hare, a grey squirrel: anything with die()) killed, carried off in its jaws a few of its lengths, then
+  eaten: a small one (a quarter of its own length or less: a mouse for any of them, a squirrel for a coyote, a wolf, a
+  bear) from its jaws, its head up, chewing, working it down; a bigger one laid down and torn at, lifted in its jaws
+  and pulled, let down, again (it shrinking away); grooming (a
   forepaw licked, the face washed, a flank licked); sitting; sleeping curled, then a stretch. The female gives birth in
   her den (`RedFox.den()`: a mound of dug earth; `Bobcat.den()`: a shelter of rocks), lying on her side, licking each;
   nursing them at her belly; the young born blind and helpless (a fox kit dark grey brown, a kitten spotted, greyer),

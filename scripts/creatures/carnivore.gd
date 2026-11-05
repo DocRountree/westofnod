@@ -1217,22 +1217,12 @@ func _walk(dt: float) -> void:
 
 
 # --- personal space ------------------------------------------------------------
-# (Not collision: each one a capsule on the ground, from its rump to its
-# muzzle, as wide as its body; two that overlap are eased apart, each its
-# half. Off when they're meant to touch: mating, nursing, suckling,
-# playing, hunting and eating, sparring; the young; the airborne, the dead.)
+# (PersonalSpace: a capsule on the ground, from its rump to its muzzle, as
+# wide as its body, kept off every other creature's. Off when they're meant
+# to touch: mating, nursing, suckling, playing, hunting and eating,
+# sparring; the young; the airborne, the dead.)
 
-static var _all: Array = []
 const TOUCHING := ["nurse", "suckle", "play", "hunt", "eat", "spar", "follow", "newborn", "birth", "carry", "piloted"]
-
-
-func _enter_tree() -> void:
-	if not _all.has(self):
-		_all.append(self)
-
-
-func _exit_tree() -> void:
-	_all.erase(self)
 
 
 func _space_r() -> float:
@@ -1251,44 +1241,8 @@ func _touch_ok() -> bool:
 	return young or dead or airborne or _mate_role != "" or _mode in TOUCHING
 
 
-static func _seg_pt(p: Vector2, a: Vector2, b: Vector2) -> Vector2:
-	var ab := b - a
-	return a + ab * clampf((p - a).dot(ab) / maxf(ab.length_squared(), 1e-8), 0.0, 1.0)
-
-
 func _keep_apart() -> void:
-	if _touch_ok():
-		return
-	var me := _space_spine()
-	var a0: Vector2 = me[0]
-	var a1: Vector2 = me[1]
-	for o: Node in _all:
-		if o == self or not is_instance_valid(o) or o.call("_touch_ok"):
-			continue
-		var them: Array = o.call("_space_spine")
-		var b0: Vector2 = them[0]
-		var b1: Vector2 = them[1]
-		var want := _space_r() + float(o.call("_space_r"))
-		# (the spines' nearest points: the best of each end to the other)
-		var best := INF
-		var pa := a0
-		var pb := b0
-		for q: Array in [[a0, _seg_pt(a0, b0, b1)], [a1, _seg_pt(a1, b0, b1)], [_seg_pt(b0, a0, a1), b0], [_seg_pt(b1, a0, a1), b1]]:
-			var dd := (q[0] as Vector2).distance_to(q[1])
-			if dd < best:
-				best = dd
-				pa = q[0]
-				pb = q[1]
-		if best >= want:
-			continue
-		var n := pa - pb
-		if n.length() < 1e-4: # (crossing: apart from each other's middle)
-			n = Vector2(_pos.x, _pos.z) - Vector2((o.get("_pos") as Vector3).x, (o.get("_pos") as Vector3).z)
-			if n.length() < 1e-4:
-				n = Vector2(1.0, 0.0).rotated(float(get_instance_id() % 628) * 0.01)
-		var push := n.normalized() * (want - best) * 0.5
-		_pos.x += push.x
-		_pos.z += push.y
+	PersonalSpace.keep_apart(self) # (its capsule its own: _space_spine, _space_r; the others whatever they are)
 
 
 const GAITS := {

@@ -46,6 +46,7 @@ extends Node3D
 
 signal action_finished(name: String, ok: bool)
 const PilotScript := preload("res://scripts/creatures/pilot.gd")
+const PersonalSpace := preload("res://scripts/creatures/personal_space.gd")
 const MM := 0.002 ## m drawn per model mm (twice life size)
 
 ## The box turtle's make (mm, life size; x right, y up, z back; y 0 its
@@ -996,14 +997,15 @@ func _mate_think(_dt: float) -> void:
 			if _st > _mate_len * 0.35:
 				_stage = 2
 				_st = 0.0
-		2: # (up onto her from behind, leaning back)
-			var onto := her._pos + hb * Vector3(0.0, 0.0, L * 0.62)
+		2: # (up onto her from behind, leaning back: his shell's back edge down by
+			# hers, his plastron up against the back of her carapace)
+			var onto := her._pos + hb * Vector3(0.0, 0.0, L * 0.12)
 			_pos.x = lerpf(_pos.x, onto.x, 0.08)
 			_pos.z = lerpf(_pos.z, onto.z, 0.08)
 			_speed = 0.0
 			_yaw = lerp_angle(_yaw, her._yaw, 0.1)
 			_pivot_z = float(S.shell.len) * 0.45 # (about his shell's back edge, on the ground behind her)
-			_pitch = lerpf(_pitch, 1.15 if _st > 2.0 else 0.6, 0.04) # (back, near upright)
+			_pitch = lerpf(_pitch, 0.95 if _st > 2.0 else 0.55, 0.04) # (back, near upright, on her)
 			_neck_to = 1.1
 			if _st > _mate_len * 0.55:
 				_stage = 3
@@ -1070,8 +1072,23 @@ func _move(dt: float) -> void:
 		var y := atan2(-d.x, -d.z)
 		_yaw += clampf(wrapf(y - _yaw, -PI, PI), -1.0 * dt, 1.0 * dt)
 		_pos += Vector3(-sin(_yaw), 0.0, -cos(_yaw)) * sp * dt
+	PersonalSpace.keep_apart(self)
 	if _role != "male" or _stage < 2:
 		_pos.y = lerpf(_pos.y, _ground_at(_pos.x, _pos.z), 1.0 - exp(-6.0 * dt))
+
+
+func _enter_tree() -> void:
+	PersonalSpace.join(self)
+
+
+func _exit_tree() -> void:
+	PersonalSpace.leave(self)
+
+
+## (May it touch another: mating, courted, nesting, basking (they pile up on a
+## log), the young.)
+func _touch_ok() -> bool:
+	return young or _role != "" or _mode in ["courted", "mate", "nest", "bask"]
 
 
 # --- the pose -------------------------------------------------------------------

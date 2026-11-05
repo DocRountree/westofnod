@@ -1,4 +1,5 @@
 extends Node3D
+const PersonalSpace := preload("res://scripts/creatures/personal_space.gd") ## (its personal space: kept off the others)
 ## A walking arthropod built from parts (the grasshopper, the mantis, the
 ## spiders, the pill bug: their
 ## scripts build the bodies and say what they do), drawn at twice life
@@ -422,8 +423,17 @@ func _walk(dt: float) -> void:
 		want = minf(pace, d * 4.0) * clampf(1.0 - absf(turn) / 1.2, 0.0, 1.0)
 	_speed = move_toward(_speed, want, dt * 0.4)
 	_pos += Vector3(-sin(_yaw), 0.0, -cos(_yaw)) * _speed * dt
+	PersonalSpace.keep_apart(self)
 	ground_y = _ground(_pos.x, _pos.z)
 	_pos.y = ground_y
+
+
+func _enter_tree() -> void:
+	PersonalSpace.join(self)
+
+
+func _exit_tree() -> void:
+	PersonalSpace.leave(self)
 
 
 ## In the air: steered toward _steer (flying), let down slowly (on a
