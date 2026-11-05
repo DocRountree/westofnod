@@ -67,12 +67,34 @@ func _init(nymph_ := false, size_ := 1.0) -> void:
 	step_time = 0.13
 
 
-func _build() -> void:
+## (The species' colours: its body, its eyes, its antennae, its hind
+## femur (base and marks), its hind tibia, its abdomen's bands.)
+func _colors() -> Dictionary:
 	var olive := Color(0.5, 0.48, 0.2) if not nymph else Color(0.42, 0.55, 0.22)
-	var olive_dk := olive.darkened(0.25)
+	return {"body": olive, "eye": Color(0.32, 0.22, 0.1), "antenna": Color(0.42, 0.3, 0.12),
+			"femur": Color(0.78, 0.68, 0.28) if not nymph else Color(0.55, 0.62, 0.28), "femur_mark": Color(0.06, 0.05, 0.03),
+			"tibia": Color(0.82, 0.7, 0.3), "abdomen": olive.darkened(0.25).lerp(olive, 0.6)}
+
+
+## (The species' forewing (its leathery tegmen) and hindwing (side: -1
+## left, 1 right) materials.)
+func _forewing_mat() -> Material:
+	return _mat(Color(0.47, 0.44, 0.24), 0.55)
+
+
+func _hindwing_mat(_side: float) -> Material:
+	var mem := _mat(Color(0.78, 0.72, 0.45, 0.5), 0.3)
+	mem.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mem.cull_mode = BaseMaterial3D.CULL_DISABLED
+	return mem
+
+
+func _build() -> void:
+	var C := _colors()
+	var olive: Color = C.body
 	var body := _mat(olive, 0.45)
 	var dark := _mat(Color(0.08, 0.06, 0.04), 0.4)
-	var eye := _mat(Color(0.32, 0.22, 0.1), 0.15)
+	var eye := _mat(C.eye, 0.15)
 	# the head, its face upright, big; a nymph's bigger for its body
 	_head = Node3D.new()
 	_head.position = Vector3(0.0, 1.5, -8.5)
@@ -100,7 +122,7 @@ func _build() -> void:
 		var d := Vector3(0.3 * side, 0.55, -0.78).normalized()
 		for k in 12:
 			var q := p + d * (1.15 if not nymph else 0.8)
-			_stick(p, q, 0.28 - 0.01 * k, _mat(Color(0.42, 0.3, 0.12), 0.5), an)
+			_stick(p, q, 0.28 - 0.01 * k, _mat(C.antenna, 0.5), an)
 			p = q
 			d = (d + Vector3(0.02 * side, 0.0, 0.04)).normalized()
 		_antennae.append(an)
@@ -113,7 +135,7 @@ func _build() -> void:
 	_abdomen.position = Vector3(0.0, 0.2, -0.5)
 	_body.add_child(_abdomen)
 	var ab := _loft([[0.0, 0.0, 0.6, 0.6], [0.6, 0.0, 2.6, 2.8], [4.0, 0.0, 2.9, 3.1], [9.0, -0.2, 2.6, 2.8], [14.0, -0.4, 2.0, 2.2], [18.0, -0.5, 1.1, 1.2], [19.2, -0.5, 0.3, 0.3]])
-	_abdomen.add_child(_mesh(ab, _banded(olive_dk.lerp(olive, 0.6), 2.6, 0.8, 0.1, 0.55)))
+	_abdomen.add_child(_mesh(ab, _banded(C.abdomen, 2.6, 0.8, 0.1, 0.55)))
 	_part(Vector3(0.0, -0.3, 19.6), Vector3(1.1, 0.9, 1.8), dark, _abdomen)
 	# the wings: the adult's long leathery forewings, roofed over its back,
 	# the hindwings pleated away under them; a nymph's only little pads
@@ -125,24 +147,21 @@ func _build() -> void:
 		if nymph:
 			_part(Vector3(0.6 * side, 0.0, 2.5), Vector3(2.8, 0.5, 5.0), _mat(olive.darkened(0.1), 0.5), h)
 		else:
-			_part(Vector3(0.4 * side, 0.0, 13.5), Vector3(3.8, 0.4, 27.0), _mat(Color(0.47, 0.44, 0.24), 0.55), h)
+			_part(Vector3(0.4 * side, 0.0, 13.5), Vector3(3.8, 0.4, 27.0), _forewing_mat(), h)
 			var hw := Node3D.new()
 			hw.position = Vector3(1.3 * side, 2.9, -0.4)
 			_body.add_child(hw)
 			hw.set_meta("side", side)
-			var mem := _mat(Color(0.78, 0.72, 0.45, 0.5), 0.3)
-			mem.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-			mem.cull_mode = BaseMaterial3D.CULL_DISABLED
-			_part(Vector3(12.0 * side, 0.0, 7.0), Vector3(24.0, 0.15, 17.0), mem, hw)
+			_part(Vector3(12.0 * side, 0.0, 7.0), Vector3(24.0, 0.15, 17.0), _hindwing_mat(side), hw)
 			_hind.append(hw)
 		_teg.append(h)
 	# the legs: the hind femur huge, yellow, black chevrons; the tibiae yellow
 	var femur := ShaderMaterial.new()
 	femur.shader = _chevrons()
-	femur.set_shader_parameter("base", Color(0.78, 0.68, 0.28) if not nymph else Color(0.55, 0.62, 0.28))
-	femur.set_shader_parameter("mark", Color(0.06, 0.05, 0.03))
+	femur.set_shader_parameter("base", C.femur)
+	femur.set_shader_parameter("mark", C.femur_mark)
 	var legs_c := _mat(olive.lightened(0.1), 0.5)
-	var hind_tibia := _mat(Color(0.82, 0.7, 0.3), 0.45)
+	var hind_tibia := _mat(C.tibia, 0.45)
 	legs = LEGS.duplicate(true)
 	legs[2]["femur_mat"] = femur
 	legs[2]["tibia_mat"] = hind_tibia

@@ -226,7 +226,10 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
 - `scripts/creatures/hexapod.gd`: a walking insect built from parts (feet planted in a tripod gait, legs reaching
   hip to foot; leaps, flights, falls on a thread), under `grasshopper.gd` (`Grasshopper`: a differential
   grasshopper, its herringboned hind legs; walking, hopping, flying, eating; laying an egg pod in the soil, which
-  hatches nymphs up out of the ground) and `mantis.gd` (`Mantis`: a Carolina mantis, its raised prothorax, turning
+  hatches nymphs up out of the ground; and `blue_winged_grasshopper.gd`, `BlueWingedGrasshopper`, Saussure's
+  blue-winged grasshopper on its model: mottled brown, its tegmina tan and veined with dark crossbands, its
+  hindwings sky blue in a broad black band, clear at the edge, shown as it flies; its hind tibiae blue; its own
+  station in the life cycle demo) and `mantis.gd` (`Mantis`: a Carolina mantis, its raised prothorax, turning
   head and raptorial forelegs; stalking with its rocking sway, watching, striking a fly and eating it, grooming,
   flying; building a foam egg case on a stem, whose nymphs come out along its seam, let down on threads). Their
   nymphs small, wingless (the mantis's abdomen curled up), growing. Not yet in the game:

@@ -40,6 +40,8 @@ extends Node3D
 ## eastern fox squirrel: a female and a male, their tree (her drey in it),
 ##   nuts to eat (E) and cache (B); F up the tree, D its tail flicked
 ## eastern grey squirrel: the same (after the beavers)
+## blue-winged grasshopper: a female, a male and a nymph, gravel to lay in,
+##   a leaf; F its flight (the hindwings blue, black banded)
 ## North American beaver: a female and a male, a bank with aspens and sticks
 ##   (E eat bark, H fell an aspen and take it to the lodge), a pond and their
 ##   lodge (B swim, X tail slap and dive, M mud on the lodge)
@@ -75,11 +77,12 @@ const PupaScript := preload("res://scripts/creatures/pupa.gd")
 
 const NAMES := ["monarch", "hummingbird clearwing", "paper wasp", "carpenter ant (queen)", "red harvester (queen)", "June bug", "convergent lady beetle", "differential grasshopper", "Carolina mantis", "eastern diamondback rattlesnake", "eastern milk snake",
 		"Carolina wolf spider", "six-spotted fishing spider", "grass spider (funnel weaver)", "yellow garden spider", "pill bug", "deer mouse",
-		"green anole", "Arizona bark scorpion", "snowshoe hare", "red fox", "bobcat", "coyote", "grey wolf", "American black bear", "brown bear (grizzly)", "American bison", "white-tailed deer", "trigonalid wasp", "eastern fox squirrel", "North American beaver", "eastern grey squirrel"]
+		"green anole", "Arizona bark scorpion", "snowshoe hare", "red fox", "bobcat", "coyote", "grey wolf", "American black bear", "brown bear (grizzly)", "American bison", "white-tailed deer", "trigonalid wasp", "eastern fox squirrel", "North American beaver", "eastern grey squirrel", "blue-winged grasshopper"]
 const SpiderScript := preload("res://scripts/creatures/spider.gd")
 const IsopodScript := preload("res://scripts/creatures/isopod.gd")
 const SnakeScript := preload("res://scripts/creatures/snake.gd")
 const HopperScript := preload("res://scripts/creatures/grasshopper.gd")
+const BlueHopperScript := preload("res://scripts/creatures/blue_winged_grasshopper.gd")
 const MantisScript := preload("res://scripts/creatures/mantis.gd")
 const MouseScript := preload("res://scripts/creatures/mouse.gd")
 const MolliesScript := preload("res://scripts/creatures/mollies.gd")
@@ -185,7 +188,7 @@ var _moth_perch_n := Vector3.BACK
 
 func _station(i: int) -> Vector3:
 	# (the snakes, life size, given more room)
-	return Vector3(i * GAP + (1.2 if i >= 9 else 0.0) + (1.8 if i >= 10 else 0.0) + (1.6 if i >= 11 else 0.0) + (3.0 if i >= 19 else 0.0) + (4.0 if i >= 20 else 0.0) + (4.0 if i >= 21 else 0.0) + (4.0 if i >= 22 else 0.0) + (5.0 if i >= 23 else 0.0) + (6.0 if i >= 24 else 0.0) + (7.0 if i >= 25 else 0.0) + (9.0 if i >= 26 else 0.0) + (9.0 if i >= 27 else 0.0) + (4.5 if i >= 28 else 0.0) + (3.0 if i >= 29 else 0.0) + (5.0 if i >= 30 else 0.0) + (5.0 if i >= 31 else 0.0), 0.0, 0.0)
+	return Vector3(i * GAP + (1.2 if i >= 9 else 0.0) + (1.8 if i >= 10 else 0.0) + (1.6 if i >= 11 else 0.0) + (3.0 if i >= 19 else 0.0) + (4.0 if i >= 20 else 0.0) + (4.0 if i >= 21 else 0.0) + (4.0 if i >= 22 else 0.0) + (5.0 if i >= 23 else 0.0) + (6.0 if i >= 24 else 0.0) + (7.0 if i >= 25 else 0.0) + (9.0 if i >= 26 else 0.0) + (9.0 if i >= 27 else 0.0) + (4.5 if i >= 28 else 0.0) + (3.0 if i >= 29 else 0.0) + (5.0 if i >= 30 else 0.0) + (5.0 if i >= 31 else 0.0) + (2.0 if i >= 32 else 0.0), 0.0, 0.0)
 
 
 func _ready() -> void:
@@ -247,6 +250,7 @@ func _ready() -> void:
 	_squirrel_station()
 	_beaver_station()
 	_squirrel_station(31, GreySqScript)
+	_blue_hopper_station()
 	_male_partners()
 	_new_pupae()
 	_focus = _station(0) + Vector3(0.0, 0.08, 0.0)
@@ -409,6 +413,29 @@ func _hopper_station() -> void:
 	add_child(ny)
 	ny.place(c + Vector3(-0.1, 0.0, 0.12), 2.0)
 	ny.wander(c + Vector3(-0.1, 0.0, 0.12), 0.1)
+
+
+## The blue-winged grasshoppers: a female, a male and a nymph on gravel
+## (bare ground to lay in), a leaf.
+func _blue_hopper_station() -> void:
+	var c := _station(32)
+	_box(c + Vector3(0.0, 0.0005, 0.0), Vector3(0.5, 0.002, 0.45), Color(0.55, 0.5, 0.42)) # (gravel)
+	for k in 14: # (pebbles)
+		_box(c + Vector3(randf_range(-0.22, 0.22), 0.002, randf_range(-0.2, 0.2)), Vector3.ONE * randf_range(0.004, 0.009), Color(0.5, 0.45, 0.38).lerp(Color(0.62, 0.58, 0.52), randf()))
+	var leaf := Beetles.leaf()
+	leaf.position = c + Vector3(0.16, 0.0, 0.12)
+	leaf.scale = Vector3(1.2, 1.0, 1.2)
+	add_child(leaf)
+	for m in 2:
+		var g: Node3D = BlueHopperScript.new()
+		g.set("male", m == 1)
+		add_child(g)
+		g.call("place", c + Vector3(-0.08 + 0.16 * m, 0.0, 0.02), randf() * TAU)
+		g.call("wander", c, 0.18)
+	var ny: Node3D = BlueHopperScript.new(true, 0.3)
+	add_child(ny)
+	ny.call("place", c + Vector3(-0.1, 0.0, 0.12), 2.0)
+	ny.call("wander", c + Vector3(-0.1, 0.0, 0.12), 0.1)
 
 
 func _mantis_station() -> void:
@@ -1301,7 +1328,7 @@ func _young_eat() -> void:
 		var sc: Script = c.get_script()
 		if sc == LarvaScript:
 			c.call("eat")
-		elif sc == HopperScript and c.get("nymph"):
+		elif (sc == HopperScript or sc == BlueHopperScript) and c.get("nymph"):
 			var at: Vector3 = (c as Node3D).position + Vector3(randf_range(-0.03, 0.03), 0.0, randf_range(-0.03, 0.03))
 			var leaf := Beetles.leaf()
 			leaf.position = Vector3(at.x, 0.0, at.z)
@@ -1609,8 +1636,8 @@ func _do(c: Node, act: String, all: Array) -> void:
 			for sac in c.get("sacs"):
 				if is_instance_valid(sac):
 					sac.call("hatch")
-		elif sc == HopperScript or sc == MantisScript: # (its pods, its egg cases)
-			for pod in c.get("pods" if sc == HopperScript else "oothecae"):
+		elif (sc == HopperScript or sc == BlueHopperScript) or sc == MantisScript: # (its pods, its egg cases)
+			for pod in c.get("pods" if (sc == HopperScript or sc == BlueHopperScript) else "oothecae"):
 				if is_instance_valid(pod):
 					pod.call("hatch")
 		return
@@ -1688,7 +1715,7 @@ func _do(c: Node, act: String, all: Array) -> void:
 			elif sc == TrigScript:
 				var lf: Array = _trig_leaves[randi() % _trig_leaves.size()]
 				c.call("lay_on_leaf", _leaf_edge(lf[0]), Vector3.UP)
-			elif sc == HopperScript:
+			elif (sc == HopperScript or sc == BlueHopperScript):
 				c.call("lay", st + Vector3(0.05, 0.0, -0.08))
 			elif sc == MantisScript:
 				c.call("lay", _stem_foot + Vector3(0.0, 0.006, 0.0))
@@ -1740,7 +1767,7 @@ func _do(c: Node, act: String, all: Array) -> void:
 				c.call("seek_food", st, 0.6 if sc == Wasp else 0.4)
 			elif (sc == SquirrelScript or sc == GreySqScript) and not young: # (F: up its tree)
 				c.call("climb", c.get("tree_at"), randf_range(1.8, 3.0))
-			elif sc == HopperScript:
+			elif (sc == HopperScript or sc == BlueHopperScript):
 				var a := randf() * TAU
 				c.call("hop" if young else "fly", st + Vector3(cos(a), 0.0, sin(a)) * (0.2 if young else 0.35))
 			elif sc == MantisScript and not young:
@@ -1843,7 +1870,7 @@ func _feed(c: Node, act: String, young: bool, p: Vector3, st: Vector3) -> void:
 	var near := Vector3(cos(a), 0.0, sin(a))
 	if sc == LarvaScript:
 		c.call("eat")
-	elif sc == HopperScript:
+	elif (sc == HopperScript or sc == BlueHopperScript):
 		if young:
 			var leaf := Beetles.leaf()
 			leaf.position = Vector3(p.x, 0.0, p.z) + near * 0.03
@@ -1971,7 +1998,7 @@ func _feed(c: Node, act: String, young: bool, p: Vector3, st: Vector3) -> void:
 ## To station i (the camera further off for the snakes).
 func _go(i: int) -> void:
 	_at = i
-	_dist = 2.4 if i == 31 else 4.2 if i == 30 else 2.4 if i == 29 else 0.8 if i == 28 else 2.2 if i == 9 or i == 10 else (2.4 if i == 19 else ((6.0 if i >= 27 else (9.0 if i >= 26 else (7.5 if i >= 24 else (5.0 if i >= 22 else 3.6)))) if i >= 20 else minf(_dist, 0.8)))
+	_dist = 0.8 if i == 32 else 2.4 if i == 31 else 4.2 if i == 30 else 2.4 if i == 29 else 0.8 if i == 28 else 2.2 if i == 9 or i == 10 else (2.4 if i == 19 else ((6.0 if i >= 27 else (9.0 if i >= 26 else (7.5 if i >= 24 else (5.0 if i >= 22 else 3.6)))) if i >= 20 else minf(_dist, 0.8)))
 	_say()
 
 
