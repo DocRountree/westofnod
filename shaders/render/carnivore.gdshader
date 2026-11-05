@@ -261,6 +261,28 @@ void fragment() {
 		if (pt == 6.0)
 			c = mix(white * 0.92, top * 0.75, smoothstep(-0.05, 0.15, ny)) * (0.92 + 0.08 * step(0.5, fract(a * 60.0)));
 		c = mix(vec3(0.9, 0.6, 0.56), c, fur);
+	} else if (species == 10) {
+		// an eastern fox squirrel: grizzled grey brown above washed orange;
+		// its belly, cheeks, feet and its tail beneath rusty orange; its
+		// tail's long hairs banded black, orange at their tips round its
+		// edge; its ears orange buff; a kit pink and naked (fur: 0)
+		vec3 grizzle = vec3(0.5, 0.37, 0.24);
+		vec3 rust = vec3(0.82, 0.45, 0.18);
+		c = countershade(mix(grizzle, rust, 0.15) * 0.85, mix(grizzle, rust, 0.55), rust, ny, 0.05);
+		c *= 0.84 + 0.32 * vn(rp * 0.4) * vn(rp * 0.1 + 6.0); // (the hairs' bands)
+		c = mix(c, rust * 1.05, fw * smoothstep(0.35, -0.2, ny));
+		c = mix(c, rust * 1.12, chin * 0.6);
+		if (leg)
+			c = mix(rust * 0.92, rust * 1.05, smoothstep(0.4, 0.9, a)) * (0.9 + 0.15 * vn(rp * 0.3));
+		if (pt == 6.0) {
+			float band = smoothstep(0.4, 0.7, vn(rp * 0.12)) * smoothstep(0.3, 0.7, vn(rp * 0.45 + 3.0));
+			vec3 top = mix(vec3(0.7, 0.4, 0.17), vec3(0.16, 0.11, 0.07), band * 0.55);
+			c = mix(top, rust * 1.1, smoothstep(0.55, 0.95, abs(normalize(rn).x)) * 0.8); // (its orange fringe)
+			c = mix(c, rust, 1.0 - smoothstep(-0.5, -0.1, ny));
+		}
+		if (pt == 5.0)
+			c = rn.z < 0.0 ? rust * 1.15 : mix(grizzle, rust, 0.6);
+		c = mix(vec3(0.88, 0.6, 0.55), c, fur);
 	} else {
 		// a white-tailed deer: summer red brown, darker down its spine;
 		// winter grey brown; white beneath and inside its legs, its chin, a

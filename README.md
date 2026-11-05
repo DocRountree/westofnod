@@ -315,6 +315,17 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   come to her, butting, tails wagging), the fawns at play (running in circles, bucking); mating (the buck tending
   her, his head low, then mounting briefly). The life cycle demo's last station: a summer doe with twins and a buck
   in velvet; two winter bucks and a winter doe; a shrub to browse (B), a sapling to rub (M).
+- `scripts/creatures/fox_squirrel.gd` (`FoxSquirrel`, *Sciurus niger*, on the hare's motor): an eastern fox squirrel,
+  life size; one skin, a long supple body, round head, short blunt muzzle, big dark eyes ringed pale, short rounded
+  ears, orange incisors, sharp claws; its long bushy tail a chain of bones carried up over its back in an S,
+  streaming out behind as it bounds, flicked in waves (`carnivore.gdshader`'s species 10: grizzled grey brown
+  washed orange above, rusty orange beneath, the tail's hairs black banded and orange fringed). Bounding, sitting up
+  to look; eating a nut (`FoxSquirrel.nut()`) picked up in its teeth, then sat up with it in its forepaws, turned
+  and gnawed; caching one (dug in with its forepaws, pushed down with its nose, raked over and patted, a little
+  mound left); climbing its tree (`FoxSquirrel.tree()`) in bounds, claws gripping, a look round at the top, down
+  head first; fleeing up it; its tail-flicking, chattering alarm; birth up in her leaf drey, the kits pink, naked,
+  blind, furred as they grow; the hare's mating chase. The life cycle demo's last station: a female and a male, an
+  oak with her drey, nuts under it (E eat, B cache, F climb, X flee up, D flick, 1 birth in the drey).
 - `scripts/creatures/hare.gd` (`Hare`, on `hexapod.gd`'s motor, its gait its own): a snowshoe hare (*Lepus
   americanus*), life size, in its summer coat (`carnivore.gdshader`'s species 8: brown, grizzled, darker along the back,
   white beneath, the hind feet paler, the ears black tipped); long spoon ears turning, laid back, pricked; big eyes
