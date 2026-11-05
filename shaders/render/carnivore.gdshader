@@ -43,6 +43,9 @@ uniform float to_cream = 0.0; // (a part gone to cream: a hare's eye ring)
 uniform float fur = 1.0; // (a mouse pup's: 0 bare pink skin .. 1 furred)
 uniform vec3 mouse_back : source_color = vec3(0.46, 0.33, 0.21); // (a deer mouse's)
 uniform float line_y = -0.28; // (its belly's edge: the normal's y there)
+uniform bool sculpt = false; // (its head sculpted: SculptHead; its nose leather painted here)
+uniform vec3 nose_c = vec3(0.0, 0.0, -1e5);
+uniform float nose_r = 1.0;
 uniform float hair = 20.0; // (its coat's length, mm: the grain's size)
 
 
@@ -125,7 +128,7 @@ void fragment() {
 			c = mix(c, white, smoothstep(0.84, 0.92, a));
 		}
 		if (pt == 5.0)
-			c = rn.z < 0.0 ? /*(its back: away from its cup)*/ vec3(0.07, 0.05, 0.045) : mix(vec3(0.86, 0.8, 0.7), vec3(0.1, 0.07, 0.05), smoothstep(ear_len * 0.8, ear_len, rp.y));
+			c = rn.z < 0.0 ? /*(its back: away from its cup)*/ vec3(0.07, 0.05, 0.045) : mix(mix(vec3(0.82, 0.76, 0.66), red, smoothstep(0.35, 0.95, abs(rp.x) / max(ear_len * 0.3, 1.0))), vec3(0.08, 0.06, 0.05), smoothstep(ear_len * 0.75, ear_len, rp.y));
 	} else if (species == 1) {
 		// a bobcat: tawny buff to grey brown, spotted dark down its sides and
 		// legs, barred on its legs; white beneath, spotted black; white
@@ -356,21 +359,24 @@ void fragment() {
 	// round its eyes, almond shaped; the lip line along its jaw's edge and
 	// into the corner of its mouth; the rows of whisker spots on its muzzle;
 	// its muzzle darker toward its nose
+	float leather = 0.0;
 	if (skin && fw > 0.0 && bare_r > 0.0) {
 		vec3 ea = bare_a;
 		vec3 eb = bare_b;
 		vec3 dva = (hp - ea) / vec3(1.0, 0.72, 1.25); // (almond: long, narrow)
 		vec3 dvb = (hp - eb) / vec3(1.0, 0.72, 1.25);
 		float da = min(length(dva), length(dvb)) / bare_r;
-		float lid = (1.0 - smoothstep(1.02, 1.22, da)) * smoothstep(0.7, 0.9, da);
+		float lid = sculpt ? (1.0 - smoothstep(0.98, 1.1, da)) * smoothstep(0.84, 0.95, da) : (1.0 - smoothstep(1.02, 1.22, da)) * smoothstep(0.7, 0.9, da);
 		vec3 rim_c = species == 8 || species == 10 ? c * 0.45 : vec3(0.05, 0.04, 0.035);
 		c = mix(c, rim_c, lid * fw * 0.85);
 		// (ahead of its eyes: its muzzle)
 		float ahead = fw * smoothstep(ea.z - bare_r * 1.2, ea.z - bare_r * 3.5, hp.z);
 		bool rodent = species == 8 || species == 9 || species == 10 || species == 11;
-		if (pt == 1.0 && !rodent) // (its lower lip's edge: dark)
+		if (pt == 1.0 && !rodent && !sculpt) // (its lower lip's edge: dark)
 			c = mix(c, vec3(0.06, 0.045, 0.04), smoothstep(0.15, 0.55, ny) * ahead * 0.9);
-		if (pt == 0.0 && !rodent) // (and the upper's, along the head's underside to its mouth's corner)
+		if (pt == 1.0 && sculpt) // (its lower lip: a thin dark edge only at its top)
+			c = mix(c, vec3(0.06, 0.045, 0.04), smoothstep(0.55, 0.85, ny) * ahead * 0.85);
+		if (pt == 0.0 && !rodent && !sculpt) // (and the upper's, along the head's underside to its mouth's corner)
 			c = mix(c, vec3(0.07, 0.05, 0.045), (1.0 - smoothstep(-0.9, -0.62, ny)) * smoothstep(0.2, 0.6, ahead) * 0.7);
 		if (species < 4 || rodent) { // (the whisker spots, in rows along its muzzle's sides)
 			float side = smoothstep(0.25, 0.6, abs(normalize(rn).x));
@@ -378,15 +384,27 @@ void fragment() {
 			c = mix(c, c * 0.45, wsp * side * smoothstep(0.4, 0.8, ahead) * (1.0 - smoothstep(-0.2, 0.25, ny)) * 0.8);
 		}
 		c = mix(c, c * 0.78, smoothstep(0.6, 1.0, ahead) * smoothstep(0.1, 0.6, ny) * 0.6); // (its nose's bridge)
+		if (sculpt) { // (its nose pad: black leather, moist, pebbled; its nostrils, commas, either side)
+			vec3 nd = (hp - nose_c) / vec3(1.0, 0.82, 0.7);
+			leather = 1.0 - smoothstep(nose_r * 0.88, nose_r * 1.04, length(nd));
+			vec3 leath = vec3(0.045, 0.038, 0.036) * (0.85 + 0.3 * vn(hp * 1.6));
+			c = mix(c, leath, leather);
+			for (int k = 0; k < 2; k++) {
+				float sd = k == 0 ? -1.0 : 1.0;
+				vec3 nc = nose_c + vec3(sd * nose_r * 0.42, -nose_r * 0.08, -nose_r * 0.55);
+				float nostril = 1.0 - smoothstep(nose_r * 0.14, nose_r * 0.24, length((hp - nc) / vec3(1.0, 0.7, 1.0)));
+				c = mix(c, vec3(0.008, 0.006, 0.006), nostril * leather);
+			}
+		}
 	}
 	// the fur: fine strands lying the way its hair lies (back along the body
 	// and head, down the legs, out along the tail), each a little lighter at
 	// its tip, darker at its root; the strands gathered in locks; a soft
 	// mottling. Its grain in the light, too: the surface bumped by the
 	// strands and the locks (fading out where they'd shimmer, far off).
-	bool bare = pt == 4.0 || pt == 7.0 || (species == 11 && ((pt == 6.0 && a > 0.12) || (leg && a > 0.7)));
+	bool bare = pt == 4.0 || pt == 7.0 || (species == 11 && ((pt == 6.0 && a > 0.12) || (leg && a > 0.7))) || leather > 0.5;
 	float s = clamp(hair * 0.06, 0.3, 4.0); // (a strand's width, mm)
-	vec3 stretch = leg ? vec3(1.0, 7.0, 1.0) : vec3(1.0, 1.0, 7.0);
+	vec3 stretch = leg ? vec3(1.0, 4.0, 1.0) : vec3(1.0, 1.0, 4.0);
 	vec3 q = rp / (s * stretch);
 	vec3 qc = rp / (s * 6.0 * stretch * 0.6);
 	float fine_vis = 1.0 - smoothstep(0.35, 1.2, length(fwidth(q)));
@@ -405,7 +423,7 @@ void fragment() {
 	}
 	float h = mix(0.5, strand, fine_vis) * 0.55 + mix(0.5, locks, lock_vis) * 0.45;
 	if (!bare) {
-		c *= mix(0.74, 1.2, h); // (tips lighter, roots darker)
+		c *= mix(0.82, 1.14, h); // (tips lighter, roots darker)
 		c *= 0.92 + 0.16 * mott;
 		c = mix(c, c * vec3(1.06, 1.03, 0.98), smoothstep(0.7, 0.9, strand) * fine_vis * 0.5); // (a few paler hairs)
 	}
@@ -420,7 +438,7 @@ void fragment() {
 		vec3 r1 = cross(dpdy, n);
 		vec3 r2 = cross(n, dpdx);
 		float det = dot(dpdx, r1);
-		float k = s * 0.0012 * (1.0 + 2.5 * wool) * clamp(hair / 20.0, 0.5, 2.0);
+		float k = s * 0.0007 * (1.0 + 3.5 * wool) * clamp(hair / 20.0, 0.5, 2.0);
 		vec3 grad = sign(det) * (dhdx * r1 + dhdy * r2);
 		NORMAL = normalize(abs(det) * n - grad * k);
 	}
@@ -441,6 +459,10 @@ void fragment() {
 		}
 		RIM = bare ? 0.05 : 0.45;
 		RIM_TINT = 0.85;
+		if (leather > 0.0) {
+			ROUGHNESS = mix(ROUGHNESS, 0.32, leather);
+			SPECULAR = mix(SPECULAR, 0.5, leather);
+		}
 	}
 	if (pt == 5.0) { // (its ears: thin, a little light through them; no rim to wash them out)
 		BACKLIGHT = vec3(0.1, 0.05, 0.035);

@@ -38,6 +38,7 @@ extends "res://scripts/creatures/hexapod.gd" # (by path: found whether or not th
 ## young's), mate {partner}.
 
 const SkinScript := preload("res://scripts/creatures/mammal_skin.gd")
+const SculptScript := preload("res://scripts/creatures/sculpt_head.gd")
 var S: Dictionary = {} ## the species' (its subclass's): shape, gaits, ways
 var young := false
 var home_den: Node3D ## her den (a female's)
@@ -197,14 +198,45 @@ func _build() -> void:
 	var es: Vector3 = E.size
 	var eat: Vector3 = E.at
 	eat.x = _surface_x(S.head, eat.z, eat.y) - es.x * 0.22
+	var sculpt: Dictionary = S.get("sculpt", {})
+	var look := Vector3(1.0, 0.0, -0.3).normalized()
+	if not sculpt.is_empty(): # (seated in its socket, set back into it)
+		var seat := SculptScript.eye_seat(sculpt, es.y * 0.5)
+		eat = seat[0]
+		look = seat[1]
 	face.set_shader_parameter("bare_a", Vector3(-eat.x, eat.y, eat.z))
 	face.set_shader_parameter("bare_b", Vector3(eat.x, eat.y, eat.z))
 	face.set_shader_parameter("bare_r", es.y * 0.85)
 	for m: ShaderMaterial in [head_m, body]: # (the skin's too: its face's coords the head's)
 		m.set_shader_parameter("bare_a", Vector3(-eat.x, eat.y, eat.z))
 		m.set_shader_parameter("bare_b", Vector3(eat.x, eat.y, eat.z))
-		m.set_shader_parameter("bare_r", es.y * 0.85)
+		m.set_shader_parameter("bare_r", es.y * 0.85 if sculpt.is_empty() else float(sculpt.eye_r) * 0.95)
+		if not sculpt.is_empty():
+			var zt := float((sculpt.z as Array)[(sculpt.z as Array).size() - 1])
+			m.set_shader_parameter("sculpt", true)
+			m.set_shader_parameter("bare_a", (sculpt.eye as Vector3) * Vector3(-1.0, 1.0, 1.0))
+			m.set_shader_parameter("bare_b", sculpt.eye)
+			m.set_shader_parameter("nose_c", Vector3(0.0, (SculptScript._key(sculpt, "top", zt) + SculptScript._key(sculpt, "bot", zt)) * 0.5 + float(sculpt.nose_r) * 0.25, zt + float(sculpt.nose_r) * 0.4))
+			m.set_shader_parameter("nose_r", sculpt.nose_r)
 	for side: float in [-1.0, 1.0]:
+		if not sculpt.is_empty():
+			# (its eyeball: the iris's colour all its front, the pupil a slit
+			# at its middle, the cornea glossy over it; set in its socket)
+			var em2 := _mat(E.color, 0.04)
+			em2.clearcoat_enabled = true
+			em2.clearcoat = 0.8
+			em2.clearcoat_roughness = 0.1
+			var ec := Vector3(eat.x * side, eat.y, eat.z)
+			var lk := Vector3(look.x * side, look.y, look.z)
+			var r_ := es.y * 0.5
+			var eb := _part(ec, Vector3.ONE * r_ * 2.0, em2, _head)
+			_eyes.append(eb)
+			var pu2 := _part(ec + lk * r_ * 0.93, Vector3(r_ * 0.22, r_ * 2.0 * float(E.get("slit", 0.4)) * 0.85, r_ * 0.22), _mat(Color(0.01, 0.008, 0.006), 0.05), _head)
+			pu2.basis = Basis.looking_at(lk, Vector3.UP) * Basis.from_scale(pu2.scale)
+			var lid2 := _part(ec, Vector3.ONE * r_ * 2.15, face, _head)
+			lid2.visible = false
+			_lids.append(lid2)
+			continue
 		var at: Vector3 = eat
 		var em := _mat(E.color, 0.04)
 		em.clearcoat_enabled = true # (the cornea's wet gloss)
@@ -219,17 +251,33 @@ func _build() -> void:
 		lid.visible = false
 		_lids.append(lid)
 	var N: Dictionary = S.nose
-	var nose := _mat(N.color, 0.25)
-	nose.clearcoat_enabled = true # (the leather moist)
-	nose.clearcoat = 0.7
-	_part(N.at, N.size, nose, _head)
-	var ns: Vector3 = N.size
-	for side: float in [-1.0, 1.0]: # (the nostrils)
-		_part((N.at as Vector3) + Vector3(ns.x * 0.22 * side, ns.y * 0.02, -ns.z * 0.4), Vector3(ns.x * 0.22, ns.y * 0.3, ns.z * 0.25), _mat(Color(0.01, 0.01, 0.01), 0.6), _head)
-	_stick(Vector3(0.0, float((N.at as Vector3).y) - 12.0, float((N.at as Vector3).z) + 8.0), Vector3(0.0, float((N.at as Vector3).y) - 20.0, float((N.at as Vector3).z) + 12.0), 2.0, _mat(Color(0.12, 0.08, 0.06), 0.4), _head) # (the philtrum)
+	if sculpt.is_empty():
+		var nose := _mat(N.color, 0.25)
+		nose.clearcoat_enabled = true # (the leather moist)
+		nose.clearcoat = 0.7
+		_part(N.at, N.size, nose, _head)
+		var ns: Vector3 = N.size
+		for side: float in [-1.0, 1.0]: # (the nostrils)
+			_part((N.at as Vector3) + Vector3(ns.x * 0.22 * side, ns.y * 0.02, -ns.z * 0.4), Vector3(ns.x * 0.22, ns.y * 0.3, ns.z * 0.25), _mat(Color(0.01, 0.01, 0.01), 0.6), _head)
+		_stick(Vector3(0.0, float((N.at as Vector3).y) - 12.0, float((N.at as Vector3).z) + 8.0), Vector3(0.0, float((N.at as Vector3).y) - 20.0, float((N.at as Vector3).z) + 12.0), 2.0, _mat(Color(0.12, 0.08, 0.06), 0.4), _head) # (the philtrum)
 	# whiskers
 	var wd := _mat(Color(0.9, 0.9, 0.88), 0.5)
-	for side: float in [-1.0, 1.0]:
+	if not sculpt.is_empty(): # (a few, fine, from its whisker pads, curving back)
+		var zt := float((sculpt.z as Array)[(sculpt.z as Array).size() - 1])
+		var zw := zt + float(sculpt.eye_r) * 3.0
+		var wdk := _mat(Color(0.14, 0.12, 0.1), 0.5)
+		for side: float in [-1.0, 1.0]:
+			for k in 6:
+				var pz := zw + float(k % 3) * 4.0
+				var phi := PI * (0.55 + 0.05 * float(k / 3)) * side
+				var p0 := SculptScript.point(sculpt, pz, phi)
+				var d := Vector3(side, -0.12 + 0.1 * float(k % 3), 0.55).normalized()
+				var l := float(S.get("whisker", 70.0)) * (0.75 + 0.1 * float(k % 3))
+				var p1 := p0 + d * l * 0.5
+				var p2 := p1 + (d + Vector3(0.0, -0.18, 0.25)).normalized() * l * 0.5
+				_stick(p0, p1, 0.16, wdk if k % 2 == 0 else wd, _head)
+				_stick(p1, p2, 0.11, wdk if k % 2 == 0 else wd, _head)
+	for side: float in ([] if not sculpt.is_empty() else [-1.0, 1.0]):
 		var wp: Vector3 = N.at
 		for k in 5:
 			var a := deg_to_rad(-18.0 + 9.0 * k)
@@ -242,10 +290,10 @@ func _build() -> void:
 	for side: float in [-1.0, 1.0]:
 		var en := Node3D.new()
 		var at: Vector3 = R.at
-		en.position = Vector3(at.x * side, at.y, at.z)
+		en.position = Vector3(at.x * side, at.y - (5.0 if not sculpt.is_empty() else 0.0), at.z)
 		_head.add_child(en)
 		en.set_meta("side", side)
-		_fur_shells(_mesh(_ear_mesh(float(R.len), float(R.width), float(R.get("point", 1.0))), ear_m, en), fl * 0.2, 4)
+		_fur_shells(_mesh(_ear_mesh(float(R.len), float(R.width), float(R.get("point", 1.0)), 0.22 if sculpt.is_empty() else 0.34, 0.35 if sculpt.is_empty() else 0.6), ear_m, en), fl * 0.2, 4)
 		if R.get("tuft", 0.0) > 0.0:
 			_stick(Vector3(0.0, float(R.len) * 0.95, 0.0), Vector3(-3.0 * side, float(R.len) + float(R.tuft), 2.0), 2.2, _coat(7), en)
 		_ear_nodes.append(en)
@@ -321,12 +369,32 @@ func _build_skin(mat: ShaderMaterial) -> void:
 		var k: Array = nk[j]
 		var w := {torso: 0.5, neck: 0.5} if j == 0 else ({neck: 1.0} if j < nk.size() - 1 else {neck: 0.75, head: 0.25})
 		rings.append(SkinScript.ring(nrest * Vector3(0.0, k[1], k[0]), nrest.basis.x, nrest.basis.y, k[2], k[3], k[3], w, 0, 0.6 + 0.12 * j / maxf(nk.size() - 1, 1), 0.0, lerpf(pw, 2.0, float(j) / nk.size())))
-	var hk: Array = S.head
-	for j in hk.size():
-		var k: Array = hk[j]
-		var w := {neck: 0.35, head: 0.65} if j == 0 else {head: 1.0}
-		rings.append(SkinScript.ring(hrest * Vector3(0.0, k[1], k[0]), hrest.basis.x, hrest.basis.y, k[2], k[3], k[3], w, 0, 0.75 + 0.25 * j / maxf(hk.size() - 1, 1), 0.35 if j == 0 else 1.0))
-	K.tube(SkinScript.smooth(rings, 4), 24, head)
+	var sculpt: Dictionary = S.get("sculpt", {})
+	if sculpt.is_empty():
+		var hk: Array = S.head
+		for j in hk.size():
+			var k: Array = hk[j]
+			var w := {neck: 0.35, head: 0.65} if j == 0 else {head: 1.0}
+			rings.append(SkinScript.ring(hrest * Vector3(0.0, k[1], k[0]), hrest.basis.x, hrest.basis.y, k[2], k[3], k[3], w, 0, 0.75 + 0.25 * j / maxf(hk.size() - 1, 1), 0.35 if j == 0 else 1.0))
+		K.tube(SkinScript.smooth(rings, 4), 24, head)
+	else:
+		# (the neck on into the back of its skull, closed there inside it;
+		# then the head sculpted: SculptHead)
+		var zb := float((sculpt.z as Array)[0])
+		var hb := (SculptScript._key(sculpt, "top", zb - 20.0) - SculptScript._key(sculpt, "bot", zb - 20.0)) * 0.5
+		rings.append(SkinScript.ring(hrest * Vector3(0.0, 0.0, zb - 20.0), hrest.basis.x, hrest.basis.y, hb * 0.8, hb * 0.8, hb * 0.8, {neck: 0.4, head: 0.6}, 0, 0.75, 0.2))
+		K.tube(SkinScript.smooth(rings, 4), 24, head)
+		var rows := SculptScript.rows(sculpt, hrest)
+		var ws := []
+		var faces := []
+		var alongs := []
+		for i in rows.size():
+			var z := SculptScript.row_z(sculpt, i)
+			var f := smoothstep(zb, zb - 30.0, z)
+			ws.append({neck: 0.35 * (1.0 - f), head: 1.0 - 0.35 * (1.0 - f)})
+			faces.append(lerpf(0.3, 1.0, f))
+			alongs.append(lerpf(0.75, 1.0, float(i) / (rows.size() - 1)))
+		K.surface(rows, ws, faces, alongs, head, 0, float(sculpt.nose_r) * 0.3)
 	# (its chest's front, under its throat: the body's foremost rings, apart)
 	var chest := []
 	for k: Array in bk:
@@ -499,7 +567,7 @@ func _build_extra() -> void:
 
 ## An ear (mm: up its own y, len long, width across its base; point: how
 ## pointed), open forward (-z), its back +z.
-static func _ear_mesh(len_: float, width: float, point: float) -> ArrayMesh:
+static func _ear_mesh(len_: float, width: float, point: float, thick := 0.22, cup := 0.35) -> ArrayMesh:
 	const RINGS := 7
 	const ROUND := 10
 	var st := SurfaceTool.new()
@@ -509,8 +577,8 @@ static func _ear_mesh(len_: float, width: float, point: float) -> ArrayMesh:
 		var hw := width * 0.5 * pow(1.0 - t, point) * (0.82 + 0.45 * sin(PI * minf(t * 1.25, 1.0))) * (1.0 - smoothstep(0.82, 1.0, t) * 0.6) + 1.0
 		var a := TAU * float(k % ROUND) / ROUND
 		var x := sin(a) * hw
-		var z := cos(a) * maxf(hw * 0.22, 2.0)
-		z -= absf(sin(a)) * hw * 0.35 * (1.0 - absf(cos(a))) # (cupped)
+		var z := cos(a) * maxf(hw * thick * (1.0 - 0.6 * t), 2.0)
+		z -= absf(sin(a)) * hw * cup * (1.0 - absf(cos(a))) # (cupped)
 		return [Vector3(x, t * len_, z), Vector3(sin(a), 0.2, cos(a)).normalized()]
 	for i in RINGS:
 		for k in ROUND:

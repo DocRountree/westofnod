@@ -391,3 +391,61 @@ static func frames(dirs: Array) -> Array:
 func pose_leg3(b: Array, J: Array) -> void:
 	for q in 3:
 		pose(b[q], along(J[q], J[q + 1]))
+
+
+## A free surface (a sculpted head): rows of points (each row a closed loop
+## round it, every row the same count; the first and last rows closed with
+## fans to their middles), each row's bones' weights (ws), its share of the
+## face (faces), its place along (alongs); head: the CUSTOM3 space's bone.
+## Its triangles wound to face the way its normals do (out from each row's
+## middle).
+func surface(rows: Array, ws: Array, faces: Array, alongs: Array, head := -1, part := 0, tip_push := 0.0) -> void:
+	var R := rows.size()
+	var A: int = (rows[0] as Array).size()
+	var mids := []
+	for i in R:
+		var m := Vector3.ZERO
+		for p: Vector3 in rows[i]:
+			m += p
+		mids.append(m / A)
+	var N := []
+	for i in R:
+		var row := []
+		for k in A:
+			var t1: Vector3 = rows[i][(k + 1) % A] - rows[i][(k - 1 + A) % A]
+			var t2: Vector3 = rows[mini(i + 1, R - 1)][k] - rows[maxi(i - 1, 0)][k]
+			var n := t1.cross(t2)
+			var out: Vector3 = (rows[i][k] as Vector3) - (mids[i] as Vector3)
+			if n.length_squared() < 1e-12:
+				n = out
+			n = n.normalized()
+			if n.dot(out) < 0.0:
+				n = -n
+			row.append(n)
+		N.append(row)
+	var hinv := _rest[head].affine_inverse() if head >= 0 else Transform3D()
+	var tri := func(a: Array, b: Array, c: Array) -> void:
+		# (wound to face its normals)
+		var fn := ((b[0] as Vector3) - (a[0] as Vector3)).cross((c[0] as Vector3) - (a[0] as Vector3))
+		var vs := [a, b, c] if fn.dot((a[1] as Vector3) + (b[1] as Vector3) + (c[1] as Vector3)) < 0.0 else [a, c, b]
+		for v: Array in vs:
+			_vert(v[0], v[1], v[2], hinv, head >= 0)
+	for i in R - 1:
+		var ri := {"w": ws[i], "part": part, "a": alongs[i], "face": faces[i]}
+		var rj := {"w": ws[i + 1], "part": part, "a": alongs[i + 1], "face": faces[i + 1]}
+		for k in A:
+			var k1 := (k + 1) % A
+			var a := [rows[i][k], N[i][k], ri]
+			var b := [rows[i + 1][k], N[i + 1][k], rj]
+			var c := [rows[i][k1], N[i][k1], ri]
+			var d := [rows[i + 1][k1], N[i + 1][k1], rj]
+			tri.call(a, b, c)
+			tri.call(c, b, d)
+	for e in [0, R - 1]:
+		var nb := 1 if e == 0 else R - 2
+		var dir := ((mids[e] as Vector3) - (mids[nb] as Vector3)).normalized()
+		var r0 := {"w": ws[e], "part": part, "a": alongs[e], "face": faces[e]}
+		var tip: Vector3 = (mids[e] as Vector3) + dir * (tip_push if e == R - 1 else 0.0)
+		for k in A:
+			var k1 := (k + 1) % A
+			tri.call([rows[e][k], N[e][k], r0], [tip, dir, r0], [rows[e][k1], N[e][k1], r0])

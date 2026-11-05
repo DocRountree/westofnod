@@ -32,6 +32,20 @@ const SPEC := {
 	"stalk_from": 2.4, "spring": 1.1, "stalk_crouch": 0.35, "stalk_neck": -0.15, "eat_crouch": 0.5,
 	"sit_drop": 60.0, "sit_pitch": 0.55, "lie_h": 95.0, "tilt": 0.35,
 	"mate_secs": 30.0,
+	# its head sculpted (SculptHead): the dome of its skull between its ears,
+	# the stop at its eyes, its long fine muzzle; its cheeks' ruff wide and
+	# low; its eyes oblique, set in, under a light brow; its whisker pads;
+	# its lips drawn over its jaw; a blunt black nose pad
+	"sculpt_draft": { # (in progress: SculptHead reads "sculpt"; renamed to turn it on)
+		"z": [30.0, 15.0, 0.0, -18.0, -36.0, -50.0, -64.0, -80.0, -97.0, -112.0, -122.0],
+		"top": [14.0, 36.0, 45.0, 45.0, 38.0, 29.0, 22.0, 16.0, 10.0, 4.0, -1.0],
+		"bot": [-14.0, -22.0, -26.0, -27.0, -26.0, -24.0, -22.0, -21.0, -20.0, -19.0, -17.0],
+		"w": [18.0, 36.0, 43.0, 44.0, 38.0, 27.0, 19.0, 15.5, 13.0, 10.5, 6.5],
+		"wl": [18.0, 38.0, 48.0, 50.0, 42.0, 28.0, 19.5, 16.0, 13.5, 11.0, 6.5],
+		"pw": [2.1, 2.1, 2.1, 2.2, 2.3, 2.5, 2.6, 2.6, 2.6, 2.5, 2.2],
+		"eye": Vector3(27.0, 12.0, -40.0), "eye_r": 10.0, "socket": 2.4, "lid": 1.0,
+		"brow": 2.4, "cheek": 2.6, "stop": 2.2, "pads": 1.8, "flews": 1.0, "nose_r": 7.5,
+	},
 }
 
 
