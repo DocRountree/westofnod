@@ -611,25 +611,35 @@ func _mount() -> Dictionary:
 		0: Vector3(-60.0, 10.0, 50.0), 1: Vector3(60.0, 10.0, 50.0)}, "free": free}
 
 
+var _ring_set := false # (her chase ring's centre set, this mating)
+
+
 func _mating(dt: float) -> void:
 	super(dt)
 	_sit_to = 0.0
 	if _mate == null or not is_instance_valid(_mate):
 		return
 	if _mate_role == "male" and _mate_stage == "court": # (after her)
-		var to: Vector3 = _mate.call("_out", Vector3(0.0, -body_h, 380.0))
+		var ending := _mate_t > _court_secs() - 2.0 # (the chase's end: she slows, he closes on her, right up behind)
+		var to: Vector3 = _mate.call("_out", Vector3(0.0, -body_h, 200.0 if ending else 380.0))
 		_target = Vector3(to.x, _pos.y, to.z)
-		_pace = walk_speed * 0.9
-	elif _mate_role == "female" and _mate.get("_mate_stage") in ["seek", "court"]:
+		_pace = walk_speed * (1.1 if ending else 0.9)
+	elif _mate_role == "female" and _mate.get("_mate_stage") == "court": # (still, waiting, till he's come to her: then away)
 		# (running on in a ring, him after her, leaping up now and then)
 		var a := _mate_t * 0.9
 		var c := _form if _form != Vector3.ZERO else _pos
-		if _mate_t < dt * 1.5:
+		if not _ring_set:
+			_ring_set = true
 			_form = _pos
 			c = _pos
+			_mate_t = 0.0
+			a = 0.0
 		_target = c + Vector3(cos(a), 0.0, sin(a)) * 0.6
-		_pace = walk_speed * 0.7
-		if not airborne and fmod(_mate_t, 3.1) < dt and _mate_t > 1.0:
+		var left := _court_secs() - float(_mate.get("_mate_t"))
+		_pace = walk_speed * 0.7 * clampf((left - 0.6) / 1.4, 0.0, 1.0) # (slowing to a stop, his to mount)
+		if _pace <= 0.0:
+			_target = _pos
+		if not airborne and fmod(_mate_t, 3.1) < dt and _mate_t > 1.0 and left > 2.0:
 			_leap(_pos + Vector3(-sin(_yaw), 0.0, -cos(_yaw)) * 0.15, 1.25)
 	elif _mate_role == "female":
 		_pace = -1.0
@@ -637,6 +647,7 @@ func _mating(dt: float) -> void:
 
 func _after_mate() -> void:
 	_pace = -1.0
+	_ring_set = false
 	if male:
 		groom()
 	else:
