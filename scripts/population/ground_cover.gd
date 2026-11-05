@@ -146,7 +146,7 @@ const LAYERS := [
 	# shaped, coarsely toothed, drooping; tassels of tiny green flowers
 	# hanging from the upper leaves' axils. (Picked, they don't sting.)
 	{"cell": 3.0, "cells": 8, "tiles": 5, "flowers": "nettle", "stems": 4, "radius": 0.3,
-		"u": {"kind": 2, "seed": 16, "in_prairie": false, "cover": 0.4, "drift": Vector3(14.0, 0.3, -11.3),
+		"u": {"kind": 2, "seed": 16, "in_prairie": false, "on_litter": true, "cover": 0.4, "drift": Vector3(14.0, 0.3, -11.3),
 			"forest_height": Vector2(0.75, 1.15), "prairie_height": Vector2(0.75, 1.15),
 			"prairie_green": Vector3(0.17, 0.29, 0.09), "prairie_blonde": Vector3(0.21, 0.31, 0.11),
 			"petal_color": Vector3(0.42, 0.48, 0.27), "petal_base": Vector3(0.36, 0.42, 0.22), "petal_alt": Vector3(0.5, 0.48, 0.3), "petal_alt_share": 0.3,
@@ -160,7 +160,7 @@ const MAX_LOGS := 256 ## logs, stumps, trunks and boulders the grass is kept out
 const MAX_GONE := 64 ## clumps picked a layer hides (ground_cover_bake.gdshader: gone[]), the nearest
 const REBAKE := 5.0 ## m the camera moves before a layer's grid is worked out again (more for the layers further out: 8% of their fade_out)
 const BAKES_PER_FRAME := 2 ## layers' grids worked out a frame, at most (all thirteen at once made a hitch)
-const BAKE_KEYS := ["kind", "seed", "in_forest", "in_prairie", "in_swamp", "swamp_clumped", "in_coast", "forest_height", "prairie_height", "cover", "drift"]
+const BAKE_KEYS := ["kind", "seed", "in_forest", "in_prairie", "in_swamp", "swamp_clumped", "in_coast", "forest_height", "prairie_height", "cover", "drift", "on_litter"]
 const DRAW_KEYS := ["kind", "seed", "fade_in", "fade_out", "thin_from", "prairie_green", "prairie_blonde", "patch_tints",
 		"petal_color", "petal_base", "petal_alt", "petal_alt_share", "disc_color", "head_size", "head_px", "petal_mix"]
 

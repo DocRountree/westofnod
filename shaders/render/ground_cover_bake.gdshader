@@ -27,6 +27,7 @@ uniform bool in_coast = false; // (marram: on the coast and the beaches, in patc
 uniform vec2 forest_height = vec2(0.08, 0.16); // m (grass; ferns: their length)
 uniform vec2 prairie_height = vec2(0.45, 0.85);
 uniform float cover = 1.0; // the share of cells with a clump
+uniform bool on_litter = false; // (up through the forest's leaf litter too: the nettles)
 uniform vec3 drift = vec3(0.0); // in drifts (the flowers): x m across, y the share of the ground, z a seed; 0: everywhere
 uniform float clear = 0.2; // m kept clear round a log, stump or trunk, past its radius
 // fallen logs, stumps, trunks and boulders (Population.walk_near()):
@@ -179,7 +180,7 @@ void fragment() {
 	if ((px.x & 1) == 0 && h2(c, 5) < grows && h2(c, 4) < cover && !under_log(pos) && !picked(c)) {
 		// not on rock, sand, mud or the shore; nothing on the forest's litter
 		float bare = max(max(rocky, in_coast ? 0.0 : m.a), mud * 3.0) + (in_swamp ? 0.0 : 1.0 - smoothstep(0.3, 1.2, h)); // (reeds stand in water; marram on sand)
-		float here = mix(smoothstep(0.3, 0.05, litter / max(fw, 1e-4)), 1.0, prairie);
+		float here = on_litter ? 1.0 : mix(smoothstep(0.3, 0.05, litter / max(fw, 1e-4)), 1.0, prairie);
 		if (kind == 1) // ferns in drifts, and only well inside the forest
 			here *= smoothstep(0.24, 0.4, vnoise(pos / 7.0 + 13.0) * 0.7 + vnoise(pos / 2.3) * 0.3) * smoothstep(0.75, 0.95, fw);
 		if (h2(c, 6) < here * (1.0 - clamp(bare * 2.0, 0.0, 1.0))) {
