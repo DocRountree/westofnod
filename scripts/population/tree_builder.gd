@@ -13,7 +13,10 @@ extends RefCounted
 ## Out come two surfaces, bark (tubes, the texture wrapped round them) and
 ## leaves (cards: a sprig of leaves on each, its normal bent toward "out
 ## from the middle of the crown", so the crown shades as a whole and not card
-## by card); and simpler versions for further off (lod()).
+## by card); and simpler versions for further off (lod()). Every corner of
+## both carries the limb it's on (CUSTOM2.r: 0 the trunk, 1.. each limb off
+## it, with all that grows from it), so a felled tree can be stripped of its
+## limbs one at a time (Felling).
 
 var pos := PackedVector3Array()
 var parent := PackedInt32Array()
@@ -173,11 +176,14 @@ func _mesh(bark_mat: Material, leaf_mat: Material, max_level: int, clump_size: f
 	_bark_count = 0
 	_leaf_count = 0
 	_thin_from = thin_from
+	_limbs()
 	var bark := SurfaceTool.new()
 	bark.begin(Mesh.PRIMITIVE_TRIANGLES)
+	bark.set_custom_format(2, SurfaceTool.CUSTOM_R_FLOAT)
 	for i in branches.size():
 		var b := branches[i]
 		if level[b[1]] <= max_level:
+			_cur_limb = limb[b[1]]
 			_tube(bark, b, sides_div, caps[i], i)
 	bark.commit(mesh)
 	mesh.surface_set_material(0, bark_mat)
@@ -187,6 +193,7 @@ func _mesh(bark_mat: Material, leaf_mat: Material, max_level: int, clump_size: f
 	leaves.begin(Mesh.PRIMITIVE_TRIANGLES)
 	leaves.set_custom_format(0, SurfaceTool.CUSTOM_RGBA_FLOAT)
 	leaves.set_custom_format(1, SurfaceTool.CUSTOM_R_FLOAT)
+	leaves.set_custom_format(2, SurfaceTool.CUSTOM_R_FLOAT)
 	var centre := _crown_centre()
 	var crown_r := _crown_radius(centre)
 	var r := RandomNumberGenerator.new()
@@ -196,6 +203,7 @@ func _mesh(bark_mat: Material, leaf_mat: Material, max_level: int, clump_size: f
 		var p: Vector3 = pos[s[0]]
 		var d: Vector3 = s[1]
 		_card_sway = sway[s[0]] if sways else 0.0
+		_cur_limb = limb[s[0]]
 		if thin <= 0:
 			var tile := r.randi() % sprig_tiles
 			var spin := r.randf() * TAU
@@ -292,6 +300,7 @@ func _tube(st: SurfaceTool, b: PackedInt32Array, sides_div: int, cap: Array, idx
 			# y: how much it sways in the wind (the twigs, not the stout wood;
 			# a branch's base as its parent there: see fit_radii)
 			st.set_uv2(Vector2(0.0, g[6]))
+			st.set_custom(2, Color(float(_cur_limb), 0.0, 0.0, 0.0))
 			st.set_normal(dir)
 			st.set_color(_tint_at(at.y))
 			st.add_vertex(at)
@@ -323,11 +332,13 @@ func _cap(st: SurfaceTool, g: Array, sides: int, facing: float, jag: float, trun
 			rr *= 1.0 + flare * exp(-maxf(g[0].y, 0.0) / 0.6) * (1.0 + 0.35 * cos(5.0 * a + 0.7))
 		st.set_uv(Vector2(cos(a), sin(a)))
 		st.set_uv2(Vector2(1.0, 0.0))
+		st.set_custom(2, Color(float(_cur_limb), 0.0, 0.0, 0.0))
 		st.set_normal(t)
 		st.set_color(bark_tint)
 		st.add_vertex(g[0] + dir * rr + t * _jag(a, jag, splinter))
 	st.set_uv(Vector2.ZERO)
 	st.set_uv2(Vector2(1.0, 0.0))
+	st.set_custom(2, Color(float(_cur_limb), 0.0, 0.0, 0.0))
 	st.set_normal(t)
 	st.set_color(bark_tint)
 	st.add_vertex(g[0] + t * (-jag * 0.35 if splinter else jag * 0.2))
@@ -403,6 +414,7 @@ func _card(st: SurfaceTool, p: Vector3, d: Vector3, spin: float, size: float, ti
 		st.set_uv2(Vector2(rank, 0.0 if k < 2 else 1.0)) # y: how far from the twig (for the flutter)
 		st.set_custom(0, Color(off.x, off.y, off.z, _thin_from))
 		st.set_custom(1, Color(_card_sway, 0.0, 0.0, 0.0)) # how much it sways with its twig
+		st.set_custom(2, Color(float(_cur_limb), 0.0, 0.0, 0.0))
 		st.set_normal(nrm)
 		st.set_color(tint)
 		st.add_vertex(corners[k])
@@ -413,6 +425,23 @@ func _card(st: SurfaceTool, p: Vector3, d: Vector3, spin: float, size: float, ti
 
 var _leaf_count := 0
 var _card_sway := 1.0
+var _cur_limb := 0
+var limb := PackedInt32Array() ## each node's limb (0 the trunk's; 1.. a limb off it and all that grows from it)
+
+
+## Each node's limb: a node off the trunk starts one, its children's its.
+func _limbs() -> void:
+	limb.resize(pos.size())
+	var n := 0
+	for i in pos.size():
+		var par := parent[i]
+		if level[i] == 0 or par < 0:
+			limb[i] = 0
+		elif level[par] == 0:
+			n += 1
+			limb[i] = n
+		else:
+			limb[i] = limb[par]
 var _max_level := 99
 
 

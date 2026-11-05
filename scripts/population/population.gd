@@ -729,6 +729,39 @@ func add_fallen(walk: PackedFloat32Array, trunks: Array[PackedFloat32Array]) -> 
 		walk_changes += 1
 
 
+## Takes back what add_fallen put in (the same walk and trunks): a felled
+## tree changed (Felling: a limb stripped off it).
+func remove_fallen(walk: PackedFloat32Array, trunks: Array[PackedFloat32Array]) -> void:
+	if trunks.is_empty() and walk.is_empty():
+		return
+	var at := Vector3(trunks[0][0], 0.0, trunks[0][2]) if not trunks.is_empty() else Vector3(walk[0], 0.0, walk[2])
+	var key := _key(at)
+	if _fallen.has(key):
+		var f: Array = _fallen[key]
+		f[0] = _without_run(f[0], walk)
+		for t in trunks:
+			(f[1] as Array).erase(t)
+	var ch: _Chunk = _chunks.get(key)
+	if ch:
+		ch.walk = _without_run(ch.walk, walk)
+		for t in trunks:
+			ch.trunks.erase(t)
+		walk_changes += 1
+
+
+## a with the first run of it equal to run taken out (packed: a copy).
+static func _without_run(a: PackedFloat32Array, run: PackedFloat32Array) -> PackedFloat32Array:
+	var n := run.size()
+	if n == 0 or a.size() < n:
+		return a
+	for i in range(0, a.size() - n + 1, 8): # (walk segments: 8 floats each)
+		if a[i] == run[0] and a.slice(i, i + n) == run:
+			var out := a.slice(0, i)
+			out.append_array(a.slice(i + n))
+			return out
+	return a
+
+
 func _merge_fallen(ch: _Chunk) -> void:
 	if _fallen.has(ch.key):
 		var w := ch.walk

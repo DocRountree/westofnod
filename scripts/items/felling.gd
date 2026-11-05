@@ -19,6 +19,13 @@ extends Node
 ## the point it aims at, the notch's middle on the trunk in reach (or ahead
 ## at waist height with none), and meeting it at the strike.
 ##
+## Right-click a felled tree (one lying, in reach) to forage sticks from it:
+## the limb looked at (TreeBuilder: every corner of a tree's mesh knows its
+## limb) comes away, gone from the tree as it lies, its leaves and twigs with
+## it, and its sticks (more the longer it was) into a hand (the left, else
+## the right); one limb a click, till only the trunk's left. The limbs taken
+## are saved with the tree ("stripped"), and they can't be stood on.
+##
 ## The fallen trees and their stumps are saved with the game (to_list,
 ## from_list: main.gd), as nodes under Origin.root (their positions the
 ## map's), each drawn with its kind's levels of detail as the population
@@ -56,12 +63,20 @@ var _heights := {} # tree uid -> the height (m over its foot) its notch is cut a
 var _aim := Vector3.INF # the swing's mark (on the map): the notch's middle; INF none
 var _falling: Array = [] # {node, axis, angle, t, time, pivot, basis}
 var _lying: Array = [] # what to_list saves, one entry a tree
+var _nodes: Array = [] # each lying tree's model (as _lying)
+var _solids: Array = [] # each lying tree's [walk, trunks] given the population (as _lying)
+const FORAGE_REACH := 2.4 ## m from the eye: a limb in reach to strip
+const FORAGE_AIM := 0.35 ## m from the line looked along
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if not (event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT):
+	if not (event is InputEventMouseButton and event.pressed and event.button_index in [MOUSE_BUTTON_LEFT, MOUSE_BUTTON_RIGHT]):
 		return
 	if Input.mouse_mode != Input.MOUSE_MODE_CAPTURED or main.player.typing or main.player.frozen:
+		return
+	if event.button_index == MOUSE_BUTTON_RIGHT:
+		if _forage():
+			get_viewport().set_input_as_handled()
 		return
 	if _axe_hand() < 0 or main.player.climbing:
 		return
@@ -299,6 +314,9 @@ func _strike() -> void:
 	_falling.append(f)
 	entry.erase("falling")
 	_lying.append(entry)
+	_nodes.append(f.node)
+	_solids.append(entry.solid)
+	entry.erase("solid")
 
 
 ## Puts a felled tree in the world: its stump (if it has one) and the tree,
@@ -317,7 +335,7 @@ func _fell(kind: PropKind, variant: int, xf: Transform3D, radius: float, away: V
 	var entry := {
 		"kind": String(kind.id), "basis": _floats(xf.basis), "at": [xf.origin.x, xf.origin.y, xf.origin.z],
 		"away": [away.x, away.z], "angle": angle, "cut": cut, "stump_scale": stump_scale, "stump_h": stump_h,
-		"end": [end.x, end.y, end.z], "stripes": [stripes.x, stripes.z], "rested": REST_VERSION,
+		"end": [end.x, end.y, end.z], "stripes": [stripes.x, stripes.z], "rested": REST_VERSION, "variant": variant,
 	}
 	var node := _felled_model(kind, variant, xf, cut, stripes)
 	node.transform = xf
@@ -325,7 +343,7 @@ func _fell(kind: PropKind, variant: int, xf: Transform3D, radius: float, away: V
 		var sn := _model(_fresh_stump(kind))
 		sn.transform = Transform3D(_stump_basis(stripes, stump_scale, stump_h), xf.origin)
 		_solid_stump(xf.origin, cut, stump_scale)
-	_solid(kind, Transform3D(Basis(axis, angle) * xf.basis, end), cut)
+	entry.solid = _solid(kind, Transform3D(Basis(axis, angle) * xf.basis, end), cut)
 	entry.falling = {"node": node, "axis": axis, "angle": angle, "t": 0.0, "cut": cut, "end": end,
 			"time": FALL_TIME * sqrt(maxf(height, 1.0) / 15.0), "pivot": pivot, "basis": xf.basis}
 	return entry
@@ -481,16 +499,17 @@ func _notch(tree: Dictionary, toward: Vector3, done: float, cut: float) -> void:
 ## climbable lines (the trunk from the cut up, the limbs) as they lie, and
 ## between each line's nodes a segment to stand on, which keeps the grass
 ## and ferns off too (Population.walk_near), as the stump's post does.
-func _solid(kind: PropKind, t: Transform3D, cut: float) -> void:
+func _solid(kind: PropKind, t: Transform3D, cut: float, gone: Array = [], line_limbs: Array = []) -> Array:
 	var c := kind.climb
 	if c.is_empty():
-		return
+		return [PackedFloat32Array(), [] as Array[PackedFloat32Array]]
 	var s := t.basis.get_scale().y
 	var h := cut / s # (the tree's own units)
 	var walk := PackedFloat32Array()
 	var trunks: Array[PackedFloat32Array] = []
 	var k := 0
 	var first := true
+	var li := 0
 	while k < c.size():
 		var n := int(c[k])
 		k += 1
@@ -509,13 +528,16 @@ func _solid(kind: PropKind, t: Transform3D, cut: float) -> void:
 		for q in pts:
 			var p := t * Vector3(q.x, q.y, q.z)
 			line.append_array([p.x, p.y, p.z, q.w * s])
-		if line.size() >= 8:
+		var stripped := li < line_limbs.size() and int(line_limbs[li]) in gone # (a limb taken off it: nothing there now)
+		li += 1
+		if line.size() >= 8 and not stripped:
 			trunks.append(line)
 			for i in range(4, line.size(), 4):
 				var r0 := line[i - 1] # (limbs too: they lie on the ground, so keep the grass off as the trunk does)
 				walk.append_array([line[i - 4], line[i - 3], line[i - 2], line[i], line[i + 1], line[i + 2], r0, line[i + 3]])
 		first = false
 	main.population.add_fallen(walk, trunks)
+	return [walk, trunks]
 
 
 ## The stump left, to stand on as the stumps are: a post to its top.
@@ -545,10 +567,9 @@ static func _felled_meshes(kind: PropKind, variant: int) -> Array:
 static var _felled_cache := {} # [kind id, variant, cut in its own units (to 5 mm)] -> [[mesh, loops], ...] a level
 
 
-func _felled_model(kind: PropKind, variant: int, xf: Transform3D, cut: float, stripes: Vector3) -> Node3D:
-	var s := xf.basis.get_scale().y
-	var h := snappedf(cut / s, 0.005)
-	var key := [String(kind.id), variant, h]
+func _felled_model(kind: PropKind, variant: int, xf: Transform3D, cut: float, stripes: Vector3, gone: Array = []) -> Node3D:
+	var key := _felled_key(kind, variant, xf, cut)
+	var h: float = key[2]
 	if not _felled_cache.has(key):
 		var levels: Array = []
 		for m: Mesh in _felled_meshes(kind, variant):
@@ -570,7 +591,7 @@ func _felled_model(kind: PropKind, variant: int, xf: Transform3D, cut: float, st
 	var turn := Basis(Vector3.UP, atan2(-sl.z, sl.x)) if Vector2(sl.x, sl.z).length() > 1e-4 else Basis()
 	var grain := (_fresh_stump(kind)[0] as Mesh).surface_get_material(0) as ShaderMaterial
 	for lv: Array in _felled_cache[key]:
-		var mesh: ArrayMesh = lv[0]
+		var mesh: ArrayMesh = lv[0] if gone.is_empty() else _stripped(lv[0], gone)
 		var mi := MeshInstance3D.new()
 		mi.mesh = mesh
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
@@ -589,6 +610,186 @@ func _felled_model(kind: PropKind, variant: int, xf: Transform3D, cut: float, st
 		root.add_child(ci)
 	Origin.root.add_child(root)
 	return root
+
+
+static func _felled_key(kind: PropKind, variant: int, xf: Transform3D, cut: float) -> Array:
+	return [String(kind.id), variant, snappedf(cut / xf.basis.get_scale().y, 0.005)]
+
+
+## A felled tree's mesh with the limbs gone (CUSTOM2.r: TreeBuilder's limb
+## of each corner) left out: every triangle with a corner on one.
+static func _stripped(mesh: ArrayMesh, gone: Array) -> ArrayMesh:
+	var out := ArrayMesh.new()
+	var g := {}
+	for id in gone:
+		g[int(id)] = true
+	for si in mesh.get_surface_count():
+		var arrays := mesh.surface_get_arrays(si)
+		var fmt := mesh.surface_get_format(si)
+		var lm = arrays[Mesh.ARRAY_CUSTOM2]
+		if lm is PackedFloat32Array and (lm as PackedFloat32Array).size() == (arrays[Mesh.ARRAY_VERTEX] as PackedVector3Array).size():
+			var ids: PackedFloat32Array = lm
+			var idx: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+			var keep := PackedInt32Array()
+			for f in range(0, idx.size() - 2, 3):
+				if not (g.has(int(ids[idx[f]] + 0.5)) or g.has(int(ids[idx[f + 1]] + 0.5)) or g.has(int(ids[idx[f + 2]] + 0.5))):
+					keep.append_array(PackedInt32Array([idx[f], idx[f + 1], idx[f + 2]]))
+			if keep.is_empty():
+				continue
+			arrays[Mesh.ARRAY_INDEX] = keep
+		var custom: int = fmt & ((Mesh.ARRAY_FORMAT_CUSTOM_MASK << Mesh.ARRAY_FORMAT_CUSTOM0_SHIFT) | (Mesh.ARRAY_FORMAT_CUSTOM_MASK << Mesh.ARRAY_FORMAT_CUSTOM1_SHIFT) \
+				| (Mesh.ARRAY_FORMAT_CUSTOM_MASK << Mesh.ARRAY_FORMAT_CUSTOM2_SHIFT) | (Mesh.ARRAY_FORMAT_CUSTOM_MASK << Mesh.ARRAY_FORMAT_CUSTOM3_SHIFT))
+		out.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays, [], {}, custom)
+		out.surface_set_material(out.get_surface_count() - 1, mesh.surface_get_material(si))
+	return out
+
+
+## A felled tree's limbs (from its finest mesh, in its own units): {id ->
+## {pts: points along its bark (a sample, to aim at), len: how long it is
+## (its points' furthest from where it leaves the trunk)}}, and which limb
+## each of its kind's climbable lines is ("lines": the trunk's 0).
+static var _limb_cache := {}
+
+
+func _limbs_of(kind: PropKind, key: Array) -> Dictionary:
+	if _limb_cache.has(key):
+		return _limb_cache[key]
+	var info := {"limbs": {}, "lines": []}
+	var levels: Array = _felled_cache.get(key, [])
+	if not levels.is_empty():
+		var mesh: ArrayMesh = levels[0][0]
+		if mesh.get_surface_count() > 0:
+			var arrays := mesh.surface_get_arrays(0) # (the bark)
+			var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+			var lm = arrays[Mesh.ARRAY_CUSTOM2]
+			if lm is PackedFloat32Array and (lm as PackedFloat32Array).size() == verts.size():
+				var ids: PackedFloat32Array = lm
+				var seen := {}
+				for i in verts.size():
+					var id := int(ids[i] + 0.5)
+					if id <= 0:
+						continue
+					if not seen.has(id):
+						seen[id] = {"pts": PackedVector3Array(), "root": verts[i], "len": 0.0, "n": 0}
+					var L: Dictionary = seen[id]
+					L.n += 1
+					L.len = maxf(L.len, (verts[i] - (L.root as Vector3)).length())
+					if L.n % 5 == 1:
+						var pts: PackedVector3Array = L.pts
+						pts.append(verts[i])
+						L.pts = pts # (packed arrays are values: put it back)
+				info.limbs = seen
+	# (its climbable lines: the first the trunk's, each other a limb's: the
+	# limb whose bark is nearest where it leaves the trunk)
+	var c := kind.climb
+	var k := 0
+	var first := true
+	while k < c.size():
+		var n := int(c[k])
+		var id := 0
+		if not first and n >= 2:
+			var q := Vector3(c[k + 5], c[k + 6], c[k + 7])
+			var best := INF
+			for lid in info.limbs:
+				for p: Vector3 in (info.limbs[lid].pts as PackedVector3Array):
+					var d := p.distance_squared_to(q)
+					if d < best:
+						best = d
+						id = lid
+		(info.lines as Array).append(id)
+		k += 1 + n * 4
+		first = false
+	_limb_cache[key] = info
+	return info
+
+
+## Right-click: the limb looked at, of a felled tree lying in reach, stripped
+## off it; its sticks into a hand. Whether there was one.
+func _forage() -> bool:
+	var p: Player = main.player
+	var eye := Origin.map(p.camera.global_position)
+	var fwd := -p.camera.global_basis.z
+	var pop: Population = main.population
+	var best_j := -1
+	var best_id := 0
+	var best_d := FORAGE_AIM
+	for j in _lying.size():
+		var node: Node3D = _nodes[j] if j < _nodes.size() else null
+		if node == null or not is_instance_valid(node) or _is_falling(node):
+			continue
+		var e: Dictionary = _lying[j]
+		var kind := pop.kind_by_id(StringName(str(e.get("kind", ""))))
+		if kind == null:
+			continue
+		var height := kind.mesh.get_aabb().end.y * node.transform.basis.get_scale().y
+		if node.transform.origin.distance_to(eye) > height + FORAGE_REACH:
+			continue
+		var b: Array = e.basis
+		var basis := Basis(Vector3(b[0], b[1], b[2]), Vector3(b[3], b[4], b[5]), Vector3(b[6], b[7], b[8]))
+		var at: Array = e.at
+		var info := _limbs_of(kind, _felled_key(kind, int(e.get("variant", kind.get_meta("variant", 0))), Transform3D(basis, Vector3(at[0], at[1], at[2])), float(e.get("cut", 0.0))))
+		var gone: Array = e.get("stripped", [])
+		for id in info.limbs:
+			if id in gone:
+				continue
+			for q: Vector3 in (info.limbs[id].pts as PackedVector3Array):
+				var v := node.transform * q - eye
+				var t := v.dot(fwd)
+				if t < 0.0 or t > FORAGE_REACH:
+					continue
+				var d := (v - fwd * t).length()
+				if d < best_d:
+					best_d = d
+					best_j = j
+					best_id = id
+	if best_j < 0:
+		return false
+	var inv: Inventory = main.inventory
+	var hand := Inventory.LEFT if Foraging._room(inv.get_at(Inventory.LEFT), "stick") else (Inventory.RIGHT if Foraging._room(inv.get_at(Inventory.RIGHT), "stick") else -1)
+	if hand < 0:
+		main.chat.say("Your hands are full.", Color(0.85, 0.85, 0.8))
+		return true
+	var e: Dictionary = _lying[best_j]
+	var kind := pop.kind_by_id(StringName(str(e.get("kind", ""))))
+	var node: Node3D = _nodes[best_j]
+	var b: Array = e.basis
+	var basis := Basis(Vector3(b[0], b[1], b[2]), Vector3(b[3], b[4], b[5]), Vector3(b[6], b[7], b[8]))
+	var at: Array = e.at
+	var xf := Transform3D(basis, Vector3(at[0], at[1], at[2]))
+	var variant := int(e.get("variant", kind.get_meta("variant", 0)))
+	var key := _felled_key(kind, variant, xf, float(e.get("cut", 0.0)))
+	var info := _limbs_of(kind, key)
+	# its sticks: one a metre and a bit of limb, as many as the hand holds
+	var long_ := float(info.limbs[best_id].len) * basis.get_scale().y
+	var sticks := clampi(int(long_ / 0.9) + 1, 1, 8)
+	for h: int in [hand, Inventory.RIGHT if hand == Inventory.LEFT else Inventory.LEFT]: # (the rest into the other hand, if it's room)
+		var held: Dictionary = inv.get_at(h)
+		if sticks <= 0 or not Foraging._room(held, "stick"):
+			continue
+		var have := int(held.get("count", 0))
+		var n := mini(sticks, Items.stack_of("stick") - have)
+		inv.set_at(h, {"id": "stick", "count": have + n})
+		sticks -= n
+	# the limb gone from it: its model again without it, and nothing to stand on there
+	var gone: Array = e.get("stripped", [])
+	gone.append(best_id)
+	e["stripped"] = gone
+	var sv: Array = e.get("stripes", [0.0, 1.0])
+	var fresh := _felled_model(kind, variant, xf, float(e.get("cut", 0.0)), Vector3(sv[0], 0.0, sv[1]), gone)
+	fresh.transform = node.transform
+	node.queue_free()
+	_nodes[best_j] = fresh
+	if best_j < _solids.size() and not (_solids[best_j] as Array).is_empty():
+		pop.remove_fallen(_solids[best_j][0], _solids[best_j][1])
+	_solids[best_j] = _solid(kind, fresh.transform, float(e.get("cut", 0.0)), gone, info.lines)
+	return true
+
+
+func _is_falling(node: Node3D) -> bool:
+	for f in _falling:
+		if f.node == node:
+			return true
+	return false
 
 
 ## Meshes drawn as the population draws a kind: every level of detail, each
@@ -664,9 +865,12 @@ func from_list(list: Array) -> void:
 			e["rested"] = REST_VERSION
 		var sv: Array = e.get("stripes", e.get("chop", [dir.x, dir.z]))
 		var stripes := Vector3(sv[0], 0.0, sv[1])
-		var node := _felled_model(kind, int(kind.get_meta("variant", 0)), Transform3D(basis, origin), float(e.get("cut", 0.0)), stripes)
+		var variant := int(e.get("variant", kind.get_meta("variant", 0)))
+		var gone: Array = e.get("stripped", [])
+		var node := _felled_model(kind, variant, Transform3D(basis, origin), float(e.get("cut", 0.0)), stripes, gone)
 		node.transform = Transform3D(Basis(Vector3.UP.cross(dir).normalized(), float(e.get("angle", PI * 0.5))) * basis, pivot)
-		_solid(kind, node.transform, float(e.get("cut", 0.0)))
+		var lines: Array = [] if gone.is_empty() else _limbs_of(kind, _felled_key(kind, variant, Transform3D(basis, origin), float(e.get("cut", 0.0)))).lines
+		var solid := _solid(kind, node.transform, float(e.get("cut", 0.0)), gone, lines)
 		var s := float(e.get("stump_scale", 0.0))
 		if s > 0.0:
 			var sn := _model(_fresh_stump(kind))
@@ -677,3 +881,5 @@ func from_list(list: Array) -> void:
 			sn.transform = Transform3D(_stump_basis(stripes, s, sh), origin)
 			_solid_stump(origin, float(e.get("cut", 0.0)), s)
 		_lying.append(e)
+		_nodes.append(node)
+		_solids.append(solid)
