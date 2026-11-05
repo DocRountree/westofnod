@@ -440,7 +440,7 @@ func _mount() -> Dictionary:
 	var bite := fmod(_mate_t, 7.0) < 1.6
 	_neck_to = Vector2(-0.7 if bite else -0.2, 0.0)
 	_jaw_to = 0.3 if bite else 0.0
-	return {"at": Vector3(0.0, float(S.body_h) * 0.5, float(S.body_len) * 0.42), "basis": Basis(Vector3.RIGHT, 0.5), "grips": {
+	return {"at": Vector3(0.0, float(S.body_h) * 0.66, float(S.body_len) * 0.52), "basis": Basis(Vector3.RIGHT, 0.5), "grips": {
 		0: Vector3(-float(S.body_w) * 0.95, -40.0, 120.0), 1: Vector3(float(S.body_w) * 0.95, -40.0, 120.0)}, "free": free}
 
 

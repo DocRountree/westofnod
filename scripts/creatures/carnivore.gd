@@ -1386,8 +1386,8 @@ func _after_mate() -> void:
 
 
 ## Joined, on her: his pelvis thrusting, in bouts (his body driven forward
-## and back on her, a little tilt with it); his hind legs braced, straight,
-## thrown back (near hyperextended), his feet planted on the ground behind.
+## and back on her, a little tilt with it); his hind legs braced back, a
+## little bent still, his feet planted on the ground behind.
 ## (A dict's "thrust": false, the species' own: a canid's tie.)
 func _mount_thrust(m: Dictionary, her_t: Transform3D, hs: float) -> Dictionary:
 	if not bool(m.get("thrust", true)):
@@ -1411,7 +1411,7 @@ func _mount_thrust(m: Dictionary, her_t: Transform3D, hs: float) -> Dictionary:
 		var hp: Vector3 = L.hip
 		var hip_w := t0 * Vector3(hp.x * side, hp.y, hp.z)
 		var fw: Vector3 = cur * (free[i] as Vector3)
-		var reach := (float(L.f) + float(L.t) + float(L.s)) * MM * size * 0.97
+		var reach := (float(L.f) + float(L.t) + float(L.s)) * MM * size * 0.86 # (braced, not locked straight)
 		# |fw + back * u - hip_w| = reach, for u >= 0
 		var d := fw - hip_w
 		var bq := 2.0 * d.dot(back)

@@ -142,7 +142,7 @@ func _mount() -> Dictionary:
 	_neck_to = Vector2(-1.0, 0.0)
 	_jaw_to = 0.4
 	_ears_to = -0.6
-	return {"at": Vector3(0.0, 150.0, 150.0), "basis": Basis(Vector3.RIGHT, 0.22), "grips": {
+	return {"at": Vector3(0.0, 175.0, 185.0), "basis": Basis(Vector3.RIGHT, 0.22), "grips": {
 		0: Vector3(-96.0, 10.0, -60.0), 1: Vector3(96.0, 10.0, -60.0)}, "free": free}
 
 

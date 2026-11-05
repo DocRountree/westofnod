@@ -493,7 +493,7 @@ func _mount() -> Dictionary:
 		var w: Vector3 = _mate.call("_out", Vector3(float(S.body_w) * 0.6 * side, -body_h, float(S.body_len) * 0.75))
 		w.y = _ground(w.x, w.z)
 		free[i] = inv * w
-	return {"at": Vector3(0.0, float(S.body_h) * 0.55, float(S.body_len) * 0.42), "basis": Basis(Vector3.RIGHT, 0.6), "grips": {
+	return {"at": Vector3(0.0, float(S.body_h) * 0.78, float(S.body_len) * 0.56), "basis": Basis(Vector3.RIGHT, 0.6), "grips": {
 		0: Vector3(-float(S.body_w) * 0.9, 0.0, 400.0), 1: Vector3(float(S.body_w) * 0.9, 0.0, 400.0)}, "free": free}
 
 
