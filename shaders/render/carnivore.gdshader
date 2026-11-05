@@ -421,6 +421,24 @@ void fragment() {
 		}
 		if (pt == 5.0)
 			c = back * 0.85;
+	} else if (species == 13) {
+		// a moose: dark brown, near black above, its legs pale grey brown
+		// below (its stockings), its muzzle browner; the bell its body's; a
+		// calf red brown, unspotted. Its antlers (part 7) in velvet in summer
+		// (brown felt) or hard and pale; its hooves black (part 4)
+		vec3 body = young ? vec3(0.5, 0.3, 0.16) : vec3(0.17, 0.12, 0.085);
+		c = countershade(body * 0.82, body, body * 1.15, ny, -0.6);
+		c *= 0.85 + 0.3 * vn(rp * vec3(0.03, 0.03, 0.01)); // (its long coarse hair in locks)
+		if (fw > 0.0)
+			c = mix(c, young ? body * 1.1 : vec3(0.3, 0.21, 0.14), fw * (1.0 - smoothstep(muzzle_z - 60.0, muzzle_z + 60.0, hp.z)));
+		if (leg)
+			c = mix(c, young ? body * 1.15 : vec3(0.42, 0.37, 0.3), smoothstep(0.45, 0.7, a));
+		if (pt == 5.0)
+			c = rn.z > 0.0 ? mix(body, vec3(0.4, 0.34, 0.28), 0.5) : body;
+		if (pt == 4.0)
+			c = vec3(0.05, 0.045, 0.04);
+		if (pt == 7.0)
+			c = phase == 0 ? vec3(0.27, 0.19, 0.13) * (0.9 + 0.2 * vn(rp * 0.05)) : mix(vec3(0.74, 0.68, 0.57), vec3(0.45, 0.38, 0.3), vn(rp * 0.02) * 0.6);
 	} else {
 		// a white-tailed deer: summer red brown, darker down its spine;
 		// winter grey brown; white beneath and inside its legs, its chin, a
@@ -564,9 +582,9 @@ void fragment() {
 		NORMAL = normalize(abs(det) * n - grad * k);
 	}
 	if (pt == 7.0) { // (horn, antler, claw: hard, a sheen)
-		ROUGHNESS = species == 7 && phase == 0 ? 0.85 : 0.4;
+		ROUGHNESS = (species == 7 || species == 13) && phase == 0 ? 0.85 : 0.4;
 		SPECULAR = 0.5;
-	} else if (pt == 4.0 && (species == 6 || species == 7)) {
+	} else if (pt == 4.0 && (species == 6 || species == 7 || species == 13)) {
 		ROUGHNESS = 0.45;
 		SPECULAR = 0.45;
 	} else {

@@ -92,11 +92,21 @@ var _part_m: Dictionary = {}
 
 
 func _init(young_ := false, season_ := "summer") -> void:
-	S = SPEC
+	S = _spec()
 	young = young_
 	season = int(SEASONS.get(season_, 0))
-	super(young_, 0.22 if young_ else 0.5)
+	super(young_, _young_size() if young_ else 0.5)
 	_setup()
+
+
+## (The species' measures: a moose's its own, on the deer's ways.)
+func _spec() -> Dictionary:
+	return SPEC
+
+
+## (A newborn's size, of the adult's.)
+func _young_size() -> float:
+	return 0.22
 
 
 func _male_size() -> float:

@@ -1,0 +1,965 @@
+class_name Frog
+extends Node3D
+## A northern leopard frog (Lithobates pipiens), drawn at twice life size
+## (its parts modelled at life size, about 80 mm snout to vent: MM). Built
+## from parts, posed every frame by hand (procedural: no clips).
+##
+## The frog: green to brown above, with rows of round dark spots each ringed
+## pale; a pale fold (a dorsolateral ridge) down each side of its back; its
+## belly white; its snout pointed; big bulging golden eyes, their pupils
+## horizontal; the round drum of its ear (the tympanum) behind each eye; its
+## hind legs long and folded in a Z under it, the feet long, webbed, its
+## forelegs short; a male's thumbs swollen dark (his nuptial pads), and a
+## vocal sac each side over the arm, swelling as he calls.
+## Its young (Frog.new(true)): a tadpole, dev 0 .. 1 (its development):
+## olive brown flecked gold, a round body and a long fin-edged tail, swimming;
+## its hind legs growing out at its tail's root, then its forelegs breaking
+## through, its tail shrinking away; out of the water a froglet, growing.
+##
+## What it does (each a method; its own ways when told none):
+## - sit(), wander(centre, radius): sat, its throat pulsing (breathing),
+##   hopping a little way now and then
+## - hop(to): crouch, a leap (its hind legs thrown out straight behind), down
+## - swim(to): in the water, its hind legs kicking together, gliding; float():
+##   at the surface, only its eyes and snout out
+## - hunt(prey) (Frog.fly_of(): a fly or a cricket): turned to it, still,
+##   then its tongue flicked out and back, the prey gone, gulped (its eyes
+##   pulled down into its head to push it down)
+## - croak(): (a male's) his vocal sacs swelling and the snore of his call, in
+##   bouts, floating in the shallows
+## - flee(from): a leap away and another, into the water if it can
+## - mate(her): (a male's) on her back, his forelegs clasped round her
+##   behind her arms (amplexus), floating; then she lays (lay()): an egg mass
+##   (Eggs: a clump of black-centred jelly spheres) on a stem under the water,
+##   him fertilizing it; let go
+## - a tadpole: swim about, grazing, its tail beating; metamorphose(): on
+##   through its change at once to a froglet
+##
+## Its world: water_y (the pond's surface), floor_y (its floor), pond
+## (centre, half extents x, z), stems (each [foot, tip]); height (the
+## ground's y at x, z, outside the pond).
+## Steering (pilot.gd): go, go_to, face, stop, act (wander {centre, radius},
+## hop {at}, swim {at}, hunt {prey}, call (croak()), flee {from}, mate {partner}, lay,
+## metamorphose), behaviours, is_busy, action_finished.
+## Its position is set every frame: put it under a node that isn't moved.
+
+signal action_finished(name: String, ok: bool)
+const PilotScript := preload("res://scripts/creatures/pilot.gd")
+const MM := 0.002 ## m drawn per model mm (twice life size)
+const GREEN := Color(0.38, 0.5, 0.24)
+const BROWN := Color(0.4, 0.36, 0.22)
+
+var male := false
+var young := false ## a tadpole (then a froglet)
+var dev := 1.0 ## a tadpole's development: 0 no legs .. 0.5 its hind legs .. 0.75 its forelegs .. 1 a froglet
+var size := 1.0
+var height: Callable ## (x, z) -> the ground's y (outside the pond)
+var water_y := 0.0
+var floor_y := -0.2
+var pond := [Vector3.ZERO, Vector2(0.5, 0.4)]
+var stems: Array = []
+var egg_masses: Array[Node3D] = []
+
+var _pos := Vector3.ZERO
+var _vel := Vector3.ZERO
+var _yaw := 0.0
+var _pitch := 0.0
+var _t := 0.0
+var _st := 0.0
+var _wait := 0.0
+var _mode := "sit"
+var _stage := 0
+var _centre := Vector3.ZERO
+var _radius := 0.3
+var _target := Vector3.ZERO
+var _airborne := false
+var _crouch := 0.0
+var _kick := 0.0 # (a hop's or a stroke's leg thrust, 0 .. 1)
+var _sac := 0.0 # (a male's vocal sacs, 0 .. 1)
+var _throat := 0.0
+var _tongue := 0.0
+var _gulp := 0.0
+var _prey: Node3D
+var _mate: Frog
+var _role := ""
+var _held_by: Frog
+var _growing := 0.0
+var _pilot: PilotScript
+var _piloting := false
+var _p_done := false
+var rng := RandomNumberGenerator.new()
+# the parts
+var _body: Node3D
+var _skin: ShaderMaterial
+var _eyes: Array[Node3D] = []
+var _sacs: Array[MeshInstance3D] = []
+var _throat_mi: MeshInstance3D
+var _tongue_mi: MeshInstance3D
+var _hind: Array = [] # [hip node, thigh, shin, foot] each side
+var _fore: Array = []
+var _tail: Array[Node3D] = []
+var _tadpole: Node3D
+var _frog: Node3D
+var _skin_mats: Array[ShaderMaterial] = []
+
+static var _sphere: SphereMesh
+static var _cyl: CylinderMesh
+static var _skin_sh: Shader
+
+
+func _init(young_ := false) -> void:
+	young = young_
+	dev = 0.0 if young_ else 1.0
+	size = 0.25 if young_ else 1.0
+	rng.randomize()
+
+
+func _ready() -> void:
+	if _sphere == null:
+		_sphere = SphereMesh.new()
+		_sphere.radius = 0.5
+		_sphere.height = 1.0
+		_sphere.radial_segments = 16
+		_sphere.rings = 8
+		_cyl = CylinderMesh.new()
+		_cyl.top_radius = 0.5
+		_cyl.bottom_radius = 0.5
+		_cyl.height = 1.0
+		_cyl.radial_segments = 8
+	_body = Node3D.new()
+	add_child(_body)
+	_build()
+	if young:
+		_mode = "tadpole"
+		_centre = pond[0]
+
+
+func place(p: Vector3, yaw := 0.0) -> void:
+	_pos = p
+	if young and dev < 1.0:
+		_pos.y = lerpf(floor_y, water_y, 0.5)
+	else:
+		_pos.y = _ground(p.x, p.z)
+	_yaw = yaw
+	_place()
+
+
+# --- its model ----------------------------------------------------------------
+
+func _mat(c: Color, rough := 0.5) -> StandardMaterial3D:
+	var m := StandardMaterial3D.new()
+	m.albedo_color = c
+	m.roughness = rough
+	return m
+
+
+func _part(at: Vector3, sz: Vector3, mat: Material, parent: Node3D) -> MeshInstance3D:
+	var mi := MeshInstance3D.new()
+	mi.mesh = _sphere
+	mi.position = at
+	mi.scale = sz
+	mi.material_override = mat
+	parent.add_child(mi)
+	return mi
+
+
+func _bone(mat: Material, parent: Node3D) -> MeshInstance3D:
+	var mi := MeshInstance3D.new()
+	mi.mesh = _sphere # (limbs: stretched ellipsoids, soft)
+	mi.material_override = mat
+	parent.add_child(mi)
+	return mi
+
+
+## A limb segment from a to b (its parent's mm), r thick.
+static func _seg_to(mi: MeshInstance3D, a: Vector3, b: Vector3, r: float) -> void:
+	var d := b - a
+	var l := maxf(d.length(), 0.01)
+	var z := d / l
+	var x := z.cross(Vector3.UP if absf(z.y) < 0.9 else Vector3.RIGHT).normalized()
+	var y := z.cross(x)
+	mi.transform = Transform3D(Basis(x * r * 2.0, y * r * 1.6, z * (l + r)), (a + b) * 0.5)
+
+
+## Its skin: green brown above, round dark spots each ringed pale, the
+## ridges' cream; its belly white, the change soft at its sides; moist (a
+## sheen). (Coords: its parts' own, mm; `pale` a part's share of belly.)
+static func _skin_shader() -> Shader:
+	if _skin_sh == null:
+		_skin_sh = Shader.new()
+		_skin_sh.code = """shader_type spatial;
+uniform vec3 back : source_color = vec3(0.38, 0.5, 0.24);
+uniform vec3 spot : source_color = vec3(0.14, 0.13, 0.08);
+uniform vec3 belly : source_color = vec3(0.9, 0.88, 0.8);
+uniform float spots = 1.0;
+uniform mat4 frog_inv; // (its own space: the spots stay on its skin)
+varying vec3 wp;
+varying float ny;
+float h3(vec3 p) { return fract(sin(dot(p, vec3(12.9898, 78.233, 37.719))) * 43758.5453); }
+void vertex() { wp = (frog_inv * (MODEL_MATRIX * vec4(VERTEX, 1.0))).xyz; ny = NORMAL.y; }
+void fragment() {
+	vec3 n = (inverse(VIEW_MATRIX) * vec4(NORMAL, 0.0)).xyz;
+	vec3 c = back;
+	// (its spots: round, dark, a pale ring, in loose rows)
+	vec3 q = wp / 0.017;
+	vec3 cell = floor(q);
+	float best = 9.0;
+	for (int x = -1; x <= 1; x++) for (int z = -1; z <= 1; z++) {
+		vec3 k = cell + vec3(float(x), 0.0, float(z));
+		vec3 at = k + vec3(h3(k), 0.5, h3(k + 3.1));
+		best = min(best, length((q - at).xz) / (0.55 + 0.35 * h3(k + 1.7)));
+	}
+	float sp = (1.0 - smoothstep(0.36, 0.42, best)) * spots * step(0.35, h3(cell + 9.1));
+	float ring = smoothstep(0.38, 0.43, best) * (1.0 - smoothstep(0.46, 0.52, best)) * spots * step(0.35, h3(cell + 9.1));
+	c = mix(c, spot, sp);
+	c = mix(c, c * 1.3 + vec3(0.05), ring * 0.6);
+	float up = n.y;
+	c = mix(belly, c, smoothstep(-0.35, 0.05, up));
+	ALBEDO = c;
+	ROUGHNESS = 0.42;
+	SPECULAR = 0.5;
+	CLEARCOAT = 0.15;
+	CLEARCOAT_ROUGHNESS = 0.3;
+}
+"""
+	return _skin_sh
+
+
+func _build() -> void:
+	_skin = ShaderMaterial.new()
+	_skin.shader = _skin_shader()
+	_skin_mats.append(_skin)
+	_skin.set_shader_parameter("back", GREEN if rng.randf() < 0.65 else BROWN)
+	var ridge := _mat(Color(0.75, 0.72, 0.5), 0.4)
+	var eye := _mat(Color(0.72, 0.58, 0.22), 0.1)
+	eye.clearcoat_enabled = true
+	eye.clearcoat = 1.0
+	var dark := _mat(Color(0.04, 0.04, 0.03), 0.2)
+	# the frog (a tadpole's hidden till it's changed)
+	_frog = Node3D.new()
+	_body.add_child(_frog)
+	_part(Vector3(0.0, 9.0, 4.0), Vector3(34.0, 20.0, 46.0), _skin, _frog) # (its body)
+	_part(Vector3(0.0, 9.5, -18.0), Vector3(30.0, 15.0, 26.0), _skin, _frog) # (its head)
+	_part(Vector3(0.0, 8.0, -30.0), Vector3(16.0, 9.0, 12.0), _skin, _frog) # (its snout)
+	_throat_mi = _part(Vector3(0.0, 3.5, -18.0), Vector3(22.0, 6.0, 18.0), _mat(Color(0.88, 0.86, 0.78), 0.35), _frog)
+	for side: float in [-1.0, 1.0]:
+		var e := Node3D.new()
+		e.position = Vector3(8.0 * side, 16.0, -19.0)
+		_frog.add_child(e)
+		_part(Vector3.ZERO, Vector3(8.5, 8.0, 9.0), eye, e)
+		_part(Vector3(2.5 * side, 0.6, -0.8), Vector3(3.4, 1.6, 4.4), dark, e) # (its pupil, horizontal)
+		_part(Vector3(0.3 * side, 2.2, 0.4), Vector3(8.2, 3.2, 8.0), _skin, e) # (its lid, over the eye's top)
+		_eyes.append(e)
+		_part(Vector3(13.0 * side, 11.0, -11.0), Vector3(1.2, 6.5, 6.5), _mat(Color(0.32, 0.3, 0.18), 0.35), _frog) # (its tympanum)
+		var rg := _part(Vector3(10.5 * side, 16.4, 6.0), Vector3(2.2, 1.4, 26.0), ridge, _frog) # (the dorsolateral ridge, flush along its back)
+		rg.rotation.y = -0.08 * side
+		if male:
+			var sc := _part(Vector3(14.5 * side, 6.0, -8.0), Vector3(8.0, 8.0, 9.0), _mat(Color(0.5, 0.52, 0.38, 0.85), 0.25), _frog) # (his vocal sac)
+			sc.visible = false
+			_sacs.append(sc)
+	_tongue_mi = _part(Vector3(0.0, 6.0, -30.0), Vector3(4.0, 2.0, 1.0), _mat(Color(0.85, 0.45, 0.45), 0.3), _frog)
+	_tongue_mi.visible = false
+	# its legs: the hind long, folded in a Z; the fore short
+	var foot := _skin
+	for side: float in [-1.0, 1.0]:
+		var hip := Node3D.new()
+		hip.position = Vector3(11.0 * side, 6.0, 22.0)
+		_frog.add_child(hip)
+		var toes: Array = []
+		var tm := _mat(Color(0.42, 0.44, 0.26), 0.4)
+		for k in 5:
+			toes.append(_bone(tm, _frog))
+		_hind.append([hip, _bone(_skin, _frog), _bone(_skin, _frog), _bone(foot, _frog), side, toes])
+		var sh := Node3D.new()
+		sh.position = Vector3(10.0 * side, 4.0, -8.0)
+		_frog.add_child(sh)
+		var thumb := _bone(_mat(Color(0.12, 0.1, 0.08), 0.5) if male else _skin, _frog)
+		_fore.append([sh, _bone(_skin, _frog), _bone(_skin, _frog), side, thumb])
+	# the tadpole
+	_tadpole = Node3D.new()
+	_body.add_child(_tadpole)
+	var tad := ShaderMaterial.new()
+	tad.shader = _skin_shader()
+	_skin_mats.append(tad)
+	tad.set_shader_parameter("back", Color(0.3, 0.28, 0.16))
+	tad.set_shader_parameter("spot", Color(0.62, 0.55, 0.3)) # (gold flecks)
+	tad.set_shader_parameter("belly", Color(0.78, 0.76, 0.66))
+	tad.set_shader_parameter("spots", 0.6)
+	_part(Vector3(0.0, 6.0, -2.0), Vector3(22.0, 17.0, 30.0), tad, _tadpole)
+	for side: float in [-1.0, 1.0]:
+		_part(Vector3(7.0 * side, 9.0, -12.0), Vector3(4.0, 4.0, 4.0), dark, _tadpole)
+	var fin := _mat(Color(0.45, 0.42, 0.3, 0.55), 0.4)
+	fin.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	var prev: Node3D = _tadpole
+	var at := Vector3(0.0, 6.0, 11.0)
+	for k in 6:
+		var n := Node3D.new()
+		n.position = at
+		prev.add_child(n)
+		_tail.append(n)
+		var w := 6.0 * (1.0 - float(k) / 7.0) + 1.0
+		_part(Vector3(0.0, 0.0, 4.0), Vector3(w * 0.6, w * 0.9, 9.0), tad, n) # (its muscle)
+		_part(Vector3(0.0, 0.0, 4.0), Vector3(0.6, w * 2.6, 9.5), fin, n) # (its fins, above and below)
+		prev = n
+		at = Vector3(0.0, 0.0, 8.0)
+	_show_stage()
+
+
+## (Which body shows: the tadpole's, the frog's, or both as it changes.)
+func _show_stage() -> void:
+	_tadpole.visible = dev < 0.95
+	_frog.visible = dev >= 0.45
+	if dev < 0.95:
+		var tail_k := clampf((0.95 - dev) / 0.25, 0.0, 1.0) # (its tail shrinking away)
+		for n in _tail:
+			n.scale = Vector3.ONE * lerpf(0.55, 1.0, tail_k) if dev >= 0.7 else Vector3.ONE
+		_tail[0].scale = Vector3(1.0, 1.0, tail_k if dev >= 0.7 else 1.0)
+	_frog.scale = Vector3.ONE * clampf((dev - 0.4) / 0.6, 0.2, 1.0)
+
+
+# --- what it does ---------------------------------------------------------------
+
+func sit() -> void:
+	_go_mode("sit")
+
+
+func wander(centre: Vector3, radius := 0.3) -> void:
+	_go_mode("wander")
+	_centre = centre
+	_radius = radius
+
+
+func hop(to: Vector3) -> void:
+	_go_mode("hop")
+	_target = to
+
+
+func swim(to: Vector3) -> void:
+	_go_mode("swim")
+	_target = to
+
+
+func float_up() -> void:
+	_go_mode("float")
+
+
+func hunt(prey: Node3D) -> void:
+	if prey == null:
+		return
+	_go_mode("hunt")
+	_prey = prey
+
+
+func croak() -> void:
+	if not male or young:
+		return
+	_go_mode("call")
+
+
+func flee(from: Vector3) -> void:
+	_go_mode("flee")
+	_target = from
+
+
+## (A tadpole's) on through its change at once: its legs, its tail gone, out.
+func metamorphose() -> void:
+	if not young or dev >= 1.0:
+		return
+	_growing = 1.0
+
+
+func lay() -> void:
+	if male or young:
+		return
+	_go_mode("lay")
+
+
+func _go_mode(m: String) -> void:
+	if young and dev < 1.0 and m not in ["tadpole", "lay"]:
+		m = "tadpole"
+	_mode = m
+	_stage = 0
+	_st = 0.0
+	_wait = 0.0
+
+
+func mate(partner: Node3D, secs := 14.0) -> bool:
+	if partner == null or not (partner is Frog) or not male or young or _role != "":
+		return false
+	var her := partner as Frog
+	if her.male or her.young or her._role != "":
+		return false
+	_mate = her
+	_role = "male"
+	her._mate = self
+	her._role = "female"
+	her._go_mode("courted")
+	_go_mode("mate")
+	_wait = secs
+	return true
+
+
+func _end_mate() -> void:
+	var her := _mate
+	_mate = null
+	_role = ""
+	_held_by = null
+	if is_instance_valid(her):
+		her._mate = null
+		her._role = ""
+		her._held_by = null
+		her.wander(her._pos, 0.3)
+	_airborne = false
+	_pos.y = _ground(_pos.x, _pos.z)
+	wander(_pos, 0.3)
+
+
+# --- the motor -------------------------------------------------------------------
+
+func _process(dt: float) -> void:
+	if dt <= 0.0 or _body == null:
+		return
+	_t += dt
+	_st += dt
+	_wait -= dt
+	if _pilot:
+		_pilot.tick(dt)
+	if young and dev < 1.0:
+		_grow(dt)
+	if is_instance_valid(_held_by):
+		_carried()
+	elif not _piloting:
+		_think(dt)
+	_move(dt)
+	_place()
+	_pose(dt)
+
+
+## A tadpole growing: its legs coming, its tail going; then out of the water.
+func _grow(dt: float) -> void:
+	var rate := 1.0 / 150.0 + _growing * 0.25
+	dev = minf(dev + rate * dt, 1.0)
+	size = lerpf(0.25, 0.45, dev)
+	_show_stage()
+	if dev >= 1.0:
+		_growing = 0.0
+		_tadpole.visible = false
+		# (out onto the bank: a froglet, growing on)
+		var c: Vector3 = pond[0]
+		var e: Vector2 = pond[1]
+		var a := atan2(_pos.z - c.z, _pos.x - c.x)
+		_target = c + Vector3(cos(a) * (e.x + 0.12), 0.0, sin(a) * (e.y + 0.12))
+		_mode = "hop"
+		_stage = 0
+
+
+func _in_water(p: Vector3) -> bool:
+	var c: Vector3 = pond[0]
+	var e: Vector2 = pond[1]
+	return absf(p.x - c.x) < e.x and absf(p.z - c.z) < e.y
+
+
+func _ground(x: float, z: float) -> float:
+	if _in_water(Vector3(x, 0.0, z)):
+		return water_y - 0.004 # (floating: its back at the surface)
+	return float(height.call(x, z)) if height.is_valid() else 0.0
+
+
+func _think(dt: float) -> void:
+	match _mode:
+		"tadpole":
+			# (swimming about under the water, grazing; its tail beating)
+			if _wait <= 0.0 or _pos.distance_to(_target) < 0.02:
+				var c: Vector3 = pond[0]
+				var e: Vector2 = pond[1]
+				_target = Vector3(c.x + rng.randf_range(-e.x, e.x) * 0.85, lerpf(floor_y + 0.01, water_y - 0.02, rng.randf()), c.z + rng.randf_range(-e.y, e.y) * 0.85)
+				_wait = rng.randf_range(2.0, 5.0)
+				if rng.randf() < 0.3: # (still a while, grazing at the bottom)
+					_target = Vector3(_pos.x, floor_y + 0.006, _pos.z)
+		"sit", "wander":
+			_throat = 0.5 + 0.5 * sin(_t * 9.0)
+			if _mode == "wander" and _wait <= 0.0 and not _airborne:
+				_wait = rng.randf_range(2.5, 6.0)
+				if rng.randf() < 0.55:
+					var a := rng.randf() * TAU
+					var to := _centre + Vector3(cos(a), 0.0, sin(a)) * _radius * rng.randf()
+					_leap(to)
+		"hop":
+			if _stage == 0 and not _airborne:
+				_leap(_target)
+				_stage = 1
+			elif _stage == 1 and not _airborne:
+				wander(_pos, 0.25)
+		"swim":
+			if _pos.distance_to(Vector3(_target.x, _pos.y, _target.z)) < 0.02:
+				float_up()
+		"float":
+			_throat = 0.5 + 0.5 * sin(_t * 7.0)
+			if _st > 10.0:
+				wander(_pos, 0.25)
+		"hunt":
+			if not is_instance_valid(_prey):
+				wander(_pos, 0.25)
+				return
+			var d := Vector3(_prey.position.x - _pos.x, 0.0, _prey.position.z - _pos.z)
+			_face(d)
+			var reach := 0.06 * size
+			if d.length() > reach * 1.6 and _stage == 0 and not _airborne:
+				_leap(_prey.position - d.normalized() * reach) # (nearer)
+			elif d.length() <= reach * 1.6 and _stage == 0 and not _airborne:
+				_stage = 1
+				_st = 0.0
+			elif _stage == 1: # (the tongue out and back)
+				_tongue = sin(clampf(_st / 0.18, 0.0, 1.0) * PI)
+				if _st > 0.09 and is_instance_valid(_prey):
+					_prey.queue_free()
+					_prey = null
+					_stage = 2
+					_st = 0.0
+		"call":
+			_float_at(_pos)
+			var bout := fmod(_st, 5.0)
+			_sac = (0.5 + 0.5 * sin(_t * 26.0)) if bout < 2.2 else move_toward(_sac, 0.0, dt * 4.0)
+			if _st > 20.0:
+				_sac = 0.0
+				wander(_pos, 0.25)
+		"flee":
+			if not _airborne:
+				if _stage < 2:
+					var away := Vector3(_pos.x - _target.x, 0.0, _pos.z - _target.z).normalized()
+					var to := _pos + away * 0.25 * size
+					if not _in_water(_pos): # (for the water, if it's near)
+						var c: Vector3 = pond[0]
+						if c.distance_to(_pos) < 1.0:
+							to = _pos + (c - _pos).normalized() * 0.3
+					_leap(to)
+					_stage += 1
+				else:
+					wander(_pos, 0.3)
+		"courted":
+			_float_at(_pos)
+		"mate":
+			_mate_think(dt)
+		"lay":
+			_lay_think(dt)
+	if _mode == "hunt" and _stage == 2:
+		_gulp = sin(clampf(_st / 0.4, 0.0, 1.0) * PI)
+		if _st > 0.6:
+			_gulp = 0.0
+			wander(_pos, 0.25)
+
+
+func _float_at(_p: Vector3) -> void:
+	if not _in_water(_pos):
+		var c: Vector3 = pond[0]
+		_target = c + (_pos - c) * 0.5
+		if not _airborne:
+			_leap(Vector3(_target.x, water_y, _target.z))
+
+
+func _mate_think(_dt: float) -> void:
+	var her := _mate
+	if not is_instance_valid(her):
+		_end_mate()
+		return
+	match _stage:
+		0: # (to her: hops and strokes)
+			if not _airborne:
+				var d := her._pos - _pos
+				d.y = 0.0
+				if d.length() < 0.05 * size:
+					_held_by_set(her)
+					_stage = 1
+					_st = 0.0
+				else:
+					_leap(her._pos - d.normalized() * 0.03 * size)
+		1: # (amplexus: on her back, clasped; she swims on, then lays)
+			if _st > 4.0 and her._mode != "lay":
+				her.lay()
+			if _st > _wait and her._mode != "lay":
+				_end_mate()
+
+
+func _held_by_set(her: Frog) -> void:
+	_airborne = false
+	_role = "male"
+	her._role = "female"
+	her._mode = "courted"
+	_mode = "mate"
+	_held_by = her # (he's carried on her: her back, his forelegs round her)
+
+
+## (His) carried on her back, clasped behind her arms.
+func _carried() -> void:
+	var her := _held_by
+	var hb := Basis.from_euler(Vector3(her._pitch, her._yaw, 0.0))
+	_yaw = her._yaw
+	_pitch = her._pitch + 0.15
+	_pos = her._pos + hb * (Vector3(0.0, 13.0, 4.0) * MM * her.size)
+	_crouch = 0.6
+	if _role == "male":
+		_mate_think(0.0)
+
+
+func _lay_think(_dt: float) -> void:
+	match _stage:
+		0: # (into the water, to a stem)
+			var foot: Vector3 = stems[rng.randi() % stems.size()][0] if not stems.is_empty() else pond[0]
+			_target = Vector3(foot.x, water_y, foot.z)
+			_stage = 1
+		1:
+			if not _in_water(_pos) and not _airborne:
+				_leap(Vector3(_target.x, water_y, _target.z))
+			elif _in_water(_pos):
+				var d := Vector3(_target.x - _pos.x, 0.0, _target.z - _pos.z)
+				if d.length() < 0.03:
+					_stage = 2
+					_st = 0.0
+		2: # (still, her body pumping; the mass coming out, him over her)
+			_throat = 0.5 + 0.5 * sin(_t * 4.0)
+			if _st > 4.0:
+				var e := Eggs.new()
+				e.maker = get_script()
+				e.at = Vector3(_pos.x, lerpf(water_y, floor_y, 0.35), _pos.z + 0.03)
+				e.frog = self
+				get_parent().add_child(e)
+				egg_masses.append(e)
+				_stage = 3
+				_st = 0.0
+		3:
+			if _st > 1.0:
+				if is_instance_valid(_mate):
+					_mate._end_mate()
+				wander(_pos, 0.3)
+
+
+## A leap to `to` (its ballistic arc): crouched first, then thrown out.
+func _leap(to: Vector3) -> void:
+	var d := Vector3(to.x - _pos.x, 0.0, to.z - _pos.z)
+	if d.length() < 0.005:
+		return
+	var dist := minf(d.length(), 0.45 * size + 0.05) # (as far as it can)
+	d = d.normalized()
+	_face(d * 10.0)
+	var t := 0.18 + dist * 0.6
+	_vel = d * dist / t + Vector3.UP * 9.8 * t * 0.5
+	_airborne = true
+	_kick = 1.0
+
+
+func _face(d: Vector3) -> void:
+	if Vector2(d.x, d.z).length() > 0.002:
+		_yaw = atan2(-d.x, -d.z)
+
+
+func _move(dt: float) -> void:
+	if young and dev < 1.0: # (a tadpole: swimming, its tail driving it)
+		var to := _target - _pos
+		var want := to.normalized() * 0.06 * clampf(to.length() / 0.04, 0.0, 1.0)
+		_vel = _vel.lerp(want, 1.0 - exp(-2.0 * dt))
+		_pos += _vel * dt
+		_pos.y = clampf(_pos.y, floor_y + 0.005, water_y - 0.006)
+		if Vector2(_vel.x, _vel.z).length() > 0.005:
+			var y := atan2(-_vel.x, -_vel.z)
+			_yaw += clampf(wrapf(y - _yaw, -PI, PI), -3.0 * dt, 3.0 * dt)
+		return
+	if _airborne:
+		_vel.y -= 9.8 * dt
+		_pos += _vel * dt
+		var g := _ground(_pos.x, _pos.z)
+		if _pos.y <= g and _vel.y < 0.0:
+			_pos.y = g
+			_vel = Vector3.ZERO
+			_airborne = false
+			_kick = 0.0
+		_pitch = clampf(-_vel.y * 0.15, -0.5, 0.5)
+		return
+	_pitch = lerpf(_pitch, 0.0, 1.0 - exp(-6.0 * dt))
+	if _mode == "swim" and _in_water(_pos):
+		var to := Vector3(_target.x - _pos.x, 0.0, _target.z - _pos.z)
+		var stroke := fmod(_st, 0.8) < 0.25
+		_kick = 1.0 if stroke else move_toward(_kick, 0.0, dt * 3.0)
+		_face(to)
+		_pos += to.normalized() * (0.18 if stroke else 0.05) * dt * size * 2.0
+	_pos.y = _ground(_pos.x, _pos.z)
+
+
+# --- the pose -------------------------------------------------------------------
+
+func _place() -> void:
+	transform = Transform3D(Basis.from_euler(Vector3(_pitch, _yaw, 0.0)), _pos)
+	if _body:
+		_body.scale = Vector3.ONE * MM * size
+		var inv := (global_transform if is_inside_tree() else transform).affine_inverse()
+		inv = Transform3D(inv.basis / (size * 0.5), inv.origin / (size * 0.5)) # (its size grown out of it: the spots keep theirs)
+		for m: ShaderMaterial in _skin_mats:
+			m.set_shader_parameter("frog_inv", Projection(inv))
+
+
+func _pose(dt: float) -> void:
+	# (the tadpole's tail beating)
+	if _tadpole.visible:
+		var spd := clampf(_vel.length() / 0.04, 0.2, 1.0)
+		for k in _tail.size():
+			_tail[k].rotation.y = sin(_t * 12.0 - k * 0.9) * 0.35 * spd * (0.4 + k * 0.12)
+	if not _frog.visible:
+		return
+	_crouch = move_toward(_crouch, 1.0 if _airborne else (0.6 if _mode == "float" or _mode == "call" else 0.0), dt * 6.0)
+	var ext := _kick * (1.0 if _airborne or _mode == "swim" else 0.0) # (its hind legs thrown out straight)
+	_kick = move_toward(_kick, 0.0, dt * 2.0)
+	# its hind legs: folded in a Z under it, or out straight behind
+	for L: Array in _hind:
+		var side: float = L[4]
+		var hip: Vector3 = (L[0] as Node3D).position
+		var knee := hip.lerp(hip + Vector3(10.0 * side, -2.0, 18.0), ext).lerp(hip + Vector3(8.0 * side, -3.0, -10.0), (1.0 - ext))
+		var ankle := hip.lerp(hip + Vector3(12.0 * side, -3.0, 44.0), ext).lerp(hip + Vector3(14.0 * side, -4.0, 10.0), (1.0 - ext))
+		var toe := hip.lerp(hip + Vector3(14.0 * side, -4.0, 72.0), ext).lerp(hip + Vector3(8.0 * side, -5.5, -14.0), (1.0 - ext))
+		_seg_to(L[1], hip, knee, 6.0)
+		_seg_to(L[2], knee, ankle, 4.0)
+		_seg_to(L[3], ankle, toe, 2.4)
+		var toes: Array = L[5]
+		for k in toes.size(): # (long toes, webbed: fanned out from the foot's end)
+			var fan := (float(k) - 2.0) * 0.22
+			var dirv := (toe - ankle).normalized()
+			var t2 := toe + Basis(Vector3.UP, fan) * dirv * (10.0 + 3.0 * float(2 - absi(k - 2)))
+			_seg_to(toes[k], toe, t2, 1.2)
+	for L: Array in _fore:
+		var side: float = L[3]
+		var sh: Vector3 = (L[0] as Node3D).position
+		var clasp := _role == "male" and is_instance_valid(_held_by)
+		var elbow := sh + (Vector3(8.0 * side, -4.0, 4.0) if not clasp else Vector3(6.0 * side, -6.0, -6.0))
+		var hand := elbow + (Vector3(-1.0 * side, -6.0, -8.0) if not clasp else Vector3(-8.0 * side, -6.0, -8.0))
+		_seg_to(L[1], sh, elbow, 3.0)
+		_seg_to(L[2], elbow, hand, 2.4)
+		_seg_to(L[4], hand, hand + Vector3(-2.0 * side, -1.0, -3.0), 1.6)
+	_body.rotation.x = lerpf(0.25, -0.1, _crouch) * (0.0 if _mode == "float" else 1.0) # (sat up on its forelegs, or flat)
+	_throat_mi.scale = Vector3(22.0, 6.0 + 2.5 * _throat, 18.0)
+	for e in _eyes:
+		e.position.y = 16.0 - 5.0 * _gulp # (pulled down to push its prey down)
+	for k in _sacs.size():
+		_sacs[k].visible = _sac > 0.02
+		_sacs[k].scale = Vector3(8.0, 8.0, 9.0) * lerpf(0.3, 1.6, _sac)
+	_tongue_mi.visible = _tongue > 0.02
+	_tongue_mi.scale = Vector3(4.0, 2.0, 1.0 + 110.0 * _tongue)
+	_tongue_mi.position = Vector3(0.0, 6.0, -30.0 - 55.0 * _tongue)
+
+
+# --- steering (pilot.gd) -------------------------------------------------------
+
+func _pl() -> PilotScript:
+	if _pilot == null:
+		_pilot = PilotScript.new(self)
+		_pilot.finished = action_finished.emit
+	return _pilot
+
+
+func go(direction: Vector3, speed := -1.0, seconds := -1.0) -> void:
+	_pl().go(direction, speed, seconds)
+
+
+func go_to(point: Vector3, speed := -1.0) -> void:
+	_pl().go_to(point, speed)
+
+
+func face(direction: Vector3) -> void:
+	_pl().face(direction)
+
+
+func stop() -> void:
+	_pl().stop()
+
+
+func act(name: String, args := {}) -> bool:
+	return _pl().act(name, args)
+
+
+func behaviours() -> PackedStringArray:
+	return _p_behaviours()
+
+
+func is_busy() -> bool:
+	return _pilot != null and _pilot.busy()
+
+
+func _p_here() -> Vector3:
+	return _pos
+
+
+func _p_heading() -> Vector3:
+	return Vector3(-sin(_yaw), 0.0, -cos(_yaw))
+
+
+func _p_steer(point: Vector3, _speed: float) -> void:
+	_piloting = true
+	if young and dev < 1.0:
+		_target = point
+		return
+	if not _airborne:
+		_leap(point)
+
+
+func _p_hold() -> void:
+	_piloting = true
+
+
+func _p_mobile() -> bool:
+	return _role != "male" or not is_instance_valid(_held_by)
+
+
+func _p_speed() -> float:
+	return 0.3
+
+
+func _p_reach() -> float:
+	return 0.04
+
+
+func _p_behaviours() -> PackedStringArray:
+	if young and dev < 1.0:
+		return PackedStringArray(["metamorphose"])
+	var b := PackedStringArray(["wander", "hop", "swim", "hunt", "flee"])
+	if male:
+		b.append_array(PackedStringArray(["call", "mate"]))
+	else:
+		b.append("lay")
+	return b
+
+
+func _p_act(name: String, args: Dictionary) -> bool:
+	_piloting = false
+	match name:
+		"wander":
+			wander(args.get("centre", _pos), float(args.get("radius", 0.3)))
+		"hop":
+			hop(args.get("at", _pos + _p_heading() * 0.2))
+		"swim":
+			swim(args.get("at", pond[0]))
+		"hunt":
+			if args.get("prey") == null:
+				return false
+			hunt(args.prey)
+		"call":
+			croak()
+		"flee":
+			flee(args.get("from", _pos + Vector3.FORWARD))
+		"mate":
+			return mate(args.get("partner"), float(args.get("seconds", 14.0)))
+		"lay":
+			lay()
+		"metamorphose":
+			metamorphose()
+		_:
+			return false
+	return true
+
+
+func _p_act_done(name: String) -> bool:
+	match name:
+		"hop", "flee":
+			return not _airborne and _mode == "wander"
+		"hunt":
+			return _mode != "hunt"
+		"mate":
+			return _role == ""
+		"lay":
+			return _mode != "lay"
+		"metamorphose":
+			return dev >= 1.0
+	return false
+
+
+func _p_act_secs(name: String) -> float:
+	match name:
+		"wander", "call":
+			return 15.0
+	return -1.0
+
+
+# --- props -------------------------------------------------------------------------
+
+## A fly (drawn twice life, 12 mm), sat on the ground at, its wings
+## buzzing now and then; for a frog (or a turtle) to take.
+static func fly_of(at: Vector3) -> Node3D:
+	var f := Node3D.new()
+	var s := SphereMesh.new()
+	s.radius = 0.5
+	s.height = 1.0
+	var m := StandardMaterial3D.new()
+	m.albedo_color = Color(0.1, 0.1, 0.12)
+	m.metallic = 0.4
+	var b := MeshInstance3D.new()
+	b.mesh = s
+	b.material_override = m
+	b.scale = Vector3(0.007, 0.006, 0.013)
+	b.position.y = 0.004
+	f.add_child(b)
+	var wm := StandardMaterial3D.new()
+	wm.albedo_color = Color(0.85, 0.88, 0.95, 0.4)
+	wm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	for side: float in [-1.0, 1.0]:
+		var w := MeshInstance3D.new()
+		w.mesh = s
+		w.material_override = wm
+		w.scale = Vector3(0.006, 0.0006, 0.011)
+		w.position = Vector3(0.004 * side, 0.007, 0.004)
+		w.rotation.y = 0.3 * side
+		f.add_child(w)
+	f.position = at
+	return f
+
+
+## An egg mass: a clump of jelly, each egg black above and pale below in its
+## own clear sphere, on a stem under the water; hatch() (or a while after)
+## the tadpoles out of it.
+class Eggs extends Node3D:
+	var maker: Script
+	var frog: Node3D
+	var at := Vector3.ZERO
+	var left := 60.0
+	var _done := false
+
+	func _ready() -> void:
+		var s := SphereMesh.new()
+		s.radius = 0.5
+		s.height = 1.0
+		var jm := StandardMaterial3D.new()
+		jm.albedo_color = Color(0.75, 0.82, 0.72, 0.35)
+		jm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		jm.roughness = 0.05
+		var em := StandardMaterial3D.new()
+		em.albedo_color = Color(0.06, 0.05, 0.04)
+		var rng := RandomNumberGenerator.new()
+		rng.randomize()
+		for k in 60:
+			var p := at + Vector3(rng.randf_range(-1, 1), rng.randf_range(-0.7, 0.7), rng.randf_range(-1, 1)).limit_length(1.0) * 0.03
+			var j := MeshInstance3D.new()
+			j.mesh = s
+			j.material_override = jm
+			j.scale = Vector3.ONE * 0.008
+			j.position = p
+			add_child(j)
+			var e := MeshInstance3D.new()
+			e.mesh = s
+			e.material_override = em
+			e.scale = Vector3.ONE * 0.0032
+			e.position = p
+			add_child(e)
+
+	func _process(dt: float) -> void:
+		left -= dt
+		if left <= 0.0 and not _done:
+			hatch()
+
+	func hatch(n := 5) -> void:
+		if _done or maker == null:
+			return
+		_done = true
+		var f := frog as Frog
+		for k in n:
+			var ny: Node3D = maker.new(true)
+			if is_instance_valid(f):
+				for p in ["water_y", "floor_y", "pond", "stems", "height"]:
+					ny.set(p, f.get(p))
+			get_parent().add_child(ny)
+			ny.call("place", at + Vector3(randf_range(-0.04, 0.04), 0.0, randf_range(-0.04, 0.04)), randf() * TAU)
+		queue_free()

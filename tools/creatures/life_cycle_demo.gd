@@ -47,6 +47,14 @@ extends Node3D
 ##   the pond's floor (E hunt / strike, Z perch, 1 lay, K mate: tandem, the
 ##   wheel, laying in tandem; F a nymph out of the water and emerging, the
 ##   adults patrolling; 2 the eggs hatching)
+## moose: a bull (in velvet), a cow and her calf, willows and a pond (B wade
+##   out, feeding under the water)
+## northern leopard frog: a female and a male on the bank of a little pond,
+##   reeds in it, tadpoles (E hunt: a fly; D his call; K amplexus, 1 her egg
+##   mass; F a hop, a tadpole changing; X into the water; 2 the eggs hatching)
+## painted turtle: a female and a male, a pond with a log to bask on, a bank
+##   to nest in, a hatchling (Z / A bask, F dive, X into its shell, E eat,
+##   K his claws fluttered at her face, 1 her nest dug and laid, 2 it hatching)
 ## North American beaver: a female and a male, a bank with aspens and sticks
 ##   (E eat bark, H fell an aspen and take it to the lodge), a pond and their
 ##   lodge (B swim, X tail slap and dive, M mud on the lodge)
@@ -82,7 +90,7 @@ const PupaScript := preload("res://scripts/creatures/pupa.gd")
 
 const NAMES := ["monarch", "hummingbird clearwing", "paper wasp", "carpenter ant (queen)", "red harvester (queen)", "June bug", "convergent lady beetle", "differential grasshopper", "Carolina mantis", "eastern diamondback rattlesnake", "eastern milk snake",
 		"Carolina wolf spider", "six-spotted fishing spider", "grass spider (funnel weaver)", "yellow garden spider", "pill bug", "deer mouse",
-		"green anole", "Arizona bark scorpion", "snowshoe hare", "red fox", "bobcat", "coyote", "grey wolf", "American black bear", "brown bear (grizzly)", "American bison", "white-tailed deer", "trigonalid wasp", "eastern fox squirrel", "North American beaver", "eastern grey squirrel", "blue-winged grasshopper", "common green darner"]
+		"green anole", "Arizona bark scorpion", "snowshoe hare", "red fox", "bobcat", "coyote", "grey wolf", "American black bear", "brown bear (grizzly)", "American bison", "white-tailed deer", "trigonalid wasp", "eastern fox squirrel", "North American beaver", "eastern grey squirrel", "blue-winged grasshopper", "common green darner", "moose", "northern leopard frog", "painted turtle"]
 const SpiderScript := preload("res://scripts/creatures/spider.gd")
 const IsopodScript := preload("res://scripts/creatures/isopod.gd")
 const SnakeScript := preload("res://scripts/creatures/snake.gd")
@@ -105,6 +113,9 @@ const AnoleScript := preload("res://scripts/creatures/anole.gd")
 const ScorpionScript := preload("res://scripts/creatures/scorpion.gd")
 const BisonScript := preload("res://scripts/creatures/bison.gd")
 const DeerScript := preload("res://scripts/creatures/deer.gd")
+const MooseScript := preload("res://scripts/creatures/moose.gd")
+const FrogScript := preload("res://scripts/creatures/frog.gd")
+const TurtleScript := preload("res://scripts/creatures/turtle.gd")
 const SquirrelScript := preload("res://scripts/creatures/fox_squirrel.gd")
 const GreySqScript := preload("res://scripts/creatures/grey_squirrel.gd")
 const BeaverScript := preload("res://scripts/creatures/beaver.gd")
@@ -177,6 +188,7 @@ var wolf_f: Node3D
 var wolf_m: Node3D
 var _coy_den: Node3D
 var _wolf_den: Node3D
+var _moose_sapling := Vector3.ZERO # (the bull moose's, to rub)
 var _deer_shrub := Vector3.ZERO # (the deer's: to browse)
 var _deer_sapling := Vector3.ZERO # (to rub)
 var _hares := {} # station -> its hare (to be hunted)
@@ -188,6 +200,16 @@ var _rub_trees: Array = []
 const POND := -0.004 # m: the pond's surface, a little below the plain's
 const POND_W := 0.42 # (its half width, x)
 const POND_D := 0.36 # (its half depth, z)
+const PLAIN_D := 3.0 # (the plain's half depth, z)
+const MOOSE_PW := 1.6 # (the moose's pond: half width, half depth, deep)
+const MOOSE_PD := 1.0
+const MOOSE_DEEP := 0.45
+const FROG_PW := 0.5 # (the frogs')
+const FROG_PD := 0.4
+const FROG_DEEP := 0.2
+const TURTLE_PW := 0.7 # (the turtles')
+const TURTLE_PD := 0.5
+const TURTLE_DEEP := 0.3
 const MOTH_PUPA := Vector3(0.2, 0.002, -0.2) # (off the clearwing's station)
 const MOTH_PUPA_TURN := 0.6
 var _moth_perch := Vector3.ZERO # (a stem by its pupa, to climb and hang from)
@@ -196,7 +218,7 @@ var _moth_perch_n := Vector3.BACK
 
 func _station(i: int) -> Vector3:
 	# (the snakes, life size, given more room)
-	return Vector3(i * GAP + (1.2 if i >= 9 else 0.0) + (1.8 if i >= 10 else 0.0) + (1.6 if i >= 11 else 0.0) + (3.0 if i >= 19 else 0.0) + (4.0 if i >= 20 else 0.0) + (4.0 if i >= 21 else 0.0) + (4.0 if i >= 22 else 0.0) + (5.0 if i >= 23 else 0.0) + (6.0 if i >= 24 else 0.0) + (7.0 if i >= 25 else 0.0) + (9.0 if i >= 26 else 0.0) + (9.0 if i >= 27 else 0.0) + (4.5 if i >= 28 else 0.0) + (3.0 if i >= 29 else 0.0) + (5.0 if i >= 30 else 0.0) + (5.0 if i >= 31 else 0.0) + (2.0 if i >= 32 else 0.0) + (4.0 if i >= 33 else 0.0), 0.0, 0.0)
+	return Vector3(i * GAP + (1.2 if i >= 9 else 0.0) + (1.8 if i >= 10 else 0.0) + (1.6 if i >= 11 else 0.0) + (3.0 if i >= 19 else 0.0) + (4.0 if i >= 20 else 0.0) + (4.0 if i >= 21 else 0.0) + (4.0 if i >= 22 else 0.0) + (5.0 if i >= 23 else 0.0) + (6.0 if i >= 24 else 0.0) + (7.0 if i >= 25 else 0.0) + (9.0 if i >= 26 else 0.0) + (9.0 if i >= 27 else 0.0) + (4.5 if i >= 28 else 0.0) + (3.0 if i >= 29 else 0.0) + (5.0 if i >= 30 else 0.0) + (5.0 if i >= 31 else 0.0) + (2.0 if i >= 32 else 0.0) + (4.0 if i >= 33 else 0.0) + (6.0 if i >= 34 else 0.0) + (6.0 if i >= 35 else 0.0) + (3.0 if i >= 36 else 0.0), 0.0, 0.0)
 
 
 func _ready() -> void:
@@ -215,15 +237,23 @@ func _ready() -> void:
 	sun.shadow_enabled = true
 	sun.directional_shadow_max_distance = 4.0
 	add_child(sun)
-	# the plain, a hole left in it for the fishing spider's pond
+	# the plain, holes left in it for the ponds (PONDS: the fishing spider's,
+	# the moose's, the frogs', the turtles')
 	var x0 := -0.95
-	var x1 := GAP * 30.0 + 114.0
-	var pc := _station(12)
+	var x1 := _station(NAMES.size() - 1).x + 6.0
 	var grass := Color(0.36, 0.4, 0.22)
-	_box(Vector3((x0 + pc.x - POND_W) * 0.5, -0.005, 0.0), Vector3(pc.x - POND_W - x0, 0.01, 3.0), grass)
-	_box(Vector3((pc.x + POND_W + x1) * 0.5, -0.005, 0.0), Vector3(x1 - pc.x - POND_W, 0.01, 3.0), grass)
-	for sgn: float in [-1.0, 1.0]:
-		_box(Vector3(pc.x, -0.005, sgn * (POND_D + 1.5) * 0.5), Vector3(POND_W * 2.0, 0.01, 1.5 - POND_D), grass)
+	var at := x0
+	for hole: Array in _ponds():
+		var hc: Vector3 = hole[0]
+		var hw: float = hole[1]
+		var hd: float = hole[2]
+		if hc.x - hw > x1: # (a station not made yet)
+			continue
+		_box(Vector3((at + hc.x - hw) * 0.5, -0.005, 0.0), Vector3(hc.x - hw - at, 0.01, PLAIN_D * 2.0), grass)
+		for sgn: float in [-1.0, 1.0]:
+			_box(Vector3(hc.x, -0.005, sgn * (hd + PLAIN_D) * 0.5), Vector3(hw * 2.0, 0.01, PLAIN_D - hd), grass)
+		at = hc.x + hw
+	_box(Vector3((at + x1) * 0.5, -0.005, 0.0), Vector3(x1 - at, 0.01, PLAIN_D * 2.0), grass)
 	cam = Camera3D.new()
 	cam.near = 0.002
 	cam.far = 60.0
@@ -260,6 +290,9 @@ func _ready() -> void:
 	_squirrel_station(31, GreySqScript)
 	_blue_hopper_station()
 	_dragonfly_station()
+	_moose_station()
+	_frog_station()
+	_turtle_station()
 	_male_partners()
 	_new_pupae()
 	_focus = _station(0) + Vector3(0.0, 0.08, 0.0)
@@ -542,6 +575,168 @@ func _dragonfly_do(c: Node, act: String, young: bool) -> void:
 				c.call("patrol", _df_centre, 0.9)
 
 
+## The moose: a pond sunk in the plain (45 cm deep: they wade in to feed),
+## willows (shrubs to browse; a sapling for the bull to rub), a bull in
+## velvet, a cow and her calf.
+func _moose_station() -> void:
+	var c := _station(34)
+	_pond(c, MOOSE_PW, MOOSE_PD, MOOSE_DEEP)
+	for k in 3:
+		var sh := UrsidScript.berry_bush()
+		sh.position = c + Vector3(-2.4 + 4.6 * float(k % 2), 0.0, -1.0 + 0.9 * k)
+		sh.scale = Vector3.ONE * 1.3
+		add_child(sh)
+	_moose_sapling = c + Vector3(2.6, 0.0, 1.1)
+	_box(_moose_sapling + Vector3(0.0, 1.0, 0.0), Vector3(0.06, 2.0, 0.06), Color(0.36, 0.3, 0.22))
+	var pc := c
+	var wet := func(x: float, z: float) -> bool: return absf(x - pc.x) < MOOSE_PW and absf(z - pc.z) < MOOSE_PD
+	var ground := func(x: float, z: float) -> float: return -MOOSE_DEEP + 0.02 if absf(x - pc.x) < MOOSE_PW - 0.05 and absf(z - pc.z) < MOOSE_PD - 0.05 else 0.0
+	var herd := [[true, Vector3(2.9, 0.0, -0.3)], [false, Vector3(-2.8, 0.0, 0.2)]]
+	for h: Array in herd:
+		var m: Node3D = MooseScript.new()
+		m.set("male", h[0])
+		m.set("wet", wet)
+		m.set("water_y", POND)
+		m.set("height", ground)
+		add_child(m)
+		var at: Vector3 = c + (h[1] as Vector3)
+		m.call("place", at, randf() * TAU)
+		m.call("graze", at, 0.8)
+		if not h[0]: # (her calf)
+			var y: Node3D = MooseScript.new(true)
+			y.set("height", ground)
+			add_child(y)
+			y.call("place", at + Vector3(-0.7, 0.0, 0.6), randf() * TAU)
+			y.set("_mother", m)
+			y.set("_mode", "follow")
+			(m.get("young_ones") as Array).append(y)
+
+
+## The leopard frogs: a little pond (20 cm deep), reeds standing in it, a
+## female and a male on its bank, three tadpoles in it.
+func _frog_station() -> void:
+	var c := _station(35)
+	_pond(c, FROG_PW, FROG_PD, FROG_DEEP)
+	var stems := []
+	for k in 5:
+		var foot := c + Vector3(randf_range(-0.7, 0.7) * FROG_PW, -FROG_DEEP, randf_range(-0.7, 0.7) * FROG_PD)
+		var top := randf_range(0.25, 0.4)
+		_box(foot + Vector3(0.0, (top + FROG_DEEP) * 0.5, 0.0), Vector3(0.006, top + FROG_DEEP, 0.006), Color(0.34, 0.46, 0.18))
+		stems.append([foot, Vector3(foot.x, top, foot.z)])
+	var land := func(_x: float, _z: float) -> float: return 0.0
+	for m in 5:
+		var fr: Node3D = FrogScript.new(m >= 2)
+		if m == 1:
+			fr.set("male", true)
+		fr.set("water_y", POND)
+		fr.set("floor_y", -FROG_DEEP + 0.01)
+		fr.set("pond", [c, Vector2(FROG_PW, FROG_PD)])
+		fr.set("stems", stems)
+		fr.set("height", land)
+		add_child(fr)
+		if m < 2:
+			var at := c + Vector3(FROG_PW + 0.12, 0.0, -0.1 + 0.25 * m)
+			fr.call("place", at, PI * 0.5)
+			fr.call("wander", at, 0.12)
+		else:
+			fr.call("place", c + Vector3(randf_range(-0.3, 0.3), 0.0, randf_range(-0.2, 0.2)), randf() * TAU)
+
+
+## (A frog, or a tadpole: what each key has it do.)
+func _frog_do(c: Node, act: String, young: bool) -> void:
+	var p := _where(c)
+	var tad := young and float(c.get("dev")) < 1.0
+	match act:
+		"eat", "hunt":
+			if not tad:
+				var a := randf() * TAU
+				var at := p + Vector3(cos(a), 0.0, sin(a)) * 0.12
+				at.y = 0.0 if absf(at.x - _station(35).x) > FROG_PW or absf(at.z) > FROG_PD else POND
+				var fl := FrogScript.fly_of(at)
+				add_child(fl)
+				c.call("hunt", fl)
+		"lay":
+			if not tad and not _flag(c, "male"):
+				c.call("lay")
+		"fly":
+			if tad:
+				c.call("metamorphose")
+			else:
+				var a := randf() * TAU
+				c.call("hop", p + Vector3(cos(a), 0.0, sin(a)) * 0.2)
+		"display":
+			if _flag(c, "male") and not young:
+				c.call("croak")
+		"alarm":
+			if not tad:
+				c.call("flee", p + Vector3(randf_range(-1, 1), 0.0, randf_range(-1, 1)) * 0.1)
+		"forage":
+			if not tad:
+				c.call("swim", _station(35) + Vector3(randf_range(-0.3, 0.3), 0.0, randf_range(-0.2, 0.2)))
+		"wander":
+			if not tad:
+				c.call("wander", p, 0.2)
+
+
+## The painted turtles: a pond (30 cm deep) with a log in it to bask on, a
+## sandy bank beside it to nest in, a female and a male, a hatchling.
+func _turtle_station() -> void:
+	var c := _station(36)
+	_pond(c, TURTLE_PW, TURTLE_PD, TURTLE_DEEP)
+	var log := MeshInstance3D.new()
+	var cm := CylinderMesh.new()
+	cm.top_radius = 0.06
+	cm.bottom_radius = 0.07
+	cm.height = 0.9
+	log.mesh = cm
+	log.material_override = _plain(Color(0.36, 0.3, 0.22))
+	log.position = c + Vector3(0.1, POND - 0.01, -0.1)
+	log.rotation = Vector3(0.0, 0.4, PI * 0.5)
+	add_child(log)
+	var basks := [log.position + Vector3(-0.15, 0.065, -0.07), log.position + Vector3(0.18, 0.065, 0.08)]
+	var bank := c + Vector3(-TURTLE_PW - 0.35, 0.0, 0.1)
+	_box(bank + Vector3(0.0, 0.0008, 0.0), Vector3(0.5, 0.002, 0.5), Color(0.62, 0.52, 0.36)) # (the sandy bank)
+	var land := func(_x: float, _z: float) -> float: return 0.0
+	for m in 3:
+		var t: Node3D = TurtleScript.new(m == 2)
+		if m == 1:
+			t.set("male", true)
+		t.set("water_y", POND)
+		t.set("floor_y", -TURTLE_DEEP + 0.01)
+		t.set("pond", [c, Vector2(TURTLE_PW, TURTLE_PD)])
+		t.set("height", land)
+		t.set("bank", bank)
+		t.set("basks", basks)
+		add_child(t)
+		var at := c + Vector3(-0.25 + 0.35 * m, 0.0, 0.15)
+		t.call("place", at, randf() * TAU)
+		t.call("wander", c, 0.45)
+
+
+## (A turtle: what each key has it do.)
+func _turtle_do(c: Node, act: String, young: bool) -> void:
+	var p := _where(c)
+	match act:
+		"eat", "hunt":
+			var a := randf() * TAU
+			var at := p + Vector3(cos(a), 0.0, sin(a)) * 0.2
+			at.y = POND
+			var f: Node3D = TurtleScript.weed_of(at) if act == "eat" else FrogScript.fly_of(at)
+			add_child(f)
+			c.call("eat", f)
+		"lay":
+			if not young and not _flag(c, "male"):
+				c.call("nest")
+		"sleep", "sit":
+			c.call("bask")
+		"fly":
+			c.call("dive")
+		"alarm":
+			c.call("withdraw")
+		"wander", "forage":
+			c.call("wander", _station(36), 0.45)
+
+
 func _mantis_station() -> void:
 	var c := _station(8)
 	# a stem, to build the egg case on
@@ -642,18 +837,22 @@ func _spider_stations() -> void:
 
 ## The fishing spider's pond: the game's own water (ocean.gdshader), calm,
 ## 30 cm deep over a muddy basin sunk in the plain.
-func _pond(c: Vector3) -> void:
+## The ponds sunk in the plain: [centre, half width (x), half depth (z), deep] each, by x.
+func _ponds() -> Array:
+	return [[_station(12), POND_W, POND_D, 0.3], [_station(34), MOOSE_PW, MOOSE_PD, MOOSE_DEEP], [_station(35), FROG_PW, FROG_PD, FROG_DEEP], [_station(36), TURTLE_PW, TURTLE_PD, TURTLE_DEEP]]
+
+
+func _pond(c: Vector3, pw := POND_W, pd := POND_D, deep := 0.3) -> void:
 	var mud := Color(0.16, 0.13, 0.09)
-	const DEEP := 0.3
-	_box(c + Vector3(0.0, -DEEP, 0.0), Vector3(POND_W * 2.0, 0.02, POND_D * 2.0), mud)
+	_box(c + Vector3(0.0, -deep, 0.0), Vector3(pw * 2.0, 0.02, pd * 2.0), mud)
 	for sgn: float in [-1.0, 1.0]:
-		_box(c + Vector3(sgn * POND_W, -DEEP * 0.5, 0.0), Vector3(0.01, DEEP, POND_D * 2.0), mud)
-		_box(c + Vector3(0.0, -DEEP * 0.5, sgn * POND_D), Vector3(POND_W * 2.0, DEEP, 0.01), mud)
+		_box(c + Vector3(sgn * pw, -deep * 0.5, 0.0), Vector3(0.01, deep, pd * 2.0), mud)
+		_box(c + Vector3(0.0, -deep * 0.5, sgn * pd), Vector3(pw * 2.0, deep, 0.01), mud)
 	var m := ShaderMaterial.new()
 	m.shader = load("res://shaders/render/ocean.gdshader")
-	# its depth (the shader's map: the floor DEEP down everywhere round here)
+	# its depth (the shader's map: the floor deep down everywhere round here)
 	var img := Image.create(4, 4, false, Image.FORMAT_RF)
-	img.fill(Color(POND - DEEP, 0.0, 0.0, 1.0))
+	img.fill(Color(POND - deep, 0.0, 0.0, 1.0))
 	m.set_shader_parameter("height_tex", ImageTexture.create_from_image(img))
 	m.set_shader_parameter("map_size", 4.0)
 	m.set_shader_parameter("map_domain", 400.0)
@@ -668,9 +867,9 @@ func _pond(c: Vector3) -> void:
 	m.set_shader_parameter("scatter_color", Vector3(0.02, 0.035, 0.02))
 	m.set_shader_parameter("crest_color", Vector3(0.1, 0.18, 0.1))
 	# the surface: a grid of 1 cm cells (its spacing in UV.x, as the sea's)
-	const CELL := 0.01
-	var nx := int(POND_W * 2.0 / CELL)
-	var nz := int(POND_D * 2.0 / CELL)
+	var cell := maxf(0.01, pw * 2.0 / 100.0) # (1 cm cells, or coarser for a big pond)
+	var nx := int(pw * 2.0 / cell)
+	var nz := int(pd * 2.0 / cell)
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	for iz in nz:
@@ -678,8 +877,8 @@ func _pond(c: Vector3) -> void:
 			var q := [Vector2(ix, iz), Vector2(ix + 1, iz), Vector2(ix + 1, iz + 1), Vector2(ix, iz + 1)]
 			for e in [0, 2, 1, 0, 3, 2]:
 				var g: Vector2 = q[e]
-				st.set_uv(Vector2(CELL, 0.0))
-				st.add_vertex(Vector3(-POND_W + g.x * CELL, 0.0, -POND_D + g.y * CELL))
+				st.set_uv(Vector2(cell, 0.0))
+				st.add_vertex(Vector3(-pw + g.x * cell, 0.0, -pd + g.y * cell))
 	var mi := MeshInstance3D.new()
 	mi.mesh = st.commit()
 	mi.material_override = m
@@ -1757,6 +1956,12 @@ func _do(c: Node, act: String, all: Array) -> void:
 	if sc == DragonflyScript:
 		_dragonfly_do(c, act, young)
 		return
+	if sc == FrogScript:
+		_frog_do(c, act, young)
+		return
+	if sc == TurtleScript:
+		_turtle_do(c, act, young)
+		return
 	if c is Beetles or c is AntColony:
 		var col := c as AntColony
 		var n := col.pos.size()
@@ -1801,7 +2006,7 @@ func _do(c: Node, act: String, all: Array) -> void:
 					c.call("swim", p, 1.0)
 				else:
 					c.call("wander", Vector3(_bv_bank - 1.1, BV_BANK_Y, st.z), 0.7)
-			elif sc == BisonScript or sc == DeerScript:
+			elif sc == BisonScript or sc == DeerScript or sc == MooseScript:
 				if young:
 					c.set("_mode", "follow")
 				else:
@@ -1836,8 +2041,8 @@ func _do(c: Node, act: String, all: Array) -> void:
 				c.call("birth", 4, _nest)
 			elif sc == ScorpionScript:
 				c.call("birth", 12)
-			elif sc == DeerScript:
-				c.call("birth", 2)
+			elif sc == DeerScript or sc == MooseScript:
+				c.call("birth", 2 if sc == DeerScript else 1)
 			elif sc == HareScript:
 				c.call("birth", 4)
 			elif (sc == SquirrelScript or sc == GreySqScript):
@@ -1894,7 +2099,7 @@ func _do(c: Node, act: String, all: Array) -> void:
 				c.call("sting", p + Vector3(cos(a), 0.0, sin(a)) * 0.03)
 			elif sc == MouseScript:
 				c.call("wander", p, 0.6)
-			elif sc == DeerScript:
+			elif sc == DeerScript or sc == MooseScript:
 				c.call("flee", p + Vector3(randf_range(-1, 1), 0.0, randf_range(-1, 1)).normalized() * 3.0)
 			elif sc == BisonScript:
 				c.call("stampede", p + Vector3(randf_range(-1, 1), 0.0, randf_range(-1, 1)).normalized() * 3.0)
@@ -1908,7 +2113,7 @@ func _do(c: Node, act: String, all: Array) -> void:
 			elif sc == BisonScript:
 				if _flag(c, "male") and not young:
 					c.call("bellow")
-			elif sc == DeerScript:
+			elif sc == DeerScript or sc == MooseScript:
 				c.call("snort" if _flag(c, "male") and not young else "alert")
 			elif c.has_method("howl"):
 				c.call("howl", randf_range(5.0, 8.0))
@@ -1928,6 +2133,8 @@ func _do(c: Node, act: String, all: Array) -> void:
 			elif (sc == SquirrelScript or sc == GreySqScript) and not young: # (B: a nut cached)
 				var a := randf() * TAU
 				c.call("cache", _sq_nut_near(p), p + Vector3(cos(a), 0.0, sin(a)) * 0.7)
+			elif sc == MooseScript and not young: # (B: out into the pond, feeding under the water)
+				c.call("wade", _station(34) + Vector3(randf_range(-0.9, 0.9), 0.0, randf_range(-0.5, 0.5)))
 			elif sc == DeerScript and not young:
 				c.call("browse", _deer_shrub, 0.6)
 			elif c.has_method("forage"):
@@ -1943,9 +2150,9 @@ func _do(c: Node, act: String, all: Array) -> void:
 					else:
 						_spin_orb(c, randi())
 		"mark":
-			if sc == DeerScript:
+			if sc == DeerScript or sc == MooseScript:
 				if _flag(c, "male") and not young:
-					c.call("mark", _deer_sapling)
+					c.call("mark", _deer_sapling if sc == DeerScript else _moose_sapling)
 			elif c.has_method("rub"):
 				var k := bears.find(_bear_trio_of(c))
 				if k >= 0:
@@ -2076,7 +2283,7 @@ func _feed(c: Node, act: String, young: bool, p: Vector3, st: Vector3) -> void:
 		cat.position = at
 		add_child(cat)
 		c.call("feed_on_insect", cat, at, Vector3.UP)
-	elif sc == BisonScript or sc == DeerScript:
+	elif sc == BisonScript or sc == DeerScript or sc == MooseScript:
 		if act == "eat":
 			if not young:
 				c.call("graze", p, 3.0 if sc == BisonScript else 2.0)
@@ -2105,7 +2312,7 @@ func _feed(c: Node, act: String, young: bool, p: Vector3, st: Vector3) -> void:
 ## To station i (the camera further off for the snakes).
 func _go(i: int) -> void:
 	_at = i
-	_dist = 2.2 if i == 33 else 0.8 if i == 32 else 2.4 if i == 31 else 4.2 if i == 30 else 2.4 if i == 29 else 0.8 if i == 28 else 2.2 if i == 9 or i == 10 else (2.4 if i == 19 else ((6.0 if i >= 27 else (9.0 if i >= 26 else (7.5 if i >= 24 else (5.0 if i >= 22 else 3.6)))) if i >= 20 else minf(_dist, 0.8)))
+	_dist = 1.6 if i == 35 or i == 36 else 9.0 if i == 34 else 2.2 if i == 33 else 0.8 if i == 32 else 2.4 if i == 31 else 4.2 if i == 30 else 2.4 if i == 29 else 0.8 if i == 28 else 2.2 if i == 9 or i == 10 else (2.4 if i == 19 else ((6.0 if i >= 27 else (9.0 if i >= 26 else (7.5 if i >= 24 else (5.0 if i >= 22 else 3.6)))) if i >= 20 else minf(_dist, 0.8)))
 	_say()
 
 
