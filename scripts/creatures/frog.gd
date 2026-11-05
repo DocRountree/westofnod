@@ -213,6 +213,8 @@ uniform float warts = 0.0; // (its skin warty: a toad's; the warts a little pale
 uniform float stripe = 0.0; // (a pale line down the middle of its back)
 uniform float belly_spots = 0.0; // (its belly speckled dark: a toad's)
 uniform float spot_size = 1.0; // (its spots' size: a toad's bigger, fewer)
+uniform sampler2D wart_tex : filter_linear_mipmap, repeat_enable; // (its warts, baked: tools/creatures/bake_toad_warts.py; R height, G the big ones' tips, B each one's tone)
+uniform float wart_tile = 24.0; // (mm of its skin a tile)
 uniform bool body_space = false; // (its body's own mesh: painted in its mm)
 uniform bool tadpole = false;
 uniform float seed = 0.0;
@@ -221,6 +223,7 @@ instance uniform float bars = 0.0; // (a limb's dark bars across, along it)
 varying vec3 wp;
 varying vec3 bp;
 varying vec3 on;
+varying vec3 fn; // (its normal in its own space: the limbs')
 float h3(vec3 p) { return fract(sin(dot(p + seed, vec3(12.9898, 78.233, 37.719))) * 43758.5453); }
 float vn(vec3 p) {
 	vec3 i = floor(p); vec3 f = fract(p); f = f * f * (3.0 - 2.0 * f);
@@ -231,6 +234,7 @@ void vertex() {
 	wp = (frog_inv * (MODEL_MATRIX * vec4(VERTEX, 1.0))).xyz;
 	bp = VERTEX;
 	on = NORMAL;
+	fn = mat3(frog_inv * MODEL_MATRIX) * NORMAL;
 }
 // (nearest and next of scattered points: its warts)
 vec2 cells2(vec3 p) {
@@ -313,10 +317,18 @@ void fragment() {
 	// (its warts: rounded, scattered, the big ones on its back; a little paler, rusty at their tips)
 	float wh = 0.0;
 	if (warts > 0.0) {
-		vec3 wq = body_space ? bp / 2.3 : wp * 250.0;
-		vec2 cc = cells2(wq);
-		wh = (1.0 - smoothstep(0.0, 0.55, cc.x)) * warts;
-		c = mix(c, c * vec3(1.25, 1.05, 0.8) + vec3(0.05, 0.02, 0.0), wh * smoothstep(-0.2, 0.3, up) * 0.6);
+		// (the baked tile, laid on its skin from three sides as its surface faces)
+		vec3 pm = body_space ? bp : wp * 250.0; // (mm of its own)
+		vec3 nm = normalize(body_space ? on : fn);
+		vec3 w3 = pow(abs(nm), vec3(4.0));
+		w3 /= (w3.x + w3.y + w3.z);
+		vec4 t = texture(wart_tex, pm.zy / wart_tile) * w3.x + texture(wart_tex, pm.xz / wart_tile) * w3.y + texture(wart_tex, pm.xy / wart_tile) * w3.z;
+		wh = t.r * warts;
+		float lit = smoothstep(-0.2, 0.3, up);
+		c *= mix(1.0, 0.8 + 0.4 * t.b, warts); // (each wart its own tone)
+		c *= mix(1.0, 0.72 + 0.28 * smoothstep(0.02, 0.3, t.r), warts); // (the skin between them darker, creased)
+		c = mix(c, c * vec3(1.25, 1.05, 0.8) + vec3(0.05, 0.02, 0.0), wh * lit * 0.5);
+		c = mix(c, vec3(0.62, 0.38, 0.2), t.g * warts * lit * 0.6); // (the big ones' tips rusty)
 		vec3 dpx = dFdx(VERTEX);
 		vec3 dpy = dFdy(VERTEX);
 		vec3 r1 = cross(dpy, NORMAL);
@@ -324,7 +336,7 @@ void fragment() {
 		float det = dot(dpx, r1);
 		vec3 grad = sign(det) * (dFdx(wh) * r1 + dFdy(wh) * r2);
 		float near = 1.0 - smoothstep(0.4, 1.4, length(VERTEX));
-		NORMAL = normalize(abs(det) * NORMAL - grad * 1.3 * near);
+		NORMAL = normalize(abs(det) * NORMAL - grad * 1.0 * near);
 	}
 	ALBEDO = c;
 	// (moist: a soft sheen; granular)
@@ -566,7 +578,7 @@ func _build() -> void:
 	_body_skin.set_shader_parameter("body_space", true)
 	_body_skin.set_shader_parameter("seed", rng.randf() * 100.0)
 	for m: ShaderMaterial in [_skin, _body_skin]:
-		for k: String in ["folds", "lip", "warts", "stripe", "belly_spots", "spot_size", "spot", "halo", "belly"]:
+		for k: String in ["folds", "lip", "warts", "stripe", "belly_spots", "spot_size", "spot", "halo", "belly", "wart_tex", "wart_tile"]:
 			if O.has(k):
 				m.set_shader_parameter(k, O[k])
 	var eye := _mat(Color(0.72, 0.58, 0.22), 0.1)

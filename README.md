@@ -249,7 +249,7 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   then their forelegs, their tails shrinking away, and hop out onto the bank as froglets.
 - `scripts/creatures/american_toad.gd` (`AmericanToad`): an American toad (*Anaxyrus americanus*), on the leopard
   frog's make (its species hooks: body sections, skin, legs, eyes, sacs, eggs): squat and rotund, its back a high
-  dome, its snout short and blunt, its legs short (short hops); its skin dry and warty all over (a bumped shader),
+  dome, its snout short and blunt, its legs short (short hops); its skin dry and warty all over (its warts baked: `tools/creatures/bake_toad_warts.py`, a tile of them, laid on triplanar),
   brown, reddish or olive, a faint pale line down its back, big dark spots round its warts, its belly speckled; a
   kidney-shaped parotoid gland behind each eye and the bony crests between and behind them; no dorsolateral folds,
   no lip stripe; its iris copper gold; a male's long trill, one round vocal sac swelling under his chin; its eggs in
