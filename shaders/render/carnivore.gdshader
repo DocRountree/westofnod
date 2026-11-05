@@ -433,15 +433,20 @@ void fragment() {
 		c = countershade(body * 0.82, body, body * 1.15, ny, -0.6);
 		c *= 0.85 + 0.3 * vn(rp * vec3(0.03, 0.03, 0.01)); // (its long coarse hair in locks)
 		if (fw > 0.0) {
-			vec3 face = young ? body * 1.1 : (male ? vec3(0.2, 0.15, 0.11) : vec3(0.36, 0.29, 0.21));
-			c = mix(c, face, fw * (male ? 1.0 - smoothstep(muzzle_z - 60.0, muzzle_z + 60.0, hp.z) : 0.7));
+			// (a bull's face warm brown from his brow down, darker grey brown
+			// down the muzzle to the nose; a cow's paler, grey brown)
+			vec3 face = young ? body * 1.1 : (male ? vec3(0.27, 0.17, 0.1) : vec3(0.36, 0.29, 0.21));
+			vec3 snout = young ? body : (male ? vec3(0.15, 0.11, 0.085) : vec3(0.25, 0.2, 0.15));
+			face = mix(face, snout, smoothstep(muzzle_z + 80.0, muzzle_z - 120.0, hp.z));
+			face *= 0.9 + 0.2 * vn(rp * vec3(0.05, 0.05, 0.02));
+			c = mix(c, face, fw * (1.0 - smoothstep(-80.0, 40.0, hp.z)) * (1.0 - 0.6 * smoothstep(-0.3, -0.8, ny)) * (male ? 0.95 : 0.75));
 		}
 		if (!male && !young && pt == 0.0)
 			c = mix(c, vec3(0.7, 0.63, 0.52), smoothstep(0.05, 0.0, a) * (1.0 - smoothstep(-0.2, 0.3, ny)) * 0.9);
 		if (leg)
 			c = mix(c, young ? body * 1.15 : vec3(0.42, 0.37, 0.3), smoothstep(0.45, 0.7, a));
-		if (pt == 5.0)
-			c = rn.z > 0.0 ? mix(body, vec3(0.4, 0.34, 0.28), 0.5) : body;
+		if (pt == 5.0) // (its ears: dark, their insides haired paler, grizzled)
+			c = rn.z > 0.0 ? mix(body * 1.3, vec3(0.36, 0.3, 0.24), 0.35 * (0.7 + 0.6 * vn(rp * 0.08))) : body * 1.1;
 		if (pt == 4.0)
 			c = vec3(0.05, 0.045, 0.04);
 		if (pt == 7.0)
@@ -530,7 +535,20 @@ void fragment() {
 			c = mix(c, c * 0.45, wsp * side * smoothstep(0.4, 0.8, ahead) * (1.0 - smoothstep(-0.2, 0.25, ny)) * 0.8);
 		}
 		c = mix(c, c * 0.78, smoothstep(0.6, 1.0, ahead) * smoothstep(0.1, 0.6, ny) * 0.6); // (its nose's bridge)
-		if (sculpt) { // (its nose pad: black leather, moist, pebbled; its nostrils, commas, either side)
+		if (sculpt && species == 13) { // (a moose's nose: haired over all but a small bare patch between its nostrils; the nostrils long slits, slanting, either side)
+			vec3 nd = (hp - nose_c) / vec3(1.0, 0.8, 0.7);
+			leather = (1.0 - smoothstep(nose_r * 0.2, nose_r * 0.3, length(nd - vec3(0.0, -nose_r * 0.35, 0.0)))) * 0.8;
+			c = mix(c, nose_col * 1.6, leather);
+			for (int k = 0; k < 2; k++) {
+				float sd = k == 0 ? -1.0 : 1.0;
+				vec3 q = hp - (nose_c + vec3(sd * nose_r * 0.5, -nose_r * 0.15, -nose_r * 0.35));
+				vec2 r2 = vec2(q.x * 0.8 + sd * q.y * 0.6, q.y * 0.8 - sd * q.x * 0.6); // (slanting: down and in)
+				float sl = 1.0 - smoothstep(0.8, 1.0, length(r2 / vec2(nose_r * 0.14, nose_r * 0.42)));
+				sl *= 1.0 - smoothstep(nose_r * 0.3, nose_r * 0.6, abs(q.z));
+				c = mix(c, vec3(0.02, 0.015, 0.012), sl);
+				leather = max(leather, sl * 0.6);
+			}
+		} else if (sculpt) { // (its nose pad: black leather, moist, pebbled; its nostrils, commas, either side)
 			vec3 nd = (hp - nose_c) / vec3(1.0, 0.82, 0.7);
 			leather = 1.0 - smoothstep(nose_r * 0.88, nose_r * 1.04, length(nd));
 			vec3 leath = nose_col * (0.85 + 0.3 * vn(hp * 1.6));
