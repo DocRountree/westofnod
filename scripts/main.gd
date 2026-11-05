@@ -154,6 +154,7 @@ func _ready() -> void:
 	knapsack.main = self
 	knapsack.inv = inventory
 	add_child(knapsack)
+	knapsack.from_dict(_pack_save) # (set down where it was left, if it was)
 	pause_menu = PauseMenu.new()
 	pause_menu.main = self
 	add_child(pause_menu)
@@ -173,6 +174,7 @@ func _ready() -> void:
 # ---- the loading screen
 
 var _loaded := false
+var _pack_save := {}
 var _loading: CanvasLayer
 var _loading_bar: ProgressBar
 
@@ -268,6 +270,7 @@ func _load_game() -> void:
 		inventory.from_dict(d.inventory)
 	else: # (saved before there were items: the axe a new game starts with)
 		inventory.set_at(Inventory.RIGHT, {"id": "axe", "count": 1})
+	_pack_save = d.get("knapsack", {}) # (put back once the knapsack's made: _ready)
 	felling.from_list(d.get("felled", []))
 	foraging.from_dict(d.get("picked", {}))
 	population.notches_from_dict(d.get("notches", {}))
@@ -300,6 +303,7 @@ func save_game() -> void:
 				"third_person": player.third_person},
 		"clock": clock.to_dict(),
 		"inventory": inventory.to_dict(),
+		"knapsack": knapsack.to_dict(),
 		"felled": felling.to_list(),
 		"picked": foraging.to_dict(),
 		"notches": population.notches_to_dict(),

@@ -6,12 +6,24 @@ extends CanvasLayer
 ## right-click picks up half, or puts down one; shift-click moves a stack
 ## between the knapsack and the hands. The hands are shown at the bottom
 ## corners of the screen while it's closed too.
+##
+## It's a thing, too (Pack: a leather bag), worn on the back (the figure's,
+## in third person). Q (the "pack" action) takes it off and sets it down on
+## the ground before you, and, back by it (PICK_UP m), picks it up and puts
+## it on again. Set down, E opens it only by it: away from it there's only
+## what's in your hands. Where it is, and whether it's worn, is saved
+## (to_dict, from_dict: main.gd).
 
 const SIZE := 64.0 ## px, a slot
 
 var main: Node
 var inv: Inventory
 var open := false
+var worn := true ## on the back (else set down at `at`, turned `yaw`)
+var at := Vector3.ZERO ## where it's set down (the map's: Origin)
+var yaw := 0.0
+var _down: Node3D # the bag, set down
+const PICK_UP := 2.2 ## m: near enough to it (set down) to open it, or pick it up
 var _panel: Control
 var _slots: Array[_Slot] = []
 var _corner: Array[_Slot] = [] # the hands, while closed
@@ -141,16 +153,88 @@ func _input(event: InputEvent) -> void:
 		if open:
 			get_viewport().set_input_as_handled()
 		return
-	if event.is_action("knapsack") or (open and event.keycode == KEY_ESCAPE):
+	if event.is_action("pack") and not open and not main.player.typing and not main.player.frozen:
+		if worn:
+			set_down()
+		else:
+			pick_up()
+		get_viewport().set_input_as_handled()
+	elif event.is_action("knapsack") or (open and event.keycode == KEY_ESCAPE):
 		if open:
 			close()
 		elif not main.player.typing and not main.player.frozen:
-			show_knapsack()
+			if not within_reach():
+				main.chat.say("Your knapsack is where you set it down, %d m off." % roundi(_away()), Color(0.85, 0.85, 0.8))
+			else:
+				show_knapsack()
 		else:
 			return
 		get_viewport().set_input_as_handled()
 	elif open:
 		get_viewport().set_input_as_handled() # (the game's keys wait)
+
+
+## Whether it's to hand: worn, or set down near enough.
+func within_reach() -> bool:
+	return worn or _away() <= PICK_UP
+
+
+## (m over the ground, to it set down)
+func _away() -> float:
+	var p := Origin.map(main.player.global_position)
+	return Vector2(p.x - at.x, p.z - at.z).length()
+
+
+## Off the back and down on the ground before you, its flap toward you.
+func set_down() -> void:
+	var p: Player = main.player
+	var here := Origin.map(p.global_position)
+	var fwd := -p.global_basis.z
+	fwd.y = 0.0
+	fwd = fwd.normalized() if fwd.length() > 0.01 else Vector3.FORWARD
+	var spot := here + fwd * 0.65
+	var ground: float = main.world.height_at(spot.x, spot.z)
+	if main.population:
+		ground = maxf(ground, main.population.deck_at(spot, here.y + 0.6, 0.15)) # (on a log or a stump, if it's on one)
+	put_down(Vector3(spot.x, ground, spot.z), atan2(fwd.x, fwd.z) + PI)
+	main.chat.say("You take off your knapsack and set it down.", Color(0.85, 0.85, 0.8))
+
+
+## (Set down at, turned yaw: its front, the flap, that way.)
+func put_down(where: Vector3, turn: float) -> void:
+	worn = false
+	at = where
+	yaw = turn
+	if _down == null:
+		_down = Pack.model()
+		Origin.root.add_child(_down)
+	_down.transform = Transform3D(Basis(Vector3.UP, yaw), at)
+	main.player.avatar.wear_pack(false)
+
+
+## Back by it: up and on again.
+func pick_up() -> void:
+	if worn:
+		return
+	if _away() > PICK_UP:
+		main.chat.say("Your knapsack is %d m off: go back for it." % roundi(_away()), Color(0.85, 0.85, 0.8))
+		return
+	worn = true
+	if _down:
+		_down.queue_free()
+		_down = null
+	main.player.avatar.wear_pack(true)
+	main.chat.say("You put your knapsack on.", Color(0.85, 0.85, 0.8))
+
+
+func to_dict() -> Dictionary:
+	return {"worn": worn, "at": [at.x, at.y, at.z], "yaw": yaw}
+
+
+func from_dict(d: Dictionary) -> void:
+	var a: Array = d.get("at", [])
+	if not bool(d.get("worn", true)) and a.size() == 3:
+		put_down(Vector3(a[0], a[1], a[2]), float(d.get("yaw", 0.0)))
 
 
 func show_knapsack() -> void:

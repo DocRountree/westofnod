@@ -41,6 +41,7 @@ var _boots := {}
 var sink := 0.0 ## How deep the feet are in mud (the player's).
 var trunk := PackedFloat32Array() ## The tree being climbed (Population trunk), if any: holds are on its bark.
 var _head: MeshInstance3D
+var _pack: Node3D # the knapsack on its back (wear_pack)
 
 
 func _ready() -> void:
@@ -81,6 +82,15 @@ func _ready() -> void:
 		_part(boot, CapsuleMesh, Vector3(0, 0.05, -0.04), Vector3(0.11, 0.26, 0.11), BOOT).rotation.x = PI / 2
 		_part(boot, CylinderMesh, Vector3(0, 0.1, 0.02), Vector3(0.12, 0.1, 0.12), BOOT)
 		_boots[sname] = boot
+	_pack = Pack.model() # (on its back: its front, the flap and buckles, out)
+	_pack.position = Vector3(0, 0.02, 0.215)
+	_chest.add_child(_pack)
+
+
+## The knapsack on its back, or not (set down: Knapsack.set_down).
+func wear_pack(on: bool) -> void:
+	if _pack:
+		_pack.visible = on
 
 
 ## The boots: under the end of each leg, flat on the ground (or the rock),
