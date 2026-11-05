@@ -15,6 +15,7 @@ var inventory := Inventory.new() ## What the player carries (the knapsack and th
 var knapsack: Knapsack
 var felling: Felling ## The axe: felling trees, and the trees felled.
 var foraging: Foraging ## Picking fruit (F), and which trees were picked when.
+var drops: Drops ## Things put down on the ground (Q), and taken up again.
 var tapping: Tapping ## Maple sap: notches dripping, pots under them filling.
 var env: Environment
 var ocean: MeshInstance3D
@@ -135,6 +136,9 @@ func _ready() -> void:
 	tapping = Tapping.new() # (after foraging: a pot looked at is taken up before a flower's picked)
 	tapping.main = self
 	add_child(tapping)
+	drops = Drops.new() # (after tapping: a thing dropped is taken up before anything else under it)
+	drops.main = self
+	add_child(drops)
 	_load_game()
 	Origin.follow(player.position)
 	_last_x = player.position.x
@@ -273,6 +277,7 @@ func _load_game() -> void:
 	_pack_save = d.get("knapsack", {}) # (put back once the knapsack's made: _ready)
 	felling.from_list(d.get("felled", []))
 	foraging.from_dict(d.get("picked", {}))
+	drops.from_list(d.get("dropped", []))
 	population.notches_from_dict(d.get("notches", {}))
 	felling.marks_from_dict(d.get("notch_marks", {}))
 	tapping.from_list(d.get("taps", []))
@@ -306,6 +311,7 @@ func save_game() -> void:
 		"knapsack": knapsack.to_dict(),
 		"felled": felling.to_list(),
 		"picked": foraging.to_dict(),
+		"dropped": drops.to_list(),
 		"notches": population.notches_to_dict(),
 		"notch_marks": felling.marks_to_dict(),
 		"taps": tapping.to_list(),

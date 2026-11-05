@@ -8,10 +8,10 @@ extends CanvasLayer
 ## corners of the screen while it's closed too.
 ##
 ## It's a thing, too (Pack: a leather bag), worn on the back (the figure's,
-## in third person). Q (the "pack" action) takes it off and sets it down on
+## in third person). X (the "pack" action) takes it off and sets it down on
 ## the ground before you, and, back by it (PICK_UP m), picks it up and puts
-## it on again. Set down, E opens it only by it: away from it there's only
-## what's in your hands. Where it is, and whether it's worn, is saved
+## it on again. Set down, E doesn't open it: right-click it (looking at it,
+## by it) to open it there; away from it there's only what's in your hands. Where it is, and whether it's worn, is saved
 ## (to_dict, from_dict: main.gd).
 
 const SIZE := 64.0 ## px, a slot
@@ -163,8 +163,8 @@ func _input(event: InputEvent) -> void:
 		if open:
 			close()
 		elif not main.player.typing and not main.player.frozen:
-			if not within_reach():
-				main.chat.say("Your knapsack is where you set it down, %d m off." % roundi(_away()), Color(0.85, 0.85, 0.8))
+			if not worn:
+				main.chat.say("Your knapsack is set down%s: right-click it to open it." % (" %d m off" % roundi(_away()) if _away() > PICK_UP else ""), Color(0.85, 0.85, 0.8))
 			else:
 				show_knapsack()
 		else:
@@ -172,6 +172,23 @@ func _input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 	elif open:
 		get_viewport().set_input_as_handled() # (the game's keys wait)
+
+
+## Right-click: the knapsack set down, looked at and near enough, opened there.
+func _unhandled_input(event: InputEvent) -> void:
+	if worn or open or not (event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT):
+		return
+	var p: Player = main.player
+	if Input.mouse_mode != Input.MOUSE_MODE_CAPTURED or p.typing or p.frozen or _away() > PICK_UP:
+		return
+	var eye := Origin.map(p.camera.global_position)
+	var fwd := -p.camera.global_basis.z
+	var c := at + Vector3(0.0, Pack.H * 0.5, 0.0)
+	var v := c - eye
+	var t := v.dot(fwd)
+	if t > 0.0 and (v - fwd * t).length() < Pack.W * 0.7:
+		get_viewport().set_input_as_handled()
+		show_knapsack()
 
 
 ## Whether it's to hand: worn, or set down near enough.

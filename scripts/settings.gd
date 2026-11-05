@@ -24,7 +24,7 @@ const KEYS := [
 	["move_left", "Left", KEY_A], ["move_right", "Right", KEY_D],
 	["jump", "Jump / swim up / fly up (twice: fly)", KEY_SPACE], ["descend", "Crouch / dive / fly down", KEY_SHIFT],
 	["sprint", "Sprint", KEY_CTRL], ["climb", "Climb", KEY_C],
-	["knapsack", "Knapsack", KEY_E], ["pack", "Take off / put on the knapsack", KEY_Q], ["magnify", "Magnify", KEY_Z],
+	["knapsack", "Knapsack", KEY_E], ["drop", "Drop what's in your hand", KEY_Q], ["pack", "Take off / put on the knapsack", KEY_X], ["magnify", "Magnify", KEY_Z],
 	["third_person", "Third person", KEY_F5], ["chat", "Chat", KEY_ENTER],
 	["command", "Command", KEY_SLASH], ["time_backward", "Time back (god)", KEY_BRACKETLEFT],
 	["time_forward", "Time on (god)", KEY_BRACKETRIGHT], ["toggle_shadows", "Shadows on/off", KEY_L],
