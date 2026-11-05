@@ -765,6 +765,12 @@ func _mount() -> Dictionary:
 	return {"at": Vector3(0.0, body_h * 1.6, 3.0), "basis": Basis(), "grips": {}}
 
 
+## (The species: his mount while joined, moved (his thrusts; his feet
+## planted): m as _mount() gives it, her transform, her mm to metres.)
+func _mount_thrust(m: Dictionary, _her_t: Transform3D, _hs: float) -> Dictionary:
+	return m
+
+
 ## (The species: mating's begun; it's ended (each partner).)
 func _on_mate_start() -> void:
 	pass
@@ -836,6 +842,8 @@ func _ride_mate(dt: float) -> void:
 	var m := _mount()
 	var her_t: Transform3D = _mate.transform
 	var hs := float(_mate.get("size")) * MM
+	if _mate_stage == "joined":
+		m = _mount_thrust(m, her_t, hs)
 	var mb: Basis = m.get("basis", Basis())
 	var mat: Vector3 = m.at
 	_mount_to = Transform3D(her_t.basis * mb, her_t * (mat * hs))

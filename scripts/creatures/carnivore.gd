@@ -1385,6 +1385,62 @@ func _after_mate() -> void:
 	wander(_home_spot(), _radius)
 
 
+## Joined, on her: his pelvis thrusting, in bouts (his body driven forward
+## and back on her, a little tilt with it); his hind legs braced, straight,
+## thrown back (near hyperextended), his feet planted on the ground behind.
+## (A dict's "thrust": false, the species' own: a canid's tie.)
+func _mount_thrust(m: Dictionary, her_t: Transform3D, hs: float) -> Dictionary:
+	if not bool(m.get("thrust", true)):
+		return m
+	var mb: Basis = m.get("basis", Basis())
+	var at: Vector3 = m.at
+	# (his hind feet: where the species put them, pushed back along the
+	# ground until each leg, hip to toe, is near its full length)
+	var cur := transform * _body.transform
+	var t0 := Transform3D(her_t.basis * mb, her_t * (at * hs)) * _body.transform
+	var back := (her_t.basis * Vector3.BACK).normalized()
+	back.y = 0.0
+	back = back.normalized()
+	var free: Dictionary = (m.get("free", {}) as Dictionary).duplicate()
+	var feet_w := {}
+	for i: int in [2, 3]:
+		if not free.has(i):
+			continue
+		var L: Dictionary = legs[1]
+		var side := 1.0 if i % 2 == 1 else -1.0
+		var hp: Vector3 = L.hip
+		var hip_w := t0 * Vector3(hp.x * side, hp.y, hp.z)
+		var fw: Vector3 = cur * (free[i] as Vector3)
+		var reach := (float(L.f) + float(L.t) + float(L.s)) * MM * size * 0.97
+		# |fw + back * u - hip_w| = reach, for u >= 0
+		var d := fw - hip_w
+		var bq := 2.0 * d.dot(back)
+		var cq := d.length_squared() - reach * reach
+		var disc := bq * bq - 4.0 * cq
+		if disc > 0.0:
+			var u := (-bq + sqrt(disc)) * 0.5
+			if u > 0.0:
+				fw += back * u
+		fw.y = _ground(fw.x, fw.z)
+		feet_w[i] = fw
+	# (the thrusts: quick, in bouts, a pause between; quicker the smaller he is)
+	var rate := 2.6 / sqrt(maxf(float(S.body_len) / 560.0, 0.2))
+	var bout := fmod(_mate_t, 4.5)
+	var on := smoothstep(0.0, 0.3, bout) * (1.0 - smoothstep(3.0, 3.4, bout))
+	var th := sin(_mate_t * TAU * rate) * on
+	at += Vector3(0.0, -0.01, -1.0) * float(S.body_len) * 0.045 * th
+	mb = mb * Basis(Vector3.RIGHT, 0.05 * th)
+	var tn := Transform3D(her_t.basis * mb, her_t * (at * hs)) * _body.transform
+	var inv := tn.affine_inverse()
+	for i: int in feet_w:
+		free[i] = inv * (feet_w[i] as Vector3)
+	var out := m.duplicate()
+	out["at"] = at
+	out["basis"] = mb
+	out["free"] = free
+	return out
+
+
 # --- steering (pilot.gd): its behaviours ----------------------------------------
 
 func _p_behaviours() -> PackedStringArray:

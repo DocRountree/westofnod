@@ -110,7 +110,7 @@ func _mount() -> Dictionary:
 		else:
 			free[i] = inv * _home(i)
 	_tail_mode = "out"
-	return {"at": on_at.lerp(tie_at, e), "basis": b, "grips": grips, "free": free}
+	return {"at": on_at.lerp(tie_at, e), "basis": b, "grips": grips, "free": free, "thrust": e < 0.02} # (thrusting only before the tie)
 
 
 func _after_mate() -> void:
