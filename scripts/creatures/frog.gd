@@ -109,7 +109,8 @@ static var _skin_sh: Shader
 static var _body_m: ArrayMesh
 static var _limb_m: ArrayMesh
 var _body_skin: ShaderMaterial
-var _webs: Array[ImmediateMesh] = []
+var _webs: Array[MeshInstance3D] = []
+static var _web_m: ArrayMesh
 
 
 func _init(young_ := false) -> void:
@@ -355,6 +356,28 @@ static func _body_mesh() -> ArrayMesh:
 	return st.commit()
 
 
+## The web between a hind foot's toes (its foot's frame: z along it, the
+## toes fanned as _pose fans them): most of the way out, its edge scalloped.
+static func _web_mesh() -> ArrayMesh:
+	if _web_m != null:
+		return _web_m
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var tips: Array[Vector3] = []
+	for k in 5:
+		var fan := (float(k) - 2.0) * 0.22
+		tips.append(Basis(Vector3.UP, fan) * Vector3(0.0, 0.0, 10.0 + 3.0 * float(2 - absi(k - 2)) + (4.0 if k == 3 else 0.0)))
+	for k in 4:
+		var a := tips[k] * 0.8
+		var b := tips[k + 1] * 0.8
+		var m := (tips[k] + tips[k + 1]) * 0.5 * 0.55
+		for v: Vector3 in [Vector3.ZERO, a, m, Vector3.ZERO, m, b]:
+			st.set_normal(Vector3.UP)
+			st.add_vertex(v)
+	_web_m = st.commit()
+	return _web_m
+
+
 ## A limb's segment (unit: along z from -0.5 to 0.5, 0.5 round): a rounded
 ## cylinder, a little thicker at its near end (a thigh's muscle), its ends
 ## closed round; UV.y along it.
@@ -438,15 +461,14 @@ func _build() -> void:
 		shin.set_instance_shader_parameter("bars", 3.0)
 		ft.set_instance_shader_parameter("bars", 1.0)
 		_hind.append([hip, thigh, shin, ft, side, toes])
-		var web := ImmediateMesh.new() # (the webs between its toes)
-		var wmi := MeshInstance3D.new()
-		wmi.mesh = web
+		var wmi := MeshInstance3D.new() # (the webs between its toes)
+		wmi.mesh = _web_mesh()
 		var wm := _mat(Color(0.42, 0.44, 0.27, 0.8), 0.5)
 		wm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 		wm.cull_mode = BaseMaterial3D.CULL_DISABLED
 		wmi.material_override = wm
 		_frog.add_child(wmi)
-		_webs.append(web)
+		_webs.append(wmi)
 		var sh := Node3D.new()
 		sh.position = Vector3(10.0 * side, 4.0, -8.0)
 		_frog.add_child(sh)
@@ -899,24 +921,14 @@ func _pose(dt: float) -> void:
 		_seg_to(L[2], knee, ankle, 4.0)
 		_seg_to(L[3], ankle, toe, 2.4)
 		var toes: Array = L[5]
-		var tips: Array[Vector3] = []
 		for k in toes.size(): # (long toes, webbed: fanned out from the foot's end)
 			var fan := (float(k) - 2.0) * 0.22
 			var dirv := (toe - ankle).normalized()
 			var t2 := toe + Basis(Vector3.UP, fan) * dirv * (10.0 + 3.0 * float(2 - absi(k - 2)) + (4.0 if k == 3 else 0.0))
 			_seg_to(toes[k], toe, t2, 1.1)
-			tips.append(t2)
-		var web: ImmediateMesh = _webs[_hind.find(L)]
-		web.clear_surfaces()
-		web.surface_begin(Mesh.PRIMITIVE_TRIANGLES)
-		for k in tips.size() - 1: # (webbed most of the way out, the edge scalloped in)
-			var a := toe.lerp(tips[k], 0.8)
-			var b := toe.lerp(tips[k + 1], 0.8)
-			var m := toe.lerp((tips[k] + tips[k + 1]) * 0.5, 0.55)
-			for v: Vector3 in [toe, a, m, toe, m, b]:
-				web.surface_set_normal(Vector3.UP)
-				web.surface_add_vertex(v)
-		web.surface_end()
+		var fz := (toe - ankle).normalized() # (its web: along the foot, fanned with its toes)
+		var fx := Vector3.UP.cross(fz).normalized() if absf(fz.y) < 0.98 else Vector3.RIGHT
+		_webs[_hind.find(L)].transform = Transform3D(Basis(fx, fz.cross(fx), fz), toe)
 	for L: Array in _fore:
 		var side: float = L[3]
 		var sh: Vector3 = (L[0] as Node3D).position

@@ -233,22 +233,34 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   antlers (a broad palm a side fringed with points, a brow palm before it; in velvet or hard), a calf red brown.
   The deer's grazing, browsing, bedding, alarm, rub and scrape, sparring, calving and nursing; its own wading out
   into the water to feed under it. Its demo station: a bull, a cow and her calf, willows and a pond (B wade).
-- `scripts/creatures/frog.gd` (`Frog`): a northern leopard frog (*Lithobates pipiens*), twice life size: green or
-  brown with round dark spots ringed pale (its skin's own shader, the spots fixed to it), pale dorsolateral ridges,
-  a white belly, a pointed snout, bulging golden eyes with level pupils, its tympanum; long hind legs folded in a Z,
-  webbed feet; a male's dark thumb pads and paired vocal sacs. Sitting, its throat pulsing; hopping (a ballistic
+- `scripts/creatures/frog.gd` (`Frog`): a northern leopard frog (*Lithobates pipiens*), twice life size: its body
+  and head one lofted skin (a pointed snout, a broad flat head, no neck, the sacral hump, its dorsolateral folds
+  raised), painted in its own shader: green or brown, rows of dark spots ringed pale, the folds cream bronze, a pale
+  upper-lip stripe, a dark line from nostril to eye, its tympanum a brown disc with a pale dot, a white belly; bulging
+  golden eyes with level pupils, set into its head; its legs tapered and barred dark across, long hind legs folded
+  in a Z, the hind feet webbed; a male's dark thumb pads and paired vocal sacs. Sitting, its throat pulsing; hopping (a ballistic
   leap, its legs thrown out straight); swimming in kicks and floating with only its eyes out; catching a fly
   (`Frog.fly_of()`) with a flick of its tongue and gulping (its eyes pulled in); a male calling, his sacs swelling in
   bouts; fleeing in leaps for the water; amplexus (on her back, clasped behind her arms) and her egg mass laid on a
   stem under the water (`Eggs`: black eggs in clear jelly). The tadpoles hatch, swim and graze, grow their hind legs,
   then their forelegs, their tails shrinking away, and hop out onto the bank as froglets.
-- `scripts/creatures/turtle.gd` (`Turtle`): a painted turtle (*Chrysemys picta*), twice life size: its low smooth
-  carapace olive black, the scutes edged with pale seams, the marginals barred red; a yellow plastron; near-black skin
-  striped yellow and red, a yellow spot behind each eye; webbed clawed feet, a male's foreclaws long. Walking in a
-  diagonal gait, paddling in the water, diving to the floor; basking on a log (legs splayed out behind, neck up);
-  pulling its head and legs in; eating (`Turtle.weed_of()`, a fly), its neck shot out; the male's courtship, facing
-  her and fluttering his long claws against her face, then over her on the bottom; the female's nest dug on the bank
-  with her hind feet, her eggs laid and covered (`Nest`), the hatchlings out of it and off to the water.
+- `scripts/creatures/turtle.gd` (`Turtle`): an eastern box turtle (*Terrapene carolina carolina*), twice life size,
+  on a species' make (a spec: `SnappingTurtle` has its own). Its carapace its own mesh (a high dome, a low keel, the
+  rim flared behind) painted from its scutes' centres: brown, irregular yellow and orange streaks and blotches out
+  from each scute's growth centre, fine growth rings, dark seams; its plastron hinged in two lobes that close the
+  shell tight (head, legs and tail in) when it withdraws; a lofted head with a hooked beak and a jaw; dark skin
+  spotted orange, scaled (a bumped shader); a male's red eyes (a female's brown), his hind claws thick and curved.
+  Wandering slowly over the forest floor, stopping to look round; sunning; soaking in a puddle; eating a mushroom
+  (`Turtle.food_of()`), `Turtle.weed_of()` or a fly; the male nudging and biting at her shell's rim, then up on her
+  from behind leaning back near upright; the female's nest dug with her hind feet, her eggs laid and covered
+  (`Nest`), the hatchlings out of it.
+- `scripts/creatures/snapping_turtle.gd` (`SnappingTurtle`): a common snapping turtle (*Chelydra serpentina*), on the
+  box turtle's make: a low broad rough shell, three keels of knobs, the rear rim toothed, olive brown with algae; a
+  small cross-shaped plastron (it can't hide); a huge head, hooked beak, chin barbels; tubercled grey skin; thick
+  legs, big claws, webbed feet; a tail as long as its shell with a saw crest. Walking the pond's bottom, surfacing
+  to breathe; lying in ambush on the bottom, mouth a little open; striking (its neck shot out, jaws snapped shut);
+  on land its threat (up on its legs, gaping, lunging and snapping); mating in the water (he's on her back, claws
+  over her shell's rim, biting at her head); nesting on the bank.
 - `scripts/creatures/dragonfly.gd` (`Dragonfly`): a common green darner (*Anax junius*), drawn at twice life size,
   its own flying motor (quick to turn and stop, hovering, banking). Its head nearly all eye, its face yellow green
   with the dark bullseye on its brow; a grass green thorax; ten abdominal segments in a chain (curling), the first
