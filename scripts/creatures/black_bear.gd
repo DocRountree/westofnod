@@ -3,9 +3,8 @@ extends "res://scripts/creatures/ursid.gd" # (by path: found whether or not the 
 ## An American black bear (Ursus americanus), life size (about 1.5 m long,
 ## 85 cm at the shoulder): its rump as high as its shoulders (no hump), its
 ## face straight in profile, its muzzle long, tan; its ears tall, rounded,
-## set wide; its claws short, curved, dark; its coat by its phase: "black"
-## (glossy, the commonest), "cinnamon", "brown" or "blond"; now and then a
-## white blaze on its chest. Cubs (BlackBear.new(true)): born tiny, near
+## set wide; its claws short, curved, dark; its coat glossy black, every one
+## (the eastern bears'), its muzzle tan; now and then a white blaze on its chest. Cubs (BlackBear.new(true)): born tiny, near
 ## naked, blind, in the den (Ursid.den()); growing, following her, playing.
 ## (Ursid, Carnivore: its ways.)
 
@@ -48,10 +47,10 @@ const SPEC := {
 }
 
 
-func _init(young_ := false, phase_ := "black") -> void:
+func _init(young_ := false, _phase := "black") -> void:
 	S = SPEC
 	young = young_
-	phase = int(PHASES.get(phase_, 0))
+	phase = 0 # (all black: the other phases, cinnamon, brown, blond, the West's, not used)
 	super(young_, 0.07 if young_ else 0.5)
 	blaze = not young_ and rng.randf() < 0.2
 	_setup()

@@ -9,8 +9,9 @@ extends "res://scripts/creatures/deer.gd" # (by path: found whether or not the e
 ## long and heavy, the muzzle broad and overhanging, its upper lip great
 ## and mobile, its nostrils big; small eyes set high; long ears; the bell (a
 ## flap of hair-covered skin) hanging from its throat; a stub of a tail. Its
-## coat dark brown, near black on a bull, its legs pale grey brown below
-## (its stockings), its muzzle browner; a calf (Moose.new(true)) red brown,
+## coat a bull's near black, his face dark; a cow's browner, her face paler,
+## grey brown, a pale patch under her tail; the legs pale grey brown below
+## (the stockings); a bull a fifth bigger, his bell longer; a calf (Moose.new(true)) red brown,
 ## unspotted. A bull's antlers broad flat palms out from his head's sides,
 ## each fringed with points along its edge, a smaller brow palm before it
 ## (in velvet in summer, brown and thick; hard and pale in winter).
@@ -75,7 +76,7 @@ func _young_size() -> float:
 
 
 func _male_size() -> float:
-	return 1.12
+	return 1.2 # (a bull a fifth again a cow's size, his hump and neck the heavier for it)
 
 
 func _coat(part: int, along := 0.0) -> ShaderMaterial:

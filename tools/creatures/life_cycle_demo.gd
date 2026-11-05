@@ -30,7 +30,7 @@ extends Node3D
 ## coyote, grey wolf (life size): a female and a male each, her den, prey
 ##   (mice and a hare; a hare)
 ## black bear, brown bear (life size): a female, a male and another (their
-##   colour phases: black, cinnamon, brown; brown, grizzled, blond), her
+##   colour phases: all black; brown, grizzled, blond), her
 ##   den, berry bushes, a tree to rub on
 ## American bison (life size): two bulls, two cows, a calf, a dust wallow
 ## white-tailed deer (life size): a doe with twin fawns and a buck in velvet
@@ -1191,7 +1191,7 @@ func _bear_station(kind: int) -> void:
 	var tree := _box(c + Vector3(2.4, 2.0, 1.4), Vector3(0.35, 4.0, 0.35), Color(0.35, 0.27, 0.18))
 	_rub_trees.append(tree.position * Vector3(1.0, 0.0, 1.0))
 	var sc: Script = BlackBearScript if kind == 0 else BrownBearScript
-	var phases := ["black", "cinnamon", "brown"] if kind == 0 else ["brown", "grizzled", "blond"]
+	var phases := ["black", "black", "black"] if kind == 0 else ["brown", "grizzled", "blond"]
 	var trio := []
 	for j in 3:
 		var b: Node3D = sc.new(false, phases[j])

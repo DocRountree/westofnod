@@ -43,6 +43,7 @@ uniform float to_cream = 0.0; // (a part gone to cream: a hare's eye ring)
 uniform float fur = 1.0; // (a mouse pup's: 0 bare pink skin .. 1 furred)
 uniform vec3 mouse_back : source_color = vec3(0.46, 0.33, 0.21); // (a deer mouse's)
 uniform float line_y = -0.28; // (its belly's edge: the normal's y there)
+uniform bool male = false; // (a grown male: where the sexes differ, a moose's)
 uniform bool sculpt = false; // (its head sculpted: SculptHead; its nose leather painted here)
 uniform vec3 nose_c = vec3(0.0, 0.0, -1e5);
 uniform float nose_r = 1.0;
@@ -426,11 +427,17 @@ void fragment() {
 		// below (its stockings), its muzzle browner; the bell its body's; a
 		// calf red brown, unspotted. Its antlers (part 7) in velvet in summer
 		// (brown felt) or hard and pale; its hooves black (part 4)
-		vec3 body = young ? vec3(0.5, 0.3, 0.16) : vec3(0.17, 0.12, 0.085);
+		// (a bull near black, his face dark; a cow browner, her face paler, grey
+		// brown, a pale patch under her tail)
+		vec3 body = young ? vec3(0.5, 0.3, 0.16) : (male ? vec3(0.12, 0.09, 0.07) : vec3(0.27, 0.2, 0.14));
 		c = countershade(body * 0.82, body, body * 1.15, ny, -0.6);
 		c *= 0.85 + 0.3 * vn(rp * vec3(0.03, 0.03, 0.01)); // (its long coarse hair in locks)
-		if (fw > 0.0)
-			c = mix(c, young ? body * 1.1 : vec3(0.3, 0.21, 0.14), fw * (1.0 - smoothstep(muzzle_z - 60.0, muzzle_z + 60.0, hp.z)));
+		if (fw > 0.0) {
+			vec3 face = young ? body * 1.1 : (male ? vec3(0.2, 0.15, 0.11) : vec3(0.36, 0.29, 0.21));
+			c = mix(c, face, fw * (male ? 1.0 - smoothstep(muzzle_z - 60.0, muzzle_z + 60.0, hp.z) : 0.7));
+		}
+		if (!male && !young && pt == 0.0)
+			c = mix(c, vec3(0.7, 0.63, 0.52), smoothstep(0.05, 0.0, a) * (1.0 - smoothstep(-0.2, 0.3, ny)) * 0.9);
 		if (leg)
 			c = mix(c, young ? body * 1.15 : vec3(0.42, 0.37, 0.3), smoothstep(0.45, 0.7, a));
 		if (pt == 5.0)

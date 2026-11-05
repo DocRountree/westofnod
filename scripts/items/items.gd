@@ -100,44 +100,146 @@ static func model(id: String) -> Node3D:
 static func _axe() -> Node3D:
 	var root := Node3D.new()
 	var wood := Color(0.47, 0.36, 0.24)
-	# the stick: a little crooked, thicker at its foot, a knot or two
+	# the stick: a little crooked, thicker at its foot, a knot or two; its
+	# bark (a shader: streaked, fissured, lenticels), and the twine painted on
+	# where it's wound round, above and below the stone, tight, turn on turn
 	var low := _part(CylinderMesh.new(), Vector3(0.03, 0.34, 0.03), wood)
+	low.material_override = _stick_mat(wood, -0.03, 0.34)
 	low.position.y = -0.03
 	root.add_child(low)
-	var high := _part(CylinderMesh.new(), Vector3(0.027, 0.32, 0.027), wood.darkened(0.06))
-	high.position = Vector3(0.0, 0.29, 0.004)
+	var high := _part(CylinderMesh.new(), Vector3(0.027, 0.36, 0.027), wood)
+	high.material_override = _stick_mat(wood.darkened(0.06), 0.31, 0.36)
+	high.position = Vector3(0.0, 0.31, 0.004)
 	high.rotation.x = -0.03
 	root.add_child(high)
 	for k in [[Vector3(0.012, 0.08, 0.0), 0.012], [Vector3(-0.011, 0.25, 0.006), 0.01]]:
 		var knot := _part(SphereMesh.new(), Vector3.ONE * float(k[1]), wood.darkened(0.25))
 		knot.position = k[0]
 		root.add_child(knot)
-	# the stone: a flattened, tapering blade, its edge thinner and paler (knapped)
+	# the stone: a flattened, tapering blade, its edge thinner and paler
+	# (knapped); the lashing painted across it where it's bound to the stick
 	var stone := Color(0.33, 0.32, 0.3)
 	var head := _part(SphereMesh.new(), Vector3(0.032, 0.085, 0.16), stone)
+	head.material_override = _stone_mat(stone, 0.22)
 	head.position = Vector3(0.0, 0.41, -0.035)
-	(head.material_override as StandardMaterial3D).roughness = 0.75
 	root.add_child(head)
 	var edge := _part(SphereMesh.new(), Vector3(0.012, 0.075, 0.06), stone.lightened(0.25))
 	edge.position = Vector3(0.0, 0.41, -0.1)
 	(edge.material_override as StandardMaterial3D).roughness = 0.5
 	root.add_child(edge)
 	var butt := _part(SphereMesh.new(), Vector3(0.03, 0.06, 0.05), stone.darkened(0.1))
+	butt.material_override = _stone_mat(stone.darkened(0.1), -0.7)
 	butt.position = Vector3(0.0, 0.41, 0.035)
 	root.add_child(butt)
-	# the twine: wound round the stick above and below the stone, and across it
-	var twine := Color(0.62, 0.52, 0.34)
-	for y in [0.355, 0.37, 0.45, 0.465]:
-		var wrap := _ring(0.019, 0.004, twine)
-		wrap.position.y = y
-		root.add_child(wrap)
-	for a in [0.75, -0.75]:
-		var cross := _ring(0.03, 0.0035, twine)
-		cross.position = Vector3(0.0, 0.41, -0.003)
-		cross.rotation = Vector3(0.0, 0.0, a) # (round the stone and the stick, crossing)
-		cross.scale = Vector3(1.0, 1.0, 0.55)
-		root.add_child(cross)
 	return root
+
+
+const TWINE := Color(0.62, 0.52, 0.34)
+static var _stick_sh: Shader
+static var _stone_sh: Shader
+
+
+## A stick's bark: grey brown, streaked along its length, fine fissures
+## and lenticels, a little lichen; and where twine's wound round it (y0: its
+## middle's height on the axe, ys its length: the bands at 0.35-0.385 and
+## 0.435-0.47), the twine, turn on turn, tight, each turn's groove shaded.
+static func _stick_mat(c: Color, y0: float, ys: float) -> ShaderMaterial:
+	if _stick_sh == null:
+		_stick_sh = Shader.new()
+		_stick_sh.code = """shader_type spatial;
+uniform vec3 wood : source_color;
+uniform vec3 twine : source_color;
+uniform float y0 = 0.0;
+uniform float ys = 1.0;
+varying vec3 o;
+float h(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
+float vn(vec2 p) { vec2 i = floor(p); vec2 f = fract(p); f = f * f * (3.0 - 2.0 * f);
+	return mix(mix(h(i), h(i + vec2(1, 0)), f.x), mix(h(i + vec2(0, 1)), h(i + vec2(1, 1)), f.x), f.y); }
+void vertex() { o = VERTEX; }
+void fragment() {
+	float y = y0 + o.y * ys; // (its height on the axe, m)
+	float a = atan(o.x, o.z) / 6.2832 + 0.5; // (round it, 0 .. 1)
+	vec2 g = vec2(a * 9.0, y * 40.0); // (bark: streaks along it)
+	float streak = vn(g * vec2(1.0, 0.25)) * 0.6 + vn(g * vec2(2.3, 0.6) + 7.0) * 0.4;
+	float fiss = smoothstep(0.58, 0.72, vn(vec2(a * 26.0, y * 10.0) + 3.0)) * smoothstep(0.3, 0.6, vn(vec2(a * 5.0, y * 50.0))); // (fine fissures along it, dark)
+	float lent = smoothstep(0.86, 0.92, vn(vec2(a * 60.0, y * 220.0))); // (lenticels: short pale dashes across)
+	vec3 c = wood * (0.6 + 0.75 * streak);
+	c = mix(c, mix(wood, vec3(0.42, 0.4, 0.36), 0.5), smoothstep(0.55, 0.8, vn(vec2(a * 3.0, y * 6.0) + 21.0)) * 0.45); // (grey patches of its outer bark)
+	c = mix(c, wood * 0.32, fiss * 0.9);
+	c = mix(c, wood * 1.6 + vec3(0.06), lent * 0.75);
+	c = mix(c, vec3(0.5, 0.52, 0.42), smoothstep(0.7, 0.85, vn(vec2(a * 4.0, y * 9.0) + 11.0)) * 0.25); // (a little lichen)
+	float rough = 0.85;
+	// (the twine: wound tight, turn on turn, round it in two bands)
+	float band = step(0.35, y) * step(y, 0.385) + step(0.435, y) * step(y, 0.47);
+	if (band > 0.0) {
+		float turn = fract(y / 0.0032 + a * 1.0); // (a helix: a turn every 3 mm)
+		float groove = smoothstep(0.0, 0.35, min(turn, 1.0 - turn));
+		float fib = vn(vec2(a * 140.0, y * 900.0)); // (its fibres, twisted)
+		c = twine * (0.55 + 0.45 * groove) * (0.85 + 0.25 * fib);
+		rough = 0.95;
+	}
+	ALBEDO = c;
+	ROUGHNESS = rough;
+}
+"""
+	var m := ShaderMaterial.new()
+	m.shader = _stick_sh
+	m.set_shader_parameter("wood", c)
+	m.set_shader_parameter("twine", TWINE)
+	m.set_shader_parameter("y0", y0)
+	m.set_shader_parameter("ys", ys)
+	return m
+
+
+## The stone's: knapped facets (flat patches, a little paler at their
+## edges); and the lashing across it where it's bound to the stick (at z
+## stick_z: the part's own, -0.5 .. 0.5), two bands crossing, each its turns.
+static func _stone_mat(c: Color, stick_z: float) -> ShaderMaterial:
+	if _stone_sh == null:
+		_stone_sh = Shader.new()
+		_stone_sh.code = """shader_type spatial;
+uniform vec3 stone : source_color;
+uniform vec3 twine : source_color;
+uniform float stick_z = 0.0;
+varying vec3 o;
+float h(vec3 p) { return fract(sin(dot(p, vec3(12.9898, 78.233, 37.719))) * 43758.5453); }
+void vertex() { o = VERTEX; }
+void fragment() {
+	// (its facets: the nearest of a few points, each patch its own shade)
+	vec3 q = o * 7.0;
+	vec3 cell = floor(q);
+	float best = 9.0; float second = 9.0; vec3 id = cell;
+	for (int x = -1; x <= 1; x++) for (int y = -1; y <= 1; y++) for (int z = -1; z <= 1; z++) {
+		vec3 k = cell + vec3(float(x), float(y), float(z));
+		float d = length(q - k - vec3(h(k), h(k + 3.1), h(k + 5.7)));
+		if (d < best) { second = best; best = d; id = k; } else if (d < second) { second = d; }
+	}
+	vec3 c = stone * (0.85 + 0.3 * h(id));
+	c = mix(c, stone * 1.35, (1.0 - smoothstep(0.0, 0.06, second - best)) * 0.5); // (the ridges between them)
+	float rough = 0.7;
+	// (the lashing: two bands crossing over it at the stick, its turns)
+	float dz = o.z - stick_z;
+	float near = 1.0 - smoothstep(0.16, 0.2, abs(dz));
+	float d1 = abs(o.y - dz * 1.4);
+	float d2 = abs(o.y + dz * 1.4);
+	float lash = max(1.0 - smoothstep(0.05, 0.065, d1), 1.0 - smoothstep(0.05, 0.065, d2)) * near;
+	if (lash > 0.5) {
+		float along = d1 < d2 ? (o.y + dz) : (o.y - dz);
+		float turn = fract(along / 0.035);
+		float groove = smoothstep(0.0, 0.35, min(turn, 1.0 - turn));
+		c = twine * (0.55 + 0.45 * groove);
+		rough = 0.95;
+	}
+	ALBEDO = c;
+	ROUGHNESS = rough;
+}
+"""
+	var m := ShaderMaterial.new()
+	m.shader = _stone_sh
+	m.set_shader_parameter("stone", c)
+	m.set_shader_parameter("twine", TWINE)
+	m.set_shader_parameter("stick_z", stick_z)
+	return m
 
 
 ## A ring of twine (a torus): radius r, thickness t.

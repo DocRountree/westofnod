@@ -159,6 +159,7 @@ func _coat(part: int, along := 0.0) -> ShaderMaterial:
 	m.set_shader_parameter("along", along)
 	m.set_shader_parameter("ear_len", float((S.ear as Dictionary).len))
 	m.set_shader_parameter("hair", float(S.get("fur", 25.0)))
+	m.set_shader_parameter("male", male and not young)
 	return m
 
 
