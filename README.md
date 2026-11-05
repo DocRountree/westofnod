@@ -315,6 +315,17 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   come to her, butting, tails wagging), the fawns at play (running in circles, bucking); mating (the buck tending
   her, his head low, then mounting briefly). The life cycle demo's last station: a summer doe with twins and a buck
   in velvet; two winter bucks and a winter doe; a shrub to browse (B), a sapling to rub (M).
+- `scripts/creatures/beaver.gd` (`Beaver`, *Castor canadensis*, on the hunters' make, plantigrade, waddling): a North
+  American beaver, life size; one skin, heavy, humped, broadest at its hips, a broad blunt head, small eyes and
+  ears, great orange incisors, clawed hands, big webbed hind feet, its tail a broad flat scaled paddle
+  (`carnivore.gdshader`'s species 11: rich dark glossy brown, its feet and tail bare and black). In its water (`wet`,
+  `water_y`) it floats low, head and back showing, hind feet paddling by turns, forefeet tucked, tail trailing;
+  its alarm a tail slap on the water (a splash) and a dive; felling an aspen (`Beaver.sapling()`) sat up gnawing
+  round it, chips flying, the tree falling, a length gnawed off and carried in its jaws out to its lodge
+  (`Beaver.lodge_of()`) and laid on it; eating bark off a stick held across its forepaws, turned like a cob, left
+  peeled; mud plastered on the lodge; grooming sat up; kits born furred, following her on land and swimming; mating
+  in the water. The life cycle demo's last station: a female and a male, a bank with aspens and sticks, a pond and
+  their lodge (E eat bark, H fell an aspen, B swim, X slap and dive, M mud, 1 birth).
 - `scripts/creatures/fox_squirrel.gd` (`FoxSquirrel`, *Sciurus niger*, on the hare's motor): an eastern fox squirrel,
   life size; one skin, a long supple body, round head, short blunt muzzle, big dark eyes ringed pale, short rounded
   ears, orange incisors, sharp claws; its long bushy tail a chain of bones carried up over its back in an S,

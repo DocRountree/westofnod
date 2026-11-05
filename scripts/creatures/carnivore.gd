@@ -357,16 +357,19 @@ func _build_skin(mat: ShaderMaterial) -> void:
 	var t0: Transform3D = trest[0]
 	rings.append(SkinScript.ring(t0 * Vector3(0.0, 0.0, -float(radii[0]) * 1.2), t0.basis.x, t0.basis.y, float(radii[0]) * 1.1, float(radii[0]) * 1.1, float(radii[0]) * 1.1, {torso: 1.0}, 6, 0.0))
 	var n := int(T.n)
+	var flat := float(T.get("flat", 1.0)) # (its depth's share of its width: a beaver's paddle, thin)
 	for k in n:
 		var xf: Transform3D = trest[k]
 		var rk := float(radii[k])
+		var fk := lerpf(1.0, flat, clampf(k / 1.5, 0.0, 1.0))
 		var wj := {torso: 0.5, _sb["tail0"]: 0.5} if k == 0 else {_sb["tail%d" % (k - 1)]: 0.5, _sb["tail%d" % k]: 0.5}
-		rings.append(SkinScript.ring(xf.origin, xf.basis.x, xf.basis.y, rk, rk, rk, wj, 6, float(k) / n))
+		rings.append(SkinScript.ring(xf.origin, xf.basis.x, xf.basis.y, rk, rk * fk, rk * fk, wj, 6, float(k) / n))
 		var rn := float(radii[mini(k + 1, n - 1)])
-		rings.append(SkinScript.ring(xf * Vector3(0.0, 0.0, float(T.seg) * 0.5), xf.basis.x, xf.basis.y, (rk + rn) * 0.5, (rk + rn) * 0.5, (rk + rn) * 0.5, {_sb["tail%d" % k]: 1.0}, 6, (k + 0.5) / n))
+		var fm := lerpf(1.0, flat, clampf((k + 0.5) / 1.5, 0.0, 1.0))
+		rings.append(SkinScript.ring(xf * Vector3(0.0, 0.0, float(T.seg) * 0.5), xf.basis.x, xf.basis.y, (rk + rn) * 0.5, (rk + rn) * 0.5 * fm, (rk + rn) * 0.5 * fm, {_sb["tail%d" % k]: 1.0}, 6, (k + 0.5) / n))
 	var last: Transform3D = trest[n - 1]
 	var rl := float(radii[n - 1]) * 0.75
-	rings.append(SkinScript.ring(last * Vector3(0.0, 0.0, float(T.seg)), last.basis.x, last.basis.y, rl, rl, rl, {_sb["tail%d" % (n - 1)]: 1.0}, 6, 1.0))
+	rings.append(SkinScript.ring(last * Vector3(0.0, 0.0, float(T.seg)), last.basis.x, last.basis.y, rl, rl * flat, rl * flat, {_sb["tail%d" % (n - 1)]: 1.0}, 6, 1.0))
 	K.tube(SkinScript.smooth(rings, 2), 12)
 	# the legs: standing
 	for i in 4:
@@ -423,10 +426,11 @@ func _leg_rings(i: int, J: Array, torso: int, b: Array) -> Array:
 	if hooved: # (the pastern, down into the hoof)
 		spec.append([ball, 0.82, 0.8, 0.85, {b[2]: 0.5, b[3]: 0.5}])
 		spec.append([ball.lerp(toe, 0.35), 0.8, 0.75, 0.8, {b[3]: 1.0}])
-	elif flat: # (the bear's broad sole)
-		spec.append([ball, 1.25, 0.9, 1.0, {b[2]: 0.5, b[3]: 0.5}])
-		spec.append([ball.lerp(toe, 0.55), 1.55, 0.6, 0.7, {b[3]: 1.0}])
-		spec.append([ball.lerp(toe, 0.95), 1.3, 0.45, 0.5, {b[3]: 1.0}])
+	elif flat: # (the bear's broad sole; a beaver's hind, webbed, broader)
+		var sw := float(S.get("sole_hind", 1.0)) if hind else 1.0
+		spec.append([ball, 1.25 * sqrt(sw), 0.9, 1.0, {b[2]: 0.5, b[3]: 0.5}])
+		spec.append([ball.lerp(toe, 0.55), 1.55 * sw, 0.6, 0.7, {b[3]: 1.0}])
+		spec.append([ball.lerp(toe, 0.95), 1.3 * sw, 0.42, 0.45, {b[3]: 1.0}])
 	else: # (the paw)
 		spec.append([ball, 0.95, 0.85, 0.9, {b[2]: 0.5, b[3]: 0.5}])
 		spec.append([ball.lerp(toe, 0.55), 1.22, 0.62, 0.72, {b[3]: 1.0}])

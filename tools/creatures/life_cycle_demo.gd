@@ -39,6 +39,9 @@ extends Node3D
 ##   along (no nest)
 ## eastern fox squirrel: a female and a male, their tree (her drey in it),
 ##   nuts to eat (E) and cache (B); F up the tree, D its tail flicked
+## North American beaver: a female and a male, a bank with aspens and sticks
+##   (E eat bark, H fell an aspen and take it to the lodge), a pond and their
+##   lodge (B swim, X tail slap and dive, M mud on the lodge)
 ## (every station a male too, but the ants': the female's partner)
 ##
 ## THE KEYS (the same for every creature, acting only on those at the
@@ -71,7 +74,7 @@ const PupaScript := preload("res://scripts/creatures/pupa.gd")
 
 const NAMES := ["monarch", "hummingbird clearwing", "paper wasp", "carpenter ant (queen)", "red harvester (queen)", "June bug", "convergent lady beetle", "differential grasshopper", "Carolina mantis", "eastern diamondback rattlesnake", "eastern milk snake",
 		"Carolina wolf spider", "six-spotted fishing spider", "grass spider (funnel weaver)", "yellow garden spider", "pill bug", "deer mouse",
-		"green anole", "Arizona bark scorpion", "snowshoe hare", "red fox", "bobcat", "coyote", "grey wolf", "American black bear", "brown bear (grizzly)", "American bison", "white-tailed deer", "trigonalid wasp", "eastern fox squirrel"]
+		"green anole", "Arizona bark scorpion", "snowshoe hare", "red fox", "bobcat", "coyote", "grey wolf", "American black bear", "brown bear (grizzly)", "American bison", "white-tailed deer", "trigonalid wasp", "eastern fox squirrel", "North American beaver"]
 const SpiderScript := preload("res://scripts/creatures/spider.gd")
 const IsopodScript := preload("res://scripts/creatures/isopod.gd")
 const SnakeScript := preload("res://scripts/creatures/snake.gd")
@@ -93,6 +96,7 @@ const ScorpionScript := preload("res://scripts/creatures/scorpion.gd")
 const BisonScript := preload("res://scripts/creatures/bison.gd")
 const DeerScript := preload("res://scripts/creatures/deer.gd")
 const SquirrelScript := preload("res://scripts/creatures/fox_squirrel.gd")
+const BeaverScript := preload("res://scripts/creatures/beaver.gd")
 const TrigScript := preload("res://scripts/creatures/trigonalid.gd")
 const GAP := 0.9 # m between stations
 
@@ -116,6 +120,9 @@ var _cells: Array = [] # the comb's cells' mouths (the plain's)
 var _moth_flowers: Array = [] # the clearwing's flowers' heads (its nectar)
 var _sq_nuts: Array = [] # (the squirrels' nuts, on the ground)
 var _sq_tree := Vector3.ZERO
+var _bv_saplings: Array = [] # (the beavers': to fell)
+var _bv_sticks: Array = [] # (to eat)
+var _bv_bank := 0.0 # (where the bank ends, x)
 var _trig_heads: Array = [] # the trigonalid's flowers' heads
 var _trig_leaves: Array = [] # its leaves' tops [point, normal]
 var _pupae: Array = []
@@ -176,7 +183,7 @@ var _moth_perch_n := Vector3.BACK
 
 func _station(i: int) -> Vector3:
 	# (the snakes, life size, given more room)
-	return Vector3(i * GAP + (1.2 if i >= 9 else 0.0) + (1.8 if i >= 10 else 0.0) + (1.6 if i >= 11 else 0.0) + (3.0 if i >= 19 else 0.0) + (4.0 if i >= 20 else 0.0) + (4.0 if i >= 21 else 0.0) + (4.0 if i >= 22 else 0.0) + (5.0 if i >= 23 else 0.0) + (6.0 if i >= 24 else 0.0) + (7.0 if i >= 25 else 0.0) + (9.0 if i >= 26 else 0.0) + (9.0 if i >= 27 else 0.0) + (4.5 if i >= 28 else 0.0) + (3.0 if i >= 29 else 0.0), 0.0, 0.0)
+	return Vector3(i * GAP + (1.2 if i >= 9 else 0.0) + (1.8 if i >= 10 else 0.0) + (1.6 if i >= 11 else 0.0) + (3.0 if i >= 19 else 0.0) + (4.0 if i >= 20 else 0.0) + (4.0 if i >= 21 else 0.0) + (4.0 if i >= 22 else 0.0) + (5.0 if i >= 23 else 0.0) + (6.0 if i >= 24 else 0.0) + (7.0 if i >= 25 else 0.0) + (9.0 if i >= 26 else 0.0) + (9.0 if i >= 27 else 0.0) + (4.5 if i >= 28 else 0.0) + (3.0 if i >= 29 else 0.0) + (5.0 if i >= 30 else 0.0), 0.0, 0.0)
 
 
 func _ready() -> void:
@@ -197,7 +204,7 @@ func _ready() -> void:
 	add_child(sun)
 	# the plain, a hole left in it for the fishing spider's pond
 	var x0 := -0.95
-	var x1 := GAP * 29.0 + 104.0
+	var x1 := GAP * 30.0 + 114.0
 	var pc := _station(12)
 	var grass := Color(0.36, 0.4, 0.22)
 	_box(Vector3((x0 + pc.x - POND_W) * 0.5, -0.005, 0.0), Vector3(pc.x - POND_W - x0, 0.01, 3.0), grass)
@@ -236,6 +243,7 @@ func _ready() -> void:
 	_deer_station()
 	_trig_station()
 	_squirrel_station()
+	_beaver_station()
 	_male_partners()
 	_new_pupae()
 	_focus = _station(0) + Vector3(0.0, 0.08, 0.0)
@@ -955,6 +963,66 @@ func _sq_nut_near(p: Vector3) -> Node3D:
 	return best
 
 
+## The beavers: a female and a male, a raised bank (aspen saplings on it,
+## a stick or two) and beside it a pond 30 cm deep, their lodge out in it.
+const BV_BANK_Y := 0.32
+const BV_WATER_Y := 0.28
+func _beaver_station() -> void:
+	var c := _station(30)
+	_bv_bank = c.x - 0.3
+	_box(Vector3(c.x - 1.5, BV_BANK_Y * 0.5, c.z), Vector3(2.4, BV_BANK_Y, 4.0), Color(0.34, 0.33, 0.2)) # (the bank)
+	_box(Vector3(c.x + 1.2, 0.002, c.z), Vector3(3.0, 0.004, 4.0), Color(0.2, 0.17, 0.12)) # (the pond's mud floor)
+	var w := MeshInstance3D.new()
+	var pm := PlaneMesh.new()
+	pm.size = Vector2(3.0, 4.0)
+	w.mesh = pm
+	var wm := StandardMaterial3D.new()
+	wm.albedo_color = Color(0.16, 0.26, 0.24, 0.72)
+	wm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	wm.roughness = 0.08
+	wm.metallic_specular = 0.8
+	w.material_override = wm
+	w.position = Vector3(c.x + 1.2, BV_WATER_Y, c.z)
+	add_child(w)
+	var lodge: Node3D = BeaverScript.lodge_of()
+	lodge.position = Vector3(c.x + 1.6, 0.0, c.z - 0.9)
+	lodge.scale = Vector3.ONE * 0.8
+	add_child(lodge)
+	for k in 3:
+		var sp: Node3D = BeaverScript.sapling()
+		sp.position = Vector3(c.x - 1.0 - 0.6 * k, BV_BANK_Y, c.z - 1.2 + 1.1 * k)
+		add_child(sp)
+		_bv_saplings.append(sp)
+	for k in 2:
+		_bv_stick(Vector3(c.x - 1.4 + 0.5 * k, 0.0, c.z + 1.0 - 0.3 * k))
+	var bank := _bv_bank
+	var wet := func(x: float, z: float) -> bool: return x > bank + 0.05 and x < c.x + 2.7 and absf(z - c.z) < 1.95
+	var ground := func(x: float, z: float) -> float: return BV_BANK_Y if x <= bank and absf(z - c.z) < 2.0 and x > c.x - 2.7 else 0.0
+	for m in 2:
+		var b: Node3D = BeaverScript.new()
+		b.set("male", m == 1)
+		b.set("wet", wet)
+		b.set("water_y", BV_WATER_Y)
+		b.set("height", ground)
+		b.set("lodge", lodge)
+		add_child(b)
+		if m == 0:
+			b.call("place", Vector3(c.x - 1.3, BV_BANK_Y, c.z + 0.3), 1.2)
+			b.call("wander", Vector3(c.x - 1.4, BV_BANK_Y, c.z), 0.7)
+		else:
+			b.call("place", Vector3(c.x + 0.9, 0.0, c.z + 0.6), -1.0)
+			b.call("swim", Vector3(c.x + 1.0, 0.0, c.z + 0.4), 1.0)
+
+
+func _bv_stick(at: Vector3) -> Node3D:
+	var st: Node3D = BeaverScript.stick_of()
+	st.position = Vector3(at.x, BV_BANK_Y + 0.015, at.z)
+	st.rotation.y = randf() * TAU
+	add_child(st)
+	_bv_sticks.append(st)
+	return st
+
+
 ## The trigonalid wasp: a female and a male, about a clump of fleabane (its
 ## nectar), and leaves on stalks about it (hers to lay along).
 func _trig_station() -> void:
@@ -1589,6 +1657,13 @@ func _do(c: Node, act: String, all: Array) -> void:
 				c.call("seek_food", st, 0.5 if sc == Wasp else 0.35)
 			elif sc == MantisScript:
 				c.call("stalk", p, 0.15)
+			elif sc == BeaverScript:
+				if young:
+					c.set("_mode", "follow")
+				elif c.get("_in_water"):
+					c.call("swim", p, 1.0)
+				else:
+					c.call("wander", Vector3(_bv_bank - 1.1, BV_BANK_Y, st.z), 0.7)
 			elif sc == BisonScript or sc == DeerScript:
 				if young:
 					c.set("_mode", "follow")
@@ -1630,6 +1705,8 @@ func _do(c: Node, act: String, all: Array) -> void:
 				c.call("birth", 4)
 			elif sc == SquirrelScript:
 				c.call("birth", 3) # (up in her drey)
+			elif sc == BeaverScript:
+				c.call("birth", 3)
 			elif c.has_method("birth"): # (the hunters: in their dens)
 				c.call("birth", 4, c.get("home_den"))
 		"eat", "hunt":
@@ -1671,6 +1748,8 @@ func _do(c: Node, act: String, all: Array) -> void:
 				c.call("coil")
 			elif sc == IsopodScript:
 				c.call("roll", 5.0)
+			elif sc == BeaverScript: # (its tail slapped on the water, and under)
+				c.call("slap")
 			elif sc == HareScript or sc == SquirrelScript: # (a squirrel: up its tree)
 				c.call("flee", p + Vector3(randf_range(-1, 1), 0.0, randf_range(-1, 1)).normalized() * 0.5)
 			elif sc == ScorpionScript and not young:
@@ -1707,7 +1786,9 @@ func _do(c: Node, act: String, all: Array) -> void:
 			if c.has_method("nurse"):
 				c.call("nurse")
 		"forage":
-			if sc == SquirrelScript and not young: # (B: a nut cached)
+			if sc == BeaverScript and not young: # (B: off for a swim)
+				c.call("swim", Vector3(_bv_bank + 1.4, 0.0, st.z), 1.0)
+			elif sc == SquirrelScript and not young: # (B: a nut cached)
 				var a := randf() * TAU
 				c.call("cache", _sq_nut_near(p), p + Vector3(cos(a), 0.0, sin(a)) * 0.7)
 			elif sc == DeerScript and not young:
@@ -1831,6 +1912,22 @@ func _feed(c: Node, act: String, young: bool, p: Vector3, st: Vector3) -> void:
 	elif sc == SquirrelScript:
 		if not young:
 			c.call("eat", _sq_nut_near(p))
+	elif sc == BeaverScript:
+		if young:
+			return
+		if act == "hunt": # (H: a sapling felled, a length of it to the lodge)
+			for t in _bv_saplings:
+				if is_instance_valid(t) and (t as Node3D).transform.basis.y.y > 0.9 and not t.has_meta("felling"):
+					t.set_meta("felling", true) # (each its own)
+					c.call("fell", t)
+					return
+		var best: Node3D = null
+		for t in _bv_sticks:
+			if is_instance_valid(t) and t.get_parent() == self and (best == null or (t as Node3D).position.distance_to(p) < best.position.distance_to(p)):
+				best = t
+		if best == null:
+			best = _bv_stick(Vector3(_bv_bank - 0.6 - randf() * 0.8, 0.0, st.z + randf_range(-1.0, 1.0)))
+		c.call("eat", best)
 	elif sc == MothScript: # (nectar: hovering at its flowers, one floret after another)
 		if not young:
 			c.call("feed", _moth_flowers)
@@ -1871,7 +1968,7 @@ func _feed(c: Node, act: String, young: bool, p: Vector3, st: Vector3) -> void:
 ## To station i (the camera further off for the snakes).
 func _go(i: int) -> void:
 	_at = i
-	_dist = 2.4 if i == 29 else 0.8 if i == 28 else 2.2 if i == 9 or i == 10 else (2.4 if i == 19 else ((6.0 if i >= 27 else (9.0 if i >= 26 else (7.5 if i >= 24 else (5.0 if i >= 22 else 3.6)))) if i >= 20 else minf(_dist, 0.8)))
+	_dist = 4.2 if i == 30 else 2.4 if i == 29 else 0.8 if i == 28 else 2.2 if i == 9 or i == 10 else (2.4 if i == 19 else ((6.0 if i >= 27 else (9.0 if i >= 26 else (7.5 if i >= 24 else (5.0 if i >= 22 else 3.6)))) if i >= 20 else minf(_dist, 0.8)))
 	_say()
 
 

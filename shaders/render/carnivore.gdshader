@@ -283,6 +283,24 @@ void fragment() {
 		if (pt == 5.0)
 			c = rn.z < 0.0 ? rust * 1.15 : mix(grizzle, rust, 0.6);
 		c = mix(vec3(0.88, 0.6, 0.55), c, fur);
+	} else if (species == 11) {
+		// a beaver: rich dark brown, glossy, its sides warmer, its belly a
+		// little paler; its feet bare, black; its tail a scaled black paddle
+		// (furred only at its root); its ears small, dark
+		vec3 back = vec3(0.16, 0.098, 0.058);
+		vec3 side = vec3(0.26, 0.16, 0.09);
+		vec3 belly = vec3(0.34, 0.24, 0.16);
+		c = countershade(back, side, belly, ny, -0.35);
+		c = mix(c, side * 1.15, fw * smoothstep(0.3, -0.3, ny));
+		if (leg)
+			c = mix(side * 0.85, vec3(0.1, 0.09, 0.085), smoothstep(0.6, 0.78, a));
+		if (pt == 6.0) {
+			float cell = max(abs(fract(rp.x / 9.0) - 0.5), abs(fract(rp.z / 9.0 + 0.5 * floor(rp.x / 9.0)) - 0.5));
+			vec3 scale_c = vec3(0.15, 0.14, 0.14) * (0.8 + 0.35 * smoothstep(0.38, 0.48, cell));
+			c = mix(back, scale_c, smoothstep(0.06, 0.14, a));
+		}
+		if (pt == 5.0)
+			c = back * 0.85;
 	} else {
 		// a white-tailed deer: summer red brown, darker down its spine;
 		// winter grey brown; white beneath and inside its legs, its chin, a
@@ -336,7 +354,7 @@ void fragment() {
 	c = mix(c, vec3(0.8, 0.72, 0.6), to_cream);
 	// the fur's grain (strands lying back along the body, down the legs) and
 	// a soft mottling; the bison's front curled in wool
-	bool bare = pt == 4.0 || pt == 7.0;
+	bool bare = pt == 4.0 || pt == 7.0 || (species == 11 && ((pt == 6.0 && a > 0.12) || (leg && a > 0.7)));
 	float s = clamp(hair * 0.1, 0.6, 6.0);
 	vec3 q = leg ? vec3(rp.x / s, rp.y / (s * 5.0), rp.z / s) : vec3(rp.x / s, rp.y / s, rp.z / (s * 5.0));
 	float grain = vn(q) * 0.6 + vn(q * 2.3 + 11.0) * 0.4;
@@ -366,7 +384,9 @@ void fragment() {
 		ROUGHNESS = 0.45;
 		SPECULAR = 0.45;
 	} else {
-		ROUGHNESS = species == 4 && phase == 0 ? 0.62 : 0.86; // (a black bear's coat glossy)
+		ROUGHNESS = (species == 4 && phase == 0) || species == 11 ? 0.6 : 0.86; // (a black bear's coat glossy; a beaver's)
+		if (bare)
+			ROUGHNESS = 0.5;
 		SPECULAR = 0.28;
 		RIM = 0.25;
 		RIM_TINT = 0.7;
