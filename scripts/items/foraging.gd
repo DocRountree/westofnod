@@ -28,22 +28,27 @@ var _plants := {} # item id -> the cells (GroundCover: that item's layer's) pick
 var _plants_day := -1
 
 
-## How many fruit a tree bears (a day), by its own hash: 0..MOST, none on
-## about a third.
-static func bears(uid: int) -> int:
+## How many fruit a tree bears (a day), by its own hash: 0..most (its
+## fruit's "bears" in Items, else MOST), none on about a third.
+static func bears(uid: int, most := MOST) -> int:
 	var h := fposmod(sin(float(uid % 1000003) * 12.9898 + 4.1) * 43758.5453, 1.0)
-	return maxi(int(h * (MOST + 3)) - 2, 0)
+	return maxi(int(h * (most + 3)) - 2, 0)
+
+
+## The most fruit of id a tree bears.
+static func most_of(id: String) -> int:
+	return int(Items.KINDS.get(id, {}).get("bears", MOST))
 
 
 ## Which of a tree's fruit spots were picked today (bits).
-func _picked(uid: int, spots: int) -> int:
+func _picked(uid: int, spots: int, most := MOST) -> int:
 	var t: Dictionary = _taken.get(uid, {})
 	if t.is_empty() or int(t.get("day", -1)) != main.clock.day:
 		return 0
 	if t.has("mask"):
 		return int(t.mask)
 	# (saved before the fruit were picked one by one: so many, the last borne)
-	var borne := mini(bears(uid), spots)
+	var borne := mini(bears(uid, most), spots)
 	var mask := 0
 	for i in range(maxi(borne - int(t.get("n", 0)), 0), borne):
 		mask |= 1 << i
@@ -52,18 +57,18 @@ func _picked(uid: int, spots: int) -> int:
 
 ## The spots (indices into its mesh_script's fruit_spots) of the fruit
 ## hanging on the tree today.
-func hanging(uid: int, spots: int) -> PackedInt32Array:
+func hanging(uid: int, spots: int, most := MOST) -> PackedInt32Array:
 	var out := PackedInt32Array()
-	var picked := _picked(uid, spots)
-	for i in mini(bears(uid), spots):
+	var picked := _picked(uid, spots, most)
+	for i in mini(bears(uid, most), spots):
 		if not picked & (1 << i):
 			out.append(i)
 	return out
 
 
 ## How many are left on the tree today.
-func left_on(uid: int, spots: int) -> int:
-	return hanging(uid, spots).size()
+func left_on(uid: int, spots: int, most := MOST) -> int:
+	return hanging(uid, spots, most).size()
 
 
 ## Where a tree's fruit at spot i hangs, as drawn (on the map; its middle):
@@ -88,7 +93,7 @@ func fruit_at(eye: Vector3, fwd: Vector3) -> Dictionary:
 		var spots: PackedVector3Array = kind.mesh_script.fruit_spots(tree.variant)
 		var size: Vector3 = Items.KINDS.get(tree.fruit, {}).get("size", Vector3.ONE * 0.05)
 		var r := maxf(size.x, maxf(size.y, size.z)) * 0.5 + PICK_SLACK
-		for i in hanging(tree.uid, spots.size()):
+		for i in hanging(tree.uid, spots.size(), most_of(tree.fruit)):
 			var c := _fruit_xf(tree, spots[i], i).origin
 			var t := (c - eye).dot(fwd)
 			if t < 0.0 or t > PICK_REACH + r or t >= best_t:
@@ -130,7 +135,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		var tree: Dictionary = fruit.tree
 		var kind: PropKind = tree.kind
 		var spots: int = kind.mesh_script.fruit_spots(tree.variant).size()
-		_taken[tree.uid] = {"day": main.clock.day, "mask": _picked(tree.uid, spots) | (1 << int(fruit.spot))}
+		_taken[tree.uid] = {"day": main.clock.day, "mask": _picked(tree.uid, spots, most_of(tree.fruit)) | (1 << int(fruit.spot))}
 		_dirty = true
 	else:
 		var cells: Array = _plants.get(id, [])
@@ -172,7 +177,7 @@ func _show(at: Vector3) -> void:
 	for tree in main.population.fruit_trees_near(at, SHOW):
 		var kind: PropKind = tree.kind
 		var spots: PackedVector3Array = kind.mesh_script.fruit_spots(tree.variant)
-		var on := hanging(tree.uid, spots.size())
+		var on := hanging(tree.uid, spots.size(), most_of(tree.fruit))
 		if on.is_empty():
 			continue
 		var list: Array = by_fruit.get(tree.fruit, [])
@@ -201,8 +206,10 @@ func _show(at: Vector3) -> void:
 
 
 ## A fruit as it hangs (unit size: scaled by its item's size): a smooth
-## ellipsoid in its item's colour.
+## ellipsoid in its item's colour (an acorn: in its cup, on its stalk).
 static func _fruit_mesh(id: String) -> Mesh:
+	if id == "acorn":
+		return _acorn_mesh()
 	var m := SphereMesh.new()
 	m.radius = 0.5
 	m.height = 1.0
@@ -212,6 +219,44 @@ static func _fruit_mesh(id: String) -> Mesh:
 	mat.albedo_color = Items.color_of(id)
 	mat.roughness = 0.6
 	m.material = mat
+	return m
+
+
+## An acorn hanging (unit size): the nut, glossy, its cup over its top
+## third, scaly, grey brown, and its long stalk up to the twig: one mesh,
+## coloured by vertex.
+static func _acorn_mesh() -> Mesh:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var sphere := SphereMesh.new()
+	sphere.radius = 0.5
+	sphere.height = 1.0
+	sphere.radial_segments = 10
+	sphere.rings = 6
+	var cyl := CylinderMesh.new()
+	cyl.top_radius = 0.5
+	cyl.bottom_radius = 0.5
+	cyl.height = 1.0
+	cyl.radial_segments = 5
+	cyl.rings = 1
+	var nut := Items.color_of("acorn")
+	for part: Array in [[sphere, Transform3D(Basis(), Vector3.ZERO), nut], [sphere, Transform3D(Basis.from_scale(Vector3(1.12, 0.55, 1.12)), Vector3(0.0, 0.3, 0.0)), Items.ACORN_CUP],
+			[cyl, Transform3D(Basis.from_scale(Vector3(0.14, 1.2, 0.14)), Vector3(0.0, 1.1, 0.0)), Color(0.36, 0.32, 0.2)]]:
+		var a: Array = (part[0] as PrimitiveMesh).get_mesh_arrays()
+		var xf: Transform3D = part[1]
+		var vs: PackedVector3Array = a[Mesh.ARRAY_VERTEX]
+		var ns: PackedVector3Array = a[Mesh.ARRAY_NORMAL]
+		var idx: PackedInt32Array = a[Mesh.ARRAY_INDEX]
+		for k in idx:
+			st.set_color(part[2])
+			st.set_normal((xf.basis.inverse().transposed() * ns[k]).normalized())
+			st.add_vertex(xf * vs[k])
+	var mat := StandardMaterial3D.new()
+	mat.vertex_color_use_as_albedo = true
+	mat.vertex_color_is_srgb = true # (its colours as Items gives them)
+	mat.roughness = 0.5
+	var m := st.commit()
+	m.surface_set_material(0, mat)
 	return m
 
 

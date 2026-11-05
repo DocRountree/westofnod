@@ -452,6 +452,56 @@ static func _kind(v: int) -> String:
 	return VARIANTS[posmod(v, VARIANTS.size())].get("kind", "tree")
 
 
+## What fruit variant v bears (Foraging): acorns, on the grown, living
+## oaks (none on the saplings, the dead, the stumps and logs).
+static func fruit_of(v: int) -> String:
+	return "acorn" if _kind(v) == "tree" else ""
+
+
+static var _fruit_spots := {}
+
+
+## Where variant v's acorns hang (its own space, at scale 1): under twigs
+## round the outside of its crown's lower two thirds, two or three together
+## on their stalks, as many places as it bears (Foraging hangs the first so
+## many, as many as are left), in a fixed order.
+static func fruit_spots(v: int) -> PackedVector3Array:
+	v = posmod(v, VARIANTS.size())
+	if not _fruit_spots.has(v):
+		var out := PackedVector3Array()
+		if fruit_of(v) != "":
+			var tb := grow(v)
+			var c: Array = VARIANTS[v].crown
+			var top: float = c[1]
+			var bottom: float = c[2]
+			var r := RandomNumberGenerator.new()
+			r.seed = int(VARIANTS[v].seed) * 7 + 5
+			var spots: Array[Vector3] = []
+			for sp in tb.sprigs:
+				var q: Vector3 = tb.pos[sp[0]]
+				if q.y > bottom + 0.3 and q.y < bottom + (top - bottom) * 0.66 and Vector2(q.x, q.z).length() > float(c[0]) * 0.35:
+					spots.append(q)
+			var most := int(Items.KINDS.acorn.get("bears", 18))
+			while out.size() < most and not spots.is_empty():
+				# (a twig far from those before, and two or three on it)
+				var best := spots[r.randi() % spots.size()]
+				var far := -1.0
+				for t in 6:
+					var cand := spots[r.randi() % spots.size()]
+					var d := INF
+					for o in out:
+						d = minf(d, o.distance_to(cand))
+					if d > far:
+						far = d
+						best = cand
+				for k in r.randi_range(2, 3):
+					if out.size() < most:
+						var a := TAU * k / 3.0 + r.randf() # (splayed round the stalks' end)
+						out.append(best + Vector3(cos(a) * 0.028, -0.075 - r.randf_range(0.0, 0.02), sin(a) * 0.028))
+		_fruit_spots[v] = out
+	return _fruit_spots[v]
+
+
 ## Population: how variant v differs as a prop.
 static func variant_props(v: int) -> Dictionary:
 	var p: Dictionary = PROPS[_kind(v)].duplicate()

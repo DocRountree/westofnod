@@ -1,7 +1,7 @@
 class_name Items
 ## What can be carried: each kind of item, by id. The axe fells trees
 ## (Felling); the rest, for now, are only things to carry (/give in the chat;
-## the pawpaw, crabapple and walnut picked from their trees, the flowers
+## the pawpaw, crabapple, walnut and acorn picked from their trees, the flowers
 ## and cattails where they grow: Foraging).
 ##
 ## Each: name, stack (how many fit in one slot or hand), and how it looks held
@@ -11,9 +11,10 @@ const KINDS := {
 	"axe": {"name": "Axe", "stack": 1, "shape": "axe", "size": Vector3.ONE, "color": Color(0.55, 0.56, 0.58)},
 	"stick": {"name": "Stick", "stack": 16, "shape": "cylinder", "size": Vector3(0.025, 0.55, 0.025), "color": Color(0.42, 0.3, 0.18)},
 	"stone": {"name": "Stone", "stack": 16, "shape": "sphere", "size": Vector3(0.09, 0.07, 0.08), "color": Color(0.5, 0.49, 0.46)},
-	"acorn": {"name": "Acorn", "stack": 32, "shape": "sphere", "size": Vector3(0.018, 0.026, 0.018), "color": Color(0.55, 0.38, 0.16)},
+	"acorn": {"name": "Acorn", "stack": 10, "shape": "acorn", "size": Vector3(0.016, 0.024, 0.016), "color": Color(0.5, 0.36, 0.16), "bears": 18}, # (OakTree: its grown trees bear them, on long stalks, two or three together)
 	"oak_leaf": {"name": "Oak leaf", "stack": 64, "shape": "box", "size": Vector3(0.07, 0.003, 0.11), "color": Color(0.3, 0.42, 0.14)},
-	# fruit (PawpawTree, CrabappleTree, WalnutTree: their trees bear them)
+	# fruit (PawpawTree, CrabappleTree, WalnutTree: their trees bear them; and
+	# OakTree the acorn, above; bears: how many a tree bears at most, Foraging)
 	"pawpaw": {"name": "Pawpaw", "stack": 1, "shape": "pawpaw", "size": Vector3(0.055, 0.11, 0.05), "color": Color(0.55, 0.62, 0.24)},
 	"crabapple": {"name": "Crabapple", "stack": 32, "shape": "crabapple", "size": Vector3(0.026, 0.024, 0.026), "color": Color(0.72, 0.16, 0.1)},
 	"walnut": {"name": "Black walnut", "stack": 5, "shape": "walnut", "size": Vector3(0.046, 0.044, 0.046), "color": Color(0.43, 0.5, 0.18)}, # (in its green husk, as picked)
@@ -31,6 +32,9 @@ const KINDS := {
 	"pot_of_sap": {"name": "Pot of maple sap", "stack": 1, "shape": "pot", "size": Vector3(0.15, 0.15, 0.15), "color": Color(0.66, 0.38, 0.24), "full": Color(0.78, 0.6, 0.3)},
 	"cattail": {"name": "Cattail", "stack": 16, "shape": "cattail", "size": Vector3(0.024, 0.75, 0.16), "color": Color(0.36, 0.22, 0.12)},
 }
+
+
+const ACORN_CUP := Color(0.42, 0.37, 0.27) ## an acorn's cup
 
 
 static func exists(id: String) -> bool:
@@ -54,7 +58,7 @@ static func model(id: String) -> Node3D:
 	var k: Dictionary = KINDS.get(id, {"shape": "box", "size": Vector3.ONE * 0.05, "color": Color.MAGENTA})
 	if k.shape == "axe":
 		return _axe()
-	if k.shape in ["pawpaw", "crabapple", "walnut"]:
+	if k.shape in ["pawpaw", "crabapple", "walnut", "acorn"]:
 		return _fruit(k)
 	if k.shape == "flower":
 		return _flower(k)
@@ -199,8 +203,22 @@ static func _pot(k: Dictionary) -> Node3D:
 static func _fruit(k: Dictionary) -> Node3D:
 	var root := Node3D.new()
 	var body := _part(SphereMesh.new(), k.size, k.color)
-	(body.material_override as StandardMaterial3D).roughness = 0.45 if k.shape == "crabapple" else (0.8 if k.shape == "walnut" else 0.6)
+	(body.material_override as StandardMaterial3D).roughness = 0.45 if k.shape == "crabapple" else (0.8 if k.shape == "walnut" else (0.35 if k.shape == "acorn" else 0.6))
 	root.add_child(body)
+	if k.shape == "acorn":
+		# its cup: scaly, grey brown, over its top third; its point below; its
+		# long stalk (an English oak's: pedunculate)
+		var cup := _part(SphereMesh.new(), (k.size as Vector3) * Vector3(1.12, 0.55, 1.12), ACORN_CUP)
+		cup.position.y = k.size.y * 0.3
+		(cup.material_override as StandardMaterial3D).roughness = 0.95
+		root.add_child(cup)
+		var tip := _part(SphereMesh.new(), Vector3(0.003, 0.004, 0.003), (k.color as Color).darkened(0.4))
+		tip.position.y = -k.size.y * 0.5
+		root.add_child(tip)
+		var stalk := _part(CylinderMesh.new(), Vector3(0.0022, 0.03, 0.0022), Color(0.36, 0.32, 0.2))
+		stalk.position.y = k.size.y * 0.5 + 0.014
+		root.add_child(stalk)
+		return root
 	if k.shape == "walnut":
 		# the husk's freckles: a few small pale spots round it
 		for i in 7:
