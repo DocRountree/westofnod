@@ -42,6 +42,7 @@ extends "res://scripts/creatures/carnivore.gd" # (by path: found whether or not 
 ## {with}, birth (a doe's), nurse, play (a fawn's), mate {partner}.
 
 const SPEC := {
+	"brace": 0.74, # (mounted, his hind feet nearer under his rump)
 	"species": 7, "hooves": true,
 	"body": [[-540.0, 30.0, 112.0, 150.0], [-450.0, 0.0, 160.0, 215.0], [-260.0, -12.0, 175.0, 226.0], [-30.0, 0.0, 168.0, 204.0],
 			[200.0, 18.0, 160.0, 188.0], [390.0, 42.0, 156.0, 178.0], [500.0, 55.0, 110.0, 124.0], [545.0, 60.0, 46.0, 48.0]],
@@ -714,10 +715,10 @@ func _mount() -> Dictionary:
 	var free := {}
 	for i: int in [2, 3]:
 		var side := 1.0 if i % 2 == 1 else -1.0
-		var w: Vector3 = _mate.call("_out", Vector3(float(S.body_w) * 0.7 * side, -body_h, float(S.body_len) * 0.8))
+		var w: Vector3 = _mate.call("_out", Vector3(float(S.body_w) * 0.7 * side, -body_h, float(S.body_len) * 0.64))
 		w.y = _ground(w.x, w.z)
 		free[i] = inv * w
-	return {"at": Vector3(0.0, float(S.body_h) * 0.86, float(S.body_len) * 0.58), "basis": Basis(Vector3.RIGHT, 0.85), "grips": {
+	return {"at": Vector3(0.0, float(S.body_h) * 0.55, float(S.body_len) * 0.44), "basis": Basis(Vector3.RIGHT, 0.62), "grips": {
 		0: Vector3(-float(S.body_w) * 1.05, -40.0, 200.0), 1: Vector3(float(S.body_w) * 1.05, -40.0, 200.0)}, "free": free}
 
 

@@ -1098,8 +1098,57 @@ func _walk(dt: float) -> void:
 		want = 0.0
 	_speed = move_toward(_speed, want, dt * (_accel if want > _speed else _accel * 1.5))
 	_pos += Vector3(-sin(_yaw), 0.0, -cos(_yaw)) * _speed * dt
+	_keep_apart()
 	ground_y = _ground(_pos.x, _pos.z)
 	_pos.y = ground_y
+
+
+# --- personal space ------------------------------------------------------------
+# (Not collision: each one a circle on the ground, its body's size; two
+# that overlap are eased apart, each its half. Off when they're meant to
+# touch: mating, nursing, suckling, playing, hunting and eating, sparring;
+# the young; the airborne, the dead.)
+
+static var _all: Array = []
+const TOUCHING := ["nurse", "suckle", "play", "hunt", "eat", "spar", "follow", "newborn", "birth", "carry", "piloted"]
+
+
+func _enter_tree() -> void:
+	if not _all.has(self):
+		_all.append(self)
+
+
+func _exit_tree() -> void:
+	_all.erase(self)
+
+
+func _space_r() -> float:
+	return float(S.body_len) * 0.3 * MM * size
+
+
+func _touch_ok() -> bool:
+	return young or dead or airborne or _mate_role != "" or _mode in TOUCHING
+
+
+func _keep_apart() -> void:
+	if _touch_ok():
+		return
+	for o: Node in _all:
+		if o == self or not is_instance_valid(o) or o.call("_touch_ok"):
+			continue
+		var op: Vector3 = o.get("_pos")
+		var d := Vector2(_pos.x - op.x, _pos.z - op.z)
+		var want := _space_r() + float(o.call("_space_r"))
+		var l := d.length()
+		if l >= want:
+			continue
+		if l < 1e-4: # (on top of one another: either way)
+			d = Vector2(1.0, 0.0).rotated(float(get_instance_id() % 628) * 0.01)
+			l = 1.0
+			d *= want
+		var push := d / l * (want - minf(l, want)) * 0.5
+		_pos.x += push.x
+		_pos.z += push.y
 
 
 const GAITS := {
@@ -1411,7 +1460,7 @@ func _mount_thrust(m: Dictionary, her_t: Transform3D, hs: float) -> Dictionary:
 		var hp: Vector3 = L.hip
 		var hip_w := t0 * Vector3(hp.x * side, hp.y, hp.z)
 		var fw: Vector3 = cur * (free[i] as Vector3)
-		var reach := (float(L.f) + float(L.t) + float(L.s)) * MM * size * 0.86 # (braced, not locked straight)
+		var reach := (float(L.f) + float(L.t) + float(L.s)) * MM * size * float(S.get("brace", 0.86)) # (braced, not locked straight: the species' own)
 		# |fw + back * u - hip_w| = reach, for u >= 0
 		var d := fw - hip_w
 		var bq := 2.0 * d.dot(back)
