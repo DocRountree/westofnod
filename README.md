@@ -40,7 +40,16 @@ debug mode directly.
 | Left mouse | with a hand free: pick the fruit you're looking at (a pawpaw, crabapple, walnut or acorn hanging in a grown tree's crown, within about 2.8 m of your eye: climb a tall tree for those up in it), that one, into the left hand (else the right); or, looking at one within about 2.6 m, a flower (black-eyed Susan, fleabane, purple coneflower, yampah, swamp aster, common or swamp milkweed) or a cattail, a clump a click, into a hand empty or holding that kind (16 a hand), the clump gone till the next day. The fruit hang on the trees as real things, as many as are left: some trees bear none, the rest up to six (an oak up to eighteen acorns, two or three together on their long stalks, 10 to a hand); what's picked is gone till the next day (saved with the game; `scripts/items/foraging.gd`) |
 | Left or right mouse | with a clay pot in that hand, looking at the notch an axe has left in a living maple (it drips sap: a drop gathers at its lip and falls): sets the pot on the ground under the drip; it fills as the game's day goes (a whole day while the notch is there), the sap rising in it. With a hand empty (or holding pots), looking at a pot: takes it up, a pot of maple sap if it's full, else the pot again, empty. Notches, part-cut notches and pots are saved with the game (`scripts/items/tapping.gd`) |
 | Left mouse | with the axe in a hand (a stone axe: a stick with a sharp stone lashed to it with twine; a new game starts with one in the right): swing it (held down, it swings again and again until the tree is down); at a tree's trunk (an oak or a pawpaw: live, dead or a sapling), each blow cuts a notch deeper and wider on your side of the trunk, at the height you aim the first blow at (where your view meets the trunk: from about 12 cm up to about 1.9 m, never above two fifths of the tree), and the tree breaks there, leaving a stump that tall, and enough (more the thicker it is) fell it: the axe swings sideways, from its hand's side across, aimed at the notch (in third person the figure turns to it, both hands on the handle, the arms following it round); the notch is a real hollow cut in the trunk, showing the wood's rings, on the side the axe swings in from (square to your view); the blade stops in it, no follow-through; the tree falls toward the notch's side (square to your view), its foot (cut off clean at the notch: the tree's meshes themselves cut across there, every level of detail, and closed by a face of fresh end grain through the very outline the cut leaves, so nothing of it below the cut can show, from any side or distance: `scripts/items/mesh_cut.gd`) landing a little beyond the stump (its trunk lying along the ground, pressed in only a few cm, pitched up from its foot where it would otherwise sink further; its crown and limbs go into the ground as they will; trees felled before this are laid again so when the game loads) (its top chopped flat in strokes square to the notch, as is the felled trunk's foot, fresh pale wood, no moss), and lies there, to stand on and climb as a log and a tree are, its stump too (saved with the game; `scripts/items/felling.gd`) |
-| Esc | pause: resume, save, main menu, quit (the mouse is freed) |
+| Esc | pause: resume, save, settings, main menu, quit (the mouse is freed) |
+
+The keys above are the defaults: every one but Esc and the mouse can be rebound (Settings, Keybindings).
+
+Settings (from the start menu and the pause menu; `scripts/settings.gd`, kept in `user://settings.cfg`,
+the same for every game): mouse sensitivity and inverted look; field of view; the frame rate on screen; the
+window (windowed, fullscreen, borderless), V-sync, a frame rate cap, the render scale (below 100%: FSR
+upscaling); shadows (off, low, high: their reach and their maps' size); how far the trees' far cards and the
+grass and flowers reach (when a world is next loaded); the volume; the keybindings (`scripts/keybindings_panel.gd`:
+click an action, press its key; a key taken from another action swaps with it).
 
 ## Data (`tools/dem/bake_galapagos.py` → `data/world/`)
 
@@ -151,7 +160,8 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
 ## Layout
 
 - `scripts/menu.gd` (`menu.tscn`, the main scene) is the start menu; `scripts/session.gd`
-  the saved games and the mode; `scripts/pause_menu.gd` the pause menu.
+  the saved games and the mode; `scripts/pause_menu.gd` the pause menu; `scripts/settings_panel.gd`
+  the settings screen (both menus'), `scripts/keybindings_panel.gd` the keys'.
 - `scripts/main.gd` builds the scene.
 - `scripts/world/`: `world_data.gd` (loads the data, textures, height and water
   queries), `cdlod.gd`, `scatter_field.gd`, `prop_meshes.gd`,

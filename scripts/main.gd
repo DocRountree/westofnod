@@ -35,6 +35,8 @@ var clock: GameClock
 var atmosphere: Atmosphere
 var aurora: Aurora
 var _sun: DirectionalLight3D
+var _moon: DirectionalLight3D
+var _shadow_dist := SUN_SHADOW ## m the sun's shadows reach (Settings: its shadows)
 var _sea_sign := Vector2.ONE   # the ocean's coordinates relative to the world's (see _wrap)
 var _sea_offset := Vector2.ZERO
 var _last_x := 0.0
@@ -155,6 +157,7 @@ func _ready() -> void:
 	pause_menu = PauseMenu.new()
 	pause_menu.main = self
 	add_child(pause_menu)
+	apply_settings()
 	if Session.debug:
 		chat.say("Debug mode. Enter to chat, / for commands (/help), Esc for the menu.", Color(0.75, 0.85, 1.0))
 	elif not Session.data.has("player"):
@@ -385,6 +388,7 @@ func _build_environment() -> void:
 	moonlight.shadow_blur = 2.5
 	moonlight.directional_shadow_max_distance = 150.0
 	add_child(moonlight)
+	_moon = moonlight
 	var starfield := Starfield.new()
 	starfield.catalog = load("res://data/bright_stars.tres")
 	starfield.material_override = _sky_material("starfield", 0)
@@ -562,6 +566,18 @@ func set_global(name: String, value: Variant) -> void:
 	RenderingServer.global_shader_parameter_set(name, value)
 
 
+## The settings (Settings) as they are now: the window's and renderer's,
+## the view's width, the shadows' reach (off: none drawn). (At the start,
+## and from the settings screen as each is changed.)
+func apply_settings() -> void:
+	Settings.apply(get_viewport())
+	_shadow_dist = float(Settings.SHADOW_DIST[Settings.shadows])
+	if atmosphere:
+		atmosphere.shadows = Settings.shadows > 0
+	if player:
+		player.set_zoom(player.zoom)
+
+
 ## The magnified view (Player.zoom): terrain and shadows pick their detail as
 ## if everything were zoom times nearer, but only in the wedge seen.
 func _magnify() -> void:
@@ -575,8 +591,8 @@ func _magnify() -> void:
 	var tan_h := tan(deg_to_rad(player.camera.fov) * 0.5) * vp.x / maxf(vp.y, 1.0)
 	tan_h = tan_h / maxf(sqrt(1.0 - f.y * f.y), 0.2) * 1.15 + 0.01
 	cdlod.magnify(dir, z, tan_h) # (and the global lod_zoom)
-	cdlod.shadow_range = (SUN_SHADOW + 100.0) * z
-	_sun.directional_shadow_max_distance = SUN_SHADOW * z
+	cdlod.shadow_range = (_shadow_dist + 100.0) * z
+	_sun.directional_shadow_max_distance = _shadow_dist * z
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -584,7 +600,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		aurora.set_forced(not aurora.forced) # debug: an aurora every night
 	# L: every shadow off, or on again (the sun's and the moon's: all the
 	# shadow maps), to see what they cost and what they do
-	if event is InputEventKey and event.pressed and not event.echo and event.physical_keycode == KEY_L and _loaded:
+	if event is InputEventKey and event.pressed and not event.echo and event.is_action("toggle_shadows") and _loaded:
 		atmosphere.shadows = not atmosphere.shadows
 		chat.say("Shadows %s." % ("on" if atmosphere.shadows else "off"), Color(0.75, 0.85, 1.0))
 		get_viewport().set_input_as_handled()

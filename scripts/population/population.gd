@@ -112,9 +112,16 @@ func _ready() -> void:
 		ia = ia if ia >= 0 else FIRST_KINDS.size()
 		ib = ib if ib >= 0 else FIRST_KINDS.size()
 		return ia < ib if ia != ib else String(a.id) < String(b.id))
+	Settings.ensure_loaded()
+	OakTree.refresh_view()
 	for k in kinds:
 		if k is PropKind:
 			for kv in _variants(k):
+				# (the trees out to the player's tree distance, Settings: their
+				# far cards' reach; each species' as far as it was, in step)
+				if kv.mesh_script and kv.mesh_script.has_method("build_lods") and kv.lod_distances.size() > 0:
+					var last: float = kv.lod_distances[kv.lod_distances.size() - 1]
+					kv.view_distance = maxf(kv.view_distance * OakTree.view() / OakTree.VIEW, last + 20.0)
 				props.append(kv)
 	for k in _load_dir(ACTOR_DIR):
 		if k is ActorKind:

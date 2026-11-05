@@ -60,7 +60,7 @@ func _process(delta: float) -> void:
 			Engine.get_frames_per_second(), p.x, p.y, p.z, ("   [fly]" if player.flying else "") + ("   [%.1fx]" % player.zoom if player.zoom > 1.0 else ""), place]
 	else:
 		var god: bool = player.can_fly
-		info.text = "%s   [%s]%s%s\nWASD move · Space jump/swim · Ctrl sprint · Shift crouch%s · F5 third person · C climb · E knapsack · Z magnify%s · Enter chat · Esc menu" % [
+		info.text = ("%d fps   " % Engine.get_frames_per_second() if Settings.show_fps else "") + "%s   [%s]%s%s\nWASD move · Space jump/swim · Ctrl sprint · Shift crouch%s · F5 third person · C climb · E knapsack · Z magnify%s · Enter chat · Esc menu" % [
 			place.strip_edges(), "god" if god else "survival", "   [fly]" if player.flying else "",
 			("   [%.1fx]" % player.zoom if player.zoom > 1.0 else ""),
 			" · Space×2 fly" if god else "", " · [ ] time" if god else ""]

@@ -177,9 +177,17 @@ func setup(w: WorldData) -> void:
 		# no more tiles than the layer's range needs: as many each side of the
 		# camera's as reach its fade_out (the flowers' 7 a side, 168 m, drew
 		# clumps out to 84 m and more that faded out by 15-38 m)
-		var L := L0.duplicate()
+		var L := L0.duplicate(true)
+		# (out as far as the player's grass distance, Settings: every layer's
+		# fades and thinning in step, so each still hands on to the next)
+		var gs := Settings.grass_distance
+		for key in ["fade_in", "fade_out"]:
+			if L.u.has(key):
+				L.u[key] = (L.u[key] as Vector2) * gs
+		if L.u.has("thin_from") and float(L.u.thin_from) < 999.0:
+			L.u.thin_from = float(L.u.thin_from) * gs
 		var reach: float = (L.u.get("fade_out", Vector2(30.0, 40.0)) as Vector2).y
-		L.tiles = mini(L.tiles, 2 * ceili(reach / (L.cell * L.cells)) + 1)
+		L.tiles = mini(maxi(L.tiles, ceili(L.tiles * gs)) | 1, 2 * ceili(reach / (L.cell * L.cells)) + 1)
 		var grid: int = L.cells * L.tiles
 		var m := ShaderMaterial.new()
 		m.shader = load("res://shaders/render/ground_cover.gdshader")

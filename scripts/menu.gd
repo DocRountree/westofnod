@@ -3,7 +3,7 @@ extends Control
 ## the one played last first, to resume; a new game (its name, its mode,
 ## whether it allows commands); renaming and deleting;
 ## debug mode (flying, the time keys, every command, nothing saved: see
-## Session); quit.
+## Session); the settings (SettingsPanel); quit.
 
 var _list: ItemList
 var _games: Array[Dictionary] = []
@@ -24,6 +24,7 @@ var _box: VBoxContainer
 
 func _ready() -> void:
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	Settings.apply(get_viewport()) # (the window as it was left)
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 	var bg := ColorRect.new()
 	bg.color = Color(0.06, 0.08, 0.1)
@@ -97,6 +98,7 @@ func _ready() -> void:
 	_box.add_child(row2)
 	var dbg := _button(row2, "Debug mode", _debug)
 	dbg.tooltip_text = "Fly, the time keys, every command; nothing is saved"
+	_button(row2, "Settings", _settings)
 	_button(row2, "Quit", func(): get_tree().quit())
 
 	_loading = Label.new()
@@ -223,6 +225,11 @@ func _delete_selected() -> void:
 	if not g.is_empty():
 		Session.delete(g.name)
 		_refresh()
+
+
+func _settings() -> void:
+	var p := SettingsPanel.new()
+	add_child(p)
 
 
 func _debug() -> void:

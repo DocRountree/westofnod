@@ -1,13 +1,15 @@
 class_name PauseMenu
 extends CanvasLayer
 ## Esc in the game: everything stops, and the mouse is free. Resume (or Esc
-## again), save (in a game; it also saves itself), back to the start menu
-## (saving first), or quit (saving first).
+## again), save (in a game; it also saves itself), the settings
+## (SettingsPanel), back to the start menu (saving first), or quit (saving
+## first).
 
 var main: Node
 var _panel: Control
 var _save: Button
 var _note: Label
+var _settings: SettingsPanel
 
 
 func _ready() -> void:
@@ -33,6 +35,7 @@ func _ready() -> void:
 	_button(box, "Resume", close)
 	_save = _button(box, "Save", _on_save)
 	_save.visible = not Session.debug
+	_button(box, "Settings", _open_settings)
 	_button(box, "Main menu", _to_menu)
 	_button(box, "Quit", _quit)
 	_note = Label.new()
@@ -54,6 +57,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if main.chat and main.chat.open:
 		return
+	if is_instance_valid(_settings): # (its own Esc: back to this)
+		return
 	if _panel.visible:
 		close()
 	else:
@@ -68,7 +73,15 @@ func open() -> void:
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 
 
+func _open_settings() -> void:
+	_settings = SettingsPanel.new()
+	_settings.changed.connect(main.apply_settings)
+	add_child(_settings)
+
+
 func close() -> void:
+	if is_instance_valid(_settings):
+		_settings.queue_free()
 	_panel.visible = false
 	get_tree().paused = false
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED

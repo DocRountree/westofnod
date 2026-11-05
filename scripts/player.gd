@@ -84,7 +84,7 @@ func _ready() -> void:
 	camera = Camera3D.new()
 	camera.far = 120000.0
 	camera.near = 0.08
-	camera.fov = FOV
+	camera.fov = Settings.fov
 	_arm.add_child(camera)
 	avatar = Avatar.new()
 	avatar.visible = false
@@ -132,27 +132,26 @@ func _unhandled_input(event: InputEvent) -> void:
 			zoom_power = clampf(zoom_power * (1.15 if event.button_index == MOUSE_BUTTON_WHEEL_UP else 1.0 / 1.15), 2.0, MAX_ZOOM)
 			set_zoom(zoom_power)
 	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
-		var sens := MOUSE_SENS / zoom # the view moves as fast on screen, magnified or not
+		var sens := MOUSE_SENS * Settings.mouse_sens / zoom # the view moves as fast on screen, magnified or not (Settings: its own speed)
 		rotate_y(-event.relative.x * sens)
-		head.rotation.x = clampf(head.rotation.x - event.relative.y * sens, -1.55, 1.55)
-	if event is InputEventKey and event.pressed and not event.echo and not typing:
-		match event.keycode:
-			KEY_SPACE: # double-tap toggles fly mode
-				if not can_fly:
-					return
-				var now := Time.get_ticks_msec()
-				if now - _last_space < DOUBLE_TAP_MS:
-					set_flying(not flying)
-					_last_space = -100000
-				else:
-					_last_space = now
-			KEY_F5:
-				if not climbing:
-					set_third_person(not third_person)
-			KEY_C:
-				set_climbing(not climbing)
-			KEY_Z:
-				set_zoom(1.0 if zoom > 1.0 else zoom_power)
+		head.rotation.x = clampf(head.rotation.x - event.relative.y * sens * (-1.0 if Settings.invert_y else 1.0), -1.55, 1.55)
+	if event is InputEventKey and event.pressed and not event.echo and not typing: # (the keys: Settings.KEYS, rebindable)
+		if event.is_action("jump"): # double-tap toggles fly mode
+			if not can_fly:
+				return
+			var now := Time.get_ticks_msec()
+			if now - _last_space < DOUBLE_TAP_MS:
+				set_flying(not flying)
+				_last_space = -100000
+			else:
+				_last_space = now
+		elif event.is_action("third_person"):
+			if not climbing:
+				set_third_person(not third_person)
+		elif event.is_action("climb"):
+			set_climbing(not climbing)
+		elif event.is_action("magnify"):
+			set_zoom(1.0 if zoom > 1.0 else zoom_power)
 
 
 ## Landing from flight: keep only a walking pace of the flying velocity, so
@@ -169,7 +168,7 @@ func set_flying(on: bool) -> void:
 ## Magnify the view by z (1 = normal). Looking through it is first person.
 func set_zoom(z: float) -> void:
 	zoom = maxf(z, 1.0)
-	camera.fov = rad_to_deg(2.0 * atan(tan(deg_to_rad(FOV) * 0.5) / zoom))
+	camera.fov = rad_to_deg(2.0 * atan(tan(deg_to_rad(Settings.fov) * 0.5) / zoom))
 	_arm.spring_length = 0.0 if zoom > 1.0 or not third_person else THIRD_PERSON_DISTANCE
 	_arm.position.x = 0.0 if zoom > 1.0 or not third_person else 0.45
 	avatar.visible = third_person and zoom <= 1.0

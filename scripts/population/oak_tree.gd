@@ -363,8 +363,25 @@ static func _texture(path: String) -> Texture2D:
 
 static func _lod_span(m: ShaderMaterial, level: int) -> void:
 	var begin: float = 0.0 if level == 0 else LOD[level - 1]
-	var end: float = VIEW if level == LOD.size() else LOD[level]
+	var end: float = view() if level == LOD.size() else LOD[level]
 	m.set_shader_parameter("lod_range", Vector3(begin, end, Population.LOD_FADE))
+
+
+## The far cards' reach, m: VIEW, or the player's own (Settings: the tree
+## render distance).
+static func view() -> float:
+	return maxf(Settings.tree_distance, LOD[LOD.size() - 1] + 20.0)
+
+
+## (The cards' materials made before, their reach brought to the setting's:
+## a world loaded again, the setting changed between.)
+static func refresh_view() -> void:
+	for mats in [_bark_mats, _leaf_mats]:
+		for key in mats:
+			var r: Vector3 = mats[key].get_shader_parameter("lod_range")
+			if r.x >= LOD[LOD.size() - 1] - 1.0: # (the last level's: the cards)
+				r.y = view()
+				mats[key].set_shader_parameter("lod_range", r)
 
 
 ## Off: every level drawn wherever it is (e.g. to look at one level alone).

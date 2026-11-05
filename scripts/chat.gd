@@ -87,10 +87,10 @@ func _ready() -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if open or not (event is InputEventKey and event.pressed and not event.echo):
 		return
-	if event.keycode == KEY_SLASH or event.unicode == 47:
+	if event.is_action("command"): # (Settings.KEYS: rebindable)
 		_open("/")
 		get_viewport().set_input_as_handled()
-	elif event.keycode == KEY_ENTER or event.keycode == KEY_KP_ENTER:
+	elif event.is_action("chat"):
 		_open("")
 		get_viewport().set_input_as_handled()
 
