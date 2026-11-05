@@ -1222,7 +1222,7 @@ func _bear_station(kind: int) -> void:
 	var bushes := []
 	for k in 3:
 		var b := UrsidScript.berry_bush()
-		b.position = c + Vector3(1.0 + 0.9 * k, 0.0, -1.5 + 0.4 * k)
+		b.position = c + Vector3(0.3 + 1.5 * k, 0.0, -1.6 + 0.6 * k) # (far enough apart for a bear at each)
 		add_child(b)
 		bushes.append(b)
 	_bushes.append(bushes)
@@ -2331,9 +2331,10 @@ func _feed(c: Node, act: String, young: bool, p: Vector3, st: Vector3) -> void:
 					c.call("spar", o)
 					break
 	elif c.has_method("browse") and act == "eat": # (a bear: berries)
-		var k := bears.find(_bear_trio_of(c))
-		if k >= 0:
-			c.call("browse", _bushes[k][randi() % (_bushes[k] as Array).size()])
+		var trio := _bear_trio_of(c)
+		var k := bears.find(trio)
+		if k >= 0: # (each bear its own bush: two at one, their personal space keeps one off it)
+			c.call("browse", _bushes[k][trio.find(c) % (_bushes[k] as Array).size()])
 	elif c.has_method("hunt") and not young: # (the hunters: their prey here)
 		if sc == FoxScript:
 			c.call("hunt", _fox_mouse())

@@ -941,13 +941,15 @@ func _hunt(dt: float) -> void:
 		2: # still: watching (the fox listening, its head on one side; the
 			# bobcat's hindquarters treading)
 			_target = _pos
-			_turn_to = atan2(-to.x, -to.z)
+			var face := atan2(-to.x, -to.z)
+			var facing := absf(wrapf(face - _yaw, -PI, PI)) < 0.2
+			_turn_to = INF if facing else face # (turned to it; set every frame, it'd never read as done)
 			_crouch = move_toward(_crouch, float(S.stalk_crouch) * 1.1, dt * 2.0)
 			_ears_to = 1.0
 			_tail_mode = "low"
 			_neck_to = Vector2(float(S.get("stalk_neck", -0.3)), 0.0)
 			_attack_ready(dt)
-			if _st > 2.0 and _turn_to == INF:
+			if _st > 2.0 and facing:
 				_stage = 3
 				_st = 0.0
 		3: # its attack (the species')

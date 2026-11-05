@@ -289,7 +289,7 @@ func _browse(dt: float) -> void:
 	match _stage:
 		0:
 			_target = p - to.normalized() * reach
-			if to.length() < reach * 1.15 and _speed < 0.05:
+			if (to.length() < reach * 1.15 and _speed < 0.05) or (_st > 10.0 and to.length() < reach * 2.0): # (near as it'll get: another bear by it)
 				_target = _pos
 				_turn_to = atan2(-to.x, -to.z)
 				_stage = 1
