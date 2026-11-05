@@ -26,6 +26,7 @@ const KINDS := {
 	"susan": {"name": "Black-eyed Susan", "stack": 16, "shape": "flower", "size": Vector3(0.068, 0.5, 1.0), "color": Color(0.96, 0.7, 0.06), "disc": Color(0.17, 0.08, 0.04), "heads": 1},
 	"fleabane": {"name": "Fleabane", "stack": 16, "shape": "flower", "size": Vector3(0.022, 0.45, 1.0), "color": Color(0.96, 0.95, 0.96), "disc": Color(0.95, 0.78, 0.12), "heads": 3},
 	"coneflower": {"name": "Purple coneflower", "stack": 16, "shape": "flower", "size": Vector3(0.09, 0.5, 1.0), "color": Color(0.78, 0.42, 0.62), "disc": Color(0.42, 0.2, 0.06), "heads": 1},
+	"nettle": {"name": "Stinging nettle", "stack": 16, "shape": "nettle", "size": Vector3(0.1, 0.6, 1.0), "color": Color(0.2, 0.33, 0.11)}, # (the forest's; picked, it doesn't sting)
 	"aster": {"name": "Swamp aster", "stack": 16, "shape": "flower", "size": Vector3(0.028, 0.5, 1.0), "color": Color(0.6, 0.45, 0.85), "disc": Color(0.93, 0.72, 0.12), "heads": 4},
 	"milkweed": {"name": "Common milkweed", "stack": 16, "shape": "flower", "size": Vector3(0.05, 0.6, 1.0), "color": Color(0.86, 0.56, 0.66), "disc": Color(0.93, 0.78, 0.82), "heads": 2},
 	"swamp_milkweed": {"name": "Swamp milkweed", "stack": 16, "shape": "flower", "size": Vector3(0.035, 0.55, 1.0), "color": Color(0.85, 0.3, 0.5), "disc": Color(0.95, 0.8, 0.86), "heads": 3},
@@ -69,6 +70,8 @@ static func model(id: String) -> Node3D:
 		return _flower(k)
 	if k.shape == "cattail":
 		return _cattail(k)
+	if k.shape == "nettle":
+		return _nettle(k)
 	if k.shape == "pot":
 		return _pot(k)
 	var mesh: PrimitiveMesh
@@ -460,6 +463,72 @@ static func _flower(k: Dictionary) -> Node3D:
 		disc.position = top + Vector3.UP * 0.003
 		root.add_child(disc)
 	return root
+
+
+## A stinging nettle, picked: its square stem (size.y long), its leaves in
+## pairs up it, each pair square to the last, heart shaped, pointed,
+## drooping, toothed; tassels of tiny green flowers hanging from the upper
+## axils.
+static func _nettle(k: Dictionary) -> Node3D:
+	var root := Node3D.new()
+	var len: float = k.size.y
+	var green: Color = k.color
+	var stem := _part(BoxMesh.new(), Vector3(0.005, len, 0.005), green.darkened(0.15)) # (square)
+	stem.position.y = len * 0.5 - 0.06
+	root.add_child(stem)
+	var leaf_mat := StandardMaterial3D.new()
+	leaf_mat.albedo_color = green
+	leaf_mat.roughness = 0.8
+	leaf_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	for i in 6:
+		var f := float(i) / 5.0
+		var y := lerpf(0.05, len - 0.08, f)
+		var turn := float(i) * PI * 0.5
+		var l := lerpf(0.1, 0.05, f)
+		for sd: float in [-1.0, 1.0]:
+			var holder := Node3D.new()
+			holder.position = Vector3(0.0, y, 0.0)
+			holder.rotation = Vector3(0.0, turn + (0.0 if sd > 0.0 else PI), 0.0)
+			root.add_child(holder)
+			var leaf := MeshInstance3D.new()
+			leaf.mesh = _nettle_leaf(l, l * 0.55)
+			leaf.material_override = leaf_mat
+			leaf.rotation.z = -0.35 # (drooping)
+			holder.add_child(leaf)
+			if f > 0.35 and f < 0.95: # (a tassel of its flowers)
+				var tassel := _part(CylinderMesh.new(), Vector3(0.004, 0.05, 0.004), green.lightened(0.15))
+				tassel.position = Vector3(0.025, -0.02, 0.012)
+				tassel.rotation.z = 0.5
+				holder.add_child(tassel)
+	return root
+
+
+## A nettle's leaf (along +x from its stalk, l long, w wide): heart shaped,
+## pointed, its edge toothed.
+static func _nettle_leaf(l: float, w: float) -> ArrayMesh:
+	const N := 14
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var pts: Array[Vector3] = [Vector3.ZERO]
+	for i in N + 1: # (round one side of it to its tip, and back down the other)
+		var t := float(i) / N
+		var half := w * 0.5 * sin(PI * pow(t, 0.75)) * (1.0 + 0.12 * (1.0 - absf(fmod(t * 9.0, 1.0) * 2.0 - 1.0))) # (its teeth)
+		pts.append(Vector3(t * l, 0.0, half))
+	for i in range(N - 1, 0, -1):
+		var t := float(i) / N
+		var half := w * 0.5 * sin(PI * pow(t, 0.75)) * (1.0 + 0.12 * (1.0 - absf(fmod(t * 9.0, 1.0) * 2.0 - 1.0)))
+		pts.append(Vector3(t * l, 0.0, -half))
+	var mid := Vector3(l * 0.4, 0.0, 0.0)
+	for i in range(1, pts.size()):
+		var a: Vector3 = pts[i]
+		var b: Vector3 = pts[(i % (pts.size() - 1)) + 1]
+		st.set_normal(Vector3.UP)
+		st.add_vertex(mid)
+		st.set_normal(Vector3.UP)
+		st.add_vertex(a)
+		st.set_normal(Vector3.UP)
+		st.add_vertex(b)
+	return st.commit()
 
 
 ## A cattail, picked: its stalk (size.y long) and the brown head near its

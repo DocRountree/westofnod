@@ -141,6 +141,17 @@ const LAYERS := [
 			"petal_color": Vector3(0.85, 0.3, 0.5), "petal_base": Vector3(0.72, 0.2, 0.4), "petal_alt": Vector3(0.92, 0.55, 0.68), "petal_alt_share": 0.2,
 			"disc_color": Vector3(0.95, 0.8, 0.86), "head_size": 0.05, "head_px": Vector2(2.0, 5.0),
 			"fade_out": Vector2(20.0, 28.0), "thin_from": 16.0}},
+	# stinging nettles (Urtica dioica): the forest's, sparse, in small patches
+	# here and there; upright, square stemmed, their leaves in pairs, heart
+	# shaped, coarsely toothed, drooping; tassels of tiny green flowers
+	# hanging from the upper leaves' axils. (Picked, they don't sting.)
+	{"cell": 3.0, "cells": 8, "tiles": 5, "flowers": "nettle", "stems": 4, "radius": 0.3,
+		"u": {"kind": 2, "seed": 16, "in_prairie": false, "cover": 0.4, "drift": Vector3(14.0, 0.3, -11.3),
+			"forest_height": Vector2(0.75, 1.15), "prairie_height": Vector2(0.75, 1.15),
+			"prairie_green": Vector3(0.17, 0.29, 0.09), "prairie_blonde": Vector3(0.21, 0.31, 0.11),
+			"petal_color": Vector3(0.42, 0.48, 0.27), "petal_base": Vector3(0.36, 0.42, 0.22), "petal_alt": Vector3(0.5, 0.48, 0.3), "petal_alt_share": 0.3,
+			"disc_color": Vector3(0.38, 0.44, 0.24), "head_size": 0.008, "head_px": Vector2(2.0, 5.0),
+			"fade_out": Vector2(22.0, 30.0), "thin_from": 16.0}},
 	{"cell": 0.5, "cells": 24, "tiles": 9, "fronds": 8,
 		"u": {"kind": 1, "seed": 4, "in_prairie": false, "forest_height": Vector2(0.25, 0.45),
 			"fade_out": Vector2(32.0, 45.0), "thin_from": 16.0}},
@@ -854,6 +865,28 @@ static func flower_mesh(kind: String, stems: int, radius: float, seed: int) -> A
 					var fc := uc + ld * 0.032 * size / H
 					strip.call(root, [uc, fc], [0.0007, 0.0006], side, n, shade, 0.0)
 					head.call(root, fc, ld * 3.0, 5, 0.0022, 0.0055, 0.0028, 0.0025, 0.0018, rng.randf())
+		elif kind == "nettle":
+			# a square stem, upright; its leaves in pairs, each pair square
+			# to the last, heart shaped, pointed, drooping, the lower bigger;
+			# from the upper axils, tassels of tiny green flowers hanging
+			strip.call(root, [Vector3.ZERO, top * 0.5, top], [0.0045, 0.004, 0.003], side, n, shade, 0.0)
+			for k in 7:
+				var f := float(k) / 6.0
+				var at := top * (0.18 + 0.8 * f)
+				var pa := face + k * PI * 0.5
+				for sd: float in [-1.0, 1.0]:
+					var ld := Vector2(cos(pa), sin(pa)) * sd
+					var ll := rng.randf_range(0.09, 0.13) * lerpf(1.1, 0.55, f) / H
+					var pts := [at, at + Vector3(ld.x * ll * 0.3, ll * 0.12, ld.y * ll * 0.3), at + Vector3(ld.x * ll * 0.7, ll * 0.02, ld.y * ll * 0.7), at + Vector3(ld.x * ll, -ll * 0.22, ld.y * ll)]
+					strip.call(root, pts, [0.004, 0.026 * lerpf(1.0, 0.6, f), 0.018 * lerpf(1.0, 0.6, f), 0.001], Vector3(-ld.y, 0.0, ld.x), Vector3(ld.x * 0.35, 1.0, ld.y * 0.35).normalized(), shade, 0.0)
+					if f > 0.35 and f < 0.95: # (its flowers' tassels, hanging from the axil)
+						var td := Vector2(cos(pa + 0.6 * sd), sin(pa + 0.6 * sd)) * sd
+						var t1 := at + Vector3(td.x * 0.035, 0.01, td.y * 0.035) / H
+						var t2 := at + Vector3(td.x * 0.06, -0.05, td.y * 0.06) / H
+						strip.call(root, [at, t1, t2], [0.0015, 0.0025, 0.0015], Vector3(-td.y, 0.0, td.x), Vector3(td.x, 0.6, td.y).normalized(), shade, 0.0)
+						for q in 3:
+							var c: Vector3 = t1.lerp(t2, 0.3 + 0.35 * q)
+							head.call(root, c, Vector3(td.x, -0.5, td.y), 4, 0.0012, 0.0035, 0.0022, 0.001, 0.0012, rng.randf())
 		elif kind == "swamp_milkweed":
 			# branching near its top into a few flat clusters of small
 			# flowers, upright; narrow leaves in pairs up the stem
