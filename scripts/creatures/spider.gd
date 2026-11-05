@@ -65,16 +65,16 @@ extends "res://scripts/creatures/hexapod.gd" # (by path: found whether or not th
 
 const SPECIES := {
 	"wolf": {"pattern": 0, "ceph": Vector3(12.0, 4.6, 3.6), "abd": Vector3(13.0, 5.4, 4.4), "leg": Vector3(8.5, 10.0, 10.0), "pairs": [1.0, 0.92, 0.82, 1.06],
-			"femur": Color(0.3, 0.22, 0.14), "tibia": Color(0.24, 0.17, 0.11), "body_h": 5.6, "speed": 0.09, "eyes": "wolf", "leg_r": 0.8, "young": 0.16},
+			"femur": Color(0.3, 0.22, 0.14), "tibia": Color(0.24, 0.17, 0.11), "body_h": 5.6, "speed": 0.09, "eyes": "wolf", "leg_r": 0.8, "young": 0.16, "sprawl": 1.32},
 	# (the fishing spider: flat, broad, low on the water, its very long legs
 	# splayed wide and flat, the knees low; its eyes two curved rows)
 	"fishing": {"pattern": 1, "ceph": Vector3(9.0, 4.5, 2.2), "abd": Vector3(12.5, 3.8, 2.8), "leg": Vector3(14.0, 16.5, 17.0), "pairs": [1.0, 1.06, 0.84, 1.02],
 			"femur": Color(0.3, 0.27, 0.2), "tibia": Color(0.27, 0.24, 0.17), "body_h": 3.0, "speed": 0.12, "eyes": "pisaurid", "leg_r": 0.55, "young": 0.15,
 			"sprawl": 1.62, "knee_up": 0.6, "knee_out": 1.1, "flat": true, "sector": 16.0},
 	"funnel": {"pattern": 2, "ceph": Vector3(7.5, 2.9, 2.2), "abd": Vector3(8.5, 3.2, 2.7), "leg": Vector3(7.5, 8.5, 9.5), "pairs": [1.0, 0.92, 0.84, 1.1],
-			"femur": Color(0.5, 0.4, 0.28), "tibia": Color(0.42, 0.33, 0.22), "body_h": 3.8, "speed": 0.12, "eyes": "rows", "leg_r": 0.42, "young": 0.2, "spinnerets": 3.2},
+			"femur": Color(0.5, 0.4, 0.28), "tibia": Color(0.42, 0.33, 0.22), "body_h": 3.8, "speed": 0.12, "eyes": "rows", "leg_r": 0.42, "young": 0.2, "spinnerets": 3.2, "sprawl": 1.32},
 	"argiope": {"pattern": 3, "ceph": Vector3(8.5, 3.6, 2.6), "abd": Vector3(17.0, 6.2, 5.2), "leg": Vector3(10.5, 11.5, 12.0), "pairs": [1.0, 0.98, 0.62, 0.95],
-			"femur": Color(0.62, 0.28, 0.1), "tibia": Color(0.05, 0.05, 0.05), "body_h": 4.6, "speed": 0.07, "eyes": "rows", "leg_r": 0.6, "young": 0.15},
+			"femur": Color(0.62, 0.28, 0.1), "tibia": Color(0.05, 0.05, 0.05), "body_h": 4.6, "speed": 0.07, "eyes": "rows", "leg_r": 0.6, "young": 0.15, "sprawl": 1.25},
 }
 const ANG := [28.0, 64.0, 112.0, 150.0] # (each pair's hip round the cephalothorax, degrees from forward)
 const HOME := [22.0, 70.0, 118.0, 162.0] # (and its foot)
@@ -153,9 +153,11 @@ func _init(kind_ := "wolf", young_ := false) -> void:
 			"pole": Vector3(sin(a) * float(S.get("knee_out", 0.5)), float(S.get("knee_up", 1.0)), -cos(a) * 0.3),
 			"r": float(S.leg_r) * (0.9 if p == 2 else 1.0),
 		})
-		if bool(S.get("flat", false)): # (a fishing spider's: each leg in its own plane, the knee up; its femur slim; the metatarsus lying low to the water)
-			L[p]["pole_out"] = 0.25
-			L[p]["femur_r"] = 1.1
+		# (every spider's: each leg in its own plane, the knee up over its
+		# line from hip to foot, seen from above one line; its femur slim)
+		L[p]["pole_out"] = 0.25
+		L[p]["femur_r"] = 1.1
+		if bool(S.get("flat", false)): # (a fishing spider's metatarsus lying low to the water)
 			L[p]["ankle_up"] = 0.22
 	legs = L
 
@@ -721,16 +723,21 @@ func _orb(dt: float) -> void:
 ## spider's long legs never crossing their neighbours') and within its reach.
 func _gait(dt: float) -> void:
 	super(dt)
-	if float(S.get("sector", 0.0)) <= 0.0:
+	if _sector() <= 0.0:
 		return
 	for i in legs.size() * 2:
 		_feet[i] = _in_sector(i, _feet[i])
 		_to[i] = _in_sector(i, _to[i]) # (where it's stepping to, too)
 
 
+## (Degrees either side of each foot's home way it may go: the species' own, or 18.)
+func _sector() -> float:
+	return float(S.get("sector", 18.0))
+
+
 ## A foot's place (its parent's space) kept in leg i's sector and reach.
 func _in_sector(i: int, at: Vector3) -> Vector3:
-	var w := deg_to_rad(float(S.get("sector", 0.0)))
+	var w := deg_to_rad(_sector())
 	var to_world := transform * _body.transform
 	var p := i / 2
 	var side := 1.0 if i % 2 == 1 else -1.0

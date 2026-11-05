@@ -70,7 +70,7 @@ func _init(young_ := false) -> void:
 
 
 func _build() -> void:
-	var grey := Color(0.7, 0.71, 0.72) if not young else Color(0.84, 0.82, 0.79) # (a light slate grey)
+	var grey := Color(0.6, 0.61, 0.62) if not young else Color(0.78, 0.76, 0.73) # (a slate grey, a tad darker)
 	var plate := _banded(grey, 0.0, 0.0, 0.35, 0.75) # (the uropods, the face)
 	var under := _mat(grey.darkened(0.3), 0.6)
 	# the plates, a chain from the middle out both ways (each on the next
