@@ -61,6 +61,8 @@ static func model(id: String) -> Node3D:
 	var k: Dictionary = KINDS.get(id, {"shape": "box", "size": Vector3.ONE * 0.05, "color": Color.MAGENTA})
 	if k.shape == "axe":
 		return _axe()
+	if id == "stick":
+		return _stick()
 	if k.shape in ["pawpaw", "crabapple", "walnut", "acorn", "cherry", "raspberry", "blueberry"]:
 		return _fruit(k)
 	if k.shape == "flower":
@@ -134,6 +136,66 @@ static func _axe() -> Node3D:
 	butt.material_override = _stone_mat(stone.darkened(0.1), -0.7)
 	butt.position = Vector3(0.0, 0.41, 0.035)
 	root.add_child(butt)
+	return root
+
+
+## A stick, picked up or broken off a limb (55 cm, along y, its middle at
+## the origin): a little crooked (two lengths meeting at a slight angle),
+## thicker at its foot, tapering; a knot or two, a twig's stub; its bark the
+## axe handle's (_stick_mat: streaked, fissured, lenticels, a little
+## lichen; no twine); each end broken, the pale wood showing.
+static func _stick() -> Node3D:
+	var root := Node3D.new()
+	var wood := Color(0.47, 0.36, 0.24)
+	var joint := Vector3(0.0, 0.01, 0.0) # (where its two lengths meet: a node, turned a little there)
+	var bend := -0.06
+	var segs := [[joint - Vector3(0.0, 0.145, 0.0), 0.29, 0.0135, 0.012, 0.0], [joint + Vector3(0.0, cos(bend), sin(bend)) * 0.14, 0.28, 0.012, 0.0095, bend]]
+	for i in segs.size():
+		var g: Array = segs[i]
+		var cm := CylinderMesh.new()
+		cm.height = float(g[1])
+		cm.bottom_radius = float(g[2])
+		cm.top_radius = float(g[3])
+		cm.radial_segments = 10
+		cm.rings = 4
+		var mi := MeshInstance3D.new()
+		mi.mesh = cm
+		mi.material_override = _stick_mat(wood.darkened(0.05 * i), 5.0 + float(i), 1.0) # (well away from where the axe's twine is painted)
+		mi.position = g[0]
+		mi.rotation.x = float(g[4])
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		root.add_child(mi)
+	var node := MeshInstance3D.new() # (the node where it bends: a little swollen)
+	var nm := SphereMesh.new()
+	nm.radius = 0.0128
+	nm.height = 0.03
+	nm.radial_segments = 10
+	nm.rings = 6
+	node.mesh = nm
+	node.material_override = _stick_mat(wood.darkened(0.03), 6.0, 1.0)
+	node.position = joint
+	root.add_child(node)
+	# its knots, a twig's stub
+	for kn: Array in [[Vector3(0.011, -0.06, 0.002), 0.009], [Vector3(-0.009, 0.17, 0.008), 0.008]]:
+		var knot := _part(SphereMesh.new(), Vector3(1.0, 0.7, 1.0) * float(kn[1]), wood.darkened(0.3))
+		knot.position = kn[0]
+		root.add_child(knot)
+	var stub := MeshInstance3D.new()
+	var sm := CylinderMesh.new()
+	sm.height = 0.035
+	sm.bottom_radius = 0.0045
+	sm.top_radius = 0.003
+	sm.radial_segments = 6
+	stub.mesh = sm
+	stub.material_override = _stick_mat(wood.darkened(0.1), 7.0, 0.1)
+	stub.position = Vector3(0.012, 0.04, 0.0)
+	stub.rotation.z = -0.9
+	root.add_child(stub)
+	# its ends, broken: the pale wood, a little splintered
+	for e: Array in [[Vector3(0.0, -0.28, 0.0), 0.0125], [joint + Vector3(0.0, cos(bend), sin(bend)) * 0.28, 0.0092]]:
+		var end := _part(SphereMesh.new(), Vector3(2.0, 0.6, 2.0) * float(e[1]), Color(0.72, 0.6, 0.42))
+		end.position = e[0]
+		root.add_child(end)
 	return root
 
 
