@@ -334,7 +334,7 @@ func _build() -> void:
 					prev.add_child(seg)
 					var s := MeshInstance3D.new()
 					s.mesh = _stick
-					var th := [0.5, 0.36, 0.22][k] * MM # (stout at its root, fine at its tip)
+					var th: float = [0.5, 0.36, 0.22][k] * MM # (stout at its root, fine at its tip)
 					s.scale = Vector3(th, length / 3.0, th)
 					s.position = Vector3(0.0, length / 6.0, 0.0)
 					s.material_override = dark

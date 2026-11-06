@@ -136,12 +136,12 @@ static func build(parent: Node3D, flowers: String, near: Vector2, tall: float, g
 	var leaves := []
 	for l: Array in leaf_at:
 		var r := _turn(l[0], spin)
-		var m: Vector3 = l[1]
-		var mv := _turn(Vector2(m.x, m.z), spin)
+		var lm: Vector3 = l[1]
+		var mv := _turn(Vector2(lm.x, lm.z), spin)
 		var n: Vector3 = l[2]
 		var nv := _turn(Vector2(n.x, n.z), spin)
 		var dv := _turn(l[3], spin)
-		leaves.append([Vector3(pos.x + r.x + mv.x * size, m.y * size, pos.y + r.y + mv.y * size), Vector3(nv.x, n.y, nv.y).normalized(), Vector3(dv.x, 0.0, dv.y).normalized()])
+		leaves.append([Vector3(pos.x + r.x + mv.x * size, lm.y * size, pos.y + r.y + mv.y * size), Vector3(nv.x, n.y, nv.y).normalized(), Vector3(dv.x, 0.0, dv.y).normalized()])
 	return {"heads": heads, "size": size, "leaves": leaves}
 
 
