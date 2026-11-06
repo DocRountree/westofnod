@@ -26,10 +26,12 @@ extends "res://scripts/creatures/hexapod.gd" # (by path: found whether or not th
 ##   its seam, each let down on a thread, and off
 ## - mate(her) (a male's: Mantis.new() with male set): he creeps up behind
 ##   her, freezes, swaying, then leaps onto her back, his forelegs clasping
-##   her, his abdomen curled down round to hers; she twists round, takes him
-##   in her forelegs and eats his head; headless, he goes on; then falls off
-##   her, dead. A male (smaller, slimmer: his abdomen narrow, his forewings
-##   covering it; otherwise as she is)
+##   her, his abdomen curled down round to hers; done, he slips off beside
+##   her and stands a moment too long: she turns on him, strikes, seizes
+##   him in her forelegs, wrenches his head off and eats it, then eats the
+##   rest of him, from the neck back; then grooms. A male (smaller,
+##   slimmer: his abdomen narrow, his forewings covering it; otherwise as
+##   she is)
 
 const LEGS := [
 	# (the forelegs: raptorial, posed by hand, not walked: these unused)
@@ -49,6 +51,11 @@ var _at := Vector3.ZERO
 var _look := Vector3.INF # (its parent's space)
 var _prey: Node3D
 var _held := false
+# a mantis (a male) as her prey: his head torn off (0..1), eaten (0..1), how
+# much of him is left (1..0)
+var _rip := 0.0
+var _gone := 0.0
+var _left := 1.0
 var _pro: Node3D # the prothorax (raised)
 var _head: Node3D
 var _jaws: Array[Node3D] = []
@@ -255,6 +262,9 @@ func strike(target: Vector3, prey: Node3D = null) -> void:
 	_at = target
 	_prey = prey
 	_held = false
+	_rip = 0.0
+	_gone = 0.0
+	_left = 1.0
 	_stage = 0
 	_st = 0.0
 
@@ -345,17 +355,36 @@ func _think(dt: float) -> void:
 					_pro_pitch = 0.4
 					if _prey and not _held and _st > 0.05:
 						_held = true
+						if _prey.has_method("_seized"): # (a mantis: limp in her grip)
+							_prey.call("_seized")
 					if _st > 0.6:
 						_stage = 4 if _prey else 5
 						_st = 0.0
 				4: # eating it
 					_chew = 1.0
 					_look = Vector3.INF
-					if _prey:
+					var whole := is_instance_valid(_prey) and _prey.has_method("_hang") # (a mantis)
+					var meal := 32.0 if whole else 9.0
+					if whole:
+						# a tug, a wrench: his head torn off; eaten; then
+						# the rest of him, from the neck back
+						_rip = smoothstep(0.2, 1.4, _st)
+						_gone = clampf((_st - 1.6) / 4.5, 0.0, 1.0)
+						_left = lerpf(1.0, 0.05, clampf((_st - 6.5) / (meal - 6.5), 0.0, 1.0))
+						if _st < 1.5:
+							var j := 0.3 * sin(_st * 15.0)
+							_ask = [Vector3(0.2 + j, 1.4, 2.95), Vector3(0.2 - j, 1.4, 2.95)]
+							_fore_rate = 22.0
+							_pro_pitch = 0.4 + 0.12 * sin(_st * 9.0)
+							_chew = 0.3
+						else:
+							_ask = [Vector3(0.2, 1.4, 2.95), Vector3(0.2, 1.4, 2.95)] # (held at her mouth)
+							_fore_rate = 8.0
+					elif _prey:
 						var k := clampf(1.0 - _st / 9.0, 0.05, 1.0)
 						_prey.scale = Vector3.ONE * k
-					if _st > 9.0:
-						if _prey:
+					if _st > meal:
+						if is_instance_valid(_prey):
 							_prey.queue_free()
 						_prey = null
 						_held = false
@@ -363,6 +392,14 @@ func _think(dt: float) -> void:
 				5:
 					_rest_fore()
 					stalk(_pos, 0.15)
+		"doomed": # (a male, just off her: still, watching her, a moment too long)
+			_rest_fore()
+			_target = _pos
+			var her := _was_with
+			if is_instance_valid(her):
+				_look = her.call("_out", Vector3(0.0, 0.0, -18.0))
+			if _st > 12.0 or not is_instance_valid(her) or her.get("_prey") != self: # (let be: off)
+				stalk(_pos, 0.2)
 		"groom":
 			# each foreleg drawn through the mouth in turn
 			var side_i := 0 if fmod(_st, 6.0) < 3.0 else 1
@@ -469,10 +506,6 @@ func _piloted() -> void:
 
 # --- mating ------------------------------------------------------------------------
 
-const BITE_AT := 0.3 # (share of the time joined: she's round, his head in her jaws)
-const BITE_FOR := 0.3 # (and eaten)
-
-
 func _male_size() -> float:
 	return 0.82
 
@@ -482,7 +515,7 @@ func _mate_approach() -> Vector3:
 
 
 func _mate_leave() -> Vector3:
-	return Vector3(16.0, -body_h, 10.0) # (fallen off beside her)
+	return Vector3(16.0, -body_h, 10.0) # (slipped off beside her)
 
 
 func _court_secs() -> float:
@@ -497,71 +530,83 @@ func _mount() -> Dictionary:
 		4: Vector3(-2.8, -0.6, 9.0), 5: Vector3(2.8, -0.6, 9.0)}}
 
 
-## (How far through his meal she is: 0 not begun .. 1 his head gone.)
-func _eaten() -> float:
-	var him: Node3D = self if male else _mate
-	if him == null or not is_instance_valid(him):
-		return 0.0
-	if him.get("_mate_stage") != "joined":
-		return float(him.get("_head_gone"))
-	var secs := float(him.get("mate_secs"))
-	return clampf((float(him.call("mate_time")) / secs - BITE_AT) / BITE_FOR, 0.0, 1.0)
+var _was_with: Node3D # (the one it last mated)
 
 
-var _head_gone := 0.0 # (a male's, eaten)
+func _on_mate_start() -> void:
+	_was_with = _mate
 
 
 func _mating(dt: float) -> void:
 	super(dt)
 	_look = Vector3.INF
+	_rest_fore()
 	if _mate_role == "male":
 		# creeping up, then frozen, swaying, watching her
-		_rest_fore()
 		_pro_pitch = 0.35
 		if _mate_stage == "court":
 			_sw += dt * 0.8
 			_sway = sin(_sw) * 0.05
 			_look = _mate.call("_out", Vector3(0.0, 0.0, -18.0))
-		return
-	if _mate_role != "female" or _mate_stage != "joined" or _mate == null:
-		_rest_fore()
-		return
-	# she twists round over her shoulder to him, takes his head in her
-	# forelegs and eats it
-	var him: Node3D = _mate
-	var t := float(him.call("mate_time")) / float(him.get("mate_secs"))
-	var turn := clampf((t - BITE_AT + 0.12) / 0.12, 0.0, 1.0)
-	_turn_pro = lerpf(_turn_pro, 0.95 * turn, 1.0 - exp(-3.0 * dt))
-	if turn > 0.0:
-		_look = him.call("_out", Vector3(0.0, 0.6, -21.0))
-		_ask = [Vector3(0.1, 1.5, 2.7), Vector3(0.1, 1.5, 2.7)]
-		_fore_rate = 6.0
-	var e := _eaten()
-	_chew = 1.0 if e > 0.0 and e < 1.0 else 0.0
-	if e >= 1.0: # (done: back round)
-		_turn_pro = lerpf(_turn_pro, 0.3, 1.0 - exp(-1.0 * dt))
-
-
-var _turn_pro := 0.0 # (rad: the prothorax swung round to the side, hers)
 
 
 func _after_mate() -> void:
-	_turn_pro = 0.0
 	_rest_fore()
 	if not male:
 		stalk(_pos, 0.15)
 
 
+## He's off her: she turns on him (he's her next meal).
 func _on_parted() -> void:
-	if male and _head_gone > 0.0:
-		die()
-	elif male:
+	if not male:
+		return
+	var her := _was_with
+	if is_instance_valid(her) and not bool(her.get("dead")):
+		_mode = "doomed"
+		_st = 0.0
+		_target = _pos
+		her.call("strike", _out(_pro.position + Vector3(0.0, 0.0, -9.0)), self) # (at his thorax)
+	else:
 		stalk(_pos, 0.2)
 
 
-func _mate_over() -> bool:
-	_head_gone = maxf(_head_gone, _eaten())
-	return super()
+## (A male, seized by her: limp in her grip from now on, posed by her
+## (_hang), not moving himself.)
+func _seized() -> void:
+	die()
+	set_process(false)
+	_pro.rotation = Vector3(0.1, 0.0, 0.0)
+	_abdomen.rotation = Vector3(0.15, 0.0, 0.0)
+	_rest_fore()
+	for s in 2:
+		var parts: Array = _fore[s]
+		(parts[0] as Node3D).rotation.x = FORE_REST.x + 0.5
+		(parts[1] as Node3D).rotation.x = FORE_REST.y - 0.6
+		(parts[2] as Node3D).rotation.x = FORE_REST.z - 0.8
+	for i in legs.size() * 2: # (the legs drawn in, loose)
+		var L: Dictionary = legs[i / 2]
+		var side := 1.0 if i % 2 == 1 else -1.0
+		var hp: Vector3 = L.hip
+		var f: float = L.f
+		_pose_foot[i] = Vector3(hp.x * side + side * f * 0.6, hp.y - f * 0.6, hp.z + f * 0.3)
+	_pose_legs()
+
+
+## (A male in her forelegs, his neck at h (world), her heading yaw: facing
+## her, his body hanging away from her down toward the ground; his head
+## torn off (rip) and eaten (gone); left: how much of him is left.)
+func _hang(h: Vector3, yaw: float, left: float, rip: float, gone: float) -> void:
+	var neck := _pro.position + Vector3(0.0, 0.2, -16.5) # (his body mm)
+	_body.scale = Vector3.ONE * MM * size * maxf(left, 0.02)
+	var length := 47.0 * MM * size * maxf(left, 0.02)
+	var over := h.y - _ground(h.x, h.z) # (his neck over the ground: his tail down to it)
+	var b := Basis(Vector3.UP, yaw + PI) * Basis(Vector3.RIGHT, asin(clampf(over / length, 0.1, 0.95))) * Basis(Vector3.BACK, 0.35)
+	transform = Transform3D(b, Vector3.ZERO)
+	transform.origin = h - transform * (_body.transform * neck)
+	_head.position = Vector3(0.0, 0.6 + 1.6 * rip, -17.0 - 5.0 * rip) # (pulled from his neck, into her jaws)
+	_head.rotation = Vector3(0.7 * rip, 0.0, 1.3 * rip) # (wrenched round)
+	_head.scale = Vector3.ONE * maxf(1.0 - gone, 0.001)
+	_head.visible = gone < 0.999
 
 
 ## Let down from p on a thread (a hatchling, from its egg case): falling
@@ -576,10 +621,7 @@ func drop(p: Vector3) -> void:
 
 
 func _pose(dt: float) -> void:
-	_pro.rotation = Vector3(_pro_pitch, _turn_pro, 0.0) # (raised: its front up; swung round)
-	if male:
-		_head.scale = Vector3.ONE * maxf(1.0 - _head_gone, 0.001)
-		_head.visible = _head_gone < 0.999
+	_pro.rotation = Vector3(_pro_pitch, 0.0, 0.0) # (raised: its front up)
 	_pro_pitch = lerpf(_pro_pitch, 0.5, 1.0 - exp(-2.0 * dt)) if _mode != "strike" else _pro_pitch
 	# the head following what it watches
 	var yaw_to := 0.0
@@ -607,10 +649,15 @@ func _pose(dt: float) -> void:
 		(parts[0] as Node3D).rotation.x = now.x
 		(parts[1] as Node3D).rotation.x = now.y
 		(parts[2] as Node3D).rotation.x = now.z
-	# the prey, held in the forelegs at its mouth
-	if _held and _prey:
+	# the prey, held in the forelegs at its mouth (a mantis: by his neck,
+	# between them)
+	if _held and is_instance_valid(_prey):
 		var tb: Node3D = _fore[0][2]
-		_prey.global_position = tb.global_transform * Vector3(0.0, -3.5, 0.0)
+		if _prey.has_method("_hang"):
+			var h := (tb.global_transform * Vector3(0.0, -3.5, 0.0) + (_fore[1][2] as Node3D).global_transform * Vector3(0.0, -3.5, 0.0)) * 0.5
+			_prey.call("_hang", h, _yaw, _left, _rip, _gone)
+		else:
+			_prey.global_position = tb.global_transform * Vector3(0.0, -3.5, 0.0)
 	# the abdomen: a nymph's curled up over its back
 	_abdomen.rotation.x = -0.75 if nymph else 0.0
 	if _mode != "lay" or _mate_role != "":
@@ -618,7 +665,7 @@ func _pose(dt: float) -> void:
 	_abdomen.rotation.z = 0.0
 	if _mate_role == "male" and _mate_stage in ["joined", "part"]:
 		# (curled down and round to one side, to the tip of hers, pumping)
-		var pump := 0.04 * sin(_t * (5.0 if _head_gone > 0.5 else 2.5))
+		var pump := 0.04 * sin(_t * 2.5)
 		_abdomen.rotation = Vector3(0.62 + pump, 0.22, 0.12)
 		_ask = [Vector3(0.05, 1.1, 2.4), Vector3(0.05, 1.1, 2.4)] # (clasping her)
 		_pro_pitch = 0.15

@@ -486,17 +486,17 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   spiders smaller with the swollen bulbs of their palps, the garden spider's male a quarter her size, tan and slender;
   the male mantis smaller and slimmer, his wings over all his abdomen; the male grasshopper smaller). The
   grasshopper's rides her back, his abdomen curled down round to hers; the mantis's creeps up behind her, freezes
-  swaying, leaps on, and she twists round and eats his head; headless he goes on, then falls off her dead. The
-  spiders' males first charge their palps: a little sperm web spun, a drop laid on it, drawn up into each palp in
-  turn; then courting (the wolf spider waving and drumming, the fishing spider tapping, the grass spider and the
-  garden spider plucking); the wolf and fishing spiders up on her front facing back, leaning down each side in turn
-  to put a palp in to her, its bulb swelling; the grass spider's female gone still, over on her side; the garden
-  spider's male up her web to her at the hub, under her, and dead on her after his second, wrapped in her silk. The
-  pill bug's male on her back leaning down one side and then the other; the beetles' riding their females' backs (the
-  colony's own: `Beetles.mate(i, j)`); the butterflies and moths, the male chasing her down, joined end to end; the
-  wasp's pouncing on her back, stroking her antennae; the snakes', the male crawling up along her back, chin rubbing,
-  their tails twisted together; the mice's, the male following her, mounting from behind, thrusting in bouts, then
-  washing. `act("mate", {partner})` for any of them (pilot.gd).
+  swaying, leaps on; done, he slips off beside her, and she turns on him, strikes, wrenches his head off and eats it,
+  then eats the rest of him. The spiders' males first charge their palps: a little sperm web spun, a drop laid on it,
+  drawn up into each palp in turn; then courting (the wolf spider waving and drumming, the fishing spider tapping, the
+  grass spider and the garden spider plucking); the wolf and fishing spiders up on her front facing back, leaning down
+  each side in turn to put a palp in to her, its bulb swelling; the grass spider's female gone still, over on her
+  side; the garden spider's male up her web to her at the hub, under her, and dead on her after his second, wrapped in
+  her silk. The pill bug's male on her back leaning down one side and then the other; the beetles' riding their
+  females' backs (the colony's own: `Beetles.mate(i, j)`); the butterflies and moths, the male chasing her down,
+  joined end to end; the wasp's pouncing on her back, stroking her antennae; the snakes', the male crawling up along
+  her back, chin rubbing, their tails twisted together; the mice's, the male following her, mounting from behind,
+  thrusting in bouts, then washing. `act("mate", {partner})` for any of them (pilot.gd).
 - `tools/creatures/life_cycle_demo.tscn`: every creature not yet in the game, a station each (Tab / Shift+Tab the
   next). The keys are the same for all of them and act only on those at the station in view: 1 lay eggs / give birth,
   2 hatch / come out, 3 new pupae, E eat, H hunt, K mate, G groom, Z sleep / rest, F fly / hop, X alarm (flee, roll up,
