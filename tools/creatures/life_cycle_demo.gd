@@ -359,11 +359,14 @@ func _monarch_station() -> void:
 		_monarch_flowers.append(Flowers.clump(self, f[0], Vector2(c.x, c.z) + (f[1] as Vector2), f[2], ground))
 	# its leaves, the lower and the middle ones (in reach, to see): where it
 	# lays, where its caterpillar feeds
-	var leaves: Array = (mw.leaves as Array).filter(func(l: Array) -> bool: return (l[0] as Vector3).y < 0.55)
+	var leaves: Array = (mw.leaves as Array).filter(func(l: Array) -> bool: return (l[0] as Vector3).y < 0.8)
 	leaves.sort_custom(func(a: Array, b: Array) -> bool: return (a[0] as Vector3).y < (b[0] as Vector3).y)
-	for k in mini(4, leaves.size()):
-		var l: Array = leaves[k * 2 % leaves.size()]
-		_monarch_leaves.append([(l[0] as Vector3) + (l[1] as Vector3) * 0.002, l[1]])
+	for l: Array in leaves: # (four of them, each its own leaf)
+		if _monarch_leaves.size() >= 4:
+			break
+		var at: Vector3 = (l[0] as Vector3) + (l[1] as Vector3) * 0.002
+		if _monarch_leaves.all(func(m: Array) -> bool: return (m[0] as Vector3).distance_to(at) > 0.02):
+			_monarch_leaves.append([at, l[1]])
 	monarch = MonarchScript.new()
 	add_child(monarch)
 	monarch.place(c + Vector3(0.0, 0.5, 0.0))
