@@ -154,6 +154,18 @@ func eat() -> void:
 	_mode = "eat"
 
 
+## Caught (a wasp on it): thrashing where it lies, its body whipping side to
+## side in waves, its head and tail lifting, weaker and weaker, for secs;
+## then limp, still (no longer moving itself: what holds it moves it).
+func struggle(secs := 3.0) -> void:
+	_mode = "struggle"
+	_wait = secs
+	_struggle_for = maxf(secs, 0.1)
+
+
+var _struggle_for := 3.0
+
+
 # --- the body ------------------------------------------------------------------
 
 func _build() -> void:
@@ -218,18 +230,18 @@ func _build() -> void:
 	_head.add_child(hm)
 	if K.get("head_band", false): # (a monarch caterpillar's face: pale yellow, striped black round it, a black triangle down its front)
 		var blk := _flat(Color(0.03, 0.03, 0.035), 0.35)
-		for k in 3:
+		for k in 2: # (two black bands round it, behind its face)
 			var b := MeshInstance3D.new()
 			b.mesh = _sphere
-			var shrink := 1.0 - 0.18 * absf(k - 0.6)
-			b.scale = Vector3(hw * 2.04 * shrink, hw * 1.94 * shrink, hw * 0.22)
-			b.position = hm.position + Vector3(0.0, 0.0, (-0.5 + 0.42 * k) * hw)
+			var shrink := 1.0 if k == 0 else 0.93
+			b.scale = Vector3(hw * 2.04 * shrink, hw * 1.94 * shrink, hw * 0.24)
+			b.position = hm.position + Vector3(0.0, 0.0, (-0.08 + 0.42 * k) * hw)
 			b.material_override = blk
 			_head.add_child(b)
-		var fr := MeshInstance3D.new() # (the frons)
+		var fr := MeshInstance3D.new() # (the frons: a small black triangle low on its face, over its mouth)
 		fr.mesh = _sphere
-		fr.scale = Vector3(hw * 0.75, hw * 1.0, hw * 0.25)
-		fr.position = hm.position + Vector3(0.0, hw * 0.1, -hw * 0.8)
+		fr.scale = Vector3(hw * 0.42, hw * 0.55, hw * 0.2)
+		fr.position = hm.position + Vector3(0.0, -hw * 0.22, -hw * 0.82)
 		fr.material_override = blk
 		_head.add_child(fr)
 	if K.get("eyes", false):
@@ -252,8 +264,8 @@ func _build() -> void:
 		for side: float in [-1.0, 1.0]:
 			var hl := MeshInstance3D.new()
 			hl.mesh = _sphere
-			hl.scale = Vector3(hw * 0.18, hw * 1.2, hw * 0.5)
-			hl.position = hm.position + Vector3(hw * 0.78 * side, hw * 0.15, -hw * 0.3)
+			hl.scale = Vector3(hw * 0.1, hw * 0.85, hw * 0.38)
+			hl.position = hm.position + Vector3(hw * 0.9 * side, hw * 0.05, -hw * 0.3)
 			hl.rotation = Vector3(0.0, 0.0, -0.35 * side)
 			hl.material_override = _flat(K.line, 0.5)
 			_head.add_child(hl)
@@ -539,6 +551,11 @@ func _process(dt: float) -> void:
 	_place_spine()
 	_step_feet(dt)
 	_to_own_frame()
+	if _mode == "struggle":
+		_wait -= dt
+		if _wait <= 0.0: # (limp)
+			_mode = "limp"
+			set_process(false)
 	# eating: the head nodding to its food, the jaws working (a grub's at
 	# the roots it lies in, or what's brought it)
 	_head.rotation = Vector3(0.22 * sin(_t * 6.0) - 0.1, 0.12 * sin(_t * 3.0), 0.0) if _mode == "eat" else Vector3.ZERO
@@ -624,6 +641,13 @@ func _place_spine() -> void:
 			pts[i].y = y
 			ahead = dn
 		# (a safeguard only: the head's turning keeps the trail within it)
+		if _mode == "struggle": # (thrashing: waves of it along the body, side to side, the ends lifting; dying away)
+			var k := clampf(_wait / _struggle_for, 0.0, 1.0)
+			var right := _dir.cross(Vector3.UP).normalized()
+			for i in n:
+				var f := float(i) / maxf(n - 1, 1)
+				var end := absf(f - 0.5) * 2.0
+				pts[i] += (right * sin(_t * 13.0 - i * 0.9) * _widths[i] * (0.6 + 1.2 * end) + Vector3.UP * maxf(sin(_t * 9.0 + (0.0 if f < 0.5 else 2.0)), 0.0) * _widths[i] * 1.6 * end * end) * k * _g
 		if _mode == "eat": # (the head alone working side to side, nibbling: the body stays)
 			pts[0] += (_dir.cross(Vector3.UP) * sin(_t * 3.0) * _widths[0] * 0.5 + Vector3.DOWN * _widths[0] * 0.3 * (0.5 + 0.5 * sin(_t * 6.0))) * _g
 	else:

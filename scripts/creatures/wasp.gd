@@ -14,8 +14,9 @@ extends Node3D
 ##   swaying with it (its shaders: the head's own sway), legs down to it, head down lapping,
 ##   antennae dabbing, round to another side of it now and then
 ## - feed_on_insect(prey, surface, normal): over its prey, pouncing,
-##   then on the surface chewing it into a ball, held in its front legs,
-##   turning it as it goes
+##   then over it on the surface, its front legs on it, chewing at it where
+##   it lies (a caterpillar thrashing a few seconds, then limp), piece by
+##   piece
 ## - land(at, normal): letting down onto a surface, walking about a bit,
 ##   then settling: crouching, cleaning each antenna with a front leg, wings
 ##   folded, the gaster pumping
@@ -160,7 +161,9 @@ var _holding: Node3D
 var _hold_from := Transform3D()
 var _hold_t := 0.0
 var _prey_roll := 0.0
-var _prey_ball := 0.0 # 0 whole .. 1 chewed into a ball
+var _prey_ball := 0.0 # how much of it's eaten (0 .. 1)
+var _meal: Node3D # (its prey, chewed off piece by piece: Meal)
+const MealScript := preload("res://scripts/creatures/meal.gd")
 
 # the parts
 var _body: Node3D
@@ -313,9 +316,11 @@ func feed_on_flower(head: Vector3, normal := Vector3.UP, sway := 0.0) -> void:
 
 ## Over its prey (a node: a caterpillar, say: Larva.new("monarch")) on a
 ## surface (at, normal), hovering, then pouncing on it; then on the surface
-## chewing it, held under its head in its front legs, turning it as it goes,
-## into a ball. (If it's already holding it: down on the surface with it,
-## and chewing.) Till another action (which drops it, but seek_food).
+## over it, its front legs on it, chewing at it where it lies: the prey
+## left on the ground (a caterpillar thrashing a few seconds, then limp),
+## eaten piece by piece into its mouth (Meal). (If it's already holding it:
+## down on the surface with it, and chewing.) Till another action (which
+## drops it, but seek_food).
 func feed_on_insect(prey: Node3D, at: Vector3, normal := Vector3.UP) -> void:
 	var id := _begin()
 	normal = normal.normalized()
@@ -342,10 +347,14 @@ func feed_on_insect(prey: Node3D, at: Vector3, normal := Vector3.UP) -> void:
 		if not await _touch_down(id, on, normal, face, 0.35):
 			return
 		_holding = prey
-		load("res://scripts/creatures/meal.gd").subdue(prey) # (a live caterpillar: still in its jaws)
+		if prey.has_method("struggle"): # (a live caterpillar: thrashing a while under it, then limp)
+			prey.call("struggle", rng.randf_range(2.5, 4.0))
+		else:
+			MealScript.subdue(prey)
 		_hold_from = prey.global_transform
 		_hold_t = 0.0
 		_prey_ball = 0.0
+		_meal = null
 		_p.hold = 1.0
 	elif flying:
 		if not await _touch_down(id, at, normal, _heading):
@@ -1404,19 +1413,18 @@ func _pose_wings() -> void:
 		_fans[s].transform = Transform3D(plane * Basis.from_scale(Vector3(W.l * side, 1.0, W.l)), Vector3(W.hinge.x * side, W.hinge.y, W.hinge.z))
 
 
+## Its prey where it lies, under it (not lifted, not turned): once it's
+## limp, chewed off piece by piece into its mouth (Meal), as it chews.
 func _pose_prey(dt: float) -> void:
-	if _holding == null:
+	if _holding == null or not is_instance_valid(_holding):
 		return
-	_hold_t = minf(_hold_t + dt / 0.25, 1.0)
+	if _holding.is_processing(): # (still thrashing)
+		return
 	_prey_ball = minf(_prey_ball + dt * 0.03 * _a.chew, 1.0)
-	_prey_roll += dt * _a.chew * (1.5 + 2.0 * maxf(sin(_t * 3.0), 0.0))
-	var at := _head.to_global(Vector3(0.0, -1.7, -2.3))
-	var long := lerpf(1.0, 0.28, _prey_ball)
-	var wide := lerpf(1.0, 1.25, _prey_ball)
-	var b := global_basis * Basis(Vector3.UP, PI * 0.5) * Basis(Vector3.BACK, _prey_roll)
-	b = b * Basis.from_scale(Vector3(wide, wide, long))
-	var held := Transform3D(b, at)
-	_holding.global_transform = _hold_from.interpolate_with(held, smoothstep(0.0, 1.0, _hold_t))
+	if _meal == null:
+		_meal = MealScript.of(_holding, 4)
+	if _meal:
+		_meal.call("tear", _prey_ball, _head.to_global(Vector3(0.0, -1.7, -2.3)))
 
 
 # --- the parts ------------------------------------------------------------------
