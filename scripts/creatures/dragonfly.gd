@@ -674,6 +674,8 @@ func _think(dt: float) -> void:
 			if is_instance_valid(_held_prey): # (chewed up, a piece at a time)
 				if _meal == null:
 					_meal = MealScript.of(_held_prey, 3)
+					if _meal:
+						_meal.set("held", true) # (in its mouth: the bite it's at drawn in to it)
 				if _meal:
 					_meal.call("tear", clampf(1.0 - (_wait - 0.4) / 4.4, 0.0, 1.0), _head.global_transform * Vector3(0.0, -2.5, -3.0))
 			if _wait <= 0.0:

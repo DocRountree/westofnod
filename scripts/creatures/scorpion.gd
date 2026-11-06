@@ -582,6 +582,8 @@ func _hunt(dt: float) -> void:
 			_chew = 1.0
 			if _meal == null:
 				_meal = MealScript.of(_prey, 4)
+				if _meal:
+					_meal.set("held", true) # (in its mouth: the bite it's at drawn in to it)
 			if _meal and not _chel.is_empty():
 				var mouth := Vector3.ZERO
 				for c in _chel:

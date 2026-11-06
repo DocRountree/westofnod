@@ -25,10 +25,13 @@ extends Node3D
 ## Arizona bark scorpion: a female, a male, crickets, on sand
 ## snowshoe hare (life size, its summer coat): a female, a male, clover, a
 ##   willow shoot
-## red fox (life size): a vixen, a dog fox, her den, deer mice to hunt
-## bobcat (life size): a female, a male, her rock den, a hare to hunt
-## coyote, grey wolf (life size): a female and a male each, her den, prey
-##   (mice and a hare; a hare)
+## red fox (life size): a vixen, a dog fox, her den
+## bobcat (life size): a female, a male, her rock den
+## coyote, grey wolf (life size): a female and a male each, her den
+## (the hunters, H: no prey set out for them; each goes after the nearest of
+##   the animals living here its diet takes (the hares, the deer mice, the
+##   squirrels), the camera following it; one taken, another in its place
+##   after a while, where it lived)
 ## black bear, brown bear (life size): a female, a male and another (their
 ##   colour phases: all black; brown, grizzled, blond), her
 ##   den, berry bushes, a tree to rub on
@@ -194,8 +197,6 @@ var cat_f: Node3D
 var cat_m: Node3D
 var _fox_den: Node3D
 var _cat_den: Node3D
-var _fox_mice: Array = []
-var _cat_hare: Node3D
 var coy_f: Node3D
 var coy_m: Node3D
 var wolf_f: Node3D
@@ -205,7 +206,8 @@ var _wolf_den: Node3D
 var _moose_sapling := Vector3.ZERO # (the bull moose's, to rub)
 var _deer_shrub := Vector3.ZERO # (the deer's: to browse)
 var _deer_sapling := Vector3.ZERO # (to rub)
-var _hares := {} # station -> its hare (to be hunted)
+var _squirrels := {} # station -> its squirrels [female, male] (each replaced, taken)
+var _restock_t := 0.0
 var _pond_mollies: Node3D
 var bears: Array = [] # [female, male, another] each kind: black, brown
 var _bear_dens: Array = []
@@ -1110,7 +1112,7 @@ func _hare_food_near(p: Vector3, high: bool) -> Node3D:
 	return best
 
 
-## The red foxes: a vixen and a dog fox, her den, deer mice about.
+## The red foxes: a vixen and a dog fox, her den.
 func _fox_station() -> void:
 	var c := _station(20)
 	_box(c + Vector3(0.0, 0.0006, 0.0), Vector3(3.6, 0.002, 2.6), Color(0.38, 0.44, 0.22))
@@ -1127,29 +1129,9 @@ func _fox_station() -> void:
 	add_child(fox_m)
 	fox_m.call("place", c + Vector3(-0.8, 0.0, 0.5), 2.0)
 	fox_m.call("wander", c, 1.2)
-	for k in 3:
-		_fox_mouse()
 
 
-## A deer mouse at the fox's station (a new one, if they're all gone).
-func _fox_mouse() -> Node3D:
-	for m in _fox_mice:
-		if is_instance_valid(m) and not _flag(m, "dead"):
-			if not m.has_meta("hunted"):
-				m.set_meta("hunted", true)
-				return m
-	var c := _station(20)
-	var mo := MouseScript.new()
-	add_child(mo)
-	var a := randf() * TAU
-	var at := c + Vector3(cos(a), 0.0, sin(a)) * randf_range(0.6, 1.2)
-	mo.place(at, randf() * TAU)
-	mo.wander(at, 0.3)
-	_fox_mice.append(mo)
-	return mo
-
-
-## The bobcats: a female and a male, her rock den; a hare to hunt.
+## The bobcats: a female and a male, her rock den.
 func _bobcat_station() -> void:
 	var c := _station(21)
 	_box(c + Vector3(0.0, 0.0006, 0.0), Vector3(3.6, 0.002, 2.6), Color(0.4, 0.4, 0.26))
@@ -1166,22 +1148,9 @@ func _bobcat_station() -> void:
 	add_child(cat_m)
 	cat_m.call("place", c + Vector3(0.8, 0.0, 0.5), 2.4)
 	cat_m.call("wander", c, 1.2)
-	_new_cat_hare()
 
 
-func _new_cat_hare() -> Node3D:
-	if is_instance_valid(_cat_hare) and not _flag(_cat_hare, "dead"):
-		return _cat_hare
-	var c := _station(21)
-	var h := HareScript.new()
-	add_child(h)
-	h.place(c + Vector3(1.2, 0.0, 0.8), randf() * TAU)
-	h.wander(c + Vector3(1.2, 0.0, 0.8), 0.4)
-	_cat_hare = h
-	return h
-
-
-## The coyotes: a female and a male, her den; mice and a hare about.
+## The coyotes: a female and a male, her den.
 func _coyote_station() -> void:
 	var c := _station(22)
 	_box(c + Vector3(0.0, 0.0006, 0.0), Vector3(4.4, 0.002, 3.2), Color(0.5, 0.46, 0.28))
@@ -1191,11 +1160,9 @@ func _coyote_station() -> void:
 	var pair := _canid_pair(CoyoteScript, c, _coy_den)
 	coy_f = pair[0]
 	coy_m = pair[1]
-	_station_mouse(22)
-	_station_hare(22)
 
 
-## The grey wolves: a female and a male, her den dug in a bank; a hare.
+## The grey wolves: a female and a male, her den dug in a bank.
 func _wolf_station() -> void:
 	var c := _station(23)
 	_box(c + Vector3(0.0, 0.0006, 0.0), Vector3(5.0, 0.002, 3.6), Color(0.36, 0.42, 0.24))
@@ -1205,7 +1172,6 @@ func _wolf_station() -> void:
 	var pair := _canid_pair(WolfScript, c, _wolf_den)
 	wolf_f = pair[0]
 	wolf_m = pair[1]
-	_station_hare(23)
 
 
 func _canid_pair(sc: Script, c: Vector3, den: Node3D) -> Array:
@@ -1220,45 +1186,6 @@ func _canid_pair(sc: Script, c: Vector3, den: Node3D) -> Array:
 	m.call("place", c + Vector3(-1.0, 0.0, 0.7), 2.2)
 	m.call("wander", c, 1.5)
 	return [f, m]
-
-
-## A deer mouse at station i, for a hunter there.
-func _station_mouse(i: int) -> Node3D:
-	var c := _station(i)
-	var mo := MouseScript.new()
-	add_child(mo)
-	var a := randf() * TAU
-	var at := c + Vector3(cos(a), 0.0, sin(a)) * randf_range(0.8, 1.4)
-	mo.place(at, randf() * TAU)
-	mo.wander(at, 0.3)
-	return mo
-
-
-## A grey squirrel about station i, on the ground (prey).
-func _station_squirrel(i: int) -> Node3D:
-	var c := _station(i)
-	var sq: Node3D = GreySqScript.new()
-	add_child(sq)
-	var a := randf() * TAU
-	var at := c + Vector3(cos(a), 0.0, sin(a)) * randf_range(0.9, 1.5)
-	sq.call("place", at, randf() * TAU)
-	sq.call("wander", at, 0.4)
-	return sq
-
-
-## The hare at station i (a new one if it's been taken).
-func _station_hare(i: int) -> Node3D:
-	var h: Node3D = _hares.get(i)
-	if is_instance_valid(h) and not _flag(h, "dead"):
-		return h
-	var c := _station(i)
-	var hr := HareScript.new()
-	add_child(hr)
-	var at := c + Vector3(1.6, 0.0, 1.0)
-	hr.place(at, randf() * TAU)
-	hr.wander(at, 0.5)
-	_hares[i] = hr
-	return hr
 
 
 ## The bears (kind 0 black, 1 brown): a female, a male and another (each
@@ -1353,16 +1280,27 @@ func _squirrel_station(at := 29, sc: Script = SquirrelScript) -> void:
 	var drey: Vector3 = tree.position + (made[1] as Vector3)
 	for k in 6:
 		_sq_nut(c + Vector3(randf_range(-1.0, 1.0), 0.0, randf_range(-0.8, 0.8)))
+	_squirrels[at] = {"sc": sc, "tree": tree.position, "drey": drey, "pair": [null, null]}
 	for m in 2:
-		var q: Node3D = sc.new()
-		q.set("male", m == 1)
-		add_child(q)
-		q.set("tree_at", tree.position)
-		q.set("tree_r", 0.12)
-		if m == 0:
-			q.set("drey", drey)
-		q.call("place", c + Vector3(-0.4 + 0.8 * m, 0.0, 0.3), randf() * TAU)
-		q.call("wander", c, 0.8)
+		_new_squirrel(at, m)
+
+
+## Squirrel m (0 the female, 1 the male) of station at's pair (again, if
+## it's been taken).
+func _new_squirrel(at: int, m: int) -> Node3D:
+	var st: Dictionary = _squirrels[at]
+	var c := _station(at)
+	var q: Node3D = (st.sc as Script).new()
+	q.set("male", m == 1)
+	add_child(q)
+	q.set("tree_at", st.tree)
+	q.set("tree_r", 0.12)
+	if m == 0:
+		q.set("drey", st.drey)
+	q.call("place", c + Vector3(-0.4 + 0.8 * m, 0.0, 0.3), randf() * TAU)
+	q.call("wander", c, 0.8)
+	(st.pair as Array)[m] = q
+	return q
 
 
 func _sq_nut(at: Vector3) -> Node3D:
@@ -2386,25 +2324,103 @@ func _feed(c: Node, act: String, young: bool, p: Vector3, st: Vector3) -> void:
 		var k := bears.find(trio)
 		if k >= 0: # (each bear its own bush: two at one, their personal space keeps one off it)
 			c.call("browse", _bushes[k][trio.find(c) % (_bushes[k] as Array).size()])
-	elif c.has_method("hunt") and not young: # (the hunters: their prey here)
-		# (each its own diet: mice, squirrels, hares, as it takes them; the
-		# kill carried off in its jaws, eaten from them if it's small)
-		var r := randf()
-		if sc == FoxScript:
-			c.call("hunt", _fox_mouse() if r < 0.6 else (_station_squirrel(20) if r < 0.85 else _station_hare(20)))
-		elif sc == BobcatScript:
-			c.call("hunt", _new_cat_hare() if r < 0.5 else (_station_squirrel(21) if r < 0.8 else _station_mouse(21)))
-		elif sc == CoyoteScript:
-			c.call("hunt", _station_mouse(22) if r < 0.4 else (_station_hare(22) if r < 0.7 else _station_squirrel(22)))
-		elif sc == WolfScript:
-			c.call("hunt", _station_hare(23) if r < 0.75 else _station_mouse(23))
-		else: # (a bear: a hare, a mouse, a squirrel)
-			c.call("hunt", _station_hare(_at) if r < 0.5 else (_station_mouse(_at) if r < 0.75 else _station_squirrel(_at)))
+	elif c.has_method("hunt") and not young: # (the hunters: the animals that live here, the nearest it takes)
+		var prey := _prey_for(c)
+		if prey:
+			c.call("hunt", prey)
+			if _following == null or not is_instance_valid(_following):
+				_following = c # (the camera after it, wherever its prey is)
+
+
+## A hunter's prey: one of the animals living here (the hares, the deer
+## mice, the squirrels, as its diet takes them; young or grown), the
+## nearest of the kind it's after, not another's already; none, null.
+func _prey_for(c: Node) -> Node3D:
+	var sc: Script = c.get_script()
+	var squirrel := [SquirrelScript, GreySqScript]
+	var diet: Array # [[its kinds' scripts], how often]
+	if sc == FoxScript:
+		diet = [[[MouseScript], 0.6], [squirrel, 0.25], [[HareScript], 0.15]]
+	elif sc == BobcatScript:
+		diet = [[[HareScript], 0.5], [squirrel, 0.3], [[MouseScript], 0.2]]
+	elif sc == CoyoteScript:
+		diet = [[[MouseScript], 0.4], [[HareScript], 0.3], [squirrel, 0.3]]
+	elif sc == WolfScript:
+		diet = [[[HareScript], 0.75], [[MouseScript], 0.25]]
+	else: # (a bear)
+		diet = [[[HareScript], 0.5], [[MouseScript], 0.25], [squirrel, 0.25]]
+	var taken := []
+	for o in get_children():
+		if o != c and o.has_method("hunt") and o.get("_mode") == "hunt" and is_instance_valid(o.get("_prey")):
+			taken.append(o.get("_prey"))
+	var here: Vector3 = c.get("_pos")
+	var options := [] # [nearest of the kind, how often]
+	var total := 0.0
+	for d: Array in diet:
+		var best: Node3D = null
+		for o in get_children():
+			if not (o is Node3D) or not (d[0] as Array).has(o.get_script()) or _flag(o, "dead") or taken.has(o) or o.has_meta("meal"):
+				continue
+			var up = o.get("_climb")
+			if (up is float and up > 0.05) or o.get("airborne") == true: # (out of reach: up its tree, in the air)
+				continue
+			if best == null or (o as Node3D).global_position.distance_to(here) < best.global_position.distance_to(here):
+				best = o
+		if best:
+			options.append([best, float(d[1])])
+			total += float(d[1])
+	if options.is_empty():
+		return null
+	var r := randf() * total
+	for op: Array in options:
+		r -= float(op[1])
+		if r <= 0.0:
+			return op[0]
+	return options[-1][0]
+
+
+## The animals taken (eaten) given back: another hare, deer mouse or
+## squirrel where it lived (each in its own place, as it was at the start).
+func _restock() -> void:
+	var c := _station(19)
+	if not is_instance_valid(hare_f):
+		hare_f = HareScript.new()
+		add_child(hare_f)
+		hare_f.place(c, randf() * TAU)
+		hare_f.wander(c, 0.6)
+	if not is_instance_valid(hare_m):
+		hare_m = HareScript.new()
+		hare_m.male = true
+		add_child(hare_m)
+		hare_m.place(c + Vector3(-0.5, 0.0, 0.4), randf() * TAU)
+		hare_m.wander(c, 0.7)
+	c = _station(16)
+	if not is_instance_valid(mouse_f):
+		mouse_f = MouseScript.new()
+		add_child(mouse_f)
+		mouse_f.place(c, randf() * TAU)
+		mouse_f.home_nest = _nest
+		mouse_f.wander(c, 0.25)
+	if not is_instance_valid(mouse_m):
+		mouse_m = MouseScript.new()
+		mouse_m.male = true
+		add_child(mouse_m)
+		mouse_m.place(c + Vector3(-0.15, 0.0, 0.12), randf() * TAU)
+		mouse_m.wander(c, 0.3)
+	for at: int in _squirrels:
+		for m in 2:
+			if not is_instance_valid((_squirrels[at].pair as Array)[m]):
+				_new_squirrel(at, m)
+
+
+## (The hunter the camera's following, gone off after its prey; or none.)
+var _following: Node3D
 
 
 ## To station i (the camera further off for the snakes).
 func _go(i: int) -> void:
 	_at = i
+	_following = null
 	_dist = 5.0 if i == 38 else 1.6 if i == 35 or i == 36 or i == 39 else 9.0 if i == 34 else 2.2 if i == 33 else 0.8 if i == 32 else 2.4 if i == 31 else 4.2 if i == 30 else 2.4 if i == 29 else 0.8 if i == 28 else 2.2 if i == 9 or i == 10 else (2.4 if i == 19 else ((6.0 if i >= 27 else (9.0 if i >= 26 else (7.5 if i >= 24 else (5.0 if i >= 22 else 3.6)))) if i >= 20 else minf(_dist, 0.8)))
 	_say()
 
@@ -2414,7 +2430,15 @@ func _say() -> void:
 
 
 func _process(dt: float) -> void:
+	_restock_t += dt
+	if _restock_t > 3.0:
+		_restock_t = 0.0
+		_restock()
 	var want := _station(_at) + Vector3(0.0, 0.38 if _at == 28 else 0.08, 0.0) # (the trigonalids up at the flowers' heads)
+	if is_instance_valid(_following) and _following.get("_mode") == "hunt": # (a hunter gone off after its prey: followed)
+		want = (_following as Node3D).global_position + Vector3(0.0, 0.08, 0.0)
+	elif _following != null:
+		_following = null
 	_focus = _focus.lerp(want, 1.0 - exp(-4.0 * dt / maxf(Engine.time_scale, 0.01)))
 	var off := Vector3(sin(_yaw) * cos(_pitch), -sin(_pitch), cos(_yaw) * cos(_pitch)) * _dist
 	cam.global_position = _focus + off

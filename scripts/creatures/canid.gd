@@ -45,7 +45,7 @@ static func den(scale_ := 1.0) -> Node3D:
 func _attack(_dt: float, p: Vector3, d: float) -> bool:
 	_crouch = 0.0
 	if _small_prey():
-		_leap(p, 1.1)
+		_spring_at(p, 1.1)
 		return true
 	var reach := 0.45 * size / 0.5
 	if d > reach:
@@ -55,7 +55,7 @@ func _attack(_dt: float, p: Vector3, d: float) -> bool:
 		_ears_to = -0.3
 		return false
 	_pace = -1.0
-	_leap(p, 0.3)
+	_spring_at(p, 0.3)
 	return true
 
 

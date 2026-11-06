@@ -349,6 +349,8 @@ func _hunt(dt: float) -> void:
 			_look_to = Vector2(0.15 * sin(_st * 9.0), -0.1 + 0.15 * maxf(sin(_st * 4.0), 0.0))
 			if _meal == null:
 				_meal = MealScript.of(_prey, 3)
+				if _meal:
+					_meal.set("held", true) # (in its mouth: the bite it's at drawn in to it)
 			if _meal: # (crushed and gulped down, a piece at a time)
 				_meal.call("tear", clampf((_st - 0.3) / 3.4, 0.0, 1.0), _body.global_transform * (_head.transform * Vector3(0.0, -1.0, -11.0)))
 			if _st > 4.0:

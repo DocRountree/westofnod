@@ -376,6 +376,8 @@ func _think(dt: float) -> void:
 						if _st > 1.6:
 							if _meal == null:
 								_meal = MealScript.of(_prey, 9)
+								if _meal:
+									_meal.set("held", true) # (in its mouth: the bite it's at drawn in to it)
 							if _meal:
 								_meal.call("tear", clampf((_st - 1.6) / (meal - 2.5), 0.0, 1.0), _mouth())
 						if _st < 1.5:
@@ -390,6 +392,8 @@ func _think(dt: float) -> void:
 					elif is_instance_valid(_prey): # (bite by bite)
 						if _meal == null:
 							_meal = MealScript.of(_prey, 3)
+							if _meal:
+								_meal.set("held", true) # (in its mouth: the bite it's at drawn in to it)
 						if _meal:
 							_meal.call("tear", clampf((_st - 0.5) / (meal - 1.5), 0.0, 1.0), _mouth())
 					if _st > meal:

@@ -281,6 +281,8 @@ func _eat_prey(k: float) -> void:
 		return
 	if _meal == null:
 		_meal = MealScript.of(_prey, 3)
+		if _meal:
+			_meal.set("held", true) # (in its mouth: the bite it's at drawn in to it)
 	if _meal:
 		var ceph: Vector3 = S.ceph
 		_meal.call("tear", clampf(k, 0.0, 1.0), _body.global_transform * Vector3(0.0, -1.5, _ceph_c.z - ceph.x * 0.5 - 0.5))

@@ -17,6 +17,11 @@ extends Node3D
 ## swallow (a snake's: whole, no tearing): each piece gone as the jaws come
 ## over it.
 ##
+## Its mouth on it: held (in jaws, forelegs, chelae, paws), the food's drawn
+## in so the bite it's at is in the mouth; dragged (lying on the ground), it's
+## pulled over the ground under the mouth (the eater's head down to it). Held
+## or dragged, a piece is torn off only once the mouth's on it.
+##
 ##   var meal := Meal.of(prey)         # (once: bloody if it's a vertebrate)
 ##   meal.tear(k, mouth_world)         # (each frame, k 0..1)
 ##   prey.queue_free()                 # (done: the meal finishes the pieces
@@ -32,6 +37,8 @@ var food: Node3D
 var bloody := false
 var swallow := false
 var ground := NAN ## the ground's height under it (lying there: blood runs out), or NAN
+var held := false ## in its mouth (jaws, forelegs, paws): drawn in, the bite it's at in the mouth
+var dragged := false ## lying on the ground: pulled over it under the mouth
 
 var _pieces: Array[Node3D] = [] # still on it (its children)
 var _flying: Array = [] # [piece, t, from (world), from basis, spin axis, secs]
@@ -43,6 +50,10 @@ var _w := 1.0 # (the food's units to metres)
 var _mouth := Vector3.ZERO
 var _rng := RandomNumberGenerator.new()
 var _idle := 0.0
+var _due := 0 # (pieces it should have torn off by now)
+var _late := 0.0 # (s a piece has been due, the mouth not yet on it)
+var _shift := Vector3.ZERO # (how far it's been drawn to the mouth)
+var _set_at := Vector3.INF # (where it was put, drawn: unmoved since, it's still drawn)
 static var _flesh: StandardMaterial3D
 static var _blood: StandardMaterial3D
 static var _ball: SphereMesh
@@ -68,6 +79,7 @@ static func of(f: Node3D, across := 5, bleeds := -1, ground_y := NAN) -> Node3D:
 		return null
 	parent.add_child(m)
 	m.top_level = true
+	m.process_priority = 1000 # (after the eater's moved it, and itself)
 	m.global_transform = Transform3D.IDENTITY
 	f.set_meta("meal", m)
 	m.call("_build", across)
@@ -90,9 +102,35 @@ static func is_vertebrate(f: Node) -> bool:
 func tear(k: float, mouth: Vector3) -> void:
 	_mouth = mouth
 	_idle = 0.0
-	var due := int(ceil(clampf(k, 0.0, 1.0) * _n - 1e-4))
-	while _torn < due and not _pieces.is_empty():
-		_tear_next()
+	_due = int(ceil(clampf(k, 0.0, 1.0) * _n - 1e-4))
+	while _torn < _due and not _pieces.is_empty():
+		var i := _nearest()
+		if (held or dragged) and _pieces[i].global_position.distance_to(_mouth) > _reach() and _late < 1.5:
+			break # (not till its mouth's on it)
+		_tear_next(i)
+		_late = 0.0
+
+
+## Where the next bite is (the piece nearest the mouth: the world's), or
+## the mouth itself, nothing left.
+func next_at() -> Vector3:
+	return _pieces[_nearest()].global_position if not _pieces.is_empty() else _mouth
+
+
+## (How near the mouth a piece must be, to be bitten off (m).)
+func _reach() -> float:
+	return _cell * _w * 0.75 + 0.012
+
+
+func _nearest() -> int:
+	var best := 0
+	var bd := INF
+	for i in _pieces.size():
+		var d := _pieces[i].global_position.distance_squared_to(_mouth)
+		if d < bd:
+			bd = d
+			best = i
+	return best
 
 
 ## (How much of it's left: 1 whole .. 0 gone.)
@@ -330,14 +368,7 @@ static func _custom_flags(mesh: Mesh, s: int) -> int:
 
 # --- eating ------------------------------------------------------------------------
 
-func _tear_next() -> void:
-	var best := -1
-	var bd := INF
-	for i in _pieces.size():
-		var d := _pieces[i].global_position.distance_squared_to(_mouth)
-		if d < bd:
-			bd = d
-			best = i
+func _tear_next(best: int) -> void:
 	var piece: Node3D = _pieces[best]
 	_pieces.remove_at(best)
 	_torn += 1
@@ -393,7 +424,33 @@ func _wound(torn: Node3D) -> void:
 		_pools.append([pool, 0.0, r * _rng.randf_range(1.2, 2.0)])
 
 
+## (Held or dragged: drawn so its next bite's at the mouth: held, wholly;
+## dragged, over the ground only. The eater places it each frame, or not:
+## either way it's drawn from where the eater has it.)
+func _bring(dt: float) -> void:
+	if not (held or dragged) or not is_instance_valid(food) or _pieces.is_empty():
+		_shift = Vector3.ZERO
+		_set_at = Vector3.INF
+		return
+	if not held:
+		_shift.y = 0.0
+	var now := food.global_position
+	var base := now - _shift if now.is_equal_approx(_set_at) else now
+	var off := _pieces[_nearest()].global_position - now
+	var want := _mouth - (base + off)
+	if not held:
+		want.y = 0.0
+		if want.length() > 0.6: # (not dragged off across the ground)
+			want = want.normalized() * 0.6
+	_shift = _shift.move_toward(want, (0.5 if held else 0.3) * dt)
+	food.global_position = base + _shift
+	_set_at = food.global_position
+
+
 func _process(dt: float) -> void:
+	if _torn < _due:
+		_late += dt
+	_bring(dt)
 	for i in range(_flying.size() - 1, -1, -1):
 		var f: Array = _flying[i]
 		var piece: Node3D = f[0]

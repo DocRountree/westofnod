@@ -927,8 +927,9 @@ func _hunt(dt: float) -> void:
 	var stalk_from := float(S.stalk_from) * size / 0.5
 	var spring := float(S.spring) * size / 0.5
 	match _stage:
-		0: # to it, walking
+		0: # to it, walking (trotting, a way off)
 			_target = p - to.normalized() * stalk_from * 0.9
+			_pace = float(S.get("trot", S.walk)) * lerpf(0.35, 1.0, size) if d > stalk_from * 2.5 else -1.0
 			_ears_to = 1.0
 			_look_to = Vector2(-0.1, 0.0)
 			if d < stalk_from:
@@ -1002,7 +1003,7 @@ func _hunt(dt: float) -> void:
 					_pace = -1.0
 					var lay := _out(Vector3(0.0, -body_h, float(S.mouth_z) - 40.0))
 					_lay = Vector3(lay.x, _ground(lay.x, lay.z), lay.z)
-					_held = _small_prey() # (a little one eaten from its jaws; a bigger laid down)
+					_held = _from_jaws() # (a little one eaten from its jaws; a bigger laid down, and a big hunter's every kill)
 					if not _held:
 						_prey.global_position = _lay
 					_stage = 6
@@ -1010,10 +1011,14 @@ func _hunt(dt: float) -> void:
 		6:
 			_target = _pos
 			_chew = 1.0
+			var jaws := _from_jaws()
 			if _meal == null: # (torn up piece by piece; laid down, its blood run out on the ground)
-				_meal = MealScript.of(_prey, 4 if _small_prey() else 6, 1, NAN if _small_prey() else _lay.y)
-			if _small_prey(): # (in its jaws: its head up, chewing, working it down, a toss now and then)
+				_meal = MealScript.of(_prey, 4 if _small_prey() else 6, 1, NAN if jaws else _lay.y)
+				_bite_pitch = -0.95
+			if jaws: # (in its jaws: its head up, chewing, working it down, a toss now and then)
 				_held = true
+				if _meal:
+					_meal.set("held", true)
 				_neck_to = Vector2(-0.15, 0.0)
 				_look_to = Vector2(0.15 + 0.2 * maxf(sin(_st * 1.3), 0.0), 0.15 * sin(_st * 0.9))
 				_jaw_to = 0.22 * maxf(sin(_st * 7.0), 0.0)
@@ -1024,25 +1029,58 @@ func _hunt(dt: float) -> void:
 					_prey = null
 					_held = false
 					groom()
-			else: # (laid down: its head to it, tearing: a bite, the carcass lifted in its jaws and pulled at, let down)
-				_neck_to = Vector2(-0.95, 0.0)
+			else: # (laid down: its head down to it, its mouth on it, tearing: a bite, the carcass lifted in its jaws and pulled at, let down)
 				var ph := fmod(_st, 2.4)
 				var pulling := ph > 1.2 and ph < 2.1
+				if _meal and not pulling: # (its head lowered, or raised, till its mouth's on the next bite)
+					var na: Vector3 = _meal.call("next_at")
+					var err := na.y - _mouth().y
+					_bite_pitch = clampf(_bite_pitch + clampf(err * 10.0, -1.2, 1.2) * dt, -1.6, -0.25)
+				_neck_to = Vector2(_bite_pitch, 0.0)
 				_look_to = Vector2(-0.3 + (0.55 if pulling else 0.0), 0.25 * sin(_st * 1.7)) # (pulling up and to the side)
 				_jaw_to = 0.08 if pulling else 0.3 * maxf(sin(_st * 6.0), 0.0)
 				if pulling != _held:
 					_held = pulling
 					if not pulling and is_instance_valid(_prey):
 						_prey.global_position = _lay
-				if _meal and pulling and ph > 1.75: # (a piece torn away at the top of each pull; the last of it at the end)
-					_meal.call("tear", clampf(ceilf(_st / 2.4) / 6.0, 0.0, 1.0), _mouth())
-				elif _meal and _st > 14.0:
-					_meal.call("tear", 1.0, _mouth())
+				if _meal: # (lifted, in its jaws; let down, drawn over the ground under its mouth)
+					_meal.set("held", _held)
+					_meal.set("dragged", not _held)
+					# (a piece torn away at the top of each pull; the last of it at the end)
+					_meal.call("tear", 1.0 if _st > 14.0 else clampf(floorf((_st + 0.65) / 2.4) / 6.0, 0.0, 1.0), _mouth())
 				if _st > 15.0:
 					_held = false
 					_prey.queue_free()
 					_prey = null
 					groom()
+
+
+var _bite_pitch := -0.95 # (its neck's, eating off the ground: down till its mouth's on it)
+
+
+## Whether it eats its kill from its jaws, head up (a small one, for a
+## smaller hunter: a fox's mouse, a bobcat's); the big hunters (a coyote, a
+## wolf, a bear) lay every kill down and eat it off the ground.
+func _from_jaws() -> bool:
+	return _small_prey() and float(S.body_len) * MM * size < 0.68
+
+
+## A spring at its prey at p: aimed for its mouth to come down on it (not
+## its middle), and where it'll be by then, if it's moving.
+func _spring_at(p: Vector3, angle: float) -> void:
+	var at := p
+	if is_instance_valid(_prey):
+		var sp = _prey.get("_speed")
+		var yw = _prey.get("_yaw")
+		if (sp is float) and (yw is float):
+			var d0 := maxf(Vector2(p.x - _pos.x, p.z - _pos.z).length(), 0.05)
+			var t := sqrt(2.0 * d0 * tan(angle) / G) # (its time in the air)
+			at += Vector3(-sin(yw), 0.0, -cos(yw)) * float(sp) * t
+	var to := Vector3(at.x - _pos.x, 0.0, at.z - _pos.z)
+	var reach := absf(float(S.mouth_z)) * MM * size # (its middle to its mouth)
+	if to.length() > 0.01:
+		at -= to.normalized() * minf(reach, to.length() * 0.9)
+	_leap(at, angle)
 
 
 ## (Its mouth: where what it eats goes in (the world's).)

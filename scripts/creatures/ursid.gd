@@ -381,7 +381,7 @@ func _attack(_dt: float, p: Vector3, d: float) -> bool:
 		_ears_to = -0.4
 		return false
 	_pace = -1.0
-	_leap(p, 0.25)
+	_spring_at(p, 0.25)
 	return true
 
 

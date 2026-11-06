@@ -109,7 +109,7 @@ func _attack(_dt: float, p: Vector3, d: float) -> bool:
 		return false
 	_pace = -1.0
 	_crouch = 0.0
-	_leap(p, 0.38)
+	_spring_at(p, 0.38)
 	return true
 
 

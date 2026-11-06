@@ -494,6 +494,8 @@ func _think(dt: float) -> void:
 					_look_to = Vector2(0.15 * sin(_st * 0.9), -0.15)
 					if _meal == null:
 						_meal = MealScript.of(_seed, 3, 0)
+						if _meal:
+							_meal.set("held", true) # (in its mouth: the bite it's at drawn in to it)
 					if _meal:
 						_meal.call("tear", clampf((_st - 0.5) / 8.0, 0.0, 1.0), _body.global_transform * (_head.transform * Vector3(0.0, -6.5, -19.5)))
 					if _st > 9.0:
