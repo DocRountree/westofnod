@@ -42,9 +42,11 @@ func _init() -> void:
 		"wing_color": Color(0.5, 0.4, 0.28),
 	}
 	shape = {
-		"under": [Vector3(0.0, -1.7, 1.4), Vector3(8.4, 3.6, 15.0)],
-		"pronotum": [Vector3(0.0, 0.8, -3.7), Vector3(8.6, 4.6, 5.6)],
-		"elytra": [Vector3(0.0, 1.0, 3.4), Vector3(9.0, 6.6, 13.4)],
+		# the shell deep, its sides running down to the belly; the underside
+		# narrower, tucked in under them (no rim standing out below)
+		"under": [Vector3(0.0, -1.4, 1.2), Vector3(6.6, 4.4, 14.0)],
+		"pronotum": [Vector3(0.0, 0.3, -3.7), Vector3(8.6, 5.6, 5.6)],
+		"elytra": [Vector3(0.0, 0.3, 3.4), Vector3(9.0, 8.0, 13.4)],
 		"scutellum": [Vector3(0.0, 2.4, -0.9), Vector3(1.8, 0.8, 1.6)],
 		"neck": Vector3(0.0, -0.3, -6.2),
 		"head": [Vector3(0.0, 0.1, -0.9), Vector3(4.6, 3.0, 3.2)],
