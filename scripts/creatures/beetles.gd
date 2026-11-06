@@ -249,7 +249,9 @@ static func _el_mark(side: float) -> int:
 
 # --- flying ------------------------------------------------------------------
 
-func setup(n: int, c: Vector3, r: float) -> void:
+func _resize(n: int) -> void:
+	var was := males.size()
+	super(n)
 	alt.resize(n)
 	fly_k.resize(n)
 	vel.resize(n)
@@ -262,10 +264,9 @@ func setup(n: int, c: Vector3, r: float) -> void:
 	mate_t.resize(n)
 	mate_for.resize(n)
 	_was.resize(n)
-	for i in n:
+	for i in range(was, n):
 		males[i] = i % 2
 		partner[i] = -1
-	super(n, c, r)
 
 
 ## (Steering, pilot.gd: a beetle's behaviours, flying too.)

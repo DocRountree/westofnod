@@ -24,6 +24,25 @@ extends Node3D
 ## off, after.call(adult) (Lepidoptera.emerge). Cheap: a loft or two.
 ## Its origin: the monarch's, the stalk's top (hang it there); the
 ## clearwing's, the ground under its middle, its head toward -z.
+##
+## And the rest (no shader of their own: plain, painted with parts):
+## - lady: the lady beetle's, glued by its tail to where its larva stopped,
+##   hunched, its front raised: orange, black spots over its back, its
+##   larval skin bunched dark at its tail. Out: a lady beetle (colony's:
+##   Beetles.add), the case left pale and empty
+## - june: the June bug's, on its back in its cell in the soil: creamy, its
+##   legs folded on its front, its wing pads at its sides. Out: a June bug
+##   (colony's), the skin left pale
+## - wasp: the paper wasp's: only its cell's cap to see, a white dome of
+##   silk over the cell's mouth (its origin). Out: the cap chewed open and
+##   gone, a wasp (Wasp) out of the cell and down beside it
+## - carpenter: the carpenter ant's, in its tan cocoon, lying. Out: a worker
+##   (colony's: AntColony.add), the cocoon left
+## - harvester: the red harvester's, bare: white, its legs and antennae
+##   folded on it, lying. Out: a worker (colony's), the skin left pale
+## Their origin the ground under their middle, the head toward -z (the
+## lady's: where its tail's glued; the wasp's: its cell's mouth). colony:
+## the colony its adult joins (an AntColony, Beetles).
 
 const MM := 0.002
 const MONARCH := preload("res://scripts/creatures/monarch.gd")
@@ -35,7 +54,9 @@ const MOTH_SHELL := [[0.0, 0.4, 0.4], [1.0, 2.6, 2.4], [3.0, 4.0, 3.7], [8.0, 4.
 		[19.0, 3.1, 2.8], [22.0, 2.0, 1.8], [24.0, 1.0, 0.9], [25.5, 0.25, 0.25]]
 
 var kind := "monarch"
-var adult: Node3D ## once out
+var adult: Node3D ## once out (the others': their colony)
+var colony: Node ## (the lady's, the June bug's, the ants': the colony its adult joins)
+var _shell: MeshInstance3D
 ## where the clearwing climbs to, to hang and dry (its parent's space; INF:
 ## onto its cocoon), and the way the perch faces there
 var perch_at := Vector3.INF
@@ -61,7 +82,11 @@ func _ready() -> void:
 	var shell := MeshInstance3D.new()
 	shell.material_override = _mat
 	_body.add_child(shell)
-	if kind == "monarch":
+	_shell = shell
+	if kind != "monarch" and kind != "hemaris":
+		_mat = null
+		_build_other(shell)
+	elif kind == "monarch":
 		# the stalk, black, then the case hanging from it down -y, its
 		# front +z
 		var stalk := MeshInstance3D.new()
@@ -75,7 +100,7 @@ func _ready() -> void:
 		stalk.material_override = _plain(Color(0.03, 0.03, 0.03), 0.4)
 		_body.add_child(stalk)
 		shell.mesh = _loft(MONARCH_SHELL, Vector3(0.0, -3.0, 0.0), Vector3.DOWN, Vector3.RIGHT, Vector3.BACK)
-	else:
+	else: # (the clearwing's)
 		# lying, head to -z, its front up; the spike at its tail
 		var half: float = (MOTH_SHELL[MOTH_SHELL.size() - 1] as Array)[0] * 0.5
 		shell.mesh = _loft(MOTH_SHELL, Vector3(0.0, 4.2, -half), Vector3.BACK, Vector3.RIGHT, Vector3.UP)
@@ -117,6 +142,71 @@ func _ready() -> void:
 			bit.rotation = Vector3(0.3, float(b[1]), float(b[1]) * 0.6)
 			bit.material_override = litter
 			add_child(bit)
+
+
+## (The others' shells and parts.)
+func _build_other(shell: MeshInstance3D) -> void:
+	var sphere := SphereMesh.new()
+	sphere.radius = 0.5
+	sphere.height = 1.0
+	sphere.radial_segments = 12
+	sphere.rings = 7
+	var part := func(at: Vector3, size: Vector3, c: Color, rough := 0.5, rot := Vector3.ZERO) -> MeshInstance3D:
+		var mi := MeshInstance3D.new()
+		mi.mesh = sphere
+		mi.position = at * MM
+		mi.scale = size * MM
+		mi.rotation = rot
+		mi.material_override = _plain(c, rough)
+		_body.add_child(mi)
+		return mi
+	match kind:
+		"lady":
+			# glued by its tail, hunched, its front raised up and forward
+			var keys := [[0.0, 0.3, 0.3], [0.8, 1.5, 1.3], [2.2, 2.3, 2.0], [3.8, 2.6, 2.3], [5.2, 2.3, 2.1], [6.2, 1.5, 1.3], [6.8, 0.3, 0.3]]
+			var along := Vector3(0.0, 0.55, -0.83)
+			shell.mesh = _loft(keys, Vector3(0.0, 0.6, 0.0), along, Vector3.RIGHT, Vector3(0.0, 0.83, 0.55))
+			shell.material_override = _plain(Color(0.93, 0.47, 0.1), 0.35)
+			var back := Vector3(0.0, 0.83, 0.55)
+			for sp: Array in [[2.4, 0.0], [3.6, -1.1], [3.6, 1.1], [4.8, -0.7], [4.8, 0.7], [1.6, -1.3], [1.6, 1.3]]:
+				var at: Vector3 = Vector3(0.0, 0.6, 0.0) + along * float(sp[0]) + Vector3.RIGHT * float(sp[1]) + back * 2.05
+				part.call(at, Vector3(0.9, 0.35, 0.9), Color(0.04, 0.03, 0.03), 0.35, Vector3(-0.6, 0.0, 0.0))
+			part.call(Vector3(0.0, 0.5, 0.4), Vector3(3.6, 1.6, 2.4), Color(0.12, 0.12, 0.13), 0.7) # (its larval skin, bunched at its tail)
+		"june":
+			# on its back in its cell: creamy, its legs folded on its front
+			var keys := [[0.0, 0.4, 0.4], [2.0, 4.0, 3.4], [6.0, 5.2, 4.4], [12.0, 5.5, 4.6], [17.0, 5.0, 4.2], [21.0, 3.2, 2.7], [22.5, 0.4, 0.4]]
+			shell.mesh = _loft(keys, Vector3(0.0, 4.6, -11.0), Vector3.BACK, Vector3.RIGHT, Vector3.UP)
+			shell.material_override = _plain(Color(0.88, 0.78, 0.56), 0.4)
+			for k in 5: # (the abdomen's segments: a faint fold between each)
+				var z := 2.0 + 2.2 * k
+				var hw: float = lerpf(5.2, 3.6, k / 4.0)
+				part.call(Vector3(0.0, 4.6, z), Vector3(hw * 2.04, hw * 1.74, 0.5), Color(0.74, 0.62, 0.42), 0.5)
+			for k in 3: # (the legs, folded on its front: up, on its back)
+				for side: float in [-1.0, 1.0]:
+					part.call(Vector3(2.2 * side, 8.6, -5.0 + 2.6 * k), Vector3(1.5, 1.0, 5.0), Color(0.82, 0.7, 0.48), 0.4, Vector3(0.0, 0.25 * side, 0.0))
+			for side: float in [-1.0, 1.0]: # (its wing pads, along its sides)
+				part.call(Vector3(4.2 * side, 6.4, -2.0), Vector3(1.8, 3.0, 9.0), Color(0.84, 0.74, 0.52), 0.4)
+			part.call(Vector3(0.0, 6.0, -10.0), Vector3(4.0, 3.5, 3.0), Color(0.78, 0.6, 0.36), 0.35) # (its head)
+		"carpenter":
+			# its cocoon: tan, lying, a dark spot at its tail end
+			var keys := [[0.0, 0.4, 0.4], [1.5, 2.4, 2.4], [4.0, 3.2, 3.2], [7.0, 3.1, 3.1], [9.0, 2.2, 2.2], [10.0, 0.3, 0.3]]
+			shell.mesh = _loft(keys, Vector3(0.0, 3.2, -5.0), Vector3.BACK, Vector3.RIGHT, Vector3.UP)
+			shell.material_override = _plain(Color(0.8, 0.67, 0.46), 0.85)
+			part.call(Vector3(0.0, 3.2, 4.7), Vector3(1.6, 1.6, 0.8), Color(0.15, 0.1, 0.06), 0.6)
+		"harvester":
+			# bare: white, head, thorax and gaster, legs folded under
+			var keys := [[0.0, 0.3, 0.3], [1.0, 1.4, 1.3], [2.5, 1.3, 1.2], [3.4, 0.9, 0.8], [4.2, 1.7, 1.6], [6.0, 1.9, 1.8], [7.4, 0.4, 0.4]]
+			shell.mesh = _loft(keys, Vector3(0.0, 1.9, -3.7), Vector3.BACK, Vector3.RIGHT, Vector3.UP)
+			shell.material_override = _plain(Color(0.95, 0.92, 0.85), 0.45)
+			for k in 3:
+				for side: float in [-1.0, 1.0]:
+					part.call(Vector3(1.1 * side, 1.0, -1.2 + 1.0 * k), Vector3(0.5, 0.4, 1.8), Color(0.92, 0.88, 0.8), 0.45, Vector3(0.0, 0.4 * side, 0.0))
+		"wasp":
+			# its cell's cap: a white dome of silk over the mouth
+			shell.mesh = sphere
+			shell.scale = Vector3(6.4, 2.6, 6.4) * MM
+			shell.position = Vector3(0.0, 0.5, 0.0) * MM
+			shell.material_override = _plain(Color(0.96, 0.95, 0.92), 0.9)
 
 
 ## A smooth shell lofted through keys ([along, half width, half depth],
@@ -185,18 +275,20 @@ func _process(dt: float) -> void:
 	_t += dt
 	if _state == "ripening":
 		var ripe := clampf(_t / 3.5, 0.0, 1.0)
-		_mat.set_shader_parameter("ripe", ripe)
+		if _mat:
+			_mat.set_shader_parameter("ripe", ripe)
 		# working inside it: wriggling, more as it ripens
 		var w := ripe * ripe
 		if kind == "monarch":
 			_body.rotation = Vector3(sin(_t * 7.0) * 0.05 * w, sin(_t * 3.1) * 0.15 * w, sin(_t * 9.0) * 0.04 * w)
-		else:
+		elif kind != "wasp":
 			_body.rotation = Vector3(0.0, sin(_t * 8.0) * 0.07 * w, 0.0)
 		if _t > 4.2:
 			_split()
 	elif _state == "":
-		# the clearwing's twitching now and then (the monarch's still)
-		if kind != "monarch":
+		# the clearwing's twitching now and then, the bare pupae's (the
+		# monarch's still, the cocoon and the capped cell too)
+		if kind in ["hemaris", "june", "harvester", "lady"]:
 			_twitch -= dt
 			if _twitch <= 0.0:
 				_twitch = randf_range(3.0, 7.0)
@@ -208,9 +300,13 @@ func _process(dt: float) -> void:
 func _split() -> void:
 	_state = "out"
 	_body.rotation = Vector3.ZERO
-	_mat.set_shader_parameter("empty", true)
+	if _mat:
+		_mat.set_shader_parameter("empty", true)
 	var parent := get_parent() as Node3D
 	if parent == null:
+		return
+	if kind != "monarch" and kind != "hemaris":
+		_out_other(parent)
 		return
 	var a: Node3D
 	var b := global_transform.basis
@@ -241,6 +337,32 @@ func _split() -> void:
 		a.call("place", to.call(Vector3(0.0, 4.0, -6.0)))
 		a.call("emerge", at, n, head, _done.bind(a), to.call(Vector3(0.0, 4.0, -6.0)), fwd, Vector3.UP)
 	adult = a
+
+
+## (The others out: the case left empty, pale (the cocoon as it is, the
+## cap gone); the adult: a colony's, there, off about its ways; or a wasp,
+## up out of its cell and down beside it.)
+func _out_other(parent: Node3D) -> void:
+	if kind == "wasp":
+		_shell.visible = false # (chewed open)
+		var w: Node3D = load("res://scripts/creatures/wasp.gd").new()
+		parent.add_child(w)
+		w.call("place", global_position + Vector3.UP * 0.01)
+		var a := randf() * TAU
+		w.call("land", global_position + Vector3(cos(a), 0.0, sin(a)) * 0.03 + Vector3.DOWN * 0.012, Vector3.UP)
+		adult = w
+		_done(w)
+		return
+	if kind != "carpenter":
+		var pale := _plain(Color(0.9, 0.85, 0.72, 0.45), 0.6)
+		pale.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		_shell.material_override = pale
+	if is_instance_valid(colony) and colony.has_method("add"):
+		var fwd := (global_transform.basis * Vector3.FORWARD).normalized()
+		var at := (colony as Node3D).to_local(global_position + fwd * 0.004)
+		colony.call("add", Vector3(at.x, 0.0, at.z), atan2(-fwd.x, -fwd.z), 0.06)
+		adult = colony as Node3D
+		_done(adult)
 
 
 func _done(a: Node3D) -> void:

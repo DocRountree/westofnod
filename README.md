@@ -562,7 +562,18 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   the ants' grubs; caterpillars rippling as they crawl, grubs curling and uncurling. The lepidopterans' pupae
   (`pupa.gd`, `Pupa`, lofted shells painted by `shaders/render/pupa.gdshader`): the monarch's jade lantern of a
   chrysalis on its black stalk, its black and gold crown, gold spots; the clearwing's glossy mahogany pupa, ringed,
-  spiked, in a ragged cocoon in the litter. They ripen (the monarch's going clear, its wings showing through),
+  spiked, in a ragged cocoon in the litter. The life cycle closed (`Larva.pupate`): the monarch caterpillar along
+  its way (down its milkweed, up a stem, along under a twig), spinning its pad, hanging from it in a J, its skin worked
+  up and crumpling, the chrysalis left hanging; the hornworm writhing as it spins its cocoon in the litter; the lady
+  beetle larva gluing its tail down, hunched, its pupa there (orange, spotted black, its larval skin bunched at its
+  tail); the grubs curling tighter, still, then their pupae: the June bug's on its back in its cell, the wasp's under
+  its cell's white silk cap, the carpenter ant's in a tan cocoon, the harvester's bare and white. Out of them
+  (`Pupa.eclose`): the lady beetles and June bugs into their colony (`AntColony.add`), the ants' new workers into a
+  colony of their own, the wasp up out of its cell, the lepidopterans as before. The nymphs' moult (`molt.gd`,
+  `Molt.begin`: one moult to grown, not the several a real one takes): the nymph still, gripping, swelling; its skin
+  splitting, the adult backing up and out of it nose first, swelling to full size as it walks off; the cast skin left
+  pale and see-through (the grasshoppers', the mantis'; the darner's own climbing out of the water as before). Demo:
+  3 pupates the larvae at a station, 2 hatches the pupae and moults the nymphs. They ripen (the monarch's going clear, its wings showing through),
   wriggle, split, and are left empty skins; the adult pushes out (the monarch head first, down; the clearwing out of
   its cocoon), turns or climbs to hang, its abdomen swollen, its crumpled wings hanging down and pumped out to full
   size, dried, opened and closed (`Lepidoptera.emerge`); then flies. `tools/creatures/life_cycle_demo.tscn`, a station each. The clearwing's

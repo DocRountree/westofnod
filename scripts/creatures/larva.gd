@@ -166,6 +166,46 @@ func struggle(secs := 3.0) -> void:
 var _struggle_for := 3.0
 
 
+## Pupating (a caterpillar's: the monarch's, the clearwing's): along `via`
+## ([point, the surface's normal there] each: up a stem, along under a twig)
+## to `at`; there, the monarch's spinning its silk pad under it, then
+## turning to hang from it head down, curled up in a J, a while; its skin
+## splitting and worked up toward the pad, crumpling, and the chrysalis
+## (Pupa) there in its place. The clearwing's at `at` on the ground,
+## writhing as it spins its cocoon round it in the litter, then its skin
+## worked off it the same way, its pupa there in its cocoon. after.call(the
+## pupa) once it's done; the caterpillar gone (its old skin dropped).
+## The lady beetle larva's to `at`, there gluing its tail down, hunching,
+## its front up, then its skin worked back to its tail, its pupa there. The
+## grubs' (the June bug's, the wasp's, the ants') where they lie: curling
+## tighter, still, a while, then their skin worked off, their pupa (in its
+## cell, its cocoon; the wasp's, under its cell's cap: `at` its mouth) there.
+func pupate(at: Vector3, via := [], after := Callable()) -> void:
+	_mode = "pupate"
+	_pp_way = via.duplicate()
+	_pp_way.append([at, Vector3.DOWN if kind == "monarch" else Vector3.UP])
+	_pp_at = at
+	_pp_stage = 0 if K.style == "crawl" else 1
+	_pp_t = 0.0
+	_pp_after = after
+	_pp_n = Vector3.UP
+
+
+var _pp_way: Array = [] # [point, normal] each, still to go
+var _pp_at := Vector3.ZERO
+var _pp_stage := 0 # 0 on its way, 1 spinning (its pad, its cocoon), 2 turning to hang, 3 hanging, 4 shedding its skin
+var _pp_t := 0.0
+var _pp_n := Vector3.UP # (the surface it's on: its normal)
+var _pp_from: Array[Vector3] = [] # (its spine as it was, turning to hang)
+var _pp_g := 1.0 # (its size as it began to shed)
+var _pp_after := Callable()
+var _pp_pupa: Node3D
+const SPIN_SECS := 3.0
+const TURN_SECS := 2.5
+const HANG_SECS := 4.0
+const SHED_SECS := 6.0
+
+
 # --- the body ------------------------------------------------------------------
 
 func _build() -> void:
@@ -551,6 +591,8 @@ func _process(dt: float) -> void:
 	_place_spine()
 	_step_feet(dt)
 	_to_own_frame()
+	if _mode == "pupate":
+		_pupate_clock(dt)
 	if _mode == "struggle":
 		_wait -= dt
 		if _wait <= 0.0: # (limp)
@@ -597,6 +639,8 @@ func _crawl(dt: float) -> void:
 			_dir = _dir.rotated(Vector3.UP, clampf(turn, -can, can))
 			_pos += _dir * step
 			_pos.y = float(height.call(_pos.x, _pos.z)) if height.is_valid() else _centre.y
+	if _mode == "pupate":
+		_pupate_step(dt, speed)
 	# the trail: where the head's been, for the body to follow
 	if _trail.is_empty() or _trail[0].distance_to(_pos) > _seg * _g * 0.25:
 		_trail.push_front(_pos)
@@ -614,7 +658,9 @@ func _place_spine() -> void:
 	var sg := _seg * _g
 	var pts: Array[Vector3] = []
 	var ups: Array[Vector3] = []
-	if K.style == "crawl":
+	if K.style == "crawl" and _mode == "pupate":
+		_pupa_spine(pts, ups, n, sg)
+	elif K.style == "crawl":
 		for i in n:
 			var p := _along_trail((i + 0.5) * sg)
 			var lift := 0.0
@@ -654,6 +700,8 @@ func _place_spine() -> void:
 		# a C, on its side: an arc in the level plane, curling and
 		# uncurling slowly; an ant's larva, its neck crooked
 		var curl: float = K.curl * (1.0 + 0.12 * sin(_t * 1.1)) + 0.15 * sin(_t * 3.7) * (0.5 + 0.5 * sin(_t * 0.5))
+		if _mode == "pupate": # (curling tighter, still: a prepupa)
+			curl = float(K.curl) * (1.0 + 0.25 * clampf(_pp_t / 2.0, 0.0, 1.0))
 		var p := _pos
 		var d := _dir
 		for i in n:
@@ -713,6 +761,145 @@ func _to_own_frame() -> void:
 			(f.shin as Node3D).position -= _pos
 
 
+## (Pupating, on its way: the head along the way's points, in turn; the
+## surface's normal there what it rides on.)
+func _pupate_step(dt: float, speed: float) -> void:
+	if _pp_stage != 0 or _pp_way.is_empty():
+		return
+	var w: Array = _pp_way[0]
+	var to: Vector3 = (w[0] as Vector3) - _pos
+	_pp_n = _pp_n.lerp(w[1] as Vector3, 1.0 - exp(-4.0 * dt)).normalized()
+	var surge := 0.3 + 1.4 * maxf(sin(_t * TAU * 0.7), 0.0)
+	var step := speed * lerpf(0.4, 1.0, _g) * surge * dt
+	if to.length() <= step:
+		_pos = w[0]
+		_pp_way.pop_front()
+		if _pp_way.is_empty():
+			_pp_stage = 1
+			_pp_t = 0.0
+		return
+	var dn := to.normalized()
+	if Vector2(dn.x, dn.z).length() > 0.3:
+		_dir = Vector3(dn.x, 0.0, dn.z).normalized()
+	_pos += dn * step
+
+
+## (Pupating: the stages, by the clock.)
+func _pupate_clock(dt: float) -> void:
+	if _pp_stage == 0:
+		return
+	_pp_t += dt
+	var hang := kind == "monarch"
+	match _pp_stage:
+		1:
+			if _pp_t > SPIN_SECS * (1.0 if hang else (1.8 if kind == "hemaris" else 1.2)):
+				_pp_from.clear()
+				_pp_stage = 2 if hang else 4
+				_pp_t = 0.0
+				_pp_g = _g
+				if not hang:
+					_new_pupa()
+		2:
+			if _pp_t > TURN_SECS:
+				_pp_stage = 3
+				_pp_t = 0.0
+		3:
+			if _pp_t > HANG_SECS:
+				_pp_stage = 4
+				_pp_t = 0.0
+				_pp_g = _g
+				_new_pupa()
+		4:
+			# (its skin worked off, crumpling)
+			_g = lerpf(_pp_g, _pp_g * 0.45, clampf(_pp_t / SHED_SECS, 0.0, 1.0))
+			if _pp_t > SHED_SECS + 0.5:
+				if _pp_after.is_valid() and is_instance_valid(_pp_pupa):
+					_pp_after.call(_pp_pupa)
+				queue_free()
+
+
+## (Its pupa, there in its place: the monarch's chrysalis hanging from its
+## pad, its front the way the caterpillar faced; the clearwing's in its
+## cocoon, its head the way the caterpillar's was.)
+func _new_pupa() -> void:
+	var pupa: Node3D = load("res://scripts/creatures/pupa.gd").new(kind)
+	get_parent().add_child(pupa)
+	var ln := float(K.len) * MM * _g
+	match kind:
+		"monarch", "wasp": # (hanging from its pad; under its cell's cap)
+			pupa.position = _pp_at
+		"lady": # (glued by its tail)
+			pupa.position = _pp_at - _dir * ln * 0.8
+		"hemaris":
+			pupa.position = _pp_at - _dir * ln * 0.5
+		_: # (a grub's: where it lay, its middle)
+			pupa.position = _pp_at
+	pupa.rotation.y = atan2(_dir.x, _dir.z) if kind == "monarch" else atan2(-_dir.x, -_dir.z)
+	_pp_pupa = pupa
+
+
+## (Pupating: its spine: on its way, along its trail riding the surface;
+## spinning, the head nodding at its pad; turning to hang, and hanging from
+## its pad head down, curled up in a J; shedding, its skin worked up toward
+## the pad (or, the clearwing's, in from both ends), crumpling.)
+func _pupa_spine(pts: Array[Vector3], ups: Array[Vector3], n: int, sg: float) -> void:
+	var trail_pts: Array[Vector3] = []
+	for i in n:
+		trail_pts.append(_along_trail((i + 0.5) * sg) + _pp_n * _widths[i] * _g * 0.95)
+	if kind != "monarch":
+		var mid := Vector3.ZERO
+		for q in trail_pts:
+			mid += q
+		mid /= n
+		for i in n:
+			var p := trail_pts[i]
+			var f := float(i) / maxf(n - 1, 1)
+			if kind == "lady": # (its tail glued down, hunched, its front raised; then its skin worked back to its tail)
+				var hunch := clampf(_pp_t / 1.5, 0.0, 1.0) if _pp_stage == 1 else (1.0 if _pp_stage == 4 else 0.0)
+				p += Vector3.UP * (1.0 - f) * (1.0 - f) * _widths[0] * _g * 3.0 * hunch
+				if _pp_stage == 4:
+					p = p.lerp(trail_pts[n - 1], clampf(_pp_t / SHED_SECS, 0.0, 1.0) * 0.85)
+			elif _pp_stage == 1: # (writhing, spinning its cocoon round it)
+				p += (_dir.cross(Vector3.UP) * sin(_t * 4.0 + f * 5.0) * 0.6 + Vector3.UP * maxf(sin(_t * 3.0 + f * 3.0), 0.0) * 0.8) * _widths[i] * _g
+			elif _pp_stage == 4: # (shed: drawn in to its middle, crumpling)
+				p = p.lerp(mid, clampf(_pp_t / SHED_SECS, 0.0, 1.0) * 0.7)
+			pts.append(p)
+			ups.append(Vector3.UP)
+		return
+	# the monarch's: hanging from its pad (at), head down, curled up in a J
+	var right := _dir.cross(Vector3.UP).normalized()
+	var hang: Array[Vector3] = []
+	hang.resize(n)
+	var d := Vector3.DOWN
+	var p := _pp_at + Vector3.DOWN * _widths[n - 1] * _g
+	var shed := clampf(_pp_t / SHED_SECS, 0.0, 1.0) if _pp_stage == 4 else 0.0
+	var step := sg * (1.0 - 0.75 * shed) # (shedding: its skin worked up toward the pad)
+	for i in range(n - 1, -1, -1):
+		hang[i] = p
+		var f := float(n - 1 - i) / maxf(n - 1, 1)
+		if f > 0.55: # (its head end curled up, a J)
+			d = d.rotated(right, -0.42 * (1.0 - shed * 0.6))
+		p += d * step
+	for i in n:
+		var q: Vector3
+		match _pp_stage:
+			0:
+				q = trail_pts[i]
+			1:
+				q = trail_pts[i]
+				if i == 0: # (the head nodding at its pad, spinning)
+					q += _pp_n * sin(_t * 6.0) * _widths[0] * _g * 0.4
+			2:
+				if _pp_from.size() < n:
+					_pp_from = trail_pts.duplicate()
+				var k := smoothstep(0.0, 1.0, clampf(_pp_t / TURN_SECS, 0.0, 1.0))
+				q = _pp_from[i].lerp(hang[i], k)
+			_:
+				q = hang[i] + right * sin(_t * 0.8) * _widths[i] * _g * 0.15 * float(i) / n # (a slow sway)
+		pts.append(q)
+		ups.append(_pp_n if _pp_stage <= 1 else -_dir)
+
+
 ## The feet (a caterpillar's, the lady beetle larva's): each planted on
 ## the ground where it last stepped, held there while the body goes on over
 ## it; once left too far behind (or, a caterpillar's, as the wave lifts its
@@ -723,6 +910,17 @@ func _to_own_frame() -> void:
 ## two, its knee up and out).
 func _step_feet(dt: float) -> void:
 	if _feet.is_empty():
+		return
+	if _mode == "pupate" and (_pp_stage > 0 or _pp_n.dot(Vector3.UP) < 0.9): # (holding on, up a stem, under a twig, on its silk: its feet drawn in under it)
+		for f in _feet:
+			var h := _holders[int(f.i)].transform
+			var w := _widths[int(f.i)] * _g
+			var hip := h.origin + h.basis.x.normalized() * float(f.side) * w * 0.5 - h.basis.y.normalized() * w * 0.55
+			var foot := hip - h.basis.y.normalized() * w * 0.35
+			f.foot = foot
+			(f.leg as MeshInstance3D).transform = _seg_xf(hip, foot, w * (0.32 if f["true"] else 0.75) * 0.5, 1.15)
+			if f.has("shin"):
+				(f.shin as MeshInstance3D).transform = _seg_xf(foot, foot, w * 0.1)
 		return
 	var ground := _pos.y # (under each foot: height's, if it's given)
 	for f in _feet:

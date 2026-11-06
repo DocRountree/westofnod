@@ -136,6 +136,7 @@ const GreySqScript := preload("res://scripts/creatures/grey_squirrel.gd")
 const BeaverScript := preload("res://scripts/creatures/beaver.gd")
 const TrigScript := preload("res://scripts/creatures/trigonalid.gd")
 const MealScript := preload("res://scripts/creatures/meal.gd")
+const MoltScript := preload("res://scripts/creatures/molt.gd")
 const GAP := 0.9 # m between stations
 
 var cam: Camera3D
@@ -1879,6 +1880,73 @@ func _insect_at(at: Vector3, sz := 0.4, stuck := false) -> Node3D:
 	return g
 
 
+## Each grown caterpillar here pupating: the monarch's down its milkweed
+## (if it's up on a leaf), over to the post, up it and along under the twig,
+## to hang there and shed its skin, the chrysalis left hanging; the
+## clearwing's to the litter by its stem, to spin its cocoon there. How
+## many.
+func _pupate_here() -> int:
+	var n := 0
+	for c in _here():
+		if c.get_script() != LarvaScript or c.get("_mode") == "pupate":
+			continue
+		var kind: String = c.get("kind")
+		if kind in ["lady", "june", "wasp", "carpenter", "harvester"]:
+			# (the lady beetle larva a little way on, gluing its tail down;
+			# the grubs where they lie (the wasp's under its cell's cap); each
+			# pupa's adult its colony's)
+			var p0: Vector3 = c.get("_pos")
+			var d: Vector3 = c.get("_dir")
+			var at := p0 + d * 0.015 if kind == "lady" else (p0 + Vector3.UP * 0.012 if kind == "wasp" else p0)
+			var col: Node = lady if kind == "lady" else (june if kind == "june" else (_workers(0) if kind == "carpenter" else (_workers(1) if kind == "harvester" else null)))
+			c.call("pupate", at, [], func(pu: Node3D) -> void:
+				pu.set("colony", col)
+				_pupae.append(pu))
+			n += 1
+			continue
+		if not (kind in ["monarch", "hemaris"]):
+			continue
+		var p: Vector3 = c.get("_pos")
+		var k := _pupating
+		_pupating += 1
+		if c.get("kind") == "monarch":
+			var st := _station(0)
+			var via := []
+			if p.y > 0.02: # (down the milkweed's stem)
+				via.append([Vector3(p.x, 0.0, p.z), Vector3.BACK])
+			via.append([st + Vector3(0.37, 0.0, -0.13), Vector3.UP]) # (to the post)
+			via.append([st + Vector3(0.37, 0.3, -0.13), Vector3.BACK]) # (up it)
+			via.append([st + Vector3(0.36, 0.313, -0.15), Vector3.DOWN]) # (onto the twig's underside)
+			var at := st + Vector3(0.3 - 0.055 * (k % 4), 0.316, -0.15)
+			c.call("pupate", at, via, func(pu: Node3D) -> void: _pupae.append(pu))
+		else:
+			var st := _station(1)
+			var at := st + MOTH_PUPA + Vector3(-0.07 * (k % 3 + 1), 0.0, 0.05 * (k % 2))
+			c.call("pupate", at, [], func(pu: Node3D) -> void:
+				pu.set("perch_at", _moth_perch)
+				pu.set("perch_normal", _moth_perch_n)
+				_pupae.append(pu))
+		n += 1
+	return n
+
+
+var _pupating := 0 # (how many have pupated: each its own spot)
+var _worker_colonies := [null, null]
+
+
+## The ants' workers at station 3 + k (the carpenters', the harvesters'):
+## made the first time one's out of its pupa, then each one more.
+func _workers(k: int) -> Node:
+	if is_instance_valid(_worker_colonies[k]):
+		return _worker_colonies[k]
+	var w: AntColony = HarvesterScript.new() if k == 1 else AntColony.new()
+	w.position = _station(3 + k)
+	add_child(w)
+	w.setup(0, Vector3.ZERO, 0.08)
+	_worker_colonies[k] = w
+	return w
+
+
 func _new_pupae() -> void:
 	for p in _pupae:
 		if is_instance_valid(p):
@@ -2050,7 +2118,7 @@ func _act_here(act: String) -> void:
 	var all := _here()
 	match act:
 		"pupae":
-			if _at <= 1:
+			if _pupate_here() == 0 and _at <= 1: # (no caterpillar here to: pupae as they are; the others' larvae pupate, where there are)
 				_new_pupae()
 			return
 		"lay":
@@ -2081,6 +2149,8 @@ func _do(c: Node, act: String, all: Array) -> void:
 		if sc == PupaScript:
 			var k := _at
 			c.call("eclose", func(a: Node3D) -> void:
+				if a is AntColony or a is Wasp: # (a colony's new one, off about its ways; a wasp, down by its comb)
+					return
 				if a.has_method("fly"):
 					a.call("fly", _station(k), 0.4)
 				else:
@@ -2091,6 +2161,12 @@ func _do(c: Node, act: String, all: Array) -> void:
 			for sac in c.get("sacs"):
 				if is_instance_valid(sac):
 					sac.call("hatch")
+		elif ((sc == HopperScript or sc == BlueHopperScript) or sc == MantisScript) and young: # (a nymph: its moult, to grown)
+			MoltScript.begin(c, func(a: Node3D) -> void: # (grown: off about its ways)
+				if a.has_method("stalk"):
+					a.call("stalk", _where(a), 0.15)
+				elif a.has_method("wander"):
+					a.call("wander", _where(a), 0.15))
 		elif (sc == HopperScript or sc == BlueHopperScript) or sc == MantisScript: # (its pods, its egg cases)
 			for pod in c.get("pods" if (sc == HopperScript or sc == BlueHopperScript) else "oothecae"):
 				if is_instance_valid(pod):

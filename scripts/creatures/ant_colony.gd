@@ -93,6 +93,20 @@ func setup(n: int, c: Vector3, r: float) -> void:
 		m.set_shader_parameter(k, colors[k])
 	material_override = m
 	cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	_resize(n)
+	for i in n:
+		var a := rng.randf() * TAU
+		pos[i] = c + Vector3(cos(a), 0.0, sin(a)) * sqrt(rng.randf()) * r
+		yaw[i] = rng.randf() * TAU
+		seed[i] = rng.randf()
+		wander(i, c, r)
+		target[i] = pos[i]
+	custom_aabb = AABB(c - Vector3(r, 1.0, r) - Vector3.ONE, Vector3(r, 1.0, r) * 2.0 + Vector3.ONE * 2.0)
+
+
+## Ant i walking about round c, within r (m).
+## (Every one's state, for n of them.)
+func _resize(n: int) -> void:
 	pos.resize(n)
 	target.resize(n)
 	centre.resize(n)
@@ -109,17 +123,23 @@ func setup(n: int, c: Vector3, r: float) -> void:
 	lay_at.resize(n)
 	lay_wait.resize(n)
 	pace.resize(n)
-	for i in n:
-		var a := rng.randf() * TAU
-		pos[i] = c + Vector3(cos(a), 0.0, sin(a)) * sqrt(rng.randf()) * r
-		yaw[i] = rng.randf() * TAU
-		seed[i] = rng.randf()
-		wander(i, c, r)
-		target[i] = pos[i]
-	custom_aabb = AABB(c - Vector3(r, 1.0, r) - Vector3.ONE, Vector3(r, 1.0, r) * 2.0 + Vector3.ONE * 2.0)
 
 
-## Ant i walking about round c, within r (m).
+## Another one (just out of its pupa, say): at `at` (its own space), facing
+## yaw, wandering round there (within r). Its index.
+func add(at: Vector3, yaw_ := 0.0, r := 0.05) -> int:
+	var i := pos.size()
+	_resize(i + 1)
+	pos[i] = at
+	yaw[i] = yaw_
+	seed[i] = rng.randf()
+	target[i] = at
+	wander(i, at, r)
+	multimesh.instance_count = i + 1 # (all placed again this frame)
+	custom_aabb = custom_aabb.merge(AABB(at - Vector3.ONE * (r + 0.5), Vector3.ONE * (2.0 * r + 1.0)))
+	return i
+
+
 func wander(i: int, c: Vector3, r: float) -> void:
 	task[i] = 0
 	centre[i] = c
