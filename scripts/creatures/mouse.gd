@@ -46,6 +46,8 @@ var _wait := 0.0
 var _st := 0.0
 var _stage := 0
 var _seed: Node3D
+var _meal: Node3D # (its seed, nibbled away bit by bit: Meal)
+const MealScript := preload("res://scripts/creatures/meal.gd")
 var _seed_size := Vector3.ONE
 var _sit := 0.0 # 0 on all fours .. 1 sitting up on its haunches
 var _sit_to := 0.0
@@ -406,6 +408,7 @@ func eat(s: Node3D) -> void:
 		return
 	_mode = "eat"
 	_seed = s
+	_meal = null
 	_seed_size = s.scale
 	_stage = 0
 	_st = 0.0
@@ -489,8 +492,10 @@ func _think(dt: float) -> void:
 					_sit_to = 1.0
 					_chew = 1.0
 					_look_to = Vector2(0.15 * sin(_st * 0.9), -0.15)
-					var k := clampf(1.0 - _st / 9.0, 0.06, 1.0)
-					_seed.scale = _seed_size * Vector3(k, k, k * 0.8 + 0.2)
+					if _meal == null:
+						_meal = MealScript.of(_seed, 3, 0)
+					if _meal:
+						_meal.call("tear", clampf((_st - 0.5) / 8.0, 0.0, 1.0), _body.global_transform * (_head.transform * Vector3(0.0, -6.5, -19.5)))
 					if _st > 9.0:
 						_seed.queue_free()
 						_seed = null

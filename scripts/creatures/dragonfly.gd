@@ -90,6 +90,8 @@ var _perch := Vector3.INF
 var _perched := false
 var _prey: Node3D
 var _held_prey: Node3D
+var _meal: Node3D # (its prey, chewed up piece by piece: Meal)
+const MealScript := preload("res://scripts/creatures/meal.gd")
 var _mate: Dragonfly
 var _role := "" # "male", "female" (mating)
 var _held_by: Dragonfly # (a female in tandem or the wheel: carried)
@@ -649,6 +651,7 @@ func _think(dt: float) -> void:
 				_held_prey.global_transform = gx
 				_held_prey.position = Vector3(0.0, -4.0, -3.5)
 				_held_prey.scale = Vector3.ONE / (MM * size) # (its own size still, under the head's mm)
+				_meal = null
 				_mode = "eat"
 				_stage = 0
 				_st = 0.0
@@ -668,6 +671,11 @@ func _think(dt: float) -> void:
 				_target = _pos # (eaten on the wing, hovering)
 			if _perched:
 				_beat_to = 0.0
+			if is_instance_valid(_held_prey): # (chewed up, a piece at a time)
+				if _meal == null:
+					_meal = MealScript.of(_held_prey, 3)
+				if _meal:
+					_meal.call("tear", clampf(1.0 - (_wait - 0.4) / 4.4, 0.0, 1.0), _head.global_transform * Vector3(0.0, -2.5, -3.0))
 			if _wait <= 0.0:
 				_chew = 0.0
 				if _held_prey:

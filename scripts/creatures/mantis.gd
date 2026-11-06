@@ -51,11 +51,10 @@ var _at := Vector3.ZERO
 var _look := Vector3.INF # (its parent's space)
 var _prey: Node3D
 var _held := false
-# a mantis (a male) as her prey: his head torn off (0..1), eaten (0..1), how
-# much of him is left (1..0)
+# a mantis (a male) as her prey: his head torn off (0..1)
 var _rip := 0.0
-var _gone := 0.0
-var _left := 1.0
+var _meal: Node3D # (its prey, eaten piece by piece: Meal)
+const MealScript := preload("res://scripts/creatures/meal.gd")
 var _pro: Node3D # the prothorax (raised)
 var _head: Node3D
 var _jaws: Array[Node3D] = []
@@ -263,8 +262,7 @@ func strike(target: Vector3, prey: Node3D = null) -> void:
 	_prey = prey
 	_held = false
 	_rip = 0.0
-	_gone = 0.0
-	_left = 1.0
+	_meal = null
 	_stage = 0
 	_st = 0.0
 
@@ -291,6 +289,11 @@ func lay(at: Vector3) -> void:
 	_at = at
 	_stage = 0
 	_st = 0.0
+
+
+## (Its mouth: where what it eats goes in (the world's).)
+func _mouth() -> Vector3:
+	return _head.global_transform * Vector3(0.0, -1.5, -1.6)
 
 
 func _rest_fore() -> void:
@@ -366,11 +369,15 @@ func _think(dt: float) -> void:
 					var whole := is_instance_valid(_prey) and _prey.has_method("_hang") # (a mantis)
 					var meal := 32.0 if whole else 9.0
 					if whole:
-						# a tug, a wrench: his head torn off; eaten; then
-						# the rest of him, from the neck back
+						# a tug, a wrench: his head torn off; then eaten,
+						# bite by bite, the head first, then the rest of
+						# him from the neck back
 						_rip = smoothstep(0.2, 1.4, _st)
-						_gone = clampf((_st - 1.6) / 4.5, 0.0, 1.0)
-						_left = lerpf(1.0, 0.05, clampf((_st - 6.5) / (meal - 6.5), 0.0, 1.0))
+						if _st > 1.6:
+							if _meal == null:
+								_meal = MealScript.of(_prey, 9)
+							if _meal:
+								_meal.call("tear", clampf((_st - 1.6) / (meal - 2.5), 0.0, 1.0), _mouth())
 						if _st < 1.5:
 							var j := 0.3 * sin(_st * 15.0)
 							_ask = [Vector3(0.2 + j, 1.4, 2.95), Vector3(0.2 - j, 1.4, 2.95)]
@@ -380,9 +387,11 @@ func _think(dt: float) -> void:
 						else:
 							_ask = [Vector3(0.2, 1.4, 2.95), Vector3(0.2, 1.4, 2.95)] # (held at her mouth)
 							_fore_rate = 8.0
-					elif _prey:
-						var k := clampf(1.0 - _st / 9.0, 0.05, 1.0)
-						_prey.scale = Vector3.ONE * k
+					elif is_instance_valid(_prey): # (bite by bite)
+						if _meal == null:
+							_meal = MealScript.of(_prey, 3)
+						if _meal:
+							_meal.call("tear", clampf((_st - 0.5) / (meal - 1.5), 0.0, 1.0), _mouth())
 					if _st > meal:
 						if is_instance_valid(_prey):
 							_prey.queue_free()
@@ -594,19 +603,17 @@ func _seized() -> void:
 
 ## (A male in her forelegs, his neck at h (world), her heading yaw: facing
 ## her, his body hanging away from her down toward the ground; his head
-## torn off (rip) and eaten (gone); left: how much of him is left.)
-func _hang(h: Vector3, yaw: float, left: float, rip: float, gone: float) -> void:
+## torn off (rip). Eaten piece by piece (Meal): the pieces follow him.)
+func _hang(h: Vector3, yaw: float, rip: float) -> void:
 	var neck := _pro.position + Vector3(0.0, 0.2, -16.5) # (his body mm)
-	_body.scale = Vector3.ONE * MM * size * maxf(left, 0.02)
-	var length := 47.0 * MM * size * maxf(left, 0.02)
+	_body.scale = Vector3.ONE * MM * size
+	var length := 47.0 * MM * size
 	var over := h.y - _ground(h.x, h.z) # (his neck over the ground: his tail down to it)
 	var b := Basis(Vector3.UP, yaw + PI) * Basis(Vector3.RIGHT, asin(clampf(over / length, 0.1, 0.95))) * Basis(Vector3.BACK, 0.35)
 	transform = Transform3D(b, Vector3.ZERO)
 	transform.origin = h - transform * (_body.transform * neck)
 	_head.position = Vector3(0.0, 0.6 + 1.6 * rip, -17.0 - 5.0 * rip) # (pulled from his neck, into her jaws)
 	_head.rotation = Vector3(0.7 * rip, 0.0, 1.3 * rip) # (wrenched round)
-	_head.scale = Vector3.ONE * maxf(1.0 - gone, 0.001)
-	_head.visible = gone < 0.999
 
 
 ## Let down from p on a thread (a hatchling, from its egg case): falling
@@ -655,7 +662,7 @@ func _pose(dt: float) -> void:
 		var tb: Node3D = _fore[0][2]
 		if _prey.has_method("_hang"):
 			var h := (tb.global_transform * Vector3(0.0, -3.5, 0.0) + (_fore[1][2] as Node3D).global_transform * Vector3(0.0, -3.5, 0.0)) * 0.5
-			_prey.call("_hang", h, _yaw, _left, _rip, _gone)
+			_prey.call("_hang", h, _yaw, _rip)
 		else:
 			_prey.global_position = tb.global_transform * Vector3(0.0, -3.5, 0.0)
 	# the abdomen: a nymph's curled up over its back

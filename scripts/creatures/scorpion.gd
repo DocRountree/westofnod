@@ -58,6 +58,8 @@ var _st := 0.0
 var _stage := 0
 var _prey: Node3D
 var _prey_s := Vector3.ONE
+var _meal: Node3D # (its prey, torn up by the chelicerae piece by piece: Meal)
+const MealScript := preload("res://scripts/creatures/meal.gd")
 var _held := false
 var _chew := 0.0
 var _tail_k := [] # each joint now: [arch, round]
@@ -354,6 +356,7 @@ func hunt(prey: Node3D) -> void:
 	_mode = "hunt"
 	_prey = prey
 	_prey_s = prey.scale
+	_meal = null
 	_held = false
 	_stage = 0
 	_st = 0.0
@@ -577,7 +580,13 @@ func _hunt(dt: float) -> void:
 			_palp_rate = 3.0
 			_grip = 1.0
 			_chew = 1.0
-			_prey.scale = _prey_s * maxf(1.0 - _st / 12.0, 0.05)
+			if _meal == null:
+				_meal = MealScript.of(_prey, 4)
+			if _meal and not _chel.is_empty():
+				var mouth := Vector3.ZERO
+				for c in _chel:
+					mouth += (c as Node3D).global_position
+				_meal.call("tear", clampf((_st - 0.5) / 11.0, 0.0, 1.0), mouth / _chel.size())
 			if _st > 12.0:
 				_prey.queue_free()
 				_prey = null

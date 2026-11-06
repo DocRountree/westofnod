@@ -290,6 +290,13 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   its spec, or its drawn size), two that overlap, whatever their kinds, eased apart, each its half; off where they're
   meant to touch (mating, nursing, playing, hunting and eating, sparring, nesting, basking; the young; one in the air;
   one above the other: in a web, on a stem).
+- `scripts/creatures/meal.gd` (`Meal`): every meal eaten piece by piece, nothing shrinking away: the food's meshes cut
+  into pieces (a skinned body baked first in the pose it died in), each next piece the one nearest the eater's mouth,
+  torn off, drawn to the mouth and taken in. A vertebrate's (a mammal's above all) bleeds: raw, wet flesh at every
+  torn edge, the piece torn away red inside, blood run out under a carcass lying on the ground. A snake's swallowed
+  whole instead, each part gone as its jaws come over it. Used by the carnivores, the mantis (the male after mating
+  too), the anole, the scorpion, the spiders, the dragonfly, the snakes, and the squirrel's nut, the mouse's seed,
+  the hare's plants.
 - `scripts/creatures/dragonfly.gd` (`Dragonfly`): a common green darner (*Anax junius*), drawn at twice life size,
   its own flying motor (quick to turn and stop, hovering, banking). Its head nearly all eye, its face yellow green
   with the dark bullseye on its brow; a grass green thorax; ten abdominal segments in a chain (curling), the first
@@ -357,8 +364,8 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   a snowshoe hare, a grey squirrel: anything with die()) killed, carried off in its jaws a few of its lengths, then
   eaten: a small one (a quarter of its own length or less: a mouse for any of them, a squirrel for a coyote, a wolf, a
   bear) from its jaws, its head up, chewing, working it down; a bigger one laid down and torn at, lifted in its jaws
-  and pulled, let down, again (it shrinking away); grooming (a
-  forepaw licked, the face washed, a flank licked); sitting; sleeping curled, then a stretch. The female gives birth in
+  and pulled, let down, again, a piece torn off at each pull (raw and bloody where it's torn, blood run out under it);
+  grooming (a forepaw licked, the face washed, a flank licked); sitting; sleeping curled, then a stretch. The female gives birth in
   her den (`RedFox.den()`: a mound of dug earth; `Bobcat.den()`: a shelter of rocks), lying on her side, licking each;
   nursing them at her belly; the young born blind and helpless (a fox kit dark grey brown, a kitten spotted, greyer),
   wriggling to her, growing, eyes open, following her, playing (stalking, pouncing on one another, tumbling). Mating:

@@ -45,6 +45,8 @@ const TAIL_SEG := 52.0 # (hare mm)
 const TAIL_R := [18.0, 32.0, 44.0, 52.0, 57.0, 59.0, 57.0, 50.0, 36.0]
 const SQ_EAR := 40.0
 
+var _meal: Node3D # (its nut, eaten bit by bit: Meal)
+const MealScript := preload("res://scripts/creatures/meal.gd")
 var tree_at := Vector3.INF ## its tree's foot (the trunk's middle, on the ground), if it has one
 var tree_r := 0.12 ## its trunk's radius (m)
 var drey := Vector3.INF ## its drey (its leaf nest, up its tree), if it has one
@@ -364,6 +366,7 @@ func cache(nut_: Node3D, at: Vector3) -> void:
 		return
 	_mode = "cache"
 	_food = nut_
+	_meal = null
 	_nut_at = at
 	_stage = 0
 	_st = 0.0
@@ -491,7 +494,10 @@ func _eat_nut(dt: float) -> void:
 			_sit_to = 1.0
 			_look_to = Vector2(0.15 * sin(_st * 0.6), 0.1)
 			_chew = 1.0
-			_food.scale = Vector3.ONE * clampf(1.0 - _st / 14.0, 0.25, 1.0)
+			if _meal == null: # (gnawed open and eaten, bit by bit)
+				_meal = MealScript.of(_food, 4, 0)
+			if _meal:
+				_meal.call("tear", clampf((_st - 1.0) / 10.5, 0.0, 1.0), _head.global_transform * Vector3(0.0, -22.0, -82.0))
 			if _st > 12.0:
 				_food.queue_free()
 				_food = null

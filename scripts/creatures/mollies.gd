@@ -137,6 +137,7 @@ func scatter(from: Vector3) -> void:
 ## own in its place (its parent's space), still, the instance gone.
 func take(i: int) -> Node3D:
 	var mi := MeshInstance3D.new()
+	mi.name = "molly" # (a fish: it bleeds, eaten: Meal)
 	mi.mesh = multimesh.mesh
 	var m := (material_override as ShaderMaterial).duplicate() as ShaderMaterial
 	mi.material_override = m

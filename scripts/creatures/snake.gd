@@ -72,6 +72,8 @@ var _st := 0.0
 var _t := 0.0
 var _speed := 0.0
 var _prey: Node3D
+var _meal: Node3D # (its prey, swallowed whole: Meal, each part gone as the jaws come over it)
+const MealScript := preload("res://scripts/creatures/meal.gd")
 var _coil_k := 0.0 # 0 as it goes .. 1 coiled
 var _coil_at := Vector3.ZERO
 var _coil_r0 := 0.0 # the coil's innermost radius (m)
@@ -167,6 +169,7 @@ func coil() -> void:
 func eat(prey: Node3D) -> void:
 	_mode = "eat"
 	_prey = prey
+	_meal = null
 	_stage = 0
 	_st = 0.0
 
@@ -865,7 +868,13 @@ func _eat(dt: float) -> bool:
 			var into := clampf(_st / 7.0, 0.0, 1.0)
 			_gape = 0.85 - 0.15 * sin(_st * 4.0)
 			_prey.position = p.lerp(_pts[0], 1.0 - exp(-dt * 0.6))
-			_prey.scale = Vector3.ONE * maxf(1.0 - into, 0.02)
+			if _meal == null:
+				_meal = MealScript.of(_prey, 6, 0)
+				if _meal:
+					_meal.set("swallow", true)
+			if _meal:
+				var par := get_parent() as Node3D
+				_meal.call("tear", into, par.global_transform * _pts[0] if par else _pts[0])
 			if into >= 1.0:
 				_prey.queue_free()
 				_prey = null

@@ -32,7 +32,8 @@ extends "res://scripts/creatures/hexapod.gd" # (by path: found whether or not th
 ##
 ## - wander(centre, radius): about, stopping, starting
 ## - hunt(prey): to it, a rush and a pounce, held in the chelicerae, eaten
-##   (the jaws working, the palps turning it; it shrinks away)
+##   (the jaws working, the palps turning it; chewed up piece by piece:
+##   Meal)
 ## - lay(): an egg sac spun at its spinnerets (the abdomen working), then
 ##   carried (the wolf, the fishing spider) or left (the others); hatching
 ##   later (EggSac.hatch)
@@ -92,6 +93,8 @@ var _st := 0.0
 var _stage := 0
 var _prey: Node3D
 var _held := false
+var _meal: Node3D # (its prey, chewed up piece by piece: Meal)
+const MealScript := preload("res://scripts/creatures/meal.gd")
 var _chew := 0.0
 var _carry: Node3D # (an egg sac carried)
 var _abd: Node3D
@@ -271,10 +274,23 @@ func wander(centre: Vector3, radius: float) -> void:
 	_wait = 0.0
 
 
+## (Its prey in its jaws, chewed up: k of it gone, piece by piece, into its
+## mouth.)
+func _eat_prey(k: float) -> void:
+	if not is_instance_valid(_prey):
+		return
+	if _meal == null:
+		_meal = MealScript.of(_prey, 3)
+	if _meal:
+		var ceph: Vector3 = S.ceph
+		_meal.call("tear", clampf(k, 0.0, 1.0), _body.global_transform * Vector3(0.0, -1.5, _ceph_c.z - ceph.x * 0.5 - 0.5))
+
+
 func hunt(prey: Node3D) -> void:
 	if not is_instance_valid(prey):
 		return
 	_prey = prey
+	_meal = null
 	_held = false
 	_stage = 0
 	_st = 0.0
@@ -465,7 +481,7 @@ func _think(dt: float) -> void:
 					else:
 						_pace = -1.0
 						_chew = 1.0
-						_prey.scale = Vector3.ONE * maxf(1.0 - _st / 12.0, 0.05)
+						_eat_prey(_st / 11.0)
 						if _st > 12.0:
 							_prey.queue_free()
 							_prey = null
@@ -694,7 +710,7 @@ func _orb(dt: float) -> void:
 					3: # eating it at the hub, head down
 						_web_head = _web_head.lerp(Vector3.DOWN, 1.0 - exp(-4.0 * dt)).normalized()
 						_chew = 1.0
-						_prey.scale = Vector3.ONE * maxf(1.0 - _st / 15.0, 0.05)
+						_eat_prey(_st / 14.0)
 						if _st > 15.0:
 							_prey.queue_free()
 							_prey = null

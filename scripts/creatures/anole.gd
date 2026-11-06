@@ -56,6 +56,8 @@ var _st := 0.0
 var _stage := 0
 var _prey: Node3D
 var _prey_s := Vector3.ONE
+var _meal: Node3D # (its prey, eaten bite by bite: Meal)
+const MealScript := preload("res://scripts/creatures/meal.gd")
 var _held := false
 var _phase := 0.0 # the trunk's swing, with its stride
 var _turn_rate := 0.0
@@ -233,6 +235,7 @@ func hunt(prey: Node3D) -> void:
 	_mode = "hunt"
 	_prey = prey
 	_prey_s = prey.scale
+	_meal = null
 	_held = false
 	_stage = 0
 	_st = 0.0
@@ -344,7 +347,10 @@ func _hunt(dt: float) -> void:
 			_target = _pos
 			_chew = 1.0
 			_look_to = Vector2(0.15 * sin(_st * 9.0), -0.1 + 0.15 * maxf(sin(_st * 4.0), 0.0))
-			_prey.scale = _prey_s * maxf(1.0 - _st / 4.0, 0.05)
+			if _meal == null:
+				_meal = MealScript.of(_prey, 3)
+			if _meal: # (crushed and gulped down, a piece at a time)
+				_meal.call("tear", clampf((_st - 0.3) / 3.4, 0.0, 1.0), _body.global_transform * (_head.transform * Vector3(0.0, -1.0, -11.0)))
 			if _st > 4.0:
 				_prey.queue_free()
 				_prey = null

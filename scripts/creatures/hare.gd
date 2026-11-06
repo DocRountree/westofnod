@@ -46,6 +46,9 @@ var _wait := 0.0
 var _st := 0.0
 var _stage := 0
 var _food: Node3D
+var _meal: Node3D # (its food, bitten away bit by bit: Meal)
+var _meal_k0 := 0.0 # (how much of it was gone already, a plant it's been at before)
+const MealScript := preload("res://scripts/creatures/meal.gd")
 var _food_s := Vector3.ONE
 var _flee_from := Vector3.ZERO
 var _born_left := 0
@@ -346,6 +349,7 @@ func eat(food: Node3D) -> void:
 	_mode = "eat"
 	_food = food
 	_food_s = food.scale
+	_meal = null
 	_stage = 0
 	_st = 0.0
 
@@ -501,8 +505,12 @@ func _eat(_dt: float) -> void:
 			_sit_to = 0.9 if high else 0.0
 			_look_to = Vector2(0.15 * sin(_st * 0.7), 0.35 if high else -0.55)
 			_chew = 1.0
-			var k := clampf(1.0 - _st / 10.0, 0.08, 1.0)
-			_food.scale = _food_s * Vector3(1.0, k, 1.0) if high else _food_s * k
+			if _meal == null: # (bitten off, bit by bit; a plant up high only cropped)
+				_meal = MealScript.of(_food, 4, 0)
+				_meal_k0 = 1.0 - float(_meal.call("left")) if _meal else 0.0
+			if _meal:
+				var k := clampf((_st - 0.5) / 9.0, 0.0, 1.0)
+				_meal.call("tear", minf(_meal_k0 + k * 0.4, 0.92) if high else k, _body.global_transform * (_head.transform * Vector3(0.0, -18.0, -90.0)))
 			if _st > 10.0:
 				if not high:
 					_food.queue_free()

@@ -19,8 +19,9 @@ extends "res://scripts/creatures/hexapod.gd" # (by path: found whether or not th
 ## - hunt(prey) (a Node3D; a creature with die(): killed): stalking (low,
 ##   slow, ears forward, freezing), then its species' attack (the fox's
 ##   pounce, high, diving nose first onto it; the bobcat's rush and
-##   spring); caught in its jaws, eaten (crouched, tearing at it, it
-##   shrinking away); missed, stalking again
+##   spring); caught in its jaws, eaten (crouched, tearing at it, piece
+##   by piece, each torn off and into its mouth, the carcass raw and bloody
+##   where it's torn, blood run out under it: Meal); missed, stalking again
 ## - eat(food): at it, tearing, chewing
 ## - groom(): sitting, licking a forepaw, washing its face, licking its
 ##   flank
@@ -51,6 +52,8 @@ var _st := 0.0
 var _stage := 0
 var _prey: Node3D
 var _prey_s := Vector3.ONE
+var _meal: Node3D # (its kill, eaten piece by piece: Meal)
+const MealScript := preload("res://scripts/creatures/meal.gd")
 var _lay := Vector3.ZERO # (where its kill's laid, to eat: the world's)
 var _carry_to := Vector3.ZERO
 var _held := false
@@ -696,6 +699,7 @@ func hunt(prey: Node3D) -> void:
 	_mode = "hunt"
 	_prey = prey
 	_prey_s = prey.scale
+	_meal = null
 	_held = false
 	_stage = 0
 	_st = 0.0
@@ -709,6 +713,7 @@ func eat(food: Node3D) -> void:
 	_mode = "hunt"
 	_prey = food
 	_prey_s = food.scale
+	_meal = null
 	_held = false
 	_stage = 5 # (straight to it, to eat)
 	_st = 0.0
@@ -1005,12 +1010,15 @@ func _hunt(dt: float) -> void:
 		6:
 			_target = _pos
 			_chew = 1.0
-			_prey.scale = _prey_s * maxf(1.0 - _st / 15.0, 0.05)
+			if _meal == null: # (torn up piece by piece; laid down, its blood run out on the ground)
+				_meal = MealScript.of(_prey, 4 if _small_prey() else 6, 1, NAN if _small_prey() else _lay.y)
 			if _small_prey(): # (in its jaws: its head up, chewing, working it down, a toss now and then)
 				_held = true
 				_neck_to = Vector2(-0.15, 0.0)
 				_look_to = Vector2(0.15 + 0.2 * maxf(sin(_st * 1.3), 0.0), 0.15 * sin(_st * 0.9))
 				_jaw_to = 0.22 * maxf(sin(_st * 7.0), 0.0)
+				if _meal:
+					_meal.call("tear", clampf((_st - 0.6) / 8.0, 0.0, 1.0), _mouth())
 				if _st > 9.0:
 					_prey.queue_free()
 					_prey = null
@@ -1026,11 +1034,20 @@ func _hunt(dt: float) -> void:
 					_held = pulling
 					if not pulling and is_instance_valid(_prey):
 						_prey.global_position = _lay
+				if _meal and pulling and ph > 1.75: # (a piece torn away at the top of each pull; the last of it at the end)
+					_meal.call("tear", clampf(ceilf(_st / 2.4) / 6.0, 0.0, 1.0), _mouth())
+				elif _meal and _st > 14.0:
+					_meal.call("tear", 1.0, _mouth())
 				if _st > 15.0:
 					_held = false
 					_prey.queue_free()
 					_prey = null
 					groom()
+
+
+## (Its mouth: where what it eats goes in (the world's).)
+func _mouth() -> Vector3:
+	return _jaw.global_transform * Vector3(0.0, -4.0, float(S.mouth_z) * 0.3)
 
 
 ## Whether its prey is small enough to eat from its jaws (about a quarter of
