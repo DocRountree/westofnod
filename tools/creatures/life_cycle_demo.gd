@@ -2,8 +2,9 @@ extends Node3D
 ## The creatures' life cycles, a station each along a plain:
 ## godot --path . res://tools/creatures/life_cycle_demo.tscn
 ##
-## monarch: the adult, milkweed and leaves to lay on, a caterpillar, a
-##   chrysalis hanging from a twig
+## monarch: the adult, common milkweed (eggs laid on its leaves, a
+##   caterpillar feeding on one) and nectar flowers round it (E: to one,
+##   feeding), a chrysalis hanging from a twig
 ## hummingbird clearwing: the adult, coneflowers and asters (its nectar), leaves (it lays hovering), a hornworm,
 ##   a pupa in its cocoon in the litter
 ## paper wasp: the adult and its comb, grubs in some of its cells
@@ -152,6 +153,7 @@ var queens: Array = [] # (the carpenter, the harvester)
 var june: JuneScript
 var lady: LadyScript
 var _monarch_leaves: Array = [] # [spot, normal]
+var _monarch_flowers: Array = [] # (its nectar: each clump's florets)
 var _moth_leaves: Array = []
 var _cells: Array = [] # the comb's cells' mouths (the plain's)
 var _moth_flowers: Array = [] # the clearwing's flowers' heads (its nectar)
@@ -326,6 +328,11 @@ func _ready() -> void:
 # --- the stations ------------------------------------------------------------------
 
 ## Leaves on stalks (spots to lay on: their tops, facing up), about c.
+## (The flowers' tops of a Flowers.build: its florets.)
+func _heads_of(made: Dictionary) -> Array:
+	return (made.heads as Array).map(func(h: Array) -> Vector3: return h[0])
+
+
 func _leaves(c: Vector3, spots: Array, into: Array) -> void:
 	for s: Vector3 in spots:
 		var at := c + s
@@ -338,18 +345,36 @@ func _leaves(c: Vector3, spots: Array, into: Array) -> void:
 		into.append([at + Vector3(0.0, 0.002, 0.0), Vector3.UP])
 
 
+## The monarchs: the adult; common milkweed (its caterpillars' only food:
+## its eggs laid on the leaves, a caterpillar feeding on one) and its
+## flowers, and the nectar flowers round it (a purple coneflower, a black-
+## eyed Susan, an aster, a swamp milkweed); a chrysalis hanging from a twig.
 func _monarch_station() -> void:
 	var c := _station(0)
-	Flowers.clump(self, "milkweed", Vector2(c.x - 0.15, c.z - 0.2), 1.0, Color(0.42, 0.38, 0.28))
-	_leaves(c, [Vector3(0.1, 0.22, -0.05), Vector3(-0.05, 0.3, 0.12), Vector3(0.15, 0.16, 0.15)], _monarch_leaves)
+	var ground := Color(0.42, 0.38, 0.28)
+	var mw: Dictionary = Flowers.build(self, "milkweed", Vector2(c.x - 0.15, c.z - 0.2), 1.2, ground, 0.0)
+	_monarch_flowers = [_heads_of(mw)] # (the milkweed's own flower balls: nectar too)
+	for f: Array in [["coneflower", Vector2(0.45, -0.45), 0.8], ["susan", Vector2(-0.48, -0.4), 0.75],
+			["aster", Vector2(0.45, 0.42), 0.8], ["swamp_milkweed", Vector2(-0.5, 0.38), 0.95]]:
+		_monarch_flowers.append(Flowers.clump(self, f[0], Vector2(c.x, c.z) + (f[1] as Vector2), f[2], ground))
+	# its leaves, the lower and the middle ones (in reach, to see): where it
+	# lays, where its caterpillar feeds
+	var leaves: Array = (mw.leaves as Array).filter(func(l: Array) -> bool: return (l[0] as Vector3).y < 0.55)
+	leaves.sort_custom(func(a: Array, b: Array) -> bool: return (a[0] as Vector3).y < (b[0] as Vector3).y)
+	for k in mini(4, leaves.size()):
+		var l: Array = leaves[k * 2 % leaves.size()]
+		_monarch_leaves.append([(l[0] as Vector3) + (l[1] as Vector3) * 0.002, l[1]])
 	monarch = MonarchScript.new()
 	add_child(monarch)
 	monarch.place(c + Vector3(0.0, 0.5, 0.0))
 	monarch.fly(c, 0.4)
-	var cat := LarvaScript.new("monarch")
-	add_child(cat)
-	cat.place(c + Vector3(-0.15, 0.0, 0.25), Vector3.LEFT)
-	cat.wander(c + Vector3(-0.15, 0.0, 0.25), 0.08)
+	if leaves.size() > 1: # (a caterpillar on a leaf, along it, its head out at the tip, feeding)
+		var l: Array = leaves[1]
+		var out: Vector3 = l[2]
+		var cat := LarvaScript.new("monarch")
+		add_child(cat)
+		cat.place((l[0] as Vector3) + out * 0.03 + (l[1] as Vector3) * 0.004, out)
+		cat.eat()
 	# the twig the chrysalis hangs from
 	_box(c + Vector3(0.25, 0.32, -0.15), Vector3(0.3, 0.008, 0.008), Color(0.35, 0.27, 0.18))
 	_box(c + Vector3(0.38, 0.16, -0.15), Vector3(0.008, 0.32, 0.008), Color(0.35, 0.27, 0.18))
@@ -2505,6 +2530,9 @@ func _feed(c: Node, act: String, young: bool, p: Vector3, st: Vector3) -> void:
 	var near := Vector3(cos(a), 0.0, sin(a))
 	if sc == LarvaScript:
 		c.call("eat")
+	elif sc == MonarchScript and not young: # (nectar: to one of the flowers, onto its florets)
+		if not _monarch_flowers.is_empty():
+			c.call("feed", _monarch_flowers[randi() % _monarch_flowers.size()])
 	elif (sc == HopperScript or sc == BlueHopperScript):
 		if young:
 			var leaf := Beetles.leaf()

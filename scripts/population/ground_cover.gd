@@ -735,7 +735,7 @@ static func cattail_mesh(stalks: int, radius: float, seed: int) -> ArrayMesh:
 ## golden rays drooping a little round a dark brown dome. Fleabane: a stem
 ## branching near its top into a few small heads, 2 cm across, a fringe
 ## of fine rays, white to light purple, round a yellow disc.
-static func flower_mesh(kind: String, stems: int, radius: float, seed: int) -> ArrayMesh:
+static func flower_mesh(kind: String, stems: int, radius: float, seed: int, leaves: Array = []) -> ArrayMesh:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed * 17 + 3
 	var st := SurfaceTool.new()
@@ -852,6 +852,10 @@ static func flower_mesh(kind: String, stems: int, radius: float, seed: int) -> A
 					var ll := rng.randf_range(0.11, 0.15) / H
 					var pts := [at, at + Vector3(ld.x * ll * 0.5, ll * 0.22, ld.y * ll * 0.5), at + Vector3(ld.x * ll, ll * 0.15, ld.y * ll)]
 					strip.call(root, pts, [0.004, 0.032, 0.003], Vector3(-ld.y, 0.0, ld.x), Vector3(ld.x * 0.3, 1.0, ld.y * 0.3).normalized(), shade, 0.0)
+					# (where its leaves are, if asked: a caterpillar's to sit on, a
+					# monarch's to lay on: [its stem's root, its blade's middle, its
+					# normal, its way out] in the mesh's space)
+					leaves.append([root, pts[1], Vector3(ld.x * 0.3, 1.0, ld.y * 0.3).normalized(), ld])
 			for u in rng.randi_range(2, 3):
 				var ua := rng.randf() * TAU
 				var ub := top * (1.0 - 0.14 * u)

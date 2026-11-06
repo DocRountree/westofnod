@@ -34,7 +34,8 @@ static func clump(parent: Node3D, flowers: String, near: Vector2, tall: float, g
 ## The same, swaying in the wind by sway_k (the ground cover's grass_sway,
 ## m per m of the wind at the top, times the clump's size: 0 still):
 ## {heads: [the disc's top, the way it faces, how far up its stem (the
-## sway's share)] each, size: the clump's (m)}.
+## sway's share)] each, size: the clump's (m), leaves: [a blade's middle,
+## its normal, its way out] each (a milkweed's)}.
 ##
 ## The mesh is GroundCover.flower_mesh's, placed, turned and sized here
 ## on the CPU as ground_cover.gdshader would place a cell's clump, at
@@ -55,7 +56,8 @@ static func build(parent: Node3D, flowers: String, near: Vector2, tall: float, g
 	var spin := fposmod(sin(near.x * 12.9898 + near.y * 78.233) * 43758.5453, 1.0) * TAU
 	var pick0 := fposmod(spin * 3.7, 1.0)
 	var size := tall
-	var src := GroundCover.flower_mesh(L.flowers, L.stems, L.radius, seed)
+	var leaf_at := []
+	var src := GroundCover.flower_mesh(L.flowers, L.stems, L.radius, seed, leaf_at)
 	var a := src.surface_get_arrays(0)
 	var vs: PackedVector3Array = a[Mesh.ARRAY_VERTEX]
 	var ns: PackedVector3Array = a[Mesh.ARRAY_NORMAL]
@@ -129,7 +131,18 @@ static func build(parent: Node3D, flowers: String, near: Vector2, tall: float, g
 	mi.mesh = mesh
 	mi.material_override = m
 	parent.add_child(mi)
-	return {"heads": heads, "size": size}
+	# its leaves (a milkweed's), placed as its mesh is: [the blade's middle,
+	# its normal, its way out (level)], the parent's space
+	var leaves := []
+	for l: Array in leaf_at:
+		var r := _turn(l[0], spin)
+		var m: Vector3 = l[1]
+		var mv := _turn(Vector2(m.x, m.z), spin)
+		var n: Vector3 = l[2]
+		var nv := _turn(Vector2(n.x, n.z), spin)
+		var dv := _turn(l[3], spin)
+		leaves.append([Vector3(pos.x + r.x + mv.x * size, m.y * size, pos.y + r.y + mv.y * size), Vector3(nv.x, n.y, nv.y).normalized(), Vector3(dv.x, 0.0, dv.y).normalized()])
+	return {"heads": heads, "size": size, "leaves": leaves}
 
 
 ## v turned by a (as ground_cover.gdshader turns a clump: mat2(cos, sin; -sin, cos)).

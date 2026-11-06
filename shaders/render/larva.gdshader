@@ -9,10 +9,12 @@ shader_type spatial;
 // head), its own object space. Painted from where on its segment a point
 // is (o: across -0.5..0.5, along -0.5 front .. 0.5 back):
 // pattern 0: plain (base), a pale line along each side (line)
-// pattern 1: a monarch caterpillar's bands: white, a broad black band, a
-//   yellow band, black again, round each segment
-// pattern 2: a hornworm's (the clearwing's): green, a pale yellow line
-//   along each side, a pale stripe slanting across, a reddish spiracle
+// pattern 1: a monarch caterpillar's bands round each segment: white (a
+//   fine black line through it), a broad black band, a yellow band in its
+//   middle, black again; duskier beneath
+// pattern 2: a hornworm's (the clearwing's): yellowish green, a pale yellow
+//   line along each side of its back, a faint pale stripe slanting across,
+//   a reddish spiracle ringed pale; granules: fine pale bumps all over
 // pattern 3: a lady beetle larva's: blackish grey, bumpy, an orange patch
 //   on its sides on the segments of spot_mask
 // pattern 4: a grub's: creamy, a little see-through, finely creased
@@ -29,6 +31,7 @@ uniform float gloss = 0.4;
 uniform float wrinkle = 0.08; // (a grub's creases: how deep)
 uniform float annulets = 4.0; // (a segment's folds)
 uniform bool spiracles = false;
+uniform bool granules = false; // (a hornworm's: fine pale bumps all over it)
 uniform bool skinned = false;
 uniform vec3 sp[16];
 uniform vec3 sx[16];
@@ -80,18 +83,37 @@ void fragment() {
 	float side = abs(o.x) / max(length(o.xy), 1e-4); // (0 top and bottom, 1 the sides)
 	if (pattern == 1) {
 		float z = o.z + 0.5;
-		// white | black | yellow | black | white, a little wavy
-		float w = z + 0.03 * sin(atan(o.y, o.x) * 4.0);
+		// white (a fine black line in it) | black | yellow | black | white,
+		// a little wavy round it
+		float w = z + 0.025 * sin(atan(o.y, o.x) * 4.0);
 		c = vec3(0.95, 0.94, 0.9);
-		if (w > 0.12 && w < 0.88) c = band_a;
-		if (w > 0.36 && w < 0.64) c = band_b;
-		if (w > 0.42 && w < 0.58 && o.y < -0.25) c = band_a; // (the underside darker)
+		if ((w > 0.07 && w < 0.1) || (w > 0.9 && w < 0.93)) c = band_a;
+		if (w > 0.2 && w < 0.8) c = band_a;
+		if (w > 0.31 && w < 0.69) c = band_b;
+		if (w > 0.3 && w < 0.7 && o.y < -0.28) c = band_a; // (the yellow only over its back and sides)
+		c *= mix(1.0, 0.6, 1.0 - smoothstep(-0.48, -0.3, o.y)); // (duskier beneath)
+		if (spiracles) // (a black breathing hole low on each side, in the white)
+			c = mix(c, band_a, (1.0 - smoothstep(0.03, 0.045, length(vec2(w - 0.15, (o.y + 0.06) * 1.3)))) * step(0.85, side));
 	} else if (pattern == 2) {
-		float lat = smoothstep(0.86, 0.9, side) * (1.0 - smoothstep(0.95, 0.99, side)) * step(0.0, o.y + 0.05);
-		float slant = smoothstep(0.03, 0.0, abs(o.z * 0.9 - o.y * 0.7 - 0.05)) * step(0.4, side);
-		c = mix(c, line, max(lat, slant * 0.7));
-		float spir = 1.0 - smoothstep(0.05, 0.08, length(vec2(o.z + 0.05, o.y + 0.12)));
-		c = mix(c, vec3(0.45, 0.12, 0.08), spir * step(0.8, side));
+		// a darker line down its back; a pale one along each side of it
+		c *= 1.0 - 0.18 * (1.0 - smoothstep(0.06, 0.12, side)) * step(0.0, o.y);
+		float dl = smoothstep(0.42, 0.47, side) * (1.0 - smoothstep(0.55, 0.6, side)) * step(0.0, o.y);
+		float slant = smoothstep(0.03, 0.0, abs(o.z * 0.9 - o.y * 0.7 - 0.05)) * step(0.55, side) * step(o.y, 0.15);
+		c = mix(c, line, max(dl, slant * 0.35));
+		if (granules) { // (fine pale bumps, scattered all over it)
+			float along = seg + o.z + 0.5;
+			float round_ = atan(o.y, o.x) / 6.2832 + 0.5;
+			vec2 g = vec2(along * 5.0, round_ * 28.0);
+			vec2 cell = floor(g);
+			float h = fract(sin(dot(cell, vec2(12.9898, 78.233))) * 43758.5453);
+			vec2 jit = vec2(fract(h * 7.31), fract(h * 3.17)) - 0.5;
+			float d = length(fract(g) - 0.5 - jit * 0.4);
+			c = mix(c, vec3(0.93, 0.95, 0.82), (1.0 - smoothstep(0.13, 0.2, d)) * step(0.3, h) * 0.85);
+		}
+		// its spiracle: reddish brown, ringed pale
+		float sd = length(vec2(o.z + 0.05, (o.y + 0.12) * 1.2));
+		c = mix(c, vec3(0.95, 0.92, 0.7), (1.0 - smoothstep(0.065, 0.085, sd)) * step(0.8, side));
+		c = mix(c, vec3(0.45, 0.13, 0.08), (1.0 - smoothstep(0.04, 0.06, sd)) * step(0.8, side));
 	} else if (pattern == 3) {
 		float bumps = 0.5 + 0.5 * sin(atan(o.y, o.x) * 6.0) * sin(o.z * 12.0);
 		c *= 0.8 + 0.3 * bumps;

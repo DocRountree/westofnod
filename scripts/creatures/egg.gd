@@ -38,6 +38,7 @@ var _state := ""
 var _t := 0.0
 var _after := Callable()
 var _shell_scale := Vector3.ONE
+var _meal: Node3D # (its shell, eaten by its caterpillar: Meal)
 
 
 func _init(k := "wasp") -> void:
@@ -89,11 +90,16 @@ func _process(dt: float) -> void:
 			_rock.rotation = Vector3(0.0, 0.0, sin(_t * 14.0) * 0.12 * minf(_t, 1.0))
 			if _t > 1.6:
 				_out()
-		"eaten": # (the caterpillar eating its shell)
-			_shell.scale = _shell_scale * maxf(1.0 - _t / 4.0, 0.05)
+		"eaten": # (the caterpillar eating its shell, bit by bit, into its mouth)
+			if is_instance_valid(larva):
+				if _meal == null:
+					_meal = load("res://scripts/creatures/meal.gd").of(_shell, 3, 0)
+				var head: Node3D = larva.get("_head")
+				if _meal and head:
+					_meal.call("tear", clampf((_t - 0.3) / 2.8, 0.0, 1.0), head.global_position)
 			if _t > 4.0:
-				var at: Vector3 = larva.get("_pos")
-				larva.call("wander", at, 0.03)
+				if is_instance_valid(larva): # (and on to the leaf it's on: feeding where it is)
+					larva.call("eat")
 				queue_free()
 		"empty": # (the shell collapsed, pale, fading)
 			var m := _shell.material_override as StandardMaterial3D

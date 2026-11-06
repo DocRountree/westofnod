@@ -552,10 +552,13 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   its size and colour) laid by the butterflies one to a leaf (the clearwing hovering), by the wasp one to each cell of
   its comb, each egg filling its cell (`Wasp.comb`, `lay_eggs`; the demo's 1 lays in the next empty cell, one a lay), by the beetles in a cluster (`AntColony.lay`, a beetle's: tipped tail down; the
   ants don't lay: their queens' eggs lie in piles); every egg hatches (`hatch`: rocking, the larva out, small,
-  growing up; a caterpillar eats its shell first, any other's collapses and fades). Their larvae (`larva.gd`, `Larva`: one smooth skin bent along
+  growing up; a caterpillar eats its shell first, bit by bit, then feeds where it is, any other's collapses and fades). Their larvae (`larva.gd`, `Larva`: one smooth skin bent along
   a spine the CPU moves, by `shaders/render/larva.gdshader`, its creases shallow; a crawler bending at most a little
-  a joint; the grubs lying on their sides, legs in): the monarch's banded caterpillar with its filaments, the
-  clearwing's hornworm, the lady beetle's crawling "alligator", the June bug's C-curled white grub, the wasp's and
+  a joint; the grubs lying on their sides, legs in): the monarch's banded caterpillar (white with a fine black line,
+  black, yellow, black round each segment, duskier beneath; its pale head ringed black, a black triangle down its
+  face) with its filaments (the front pair longer, tapering), the clearwing's hornworm (yellowish green, granulated
+  pale, a pale line along each side of its back, reddish spiracles ringed pale, its horn yellow below, blue-black
+  above), each caterpillar and the lady beetle larva with its eyes (six small stemmata each side, low on the head), the lady beetle's crawling "alligator", the June bug's C-curled white grub, the wasp's and
   the ants' grubs; caterpillars rippling as they crawl, grubs curling and uncurling. The lepidopterans' pupae
   (`pupa.gd`, `Pupa`, lofted shells painted by `shaders/render/pupa.gdshader`): the monarch's jade lantern of a
   chrysalis on its black stalk, its black and gold crown, gold spots; the clearwing's glossy mahogany pupa, ringed,

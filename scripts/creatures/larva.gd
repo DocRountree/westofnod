@@ -6,10 +6,15 @@ extends Node3D
 ## capsule; the spine's points worked out every frame on the CPU (cheap: a
 ## dozen points, a frame each for what rides on it: legs, filaments, horn).
 ## A crawler's body bends at most `bend` a joint (rad). Each kind (KINDS):
-## - monarch: the caterpillar, banded white, black and yellow, two pairs of
-##   black filaments (front and back) waving; true legs and prolegs
-## - hemaris: the clearwing's hornworm, green, a pale line along each side,
-##   pale slanting stripes, a horn at its tail
+## - monarch: the caterpillar, banded round each segment white (a fine
+##   black line in it), black, yellow, black; duskier beneath, black
+##   spiracles; its head pale yellow ringed black, a black triangle down
+##   its face; two pairs of black filaments (the front pair longer), stout
+##   at the root, fine at the tip, waving; true legs and prolegs black
+## - hemaris: the clearwing's hornworm, yellowish green, finely granulated
+##   pale all over, a pale line along each side of its back (on along its
+##   head), faint pale slants, reddish spiracles ringed pale; reddish true
+##   legs; a horn at its tail, yellow at its base, blue-black above
 ## - lady: the lady beetle's larva ("alligator"), blackish, bumpy, tapering,
 ##   orange patches on its sides, six legs, quick
 ## - june: a June bug's white grub, C-curled on its side, a brown head, six
@@ -33,15 +38,19 @@ const MM := 0.002 ## m drawn per mm (twice life size)
 ## size), the width along it (head .. tail: keys), pattern and colours
 ## (larva.gdshader's), the head's colour, speed (m/s drawn), extras
 const KINDS := {
-	"monarch": {"style": "crawl", "n": 12, "len": 42.0, "w": 6.5, "shape": [0.75, 1.0, 1.0, 1.0, 0.95, 0.7],
-			"pattern": 1, "base": Color(0.95, 0.94, 0.9), "band_a": Color(0.03, 0.03, 0.03), "band_b": Color(0.96, 0.8, 0.08),
-			"head": Color(0.9, 0.88, 0.8), "proleg": Color(0.08, 0.08, 0.08), "head_band": true, "speed": 0.012, "filaments": true, "legs": "caterpillar", "crease": 0.07, "bend": 0.12},
-	"hemaris": {"style": "crawl", "n": 12, "len": 46.0, "w": 7.5, "shape": [0.7, 1.0, 1.05, 1.05, 1.0, 0.75],
-			"pattern": 2, "base": Color(0.42, 0.6, 0.2), "line": Color(0.85, 0.85, 0.5),
-			"head": Color(0.45, 0.62, 0.25), "speed": 0.012, "horn": true, "legs": "caterpillar", "crease": 0.06, "bend": 0.12},
+	"monarch": {"style": "crawl", "n": 12, "len": 42.0, "w": 6.5, "shape": [0.72, 1.0, 1.0, 1.0, 0.96, 0.72],
+			"pattern": 1, "base": Color(0.95, 0.94, 0.9), "band_a": Color(0.03, 0.03, 0.035), "band_b": Color(0.97, 0.78, 0.06),
+			"head": Color(0.96, 0.92, 0.7), "proleg": Color(0.07, 0.07, 0.08), "head_band": true, "speed": 0.012,
+			"filaments": true, "filament_len": [12.0, 6.0], "eyes": true, "legs": "caterpillar", "crease": 0.07, "bend": 0.12,
+			"gloss": 0.35, "spiracles": true},
+	"hemaris": {"style": "crawl", "n": 12, "len": 46.0, "w": 7.5, "shape": [0.66, 1.0, 1.05, 1.06, 1.0, 0.74],
+			"pattern": 2, "base": Color(0.46, 0.62, 0.22), "line": Color(0.93, 0.9, 0.56),
+			"head": Color(0.44, 0.6, 0.24), "head_lines": true, "eyes": true, "speed": 0.012, "horn": true,
+			"horn_colors": [Color(0.92, 0.74, 0.2), Color(0.1, 0.11, 0.22)], "true_leg": Color(0.55, 0.26, 0.14),
+			"legs": "caterpillar", "crease": 0.06, "bend": 0.12, "gloss": 0.15, "granules": true, "spiracles": true},
 	"lady": {"style": "crawl", "n": 10, "len": 10.0, "w": 2.6, "shape": [0.8, 1.0, 0.95, 0.75, 0.5, 0.3],
 			"pattern": 3, "base": Color(0.14, 0.14, 0.16), "band_b": Color(0.95, 0.45, 0.08), "spots": [1, 4],
-			"head": Color(0.04, 0.04, 0.05), "speed": 0.02, "legs": "six", "gloss": 0.3, "crease": 0.18, "bend": 0.22, "tubercles": true},
+			"head": Color(0.04, 0.04, 0.05), "eyes": true, "speed": 0.02, "legs": "six", "gloss": 0.3, "crease": 0.18, "bend": 0.22, "tubercles": true},
 	"june": {"style": "curl", "n": 11, "len": 35.0, "w": 9.0, "shape": [0.75, 0.85, 0.9, 0.95, 1.1, 1.3], "round_tail": true,
 			"pattern": 4, "base": Color(0.93, 0.9, 0.82), "dark_tail": Color(0.42, 0.38, 0.32),
 			"head": Color(0.66, 0.4, 0.14), "curl": 3.6, "legs": "grub", "crease": 0.12, "mandibles": true,
@@ -207,14 +216,47 @@ func _build() -> void:
 	hm.position = Vector3(0.0, -hw * 0.1, -_seg * 0.55 - hw * 0.5)
 	hm.material_override = _mat("head")
 	_head.add_child(hm)
-	if K.get("head_band", false): # (a monarch caterpillar's face striped black)
-		for k in 2:
+	if K.get("head_band", false): # (a monarch caterpillar's face: pale yellow, striped black round it, a black triangle down its front)
+		var blk := _flat(Color(0.03, 0.03, 0.035), 0.35)
+		for k in 3:
 			var b := MeshInstance3D.new()
 			b.mesh = _sphere
-			b.scale = Vector3(hw * 2.05, hw * 1.95, hw * 0.35)
-			b.position = hm.position + Vector3(0.0, 0.0, (-0.2 + 0.45 * k) * hw)
-			b.material_override = _flat(Color(0.03, 0.03, 0.03), 0.4)
+			var shrink := 1.0 - 0.18 * absf(k - 0.6)
+			b.scale = Vector3(hw * 2.04 * shrink, hw * 1.94 * shrink, hw * 0.22)
+			b.position = hm.position + Vector3(0.0, 0.0, (-0.5 + 0.42 * k) * hw)
+			b.material_override = blk
 			_head.add_child(b)
+		var fr := MeshInstance3D.new() # (the frons)
+		fr.mesh = _sphere
+		fr.scale = Vector3(hw * 0.75, hw * 1.0, hw * 0.25)
+		fr.position = hm.position + Vector3(0.0, hw * 0.1, -hw * 0.8)
+		fr.material_override = blk
+		_head.add_child(fr)
+	if K.get("eyes", false):
+		# its eyes: six stemmata each side, low on the head's side by its
+		# mouth, in an arc; small, black, glossy (a little bigger than life,
+		# to be seen)
+		var em := _flat(Color(0.01, 0.01, 0.012), 0.08)
+		var rad := Vector3(hw, hw * 0.95, hw * 0.85)
+		for side: float in [-1.0, 1.0]:
+			for k in 6:
+				var a := lerpf(-1.1, 1.1, k / 5.0)
+				var d := Vector3(side * (0.72 + 0.1 * cos(a)), -0.12 + 0.2 * sin(a), -0.62 - 0.12 * cos(a)).normalized()
+				var e := MeshInstance3D.new()
+				e.mesh = _sphere
+				e.scale = Vector3.ONE * hw * (0.2 if k % 2 == 0 else 0.17)
+				e.position = hm.position + d * rad * 1.01
+				e.material_override = em
+				_head.add_child(e)
+	if K.get("head_lines", false): # (a hornworm's head: a pale line down each side, the body's own carried on)
+		for side: float in [-1.0, 1.0]:
+			var hl := MeshInstance3D.new()
+			hl.mesh = _sphere
+			hl.scale = Vector3(hw * 0.18, hw * 1.2, hw * 0.5)
+			hl.position = hm.position + Vector3(hw * 0.78 * side, hw * 0.15, -hw * 0.3)
+			hl.rotation = Vector3(0.0, 0.0, -0.35 * side)
+			hl.material_override = _flat(K.line, 0.5)
+			_head.add_child(hl)
 	var dark := _flat(Color(0.05, 0.05, 0.05), 0.4)
 	if K.get("head_scale", 1.0) > 1.0: # (a white grub's head: big, hard, glossy; short antennae)
 		hm.material_override = _flat(K.head, 0.25)
@@ -283,7 +325,8 @@ func _build() -> void:
 				var root := Node3D.new()
 				root.position = Vector3(_widths[at] * 0.55 * side, _widths[at] * 0.7, 0.0)
 				_holders[at].add_child(root)
-				var length := (8.0 if at == 1 else 4.5) * MM
+				var fl: Array = K.get("filament_len", [8.0, 4.5])
+				var length := float(fl[0] if at == 1 else fl[1]) * MM
 				var prev := root
 				for k in 3:
 					var seg := Node3D.new()
@@ -291,7 +334,8 @@ func _build() -> void:
 					prev.add_child(seg)
 					var s := MeshInstance3D.new()
 					s.mesh = _stick
-					s.scale = Vector3(0.35 * MM, length / 3.0, 0.35 * MM)
+					var th := [0.5, 0.36, 0.22][k] * MM # (stout at its root, fine at its tip)
+					s.scale = Vector3(th, length / 3.0, th)
 					s.position = Vector3(0.0, length / 6.0, 0.0)
 					s.material_override = dark
 					seg.add_child(s)
@@ -307,8 +351,16 @@ func _build() -> void:
 		hn.scale = Vector3(tw * 0.5, 4.0 * MM, tw * 0.5)
 		hn.position = Vector3(0.0, tw * 0.9 + 2.0 * MM, 0.0)
 		hn.rotation = Vector3(0.7, 0.0, 0.0)
-		hn.material_override = _flat(Color(0.35, 0.3, 0.12), 0.5)
+		var hc: Array = K.get("horn_colors", [Color(0.35, 0.3, 0.12), Color(0.35, 0.3, 0.12)])
+		hn.material_override = _flat(hc[0], 0.45) # (its base's colour, all of it)
 		_holders[n - 1].add_child(hn)
+		var tip := MeshInstance3D.new() # (and its upper half the other, a cone just over it)
+		tip.mesh = _cone
+		tip.scale = Vector3(tw * 0.27, 2.0 * MM, tw * 0.27)
+		tip.position = hn.position + Basis(Vector3.RIGHT, 0.7) * Vector3(0.0, 1.0, 0.0) * MM
+		tip.rotation = hn.rotation
+		tip.material_override = _flat(hc[1], 0.3)
+		_holders[n - 1].add_child(tip)
 	# legs
 	match K.get("legs", ""):
 		"caterpillar": # (three pairs of true legs behind the head, dark; four pairs of prolegs mid-body and a pair at the tail)
@@ -322,7 +374,7 @@ func _build() -> void:
 					# drawn from its hip on the body to it)
 					var l := MeshInstance3D.new()
 					l.mesh = _sphere
-					l.material_override = dark if true_leg else _flat(K.get("proleg", K.base), 0.6)
+					l.material_override = (_flat(K.true_leg, 0.45) if K.has("true_leg") else dark) if true_leg else _flat(K.get("proleg", K.base), 0.6)
 					add_child(l)
 					_feet.append({"i": i, "side": side, "true": true_leg, "foot": Vector3.INF, "planted": false, "leg": l, "from": Vector3.ZERO, "swing": -1.0})
 		"six": # (the lady beetle larva's: three pairs, long, black; each foot planted where it steps: _step_feet)
@@ -371,8 +423,8 @@ func _build() -> void:
 ## segment, and which.
 func _tube() -> ArrayMesh:
 	var n := _widths.size()
-	const PER := 6 # rings a segment
-	const ROUND := 14
+	const PER := 8 # rings a segment
+	const ROUND := 20
 	var crease: float = K.get("crease", 0.06)
 	var flat_belly: bool = K.get("legs", "") == "caterpillar"
 	var round_tail: bool = K.get("round_tail", false)
@@ -451,7 +503,7 @@ func _mat(which: String) -> ShaderMaterial:
 	m.shader = preload("res://shaders/render/larva.gdshader")
 	m.set_shader_parameter("pattern", 0 if which == "head" else int(K.pattern))
 	m.set_shader_parameter("base", K.head if which == "head" else (K.dark_tail if which == "tail" else K.base))
-	for p in ["line", "band_a", "band_b", "gloss", "wrinkle", "annulets", "spiracles"]:
+	for p in ["line", "band_a", "band_b", "gloss", "wrinkle", "annulets", "spiracles", "granules"]:
 		if K.has(p):
 			m.set_shader_parameter(p, K[p])
 	m.set_shader_parameter("spot", which == "spot")
