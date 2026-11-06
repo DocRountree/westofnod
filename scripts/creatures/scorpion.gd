@@ -292,54 +292,6 @@ func _band(c: Color, seg: float, z0 := 0.4) -> Material:
 	return m
 
 
-## A cricket, for it to hunt (twice life size, ~30 mm): dark brown, its
-## long hind legs, its antennae; its origin where it stands.
-static func cricket() -> Node3D:
-	var root := Node3D.new()
-	var s := SphereMesh.new()
-	s.radius = 0.5
-	s.height = 1.0
-	s.radial_segments = 10
-	s.rings = 6
-	var c := CylinderMesh.new()
-	c.top_radius = 0.5
-	c.bottom_radius = 0.5
-	c.height = 1.0
-	c.radial_segments = 5
-	var brown := StandardMaterial3D.new()
-	brown.albedo_color = Color(0.2, 0.13, 0.07)
-	brown.roughness = 0.4
-	for p in [[Vector3(0.0, 0.006, 0.004), Vector3(0.008, 0.007, 0.02)], [Vector3(0.0, 0.007, -0.009), Vector3(0.007, 0.007, 0.007)]]:
-		var mi := MeshInstance3D.new()
-		mi.mesh = s
-		mi.position = p[0]
-		mi.scale = p[1]
-		mi.material_override = brown
-		root.add_child(mi)
-	for side: float in [-1.0, 1.0]:
-		for leg in [[Vector3(0.003, 0.005, 0.006), Vector3(0.008, 0.012, 0.012), Vector3(0.006, 0.0, 0.022)], [Vector3(0.003, 0.004, -0.004), Vector3(0.008, 0.004, -0.008), Vector3(0.009, 0.0, -0.01)]]:
-			for k in 2:
-				var a: Vector3 = leg[k]
-				var b: Vector3 = leg[k + 1]
-				var mi := MeshInstance3D.new()
-				mi.mesh = c
-				var d := Vector3(b.x * side, b.y, b.z) - Vector3(a.x * side, a.y, a.z)
-				var y := d.normalized()
-				var x := y.cross(Vector3.FORWARD if absf(y.z) < 0.9 else Vector3.RIGHT).normalized()
-				mi.transform = Transform3D(Basis(x * 0.0012, d, x.cross(y) * 0.0012), (Vector3(a.x * side, a.y, a.z) + Vector3(b.x * side, b.y, b.z)) * 0.5)
-				mi.material_override = brown
-				root.add_child(mi)
-		var an := MeshInstance3D.new()
-		an.mesh = c
-		var ad := Vector3(0.012 * side, 0.004, -0.03)
-		var ay := ad.normalized()
-		var ax := ay.cross(Vector3.RIGHT).normalized()
-		an.transform = Transform3D(Basis(ax * 0.0005, ad, ax.cross(ay) * 0.0005), Vector3(0.0, 0.008, -0.013) + ad * 0.5)
-		an.material_override = brown
-		root.add_child(an)
-	return root
-
-
 # --- what it does --------------------------------------------------------------
 
 func wander(centre: Vector3, radius: float) -> void:
@@ -564,6 +516,7 @@ func _hunt(dt: float) -> void:
 			_grip = 0.0 if _st < 0.12 else 1.0
 			if _st > 0.25:
 				_held = true
+				MealScript.subdue(_prey) # (a live insect: still in its chelae)
 				_stage = 3
 				_st = 0.0
 		3: # stung, again (drawn in toward it, the tail over, driven into it in its chelae)

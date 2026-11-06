@@ -466,6 +466,7 @@ func _think(dt: float) -> void:
 				2: # holding it in its jaws (once landed)
 					if not airborne:
 						_held = true
+						MealScript.subdue(_prey) # (a live insect: still in its jaws)
 						_pace = -1.0
 						_target = _pos
 						_stage = 3
@@ -700,6 +701,7 @@ func _orb(dt: float) -> void:
 						if _st > 3.5:
 							_abd.rotation.x = 0.0
 							_held = true
+							MealScript.subdue(_prey) # (a live insect: still, wrapped)
 							_stage = 2
 							_st = 0.0
 					2: # back to the hub with it

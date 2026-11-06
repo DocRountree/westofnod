@@ -16,7 +16,8 @@ extends "res://scripts/creatures/hexapod.gd" # (by path: found whether or not th
 ## - watch(point): still, its head following point
 ## - strike(target, prey): turning to it, up within reach, drawing back,
 ##   and the forelegs shooting out and snapping shut; prey (a Node3D:
-##   Mantis.fly_prey()) caught, held to its mouth and eaten; then grooming
+##   an insect: a grasshopper nymph, say) caught, held to its mouth and
+##   eaten; then grooming
 ## - groom(): drawing each foreleg through its mouth, cleaning it
 ## - fly(to): the forewings up, the hindwings out and whirring, off and
 ##   down at `to` (the adult's)
@@ -208,39 +209,6 @@ func _mesh(m: Mesh, mat: Material) -> MeshInstance3D:
 	return mi
 
 
-## A fly for it to catch (twice life size, ~16 mm): a black body, clear
-## wings; its origin where it stands.
-static func fly_prey() -> Node3D:
-	var root := Node3D.new()
-	var s := SphereMesh.new()
-	s.radius = 0.5
-	s.height = 1.0
-	s.radial_segments = 10
-	s.rings = 6
-	var black := StandardMaterial3D.new()
-	black.albedo_color = Color(0.05, 0.05, 0.06)
-	black.roughness = 0.35
-	var wing := StandardMaterial3D.new()
-	wing.albedo_color = Color(0.85, 0.88, 0.9, 0.35)
-	wing.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	for p in [[Vector3(0.0, 0.004, 0.0), Vector3(0.007, 0.006, 0.013)], [Vector3(0.0, 0.005, -0.008), Vector3(0.006, 0.005, 0.005)]]:
-		var mi := MeshInstance3D.new()
-		mi.mesh = s
-		mi.position = p[0]
-		mi.scale = p[1]
-		mi.material_override = black
-		root.add_child(mi)
-	for side: float in [-1.0, 1.0]:
-		var w := MeshInstance3D.new()
-		w.mesh = s
-		w.position = Vector3(0.005 * side, 0.007, 0.004)
-		w.scale = Vector3(0.006, 0.0005, 0.011)
-		w.rotation.y = 0.4 * side
-		w.material_override = wing
-		root.add_child(w)
-	return root
-
-
 # --- what it does --------------------------------------------------------------
 
 func stalk(centre: Vector3, radius: float) -> void:
@@ -360,6 +328,8 @@ func _think(dt: float) -> void:
 						_held = true
 						if _prey.has_method("_seized"): # (a mantis: limp in her grip)
 							_prey.call("_seized")
+						else: # (a live insect: still in her grip)
+							MealScript.subdue(_prey)
 					if _st > 0.6:
 						_stage = 4 if _prey else 5
 						_st = 0.0

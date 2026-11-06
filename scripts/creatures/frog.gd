@@ -22,7 +22,7 @@ extends Node3D
 ## - hop(to): crouch, a leap (its hind legs thrown out straight behind), down
 ## - swim(to): in the water, its hind legs kicking together, gliding; float():
 ##   at the surface, only its eyes and snout out
-## - hunt(prey) (Frog.fly_of(): a fly or a cricket): turned to it, still,
+## - hunt(prey) (an insect: a grasshopper nymph, say): turned to it, still,
 ##   then its tongue flicked out and back, the prey gone, gulped (its eyes
 ##   pulled down into its head to push it down)
 ## - croak(): (a male's) his vocal sacs swelling and the snore of his call, in
@@ -1309,37 +1309,6 @@ func _p_act_secs(name: String) -> float:
 
 
 # --- props -------------------------------------------------------------------------
-
-## A fly (drawn twice life, 12 mm), sat on the ground at, its wings
-## buzzing now and then; for a frog (or a turtle) to take.
-static func fly_of(at: Vector3) -> Node3D:
-	var f := Node3D.new()
-	var s := SphereMesh.new()
-	s.radius = 0.5
-	s.height = 1.0
-	var m := StandardMaterial3D.new()
-	m.albedo_color = Color(0.1, 0.1, 0.12)
-	m.metallic = 0.4
-	var b := MeshInstance3D.new()
-	b.mesh = s
-	b.material_override = m
-	b.scale = Vector3(0.007, 0.006, 0.013)
-	b.position.y = 0.004
-	f.add_child(b)
-	var wm := StandardMaterial3D.new()
-	wm.albedo_color = Color(0.85, 0.88, 0.95, 0.4)
-	wm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	for side: float in [-1.0, 1.0]:
-		var w := MeshInstance3D.new()
-		w.mesh = s
-		w.material_override = wm
-		w.scale = Vector3(0.006, 0.0006, 0.011)
-		w.position = Vector3(0.004 * side, 0.007, 0.004)
-		w.rotation.y = 0.3 * side
-		f.add_child(w)
-	f.position = at
-	return f
-
 
 ## An egg mass: a clump of jelly, each egg black above and pale below in its
 ## own clear sphere, on a stem under the water; hatch() (or a while after)

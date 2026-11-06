@@ -341,6 +341,7 @@ func _hunt(dt: float) -> void:
 				_lunge = 4.0
 				_jaw_open = 0.0
 				_held = true
+				MealScript.subdue(_prey) # (a live insect: still in its jaws)
 				_stage = 3
 				_st = 0.0
 		3: # chewing it, swallowing, the head jerking

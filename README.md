@@ -242,7 +242,7 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   upper-lip stripe, a dark line from nostril to eye, its tympanum a brown disc with a pale dot, a white belly; bulging
   golden eyes with level pupils, set into its head; its legs tapered and barred dark across, long hind legs folded
   in a Z, the hind feet webbed; a male's dark thumb pads and paired vocal sacs. Sitting, its throat pulsing; hopping (a ballistic
-  leap, its legs thrown out straight); swimming in strokes (both legs kicked back together, a glide with them straight behind, then drawn up again, knees out, feet turned out; its forelegs laid back along its sides) and floating with its legs splayed behind, only its eyes out; its body deep, rising to the sacral hump over its hips, its belly round; its eyes gold, mottled, the pupil a level oval; sitting, its shins folded back beside its thighs, outside them; catching a fly
+  leap, its legs thrown out straight); swimming in strokes (both legs kicked back together, a glide with them straight behind, then drawn up again, knees out, feet turned out; its forelegs laid back along its sides) and floating with its legs splayed behind, only its eyes out; its body deep, rising to the sacral hump over its hips, its belly round; its eyes gold, mottled, the pupil a level oval; sitting, its shins folded back beside its thighs, outside them; catching an insect (a grasshopper nymph in the demo)
   (`Frog.fly_of()`) with a flick of its tongue and gulping (its eyes pulled in); a male calling, his sacs swelling in
   bouts; fleeing in leaps for the water; amplexus (on her back, clasped behind her arms) and her egg mass laid on a
   stem under the water (`Eggs`: black eggs in clear jelly). The tadpoles hatch, swim and graze, grow their hind legs,
@@ -261,7 +261,7 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   shell tight (head, legs and tail in) when it withdraws; a lofted head with a hooked beak and a jaw; dark skin
   spotted orange, scaled (a bumped shader); a male's red eyes (a female's brown), his hind claws thick and curved.
   Wandering slowly over the forest floor, stopping to look round; sunning; soaking in a puddle; eating a mushroom
-  (`Turtle.food_of()`), `Turtle.weed_of()` or a fly; the male nudging and biting at her shell's rim, then up on her
+  (`Turtle.food_of()`), `Turtle.weed_of()`, a pill bug or an insect; the male nudging and biting at her shell's rim, then up on her
   from behind leaning back near upright; the female's nest dug with her hind feet, her eggs laid and covered
   (`Nest`), the hatchlings out of it.
 - `scripts/creatures/snapping_turtle.gd` (`SnappingTurtle`): a common snapping turtle (*Chelydra serpentina*), on the
@@ -303,14 +303,14 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   two green, then a male's sky blue, a female's brownish violet, a black stripe down the back, a male's claspers;
   four long clear wings netted with veins (a shader), each with its pterostigma, beating fore and hind out of step,
   held out flat at rest; six legs a basket under it in flight, gripping a perch. Patrolling over the water, darting
-  and hovering; perching on a reed's tip, its head turning; hunting midges (`Dragonfly.midges()`: a drifting swarm)
+  and hovering; perching on a reed's tip, its head turning; hunting small flying insects (in the demo, trigonalid wasps)
   swept up in its legs and chewed; the female laying her eggs into stems under the water (pale specks, `Eggs`, that
   hatch into nymphs). Mating: he seizes her by the head with his claspers (tandem), to a perch, the wheel (her abdomen
   curled forward under his to its base), then off in tandem to the water where she lays while he holds her. The
   nymph (a naiad: mottled olive, broad headed, wing pads, its hinged mask shot out at prey) walks the pond's floor and
   grows; then climbs a reed out of the water, its back splits, and the adult comes out pale, its wings crumpled,
   swelling and hardening, its colour coming, the empty skin left on the reed. The life cycle demo's last station: a
-  little pond with reeds and midges, a male, a female and two nymphs.
+  little pond with reeds and trigonalid wasps flying over it, a male, a female and two nymphs.
 - `scripts/creatures/hexapod.gd`: a walking insect built from parts (feet planted in a tripod gait, legs reaching
   hip to foot; leaps, flights, falls on a thread), under `grasshopper.gd` (`Grasshopper`: a differential
   grasshopper, its herringboned hind legs; walking, hopping, flying, eating; laying an egg pod in the soil, which
@@ -318,7 +318,7 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   blue-winged grasshopper on its model: mottled brown, its tegmina tan and veined with dark crossbands, its
   hindwings sky blue in a broad black band, clear at the edge, shown as it flies; its hind tibiae blue; its own
   station in the life cycle demo) and `mantis.gd` (`Mantis`: a Carolina mantis, its raised prothorax, turning
-  head and raptorial forelegs; stalking with its rocking sway, watching, striking a fly and eating it, grooming,
+  head and raptorial forelegs; stalking with its rocking sway, watching, striking a grasshopper nymph and eating it, grooming,
   flying; building a foam egg case on a stem, whose nymphs come out along its seam, let down on threads). Their
   nymphs small, wingless (the mantis's abdomen curled up), growing. Not yet in the game:
   `tools/creatures/life_cycle_demo.tscn`'s stations.
@@ -471,7 +471,7 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   pale membrane between; the five-segmented tail, its segments narrow jointed and keeled at their edges (coiled to its
   side at rest, arched over its back walking), the telson's bulb, its tooth, its long curved sting; long slender
   keeled pedipalps, the chelae's long curved fingers; chelicerae, the pectines' combs, claws at its feet. Ambushing,
-  creeping, seizing prey in its chelae, drawing it in and stinging it, tearing at it (`Scorpion.cricket()`); its
+  creeping, seizing prey in its chelae, drawing it in and stinging it, tearing at it (a grasshopper nymph in the demo); its
   strike (`strike(at)`, `sting(at)`: up on its legs, chelae raised, the tail cocked up and back, whipped forward over
   its back, the tail's joints bent to bring the sting to its mark, driven in, held, the bulb pumping, a drop of venom
   at its tip, drawn out); live birth (up on her legs, her forelegs a basket, the white

@@ -86,6 +86,17 @@ static func of(f: Node3D, across := 5, bleeds := -1, ground_y := NAN) -> Node3D:
 	return m
 
 
+## A live animal caught (in jaws, forelegs, chelae, talons): killed, or
+## stilled, limp, no longer moving itself (its hunter moves it from now on).
+static func subdue(n: Node) -> void:
+	if n == null or not is_instance_valid(n):
+		return
+	if n.has_method("die") and n.get("dead") != true:
+		n.call("die")
+	n.set_process(false)
+	n.set_physics_process(false)
+
+
 ## Whether it bleeds red (a vertebrate's body, by its script or its name).
 static func is_vertebrate(f: Node) -> bool:
 	var path := ""

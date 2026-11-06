@@ -29,6 +29,7 @@ var wasp: Wasp
 # (by path, not by class name: found whether or not the editor has seen these yet)
 const MothScript := preload("res://scripts/creatures/hummingbird_moth.gd")
 const MonarchScript := preload("res://scripts/creatures/monarch.gd")
+const LarvaScript := preload("res://scripts/creatures/larva.gd")
 const Flowers := preload("res://tools/creatures/demo_flowers.gd")
 
 var moth: MothScript
@@ -237,10 +238,10 @@ func _new_prey() -> void:
 		if wasp:
 			wasp.release()
 		prey.queue_free()
-	prey = Wasp.caterpillar()
+	prey = LarvaScript.new("monarch") # (a caterpillar, a real one: feeding on the leaf)
 	add_child(prey)
-	prey.position = LEAF + Vector3(0.02, 0.0035, 0.01)
-	prey.rotation.y = 0.7
+	prey.call("place", LEAF + Vector3(0.02, 0.0012, 0.01), Vector3(sin(0.7), 0.0, cos(0.7)))
+	prey.call("eat")
 
 
 func _unhandled_input(e: InputEvent) -> void:

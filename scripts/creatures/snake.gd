@@ -833,6 +833,7 @@ func _eat(dt: float) -> bool:
 			_strike_k = k * k * (3.0 - 2.0 * k)
 			_gape = _strike_k * 0.9
 			if _st > 0.14:
+				MealScript.subdue(_prey) # (a live animal: struck, still)
 				_stage = 3 if kind == "rattler" else 4
 				_st = 0.0
 		3: # (the rattler) back, waiting for its venom to work, the tongue going
@@ -1012,25 +1013,6 @@ func _along_trail(d: float) -> Vector3:
 	return prev + back * left
 
 
-## A mouse, for a snake to eat (life size: its body ~8 cm; size: a share,
-## a young snake's smaller meal): grey brown, its head, ears, tail; its
-## origin on the ground under it.
-static func mouse(sz := 1.0) -> Node3D:
-	var root := Node3D.new()
-	var fur := _plain(Color(0.45, 0.38, 0.3), 0.9)
-	var pink := _plain(Color(0.75, 0.55, 0.5), 0.6)
-	for p in [[Vector3(0.0, 0.017, 0.0), Vector3(0.034, 0.03, 0.075), fur], [Vector3(0.0, 0.02, -0.045), Vector3(0.022, 0.022, 0.032), fur],
-			[Vector3(0.009, 0.034, -0.038), Vector3(0.012, 0.014, 0.004), pink], [Vector3(-0.009, 0.034, -0.038), Vector3(0.012, 0.014, 0.004), pink],
-			[Vector3(0.0, 0.006, 0.075), Vector3(0.004, 0.004, 0.07), pink]]:
-		var mi := MeshInstance3D.new()
-		mi.mesh = _sphere()
-		mi.position = (p[0] as Vector3) * sz
-		mi.scale = (p[1] as Vector3) * sz
-		mi.material_override = p[2]
-		root.add_child(mi)
-	return root
-
-
 ## A milk snake's egg (leathery, white, long: ~3.5 cm) or a young
 ## rattlesnake's birth sac (a clear membrane, the young coiled inside it).
 ## hatch(): the egg slit at one end, the young's head out (tasting the air
@@ -1112,7 +1094,6 @@ class Egg extends Node3D:
 				_shell.scale = _shell.scale.lerp(Vector3(0.03, 0.006, 0.03), 1.0 - exp(-dt * 0.6))
 		if young and is_instance_valid(young) and young.get("_mode") == "peek":
 			young.set("_peek", 3.0 if _t < 0.9 else float(young.get("_peek")))
-
 
 
 func _enter_tree() -> void:

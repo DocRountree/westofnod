@@ -25,8 +25,8 @@ extends Node3D
 ## - dive(): (soak) into the water (a puddle, a pond's shallows), sat in it
 ##   half under a while, out again
 ## - withdraw(): its alarm: head, legs and tail in, its shell shut
-## - eat(food) (Turtle.food_of(): a mushroom, Turtle.weed_of(), a fly:
-##   Frog.fly_of()): to it, its head down, bites torn off and gulped, gone
+## - eat(food) (Turtle.food_of(): a mushroom, Turtle.weed_of(), a pill bug,
+##   an insect): to it, its head down, bites torn off and gulped, gone
 ## - mate(her): (a male's) after her, nudging and biting at the rim of her
 ##   shell from behind; up onto her from behind, his hind claws hooked in
 ##   her plastron (she clamps them), leaning back till he's near upright;
@@ -135,6 +135,8 @@ var rng := RandomNumberGenerator.new()
 var _body: Node3D
 var _shell_n: Node3D
 var _head: Node3D
+var _meal: Node3D # (what it's eating, bitten off piece by piece: Meal)
+const MealScript := preload("res://scripts/creatures/meal.gd")
 var _neck_n: Node3D
 var _neck_mi: MeshInstance3D
 var _jaw_n: Node3D
@@ -782,6 +784,7 @@ func eat(food: Node3D) -> void:
 		return
 	_go_mode("eat")
 	_food = food
+	_meal = null
 
 
 func nest() -> void:
@@ -961,9 +964,13 @@ func _eat_think(_dt: float) -> void:
 	if _stage == 0:
 		_stage = 1
 		_st = 0.0
+		MealScript.subdue(_food) # (a live one: caught in its jaws)
+		_meal = MealScript.of(_food, 3)
 	_neck_to = 1.2 + 0.15 * sin(_st * 4.0)
 	_look = -0.5 # (its head down to it)
 	_jaw_to = 0.45 * maxf(sin(_st * 5.0), 0.0)
+	if _meal and is_instance_valid(_food): # (bites torn off, gulped)
+		_meal.call("tear", clampf((_st - 0.3) / 2.6, 0.0, 1.0), _head.global_position)
 	if _st > 3.0 and is_instance_valid(_food):
 		_food.queue_free()
 		_food = null

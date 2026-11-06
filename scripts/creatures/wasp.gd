@@ -311,7 +311,7 @@ func feed_on_flower(head: Vector3, normal := Vector3.UP, sway := 0.0) -> void:
 		_p.lap = 1.0
 
 
-## Over its prey (a node: a caterpillar, say: Wasp.caterpillar()) on a
+## Over its prey (a node: a caterpillar, say: Larva.new("monarch")) on a
 ## surface (at, normal), hovering, then pouncing on it; then on the surface
 ## chewing it, held under its head in its front legs, turning it as it goes,
 ## into a ball. (If it's already holding it: down on the surface with it,
@@ -342,6 +342,7 @@ func feed_on_insect(prey: Node3D, at: Vector3, normal := Vector3.UP) -> void:
 		if not await _touch_down(id, on, normal, face, 0.35):
 			return
 		_holding = prey
+		load("res://scripts/creatures/meal.gd").subdue(prey) # (a live caterpillar: still in its jaws)
 		_hold_from = prey.global_transform
 		_hold_t = 0.0
 		_prey_ball = 0.0
@@ -847,33 +848,6 @@ func release() -> void:
 	_holding = null
 	_p.hold = 0.0
 	_a.hold = 0.0
-
-
-## A caterpillar, as prey (about 16 mm, green, its head brown): its middle
-## at its origin, lying along z.
-static func caterpillar() -> Node3D:
-	var root := Node3D.new()
-	var green := StandardMaterial3D.new()
-	green.albedo_color = Color(0.42, 0.62, 0.2)
-	green.roughness = 0.55
-	var brown := StandardMaterial3D.new()
-	brown.albedo_color = Color(0.4, 0.28, 0.12)
-	brown.roughness = 0.4
-	var s := SphereMesh.new()
-	s.radius = 0.5
-	s.height = 1.0
-	s.radial_segments = 10
-	s.rings = 6
-	for i in 9:
-		var mi := MeshInstance3D.new()
-		mi.mesh = s
-		var z := (i - 4.0) * 0.0017
-		var r := 0.0024 * (1.0 - 0.25 * pow(absf(i - 3.5) / 4.5, 2.0))
-		mi.scale = Vector3(r, r * 0.9, 0.0024)
-		mi.position = Vector3(0.0, 0.0, z)
-		mi.material_override = brown if i == 0 else green
-		root.add_child(mi)
-	return root
 
 
 ## A small paper comb, for it to lay in (twice life size): seven round

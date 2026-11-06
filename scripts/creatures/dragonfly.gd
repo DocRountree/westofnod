@@ -22,7 +22,7 @@ extends Node3D
 ##   darting, banking, hovering a moment, turning back
 ## - perch(at): to a stem's tip (or the one nearest), landing on it, its
 ##   wings out flat and drooped a little, its head turning after things
-## - hunt(prey) (Dragonfly.midges(): small flies drifting): out after one,
+## - hunt(prey) (a small flying insect: a trigonalid wasp, say): out after it,
 ##   swept up in its legs' basket; to a perch (or on the wing), chewed
 ## - lay(): (a female's) to the pond's stems, hovering low by one, her
 ##   abdomen curled down into it below the water, her eggs put into the stem
@@ -635,7 +635,7 @@ func _think(dt: float) -> void:
 				patrol(pond[0], 1.0)
 				return
 			# (to where it'll be: led a little)
-			var pv: Variant = _prey.get("vel")
+			var pv: Variant = _prey.get("vel") if _prey.get("vel") != null else _prey.get("_vel") # (where it's going: led)
 			var lead := (pv as Vector3) * 0.15 if pv is Vector3 else Vector3.ZERO
 			_target = _prey.position + lead
 			_speed = 2.2
@@ -645,6 +645,7 @@ func _think(dt: float) -> void:
 				_held_prey = _prey
 				_prey = null
 				_held_prey.set("caught", true)
+				MealScript.subdue(_held_prey) # (a live insect: still in its legs)
 				var gx := _held_prey.global_transform
 				_held_prey.get_parent().remove_child(_held_prey)
 				_head.add_child(_held_prey)
@@ -1179,60 +1180,6 @@ func _p_act_secs(name: String) -> float:
 
 
 # --- props -------------------------------------------------------------------------
-
-## Small flies, drifting about centre in a loose swarm (its prey): n of them.
-static func midges(n: int, centre: Vector3, radius := 0.5) -> Array[Node3D]:
-	var out: Array[Node3D] = []
-	for k in n:
-		var m := Midge.new()
-		m.centre = centre
-		m.radius = radius
-		out.append(m)
-	return out
-
-
-## A midge: a tiny fly (drawn twice life: 6 mm), drifting about its swarm's
-## centre, its wings a blur; caught, still (held, eaten).
-class Midge extends Node3D:
-	var centre := Vector3.ZERO
-	var radius := 0.5
-	var vel := Vector3.ZERO
-	var caught := false
-	var _t := 0.0
-	var _seed := randf() * 100.0
-
-	func _ready() -> void:
-		var s := SphereMesh.new()
-		s.radius = 0.5
-		s.height = 1.0
-		var m := StandardMaterial3D.new()
-		m.albedo_color = Color(0.12, 0.1, 0.08)
-		var b := MeshInstance3D.new()
-		b.mesh = s
-		b.material_override = m
-		b.scale = Vector3(0.0016, 0.0014, 0.004)
-		add_child(b)
-		var wm := StandardMaterial3D.new()
-		wm.albedo_color = Color(0.9, 0.9, 0.95, 0.35)
-		wm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-		for side: float in [-1.0, 1.0]:
-			var w := MeshInstance3D.new()
-			w.mesh = s
-			w.material_override = wm
-			w.scale = Vector3(0.004, 0.0004, 0.002)
-			w.position = Vector3(0.0022 * side, 0.0008, 0.0004)
-			add_child(w)
-		position = centre + Vector3(randf_range(-radius, radius), randf_range(0.2, 0.6), randf_range(-radius, radius))
-
-	func _process(dt: float) -> void:
-		if caught:
-			return
-		_t += dt
-		var wob := Vector3(sin(_t * 1.7 + _seed), sin(_t * 2.3 + _seed * 1.3) * 0.5, cos(_t * 1.9 + _seed * 0.7)) * 0.12
-		var home := centre + Vector3(0.0, 0.4, 0.0) - position
-		vel = vel.lerp(wob + home * 0.25, 1.0 - exp(-2.0 * dt))
-		position += vel * dt
-
 
 ## Eggs put into a stem under the water: a row of pale specks; hatch()
 ## (or a while after) the nymphs out onto the pond's floor.
