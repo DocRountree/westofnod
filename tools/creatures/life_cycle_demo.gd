@@ -1936,6 +1936,7 @@ const KEYS := {
 	KEY_1: "lay", KEY_2: "hatch", KEY_3: "pupae", KEY_E: "eat", KEY_H: "hunt", KEY_K: "mate",
 	KEY_G: "groom", KEY_Z: "sleep", KEY_F: "fly", KEY_X: "alarm", KEY_D: "display", KEY_V: "play",
 	KEY_N: "nurse", KEY_B: "forage", KEY_S: "spin", KEY_M: "mark", KEY_A: "sit", KEY_W: "wander",
+	KEY_U: "unusual",
 }
 
 
@@ -2176,6 +2177,9 @@ func _do(c: Node, act: String, all: Array) -> void:
 				c.call("birth", 4, c.get("home_den"))
 		"eat", "hunt":
 			_feed(c, act, young, p, st)
+		"unusual":
+			if not young:
+				_unusual(c, p)
 		"groom":
 			if c.has_method("groom"):
 				c.call("groom")
@@ -2300,6 +2304,138 @@ func _bear_trio_of(c: Node) -> Array:
 	return []
 
 
+## The mammals' rarer meals (U), each plausible, if seldom seen: another of
+## the animals living here, set out at the station for it, a real one.
+## The hunters: a fawn, a deer, a calf, a beaver, another hunter or its
+## young (a fox killed by a coyote or a bobcat, a coyote by a wolf, a black
+## bear cub by a grizzly), grubs and grasshoppers; the deer a mouse pup;
+## the deer mouse a grasshopper nymph, a caterpillar, a grub, a pill bug, a
+## mantis nymph; the squirrels a caterpillar, a grub, a mouse pup; the hare
+## a dead mouse (carrion).
+const UNUSUAL := {
+	"fox": ["fawn", "beaver_kit", "bobcat_kit", "grub", "grasshopper", "mouse_pup", "leveret"],
+	"bobcat": ["fawn", "deer", "fox", "fox_kit", "beaver_kit", "grasshopper"],
+	"coyote": ["fawn", "fox", "fox_kit", "bobcat_kit", "beaver", "grub", "grasshopper"],
+	"wolf": ["deer", "fawn", "moose_calf", "bison_calf", "beaver", "coyote", "fox"],
+	"black_bear": ["fawn", "moose_calf", "beaver", "grub", "mouse_pup", "squirrel", "bobcat_kit"],
+	"brown_bear": ["moose_calf", "bison_calf", "fawn", "deer", "beaver", "grub", "black_cub", "wolf_pup"],
+	"deer": ["mouse_pup"],
+	"mouse": ["nymph", "caterpillar", "grub", "pillbug", "mantis_nymph"],
+	"squirrel": ["caterpillar", "grub", "mouse_pup"],
+	"hare": ["dead_mouse"],
+}
+
+
+func _unusual(c: Node, p: Vector3) -> void:
+	var sc: Script = c.get_script()
+	var who := ""
+	if sc == FoxScript:
+		who = "fox"
+	elif sc == BobcatScript:
+		who = "bobcat"
+	elif sc == CoyoteScript:
+		who = "coyote"
+	elif sc == WolfScript:
+		who = "wolf"
+	elif sc == BlackBearScript:
+		who = "black_bear"
+	elif sc == BrownBearScript:
+		who = "brown_bear"
+	elif sc == DeerScript:
+		who = "deer"
+	elif sc == MouseScript:
+		who = "mouse"
+	elif sc == SquirrelScript or sc == GreySqScript:
+		who = "squirrel"
+	elif sc == HareScript:
+		who = "hare"
+	if who == "":
+		return
+	var kinds: Array = UNUSUAL[who]
+	var kind: String = kinds[randi() % kinds.size()]
+	var a := randf() * TAU
+	var dir := Vector3(cos(a), 0.0, sin(a))
+	if c.has_method("hunt") and who != "deer": # (a hunter: out a way before it, to stalk)
+		var f := _real_prey(kind, p + dir * randf_range(1.6, 2.4))
+		c.call("hunt", f)
+	else: # (set before it, close)
+		var near := 0.08 if who == "mouse" else (0.25 if who == "squirrel" else 0.6)
+		var f := _real_prey(kind, p + dir * near)
+		c.call("eat", f)
+
+
+## One of the animals living here, made for a meal, at `at` (on the ground),
+## going about its own ways there (a grub lying curled, a dead mouse on its
+## back).
+func _real_prey(kind: String, at: Vector3) -> Node3D:
+	var n: Node3D
+	match kind:
+		"fawn":
+			n = DeerScript.new(true, "summer")
+		"deer":
+			n = DeerScript.new(false, "summer")
+		"moose_calf":
+			n = MooseScript.new(true)
+		"bison_calf":
+			n = BisonScript.new(true)
+		"beaver":
+			n = BeaverScript.new()
+		"beaver_kit":
+			n = BeaverScript.new(true)
+		"fox":
+			n = FoxScript.new()
+		"fox_kit":
+			n = FoxScript.new(true)
+		"coyote":
+			n = CoyoteScript.new()
+		"bobcat_kit":
+			n = BobcatScript.new(true)
+		"black_cub":
+			n = BlackBearScript.new(true)
+		"wolf_pup":
+			n = WolfScript.new(true)
+		"squirrel":
+			n = GreySqScript.new()
+		"leveret":
+			n = HareScript.new(true)
+		"mouse_pup", "dead_mouse":
+			n = MouseScript.new(kind == "mouse_pup")
+		"grub":
+			n = LarvaScript.new("june")
+		"caterpillar":
+			n = LarvaScript.new("monarch" if randf() < 0.5 else "hemaris")
+		"grasshopper":
+			n = HopperScript.new(false, 1.0)
+		"pillbug":
+			n = IsopodScript.new()
+		"mantis_nymph":
+			n = MantisScript.new(true, 0.4)
+		_: # "nymph"
+			return _insect_at(at, 0.35)
+	add_child(n)
+	if n is LarvaScript:
+		n.call("place", at, Vector3(randf_range(-1.0, 1.0), 0.0, randf_range(-1.0, 1.0)))
+		if kind == "caterpillar":
+			n.call("eat")
+		return n
+	n.call("place", at, randf() * TAU)
+	match kind:
+		"deer":
+			n.call("graze", at, 0.6)
+		"grasshopper":
+			n.call("feed", at)
+		"pillbug":
+			n.call("eat", at)
+		"mantis_nymph":
+			n.call("stalk", at, 0.02)
+		"dead_mouse": # (carrion: over on its back)
+			n.call("die")
+		_:
+			if n.has_method("wander"):
+				n.call("wander", at, 0.05 if kind in ["mouse_pup", "leveret"] else 0.3)
+	return n
+
+
 ## Something to eat (or hunt), its own kind of food, set before it.
 func _feed(c: Node, act: String, young: bool, p: Vector3, st: Vector3) -> void:
 	var sc: Script = c.get_script()
@@ -2413,7 +2549,7 @@ func _go(i: int) -> void:
 
 
 func _say() -> void:
-	_label.text = "%s   (Tab / Shift+Tab: the next station; the keys act on those here)\n1 lay eggs / give birth   2 hatch / come out   3 new pupae   E eat   H hunt   K mate   G groom   Z sleep / rest\nF fly / hop   X alarm (flee, roll up, coil, sting)   D display / call   V the young play   N nurse   B forage\nS spin a web   M mark   A sit   W back to their own ways   P steered   Space slow motion   drag: turn round   wheel: nearer / further" % NAMES[_at]
+	_label.text = "%s   (Tab / Shift+Tab: the next station; the keys act on those here)\n1 lay eggs / give birth   2 hatch / come out   3 new pupae   E eat   H hunt   U an unusual meal   K mate   G groom   Z sleep / rest\nF fly / hop   X alarm (flee, roll up, coil, sting)   D display / call   V the young play   N nurse   B forage\nS spin a web   M mark   A sit   W back to their own ways   P steered   Space slow motion   drag: turn round   wheel: nearer / further" % NAMES[_at]
 
 
 func _process(dt: float) -> void:

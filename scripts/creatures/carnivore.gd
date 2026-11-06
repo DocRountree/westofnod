@@ -970,10 +970,8 @@ func _hunt(dt: float) -> void:
 			if not airborne and _st > 0.1:
 				var nose := _out(Vector3(0.0, -body_h, float(S.mouth_z)))
 				if Vector2(nose.x - p.x, nose.z - p.z).length() < 0.35 * size / 0.5 + 0.05:
-					if _prey.has_method("die"):
-						_prey.call("die")
-					_prey.set_process(false)
-					_held = true
+					MealScript.subdue(_prey)
+					_held = not _too_big() # (a kill too big to carry: eaten where it fell)
 					_stage = 5
 					_st = 0.0
 				else:
@@ -988,6 +986,7 @@ func _hunt(dt: float) -> void:
 					_target = _pos
 					_turn_to = atan2(-to.x, -to.z)
 					_lay = p
+					MealScript.subdue(_prey) # (food still alive, set before it: killed)
 					_stage = 6
 					_st = 0.0
 			else:
@@ -1013,8 +1012,11 @@ func _hunt(dt: float) -> void:
 			_chew = 1.0
 			var jaws := _from_jaws()
 			if _meal == null: # (torn up piece by piece; laid down, its blood run out on the ground)
-				_meal = MealScript.of(_prey, 4 if _small_prey() else 6, 1, NAN if jaws else _lay.y)
+				var big := _too_big()
+				_meal = MealScript.of(_prey, 4 if _small_prey() else (9 if big else 6), -1, NAN if jaws else _ground(_lay.x, _lay.z))
 				_bite_pitch = -0.95
+				# (how long at it: a bigger kill longer, a pull a piece)
+				_eat_secs = clampf(15.0 * _prey_len() / 0.4, 15.0, 45.0) if not jaws else 9.0
 			if jaws: # (in its jaws: its head up, chewing, working it down, a toss now and then)
 				_held = true
 				if _meal:
@@ -1039,6 +1041,8 @@ func _hunt(dt: float) -> void:
 				_neck_to = Vector2(_bite_pitch, 0.0)
 				_look_to = Vector2(-0.3 + (0.55 if pulling else 0.0), 0.25 * sin(_st * 1.7)) # (pulling up and to the side)
 				_jaw_to = 0.08 if pulling else 0.3 * maxf(sin(_st * 6.0), 0.0)
+				if _too_big(): # (too heavy to lift: pulled at where it lies)
+					pulling = false
 				if pulling != _held:
 					_held = pulling
 					if not pulling and is_instance_valid(_prey):
@@ -1047,8 +1051,9 @@ func _hunt(dt: float) -> void:
 					_meal.set("held", _held)
 					_meal.set("dragged", not _held)
 					# (a piece torn away at the top of each pull; the last of it at the end)
-					_meal.call("tear", 1.0 if _st > 14.0 else clampf(floorf((_st + 0.65) / 2.4) / 6.0, 0.0, 1.0), _mouth())
-				if _st > 15.0:
+					var pulls := maxf(roundf((_eat_secs - 1.0) / 2.4), 1.0)
+					_meal.call("tear", 1.0 if _st > _eat_secs - 1.0 else clampf(floorf((_st + 0.65) / 2.4) / pulls, 0.0, 1.0), _mouth())
+				if _st > _eat_secs:
 					_held = false
 					_prey.queue_free()
 					_prey = null
@@ -1094,16 +1099,34 @@ func _mouth() -> Vector3:
 func _small_prey() -> bool:
 	if not is_instance_valid(_prey):
 		return false
+	return _prey_len() < float(S.body_len) * MM * size * 0.27
+
+
+var _eat_secs := 15.0 # (how long it's at a kill laid down)
+
+
+## Its prey's length (m, nose to rump): the mice, squirrels and hares by
+## their kind; anything else by how big it's drawn (a fawn, a calf, a
+## beaver, a kit, a grub...).
+func _prey_len() -> float:
+	if not is_instance_valid(_prey):
+		return 0.0
 	var path := (_prey.get_script() as Script).resource_path if _prey.get_script() else ""
-	var plen := 0.3
+	var ps := float(_prey.get("size")) / 0.5 if _prey.get("size") is float else 1.0
 	if "mouse" in path:
-		plen = 0.09
-	elif "squirrel" in path:
-		plen = 0.26
-	elif "hare" in path:
-		plen = 0.45
-	var ps := float(_prey.get("size")) / 0.5 if _prey.get("size") != null else 1.0
-	return plen * ps < float(S.body_len) * MM * size * 0.27
+		return 0.09 * ps
+	if "squirrel" in path:
+		return 0.26 * ps
+	if "hare" in path:
+		return 0.45 * ps
+	var d := PersonalSpace._dims(_prey).x if _prey is Node3D else 0.0
+	return d if d > 0.0 else 0.3
+
+
+## Whether its kill's too big to carry off or lift (more than half its own
+## length: a deer, a calf, a beaver, for most of them).
+func _too_big() -> bool:
+	return _prey_len() > float(S.body_len) * MM * size * 0.55
 
 
 ## (The species: getting ready to spring, still; and its attack, each frame:

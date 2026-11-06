@@ -360,6 +360,7 @@ func _build() -> void:
 					hip.set_meta("pair", i)
 					_legs.append(hip)
 	_place_spine()
+	_to_own_frame()
 
 
 ## The body's tube, full grown (m): rings along the spine (its segments'
@@ -485,6 +486,7 @@ func _process(dt: float) -> void:
 		_crawl(dt)
 	_place_spine()
 	_step_feet(dt)
+	_to_own_frame()
 	# eating: the head nodding to its food, the jaws working (a grub's at
 	# the roots it lies in, or what's brought it)
 	_head.rotation = Vector3(0.22 * sin(_t * 6.0) - 0.1, 0.12 * sin(_t * 3.0), 0.0) if _mode == "eat" else Vector3.ZERO
@@ -612,7 +614,7 @@ func _place_spine() -> void:
 			up = Vector3.UP if absf(fwd.y) < 0.9 else Vector3.RIGHT
 		var b := Basis.looking_at(fwd, up)
 		_holders[i].transform = Transform3D(b * Basis.from_scale(Vector3.ONE * _g), p) # (what rides on it in full-grown size, scaled to its size now)
-		sp.append(p)
+		sp.append(p - _pos) # (its own frame's: its node where it is)
 		sx.append(b.x)
 		sy.append(b.y)
 	if _skin_mat:
@@ -620,6 +622,19 @@ func _place_spine() -> void:
 		_skin_mat.set_shader_parameter("sx", sx)
 		_skin_mat.set_shader_parameter("sy", sy)
 		_skin_mat.set_shader_parameter("size", _g)
+
+
+## Its node to where it is (_pos), its parts (worked out in its parent's
+## space) moved into its own: so it's one thing, there, to be picked up,
+## held, carried (a wasp's, a mouse's, a fox's catch), its parts with it.
+func _to_own_frame() -> void:
+	position = _pos
+	for h in _holders:
+		h.position -= _pos
+	for f in _feet:
+		(f.leg as Node3D).position -= _pos
+		if f.has("shin"):
+			(f.shin as Node3D).position -= _pos
 
 
 ## The feet (a caterpillar's, the lady beetle larva's): each planted on

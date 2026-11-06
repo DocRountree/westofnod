@@ -506,7 +506,7 @@ func _eat(_dt: float) -> void:
 			_look_to = Vector2(0.15 * sin(_st * 0.7), 0.35 if high else -0.55)
 			_chew = 1.0
 			if _meal == null: # (bitten off, bit by bit; a plant up high only cropped)
-				_meal = MealScript.of(_food, 4, 0)
+				_meal = MealScript.of(_food, 4) # (a plant; or, now and then, carrion: a dead mouse, bleeding)
 				_meal_k0 = 1.0 - float(_meal.call("left")) if _meal else 0.0
 			if _meal:
 				var k := clampf((_st - 0.5) / 9.0, 0.0, 1.0)

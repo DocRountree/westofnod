@@ -479,6 +479,7 @@ func _think(dt: float) -> void:
 					_look_to = Vector2(0.0, -0.4)
 					if to.length() <= reach * 1.15 and _speed < 0.01:
 						_turn_to = atan2(-to.x, -to.z)
+						MealScript.subdue(_seed) # (an insect, a grub: bitten, still)
 						_stage = 1
 						_st = 0.0
 				1: # picked up in its teeth, up onto its haunches
@@ -493,7 +494,7 @@ func _think(dt: float) -> void:
 					_chew = 1.0
 					_look_to = Vector2(0.15 * sin(_st * 0.9), -0.15)
 					if _meal == null:
-						_meal = MealScript.of(_seed, 3, 0)
+						_meal = MealScript.of(_seed, 3)
 						if _meal:
 							_meal.set("held", true) # (in its mouth: the bite it's at drawn in to it)
 					if _meal:

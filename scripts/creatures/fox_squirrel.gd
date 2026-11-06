@@ -479,6 +479,7 @@ func _eat_nut(dt: float) -> void:
 			if to.length() <= reach * 1.2 and _speed < 0.05:
 				_target = _pos
 				_turn_to = atan2(-to.x, -to.z)
+				MealScript.subdue(_food) # (a caterpillar, a mouse pup: bitten, still)
 				_stage = 1
 				_st = 0.0
 		1: # (picked up in its teeth)
@@ -493,7 +494,7 @@ func _eat_nut(dt: float) -> void:
 			_look_to = Vector2(0.15 * sin(_st * 0.6), 0.1)
 			_chew = 1.0
 			if _meal == null: # (gnawed open and eaten, bit by bit)
-				_meal = MealScript.of(_food, 4, 0)
+				_meal = MealScript.of(_food, 4)
 				if _meal:
 					_meal.set("held", true) # (in its mouth: the bite it's at drawn in to it)
 			if _meal:

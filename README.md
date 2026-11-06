@@ -506,10 +506,16 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   thrusting in bouts, then washing. `act("mate", {partner})` for any of them (pilot.gd).
 - `tools/creatures/life_cycle_demo.tscn`: every creature not yet in the game, a station each (Tab / Shift+Tab the
   next). The keys are the same for all of them and act only on those at the station in view: 1 lay eggs / give birth,
-  2 hatch / come out, 3 new pupae, E eat, H hunt, K mate, G groom, Z sleep / rest, F fly / hop, X alarm (flee, roll up,
+  2 hatch / come out, 3 new pupae, E eat, H hunt, U an unusual meal, K mate, G groom, Z sleep / rest, F fly / hop, X alarm (flee, roll up,
   coil, sting, scatter), D display / call, V the young play, N nurse, B forage, S spin a web, M mark, A sit, W back to
   their own ways, P steered (pilot.gd); each creature doing it its own way (the hunters' prey set before them, the
-  fishing spider's a molly come up from the pond).
+  fishing spider's a molly come up from the pond). U: the mammals' rarer meals, plausible if seldom seen, each another
+  of the game's own animals set out for it: the fox a newborn fawn, a beaver kit, a bobcat kitten, a June grub, a
+  grasshopper; the bobcat a fawn, a grown deer, a fox; the coyote a fawn, a fox, a beaver; the wolf a deer, a moose or
+  bison calf, a beaver, a coyote; the bears a fawn, a calf, a beaver, grubs, the grizzly a black bear cub or a wolf
+  pup; the deer a mouse pup; the deer mouse a grasshopper nymph, a caterpillar, a grub, a pill bug, a mantis nymph;
+  the squirrels a caterpillar, a grub, a mouse pup; the snowshoe hare a dead mouse. A kill more than half the hunter's
+  length isn't carried off or lifted: it's eaten where it fell, longer.
 - The mammals' look (`scripts/creatures/mammal_skin.gd`, `MammalSkin`): each one skin, not parts stacked. Its rings
   are swept into tubes (the body rounding up through the neck into the head to its nose, the jaw, each leg from
   inside its shoulder or haunch to its toes, the tail), every vertex weighted to the bones the animal's own motor
