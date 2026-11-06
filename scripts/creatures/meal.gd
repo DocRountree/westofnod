@@ -31,7 +31,7 @@ const FLY := 0.45 ## s: a piece's way from the food into the mouth
 const POOL_SECS := 90.0 ## s: blood on the ground, before it's soaked in
 const INSTANCE_PARAMS := ["shell", "fur_obj", "fur_dens", "bars", "tree_at"]
 const BLEEDS := ["mouse", "squirrel", "hare", "deer", "moose", "bison", "beaver", "canid", "coyote", "wolf", "fox", "bobcat",
-		"bear", "ursid", "carnivore", "anole", "frog", "toad", "snake", "turtle", "mollies", "molly", "fish"]
+		"bear", "ursid", "carnivore", "anole", "frog", "toad", "snake", "turtle"] # (not the fish: no blood on them)
 
 var food: Node3D
 var bloody := false
@@ -178,8 +178,9 @@ func _build(across: int) -> void:
 			var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
 			if verts.is_empty():
 				continue
-			surfs.append([mi, s, arrays, xf])
-			for v in verts:
+			var where := _bent(mi, s, verts) # (where its vertices are drawn: a shader-bent body's bent)
+			surfs.append([mi, s, arrays, xf, where])
+			for v in where:
 				var p := xf * v
 				if first:
 					box = AABB(p, Vector3.ZERO)
@@ -198,7 +199,7 @@ func _build(across: int) -> void:
 		var s: int = sf[1]
 		var arrays: Array = sf[2]
 		var xf: Transform3D = sf[3]
-		var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		var verts: PackedVector3Array = sf[4]
 		var idx: PackedInt32Array = arrays[Mesh.ARRAY_INDEX] if arrays[Mesh.ARRAY_INDEX] != null else PackedInt32Array()
 		if idx.is_empty():
 			idx.resize(verts.size())
@@ -242,6 +243,12 @@ func _build(across: int) -> void:
 				am.surface_set_material(0, mi.get_active_material(s))
 			part.material_overlay = mi.material_overlay
 			part.cast_shadow = mi.cast_shadow
+			if mi.custom_aabb.size != Vector3.ZERO: # (placed by its shader: culled by where it may be)
+				part.custom_aabb = mi.custom_aabb
+			else:
+				var pm := mi.material_override if mi.material_override else mi.get_active_material(s)
+				if pm is ShaderMaterial and (pm as ShaderMaterial).get_shader_parameter("sp") != null: # (bent by its shader: its mesh's own bounds aren't where it's seen)
+					part.custom_aabb = AABB(Vector3(-3.0, -3.0, -3.0), Vector3(6.0, 6.0, 6.0))
 			part.transform = Transform3D(Basis(), -centre) * (inv * mi.global_transform)
 			piece.add_child(part)
 			for p: String in INSTANCE_PARAMS:
@@ -325,6 +332,56 @@ static func _posed(mi: MeshInstance3D, arrays: Array) -> Array:
 		out[Mesh.ARRAY_TANGENT] = t2
 	out[Mesh.ARRAY_BONES] = null
 	out[Mesh.ARRAY_WEIGHTS] = null
+	return out
+
+
+## Where a surface's vertices are drawn (its mesh's space): as they are; or,
+## a body its shader bends along a spine (a snake's, a larva's skin: sp, sx,
+## sy, count, size; the tube's place along it in VERTEX.z), bent as the
+## shader bends them (Catmull-Rom through the spine's points), for cutting
+## it where it's seen. Its pieces keep the mesh unbent and the material:
+## the shader, its spine held still now, bends them just the same.
+static func _bent(mi: MeshInstance3D, s: int, verts: PackedVector3Array) -> PackedVector3Array:
+	var mat := mi.material_override if mi.material_override else mi.get_active_material(s)
+	if not (mat is ShaderMaterial):
+		return verts
+	var sm := mat as ShaderMaterial
+	var spv = sm.get_shader_parameter("sp")
+	if not (spv is PackedVector3Array) or (spv as PackedVector3Array).size() < 2 or sm.get_shader_parameter("skinned") == false:
+		return verts
+	var sp: PackedVector3Array = spv
+	var sx: PackedVector3Array = sm.get_shader_parameter("sx")
+	var sy: PackedVector3Array = sm.get_shader_parameter("sy")
+	var cv = sm.get_shader_parameter("count")
+	var n: int = mini(int(cv) if cv != null else sp.size(), sp.size())
+	var szv = sm.get_shader_parameter("size")
+	var size: float = float(szv) if szv != null else 1.0
+	var bs = sm.get_shader_parameter("bulge_s")
+	var br = sm.get_shader_parameter("bulge_r")
+	var out := PackedVector3Array()
+	out.resize(verts.size())
+	for k in verts.size():
+		var v := verts[k]
+		var sv := v.z
+		var i0 := clampi(int(floorf(sv)), 0, n - 2)
+		var i1 := i0 + 1
+		var f := sv - float(i0)
+		var p: Vector3
+		if f >= 0.0 and f <= 1.0:
+			var a := sp[maxi(i0 - 1, 0)]
+			var b := sp[i0]
+			var c := sp[i1]
+			var d := sp[mini(i1 + 1, n - 1)]
+			p = 0.5 * (2.0 * b + (c - a) * f + (2.0 * a - 5.0 * b + 4.0 * c - d) * f * f + (3.0 * b - a - 3.0 * c + d) * f * f * f)
+		else:
+			p = sp[i0].lerp(sp[i1], f)
+		var kk := clampf(f, 0.0, 1.0)
+		var x := sx[i0].lerp(sx[i1], kk).normalized() if i1 < sx.size() else Vector3.RIGHT
+		var y := sy[i0].lerp(sy[i1], kk).normalized() if i1 < sy.size() else Vector3.UP
+		var swell := 1.0
+		if bs != null and br != null:
+			swell = 1.0 + float(br) * exp(-pow((sv - float(bs)) / 1.8, 2.0))
+		out[k] = p + (x * v.x + y * v.y) * size * swell
 	return out
 
 

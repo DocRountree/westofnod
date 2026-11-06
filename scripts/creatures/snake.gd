@@ -953,6 +953,10 @@ func _update(_dt: float) -> void:
 	if _rattle > 0.0:
 		for i in range(SPINE - 4, SPINE):
 			_pts[i] += Vector3.UP * R * 3.0 * _rattle * float(i - (SPINE - 4)) / 3.0
+	# its node at its middle, its parts drawn in its own frame from there (so
+	# it's one thing, there: caught, held, carried, eaten, its parts with it)
+	var o: Vector3 = _pts[SPINE / 2]
+	position = o
 	var sp := PackedVector3Array()
 	var sx := PackedVector3Array()
 	var sy := PackedVector3Array()
@@ -969,7 +973,7 @@ func _update(_dt: float) -> void:
 		var up := Vector3.UP if absf(fwd.y) < 0.95 else Vector3.BACK
 		var bs := Basis.looking_at(fwd, up)
 		frames.append(bs)
-		sp.append(_pts[i])
+		sp.append(_pts[i] - o)
 		sx.append(bs.x)
 		sy.append(bs.y)
 	_mat.set_shader_parameter("sp", sp)
@@ -979,7 +983,7 @@ func _update(_dt: float) -> void:
 	_mat.set_shader_parameter("bulge_s", _bulge_s)
 	_mat.set_shader_parameter("bulge_r", _bulge_r)
 	# the head on the neck (its back at the first point), the jaw, the tongue
-	_head.transform = Transform3D(frames[0] * Basis.from_scale(Vector3.ONE * size), _pts[0])
+	_head.transform = Transform3D(frames[0] * Basis.from_scale(Vector3.ONE * size), _pts[0] - o)
 	_jaw.rotation.x = _gape * 0.9
 	var flick := fmod(_t, 2.6)
 	var out := 0.0
@@ -990,7 +994,7 @@ func _update(_dt: float) -> void:
 	_tongue.rotation.x = 0.25 * sin(_t * 30.0) * out
 	# the tail's tip, the rattle on it, buzzing
 	var tb: Basis = frames[SPINE - 1]
-	_tail.transform = Transform3D(tb, _pts[SPINE - 1])
+	_tail.transform = Transform3D(tb, _pts[SPINE - 1] - o)
 	if _rattle_node:
 		_rattle_node.scale = Vector3.ONE * size
 		_rattle_node.rotation = Vector3(0.0, 0.25 * sin(_t * 120.0) * _rattle, 0.0)

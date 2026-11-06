@@ -2308,14 +2308,21 @@ func _bear_trio_of(c: Node) -> Array:
 ## the animals living here, set out at the station for it, a real one.
 ## The hunters: a fawn, a deer, a calf, a beaver, another hunter or its
 ## young (a fox killed by a coyote or a bobcat, a coyote by a wolf, a black
-## bear cub by a grizzly), grubs and grasshoppers; the deer a mouse pup;
-## the deer mouse a grasshopper nymph, a caterpillar, a grub, a pill bug, a
-## mantis nymph; the squirrels a caterpillar, a grub, a mouse pup; the hare
-## a dead mouse (carrion).
+## bear cub by a grizzly), grubs and grasshoppers, a snake (the fox a
+## young one); the deer a mouse pup; the deer mouse a grasshopper nymph, a
+## caterpillar, a grub, a pill bug, a mantis nymph; the squirrels a caterpillar, a grub, a mouse pup; the hare
+## a dead mouse (carrion). The snakes: a leopard frog, a toad, an anole; the
+## milk snake a young rattler too. The fox's fruit, ants, wasps: eaten where
+## they are (eat_at), its snout to them, nothing taken away (berries on a
+## bush, a harvester ants' nest, a fallen paper wasp comb: there to be
+## picked, or drawn by the hundred).
 const UNUSUAL := {
-	"fox": ["fawn", "beaver_kit", "bobcat_kit", "grub", "grasshopper", "mouse_pup", "leveret"],
-	"bobcat": ["fawn", "deer", "fox", "fox_kit", "beaver_kit", "grasshopper"],
-	"coyote": ["fawn", "fox", "fox_kit", "bobcat_kit", "beaver", "grub", "grasshopper"],
+	"fox": ["fawn", "beaver_kit", "bobcat_kit", "grub", "grasshopper", "mouse_pup", "leveret", "snake_young",
+			"fruit", "ants", "wasps"],
+	"bobcat": ["fawn", "deer", "fox", "fox_kit", "beaver_kit", "grasshopper", "snake"],
+	"coyote": ["fawn", "fox", "fox_kit", "bobcat_kit", "beaver", "grub", "grasshopper", "snake"],
+	"rattler": ["frog", "toad", "anole"],
+	"milk": ["frog", "toad", "anole", "snake_young"],
 	"wolf": ["deer", "fawn", "moose_calf", "bison_calf", "beaver", "coyote", "fox"],
 	"black_bear": ["fawn", "moose_calf", "beaver", "grub", "mouse_pup", "squirrel", "bobcat_kit"],
 	"brown_bear": ["moose_calf", "bison_calf", "fawn", "deer", "beaver", "grub", "black_cub", "wolf_pup"],
@@ -2349,13 +2356,19 @@ func _unusual(c: Node, p: Vector3) -> void:
 		who = "squirrel"
 	elif sc == HareScript:
 		who = "hare"
-	if who == "":
+	elif sc == SnakeScript:
+		who = String(c.get("kind"))
+	if who == "" or not UNUSUAL.has(who):
 		return
 	var kinds: Array = UNUSUAL[who]
 	var kind: String = kinds[randi() % kinds.size()]
 	var a := randf() * TAU
 	var dir := Vector3(cos(a), 0.0, sin(a))
-	if c.has_method("hunt") and who != "deer": # (a hunter: out a way before it, to stalk)
+	if kind in ["fruit", "ants", "wasps"]: # (eaten where it is, nothing taken)
+		c.call("eat_at", _fox_spot(kind, p), 10.0)
+	elif sc == SnakeScript: # (a little way off: to it, the strike)
+		c.call("eat", _real_prey(kind, p + dir * 0.35))
+	elif c.has_method("hunt") and who != "deer": # (a hunter: out a way before it, to stalk)
 		var f := _real_prey(kind, p + dir * randf_range(1.6, 2.4))
 		c.call("hunt", f)
 	else: # (set before it, close)
@@ -2410,6 +2423,19 @@ func _real_prey(kind: String, at: Vector3) -> Node3D:
 			n = IsopodScript.new()
 		"mantis_nymph":
 			n = MantisScript.new(true, 0.4)
+		"frog":
+			n = FrogScript.new()
+		"toad":
+			n = ToadScript.new()
+		"anole":
+			n = AnoleScript.new()
+		"snake", "snake_young":
+			var sn: Node3D = SnakeScript.new("rattler" if kind == "snake_young" or randf() < 0.5 else "milk", kind == "snake_young")
+			add_child(sn)
+			var a := randf() * TAU
+			sn.call("place", at, Vector3(cos(a), 0.0, sin(a)))
+			sn.call("wander", at, 0.2)
+			return sn
 		_: # "nymph"
 			return _insect_at(at, 0.35)
 	add_child(n)
@@ -2428,12 +2454,48 @@ func _real_prey(kind: String, at: Vector3) -> Node3D:
 			n.call("eat", at)
 		"mantis_nymph":
 			n.call("stalk", at, 0.02)
+		"frog", "toad": # (sat still, unaware)
+			n.call("sit")
 		"dead_mouse": # (carrion: over on its back)
 			n.call("die")
 		_:
 			if n.has_method("wander"):
 				n.call("wander", at, 0.05 if kind in ["mouse_pup", "leveret"] else 0.3)
 	return n
+
+
+## The fox's foraging spots at its station (made the first time): a
+## huckleberry bush, a harvester ants' nest, a paper wasp comb fallen in the
+## grass; a point to eat at, at the one it's after: a berry low on the bush,
+## a spot among the ants, the comb's cells.
+var _fox_spots := {}
+
+
+func _fox_spot(kind: String, from: Vector3) -> Vector3:
+	var c := _station(20)
+	if _fox_spots.is_empty():
+		var bush := UrsidScript.berry_bush()
+		bush.position = c + Vector3(1.5, 0.0, 0.9)
+		add_child(bush)
+		var ants: Node3D = HarvesterScript.new()
+		ants.position = c + Vector3(-1.4, 0.0, -0.5)
+		add_child(ants)
+		ants.call("setup", 40, Vector3.ZERO, 0.12)
+		var made := Wasp.comb()
+		var comb: Node3D = made[0]
+		comb.position = c + Vector3(-0.5, 0.0, 1.3)
+		comb.rotation.z = 1.2 # (fallen on its side)
+		add_child(comb)
+		_fox_spots = {"fruit": bush.position, "ants": ants.position, "wasps": comb.position}
+	var at: Vector3 = _fox_spots[kind]
+	var a := randf() * TAU
+	match kind:
+		"fruit": # (a berry on its near side, low enough to reach)
+			var toward := Vector3(from.x - at.x, 0.0, from.z - at.z).normalized()
+			return at + toward * 0.18 + Vector3(cos(a), 0.0, sin(a)) * 0.05 + Vector3.UP * randf_range(0.22, 0.4)
+		"ants":
+			return at + Vector3(cos(a), 0.0, sin(a)) * randf_range(0.0, 0.08) + Vector3.UP * 0.004
+	return at + Vector3.UP * 0.012
 
 
 ## Something to eat (or hunt), its own kind of food, set before it.

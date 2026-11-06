@@ -23,6 +23,10 @@ extends "res://scripts/creatures/hexapod.gd" # (by path: found whether or not th
 ##   by piece, each torn off and into its mouth, the carcass raw and bloody
 ##   where it's torn, blood run out under it: Meal); missed, stalking again
 ## - eat(food): at it, tearing, chewing
+## - eat_at(at, seconds): eating at a point, the food left as it is (fruit
+##   on a bush, ants at their nest, wasp grubs in a comb: whatever's drawn
+##   by the hundred, or anyone's to pick): to it, its snout to it (down, or
+##   up), licking and snapping, nosing about, a while
 ## - groom(): sitting, licking a forepaw, washing its face, licking its
 ##   flank
 ## - sit(seconds), sleep(seconds): lying down, curled, its nose under its
@@ -719,6 +723,52 @@ func eat(food: Node3D) -> void:
 	_st = 0.0
 
 
+func eat_at(at: Vector3, seconds := 10.0) -> void:
+	_mode = "eat_at"
+	_eat_p = at
+	_eat_for = seconds
+	_bite_pitch = -0.6
+	_stage = 0
+	_st = 0.0
+
+
+var _eat_p := Vector3.ZERO # (eat_at's: where)
+var _eat_for := 10.0
+
+
+## Eating at a point (eat_at): its mouth brought to it, and kept there,
+## the food not touched (it's drawn by the hundred, or it's anyone's): its
+## head lowered or raised till its mouth's on it, crouched to it if it's low,
+## the jaws working, licking and snapping, nosing about; a while, then off.
+func _eat_at(dt: float) -> void:
+	var to := _eat_p - _pos
+	to.y = 0.0
+	var reach := absf(float(S.mouth_z)) * MM * size # (its middle to its mouth)
+	match _stage:
+		0: # to it, its mouth over it
+			_target = _eat_p - to.normalized() * reach * 0.95 if to.length() > 0.01 else _pos
+			_neck_to = Vector2(-0.4, 0.0)
+			_sniff = 1.0
+			if (to.length() < reach * 1.15 and _speed < 0.05) or _st > 15.0:
+				_target = _pos
+				_turn_to = atan2(-to.x, -to.z)
+				_stage = 1
+				_st = 0.0
+		1: # its snout on it, eating
+			_target = _pos
+			var err := _eat_p.y - _mouth().y
+			_bite_pitch = clampf(_bite_pitch + clampf(err * 10.0, -1.2, 1.2) * dt, -1.6, 0.8)
+			_neck_to = Vector2(_bite_pitch, 0.0)
+			_look_to = Vector2(0.06 * sin(_st * 5.0), 0.14 * sin(_st * 1.3)) # (nosing about it)
+			_jaw_to = 0.25 * maxf(sin(_st * 9.0), 0.0) # (licking, snapping)
+			_chew = 1.0
+			_ears_to = 0.3
+			var low := _eat_p.y < _pos.y + float(body_h) * MM * size * 0.5
+			_crouch = move_toward(_crouch, float(S.eat_crouch) if low else 0.0, dt)
+			if _st > _eat_for:
+				wander(_home_spot(), _radius)
+
+
 func groom() -> void:
 	_mode = "groom"
 	_st = 0.0
@@ -827,6 +877,8 @@ func _think(dt: float) -> void:
 				_look_to = Vector2(rng.randf_range(-0.2, 0.2), rng.randf_range(-0.8, 0.8))
 		"hunt":
 			_hunt(dt)
+		"eat_at":
+			_eat_at(dt)
 		"groom":
 			_target = _pos
 			_sit_to = 1.0
@@ -1119,6 +1171,8 @@ func _prey_len() -> float:
 		return 0.26 * ps
 	if "hare" in path:
 		return 0.45 * ps
+	if "snake" in path and _prey.get("K") is Dictionary: # (its length, m, at its size)
+		return float((_prey.get("K") as Dictionary).len) * float(_prey.get("size"))
 	var d := PersonalSpace._dims(_prey).x if _prey is Node3D else 0.0
 	return d if d > 0.0 else 0.3
 
@@ -1692,7 +1746,7 @@ func _mount_thrust(m: Dictionary, her_t: Transform3D, hs: float) -> Dictionary:
 # --- steering (pilot.gd): its behaviours ----------------------------------------
 
 func _p_behaviours() -> PackedStringArray:
-	var b := PackedStringArray(["hunt", "eat", "groom", "sit", "sleep"])
+	var b := PackedStringArray(["hunt", "eat", "eat_at", "groom", "sit", "sleep"])
 	if young:
 		b.append("play")
 		return b
@@ -1714,6 +1768,10 @@ func _p_act(name: String, args: Dictionary) -> bool:
 			if f == null:
 				return false
 			eat(f)
+		"eat_at":
+			if not (args.get("at") is Vector3):
+				return false
+			eat_at(args.at, float(args.get("seconds", 10.0)))
 		"groom":
 			groom()
 		"sit":
@@ -1741,7 +1799,7 @@ func _p_act_done(name: String) -> bool:
 	match name:
 		"eat":
 			return _mode != "hunt"
-		"hunt", "groom", "sit", "sleep", "mark", "play", "birth", "nurse":
+		"hunt", "groom", "sit", "sleep", "mark", "play", "birth", "nurse", "eat_at":
 			return _mode != name
 	return false
 

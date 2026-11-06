@@ -293,7 +293,8 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
 - `scripts/creatures/meal.gd` (`Meal`): every meal eaten piece by piece, nothing shrinking away: the food's meshes cut
   into pieces (a skinned body baked first in the pose it died in), each next piece the one nearest the eater's mouth,
   torn off, drawn to the mouth and taken in. A vertebrate's (a mammal's above all) bleeds: raw, wet flesh at every
-  torn edge, the piece torn away red inside, blood run out under a carcass lying on the ground. A snake's swallowed
+  torn edge, the piece torn away red inside, blood run out under a carcass lying on the ground (not a fish's: no blood).
+  A body bent by its shader (a snake's, a larva's) is cut where it's seen, its pieces bent by the same shader. A snake's swallowed
   whole instead, each part gone as its jaws come over it. Used by the carnivores, the mantis (the male after mating
   too), the anole, the scorpion, the spiders, the dragonfly, the snakes, and the squirrel's nut, the mouse's seed,
   the hare's plants.
@@ -514,8 +515,13 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   grasshopper; the bobcat a fawn, a grown deer, a fox; the coyote a fawn, a fox, a beaver; the wolf a deer, a moose or
   bison calf, a beaver, a coyote; the bears a fawn, a calf, a beaver, grubs, the grizzly a black bear cub or a wolf
   pup; the deer a mouse pup; the deer mouse a grasshopper nymph, a caterpillar, a grub, a pill bug, a mantis nymph;
-  the squirrels a caterpillar, a grub, a mouse pup; the snowshoe hare a dead mouse. A kill more than half the hunter's
-  length isn't carried off or lifted: it's eaten where it fell, longer.
+  the squirrels a caterpillar, a grub, a mouse pup; the snowshoe hare a dead mouse; the fox, the bobcat, the coyote a
+  snake; the snakes a leopard frog, a toad, an anole, the milk snake a young rattler. A kill more than half the
+  hunter's length isn't carried off or lifted: it's eaten where it fell, longer. The fox's fruit, ants and wasps (a
+  huckleberry bush, a harvester ants' nest, a fallen paper wasp comb at its station): eaten where they are
+  (`eat_at(point, seconds)`, any of the four-legged make's), its snout brought to the point and kept there, licking,
+  snapping, nosing about; nothing taken away or moved (fruit's anyone's to pick, ants and such are drawn by the
+  hundred).
 - The mammals' look (`scripts/creatures/mammal_skin.gd`, `MammalSkin`): each one skin, not parts stacked. Its rings
   are swept into tubes (the body rounding up through the neck into the head to its nose, the jaw, each leg from
   inside its shoulder or haunch to its toes, the tail), every vertex weighted to the bones the animal's own motor
