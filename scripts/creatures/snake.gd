@@ -522,10 +522,13 @@ func _think(dt: float) -> void:
 			_dir = _dir.rotated(Vector3.UP, clampf(steer * 3.0 * dt, -2.5 * dt, 2.5 * dt))
 			way = _dir.rotated(Vector3.UP, 0.3 * sin(_phase))
 		_pos += way * _speed * slow * dt
-		PersonalSpace.keep_apart(self)
-		ground_y = _ground(_pos.x, _pos.z)
-		_pos.y = ground_y
-		_keep_clear(clear)
+	# (kept off the others moving or not: its head eased off them; its body,
+	# which can't be shifted, they keep off: PersonalSpace)
+	PersonalSpace.keep_apart(self)
+	ground_y = _ground(_pos.x, _pos.z)
+	_pos.y = ground_y
+	if _speed > 0.0005:
+		_keep_clear(float(K.r) * size * 2.4)
 	if _trail.is_empty() or _trail[0].distance_to(_pos) > float(K.len) * size / SPINE / 3.0:
 		_trail.push_front(_pos)
 		while _trail.size() > SPINE * 4 + 20:
@@ -1108,8 +1111,31 @@ func _exit_tree() -> void:
 	PersonalSpace.leave(self)
 
 
-## (Its personal space: from its head back along the first third of it, as
-## thick as it is: its body behind follows its head's way.)
+## (Its personal space: its whole length, in SPACE_SEGS capsules down its
+## spine from the head, as thick as it is, coiled or not; the head's the
+## only one it's moved by, its body behind following the head's way: the
+## others keep off that.)
+const SPACE_SEGS := 5
+
+
+func _space_spines() -> Array:
+	if _pts.size() < SPINE:
+		return [_space_spine()]
+	var out: Array = []
+	var step := (SPINE - 1) / float(SPACE_SEGS)
+	for i in SPACE_SEGS:
+		var a: Vector3 = _pts[roundi(i * step)]
+		var b: Vector3 = _pts[roundi((i + 1) * step)]
+		out.append([Vector2(a.x, a.z), Vector2(b.x, b.z)])
+	return out
+
+
+func _space_fixed(i: int) -> bool:
+	return i > 0
+
+
+## (One capsule, before its spine's laid out: from its head back along the
+## first third of it.)
 func _space_spine() -> Array:
 	var h := Vector2(_pos.x, _pos.z)
 	var back := h - Vector2(_dir.x, _dir.z).normalized() * float(K.len) * size * 0.3
@@ -1129,4 +1155,6 @@ func _space_r() -> float:
 
 
 func _touch_ok() -> bool:
-	return young or _mate_role != "" or _mode in ["coil", "strike", "eat", "hunt", "lay", "birth", "hatch", "mate"]
+	# (coiled, it keeps its room: a coiled rattler isn't walked over; after
+	# its prey or eating it, it touches only that: PersonalSpace)
+	return young or _mate_role != "" or _mode in ["lay", "birth", "hatch", "mate"]

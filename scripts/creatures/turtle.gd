@@ -1092,10 +1092,24 @@ func _exit_tree() -> void:
 	PersonalSpace.leave(self)
 
 
-## (May it touch another: mating, courted, nesting, basking (they pile up on a
-## log), the young.)
+## (May it touch another: mating, courted, nesting, basking once it's there
+## (they pile up on a log; not on the way to it), the young.)
 func _touch_ok() -> bool:
-	return young or _role != "" or _mode in ["courted", "mate", "nest", "bask"]
+	return young or _role != "" or _mode in ["courted", "mate", "nest"] or (_mode == "bask" and _stage >= 1)
+
+
+## (Its personal space: its shell, and its head and neck ahead of it when
+## they're out; as wide as its shell.)
+func _space_r() -> float:
+	return float(S.shell.wid) * 0.5 * _mm * size
+
+
+func _space_spine() -> Array:
+	var L := float(S.shell.len) * _mm * size
+	var r := _space_r()
+	var f := Vector2(-sin(_yaw), -cos(_yaw))
+	var c := Vector2(_pos.x, _pos.z)
+	return [c - f * maxf(L * 0.5 - r, 0.0), c + f * maxf(L * (0.5 + 0.2 * minf(_neck, 1.0)) - r, 0.0)] # (not its lunge)
 
 
 # --- the pose -------------------------------------------------------------------

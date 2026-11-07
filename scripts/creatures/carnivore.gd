@@ -1368,10 +1368,11 @@ func _walk(dt: float) -> void:
 # --- personal space ------------------------------------------------------------
 # (PersonalSpace: a capsule on the ground, from its rump to its muzzle, as
 # wide as its body, kept off every other creature's. Off when they're meant
-# to touch: mating, nursing, suckling, playing, hunting and eating,
-# sparring; the young; the airborne, the dead.)
+# to touch: mating, nursing, suckling, playing, sparring; the young; the
+# airborne, the dead. Hunting and eating, only it and its _prey: the rest
+# it still goes round.)
 
-const TOUCHING := ["nurse", "suckle", "play", "hunt", "eat", "spar", "follow", "newborn", "birth", "carry", "piloted"]
+const TOUCHING := ["nurse", "suckle", "play", "spar", "follow", "newborn", "birth", "carry", "piloted"]
 
 
 func _space_r() -> float:

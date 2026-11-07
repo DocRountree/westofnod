@@ -1014,6 +1014,12 @@ func _leap(to: Vector3) -> void:
 		return
 	var dist := minf(d.length(), _leap_max() * size + 0.05) # (as far as it can)
 	d = d.normalized()
+	# (coming down clear of the others: not on a snake's back, a turtle's shell)
+	var land := PersonalSpace.clear_spot(self, _pos + d * dist)
+	var dl := Vector3(land.x - _pos.x, 0.0, land.z - _pos.z)
+	if dl.length() > 0.005:
+		dist = minf(dl.length(), _leap_max() * size + 0.05)
+		d = dl.normalized()
 	_face(d * 10.0)
 	var t := 0.18 + dist * 0.6
 	_vel = d * dist / t + Vector3.UP * 9.8 * t * 0.5
@@ -1070,7 +1076,7 @@ func _exit_tree() -> void:
 ## (May it touch another: a tadpole, in the air, in amplexus, laying; a
 ## male calling, floating among the others.)
 func _touch_ok() -> bool:
-	return young or _airborne or _role != "" or is_instance_valid(_held_by) or _mode in ["courted", "mate", "lay", "hunt", "call", "float"]
+	return young or _airborne or _role != "" or is_instance_valid(_held_by) or _mode in ["courted", "mate", "lay", "call", "float"] # (hunting: only it and its _prey: PersonalSpace)
 
 
 # --- the pose -------------------------------------------------------------------
