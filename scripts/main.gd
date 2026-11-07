@@ -614,11 +614,12 @@ func _unhandled_input(event: InputEvent) -> void:
 		atmosphere.shadows = not atmosphere.shadows
 		chat.say("Shadows %s." % ("on" if atmosphere.shadows else "off"), Color(0.75, 0.85, 1.0))
 		get_viewport().set_input_as_handled()
-	# F7: the grass, ferns and flowers off, or on again; F8: the trees,
+	# G: the grass, ferns and flowers off, or on again; T: the trees,
 	# bushes, logs and rocks (everything Population draws, their shadows
-	# too), to see what each costs where the framerate drops
-	if event is InputEventKey and event.pressed and not event.echo and _loaded and event.keycode in [KEY_F7, KEY_F8]:
-		var what: Node3D = ground_cover if event.keycode == KEY_F7 else population
+	# too), to see what each costs where the framerate drops. (Not F7/F8:
+	# run from the editor, those pause and stop the game.)
+	if event is InputEventKey and event.pressed and not event.echo and _loaded and event.keycode in [KEY_G, KEY_T]:
+		var what: Node3D = ground_cover if event.keycode == KEY_G else population
 		what.visible = not what.visible
 		chat.say("%s %s." % ["Ground cover" if what == ground_cover else "Trees and props", "on" if what.visible else "off"], Color(0.75, 0.85, 1.0))
 		get_viewport().set_input_as_handled()
