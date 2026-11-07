@@ -8,7 +8,7 @@ extends MeshInstance3D
 const DISTANCE := 96000.0          ## Beyond the farthest land, inside the camera's far plane (120 km).
 
 @export var size_scale := 3.5      ## Angular size relative to the real moon (0.52 deg), which is only a few pixels.
-@export var zoomed_scale := 1.5    ## ... and once magnified (a little larger than life there too).
+@export var zoomed_scale := 2.25   ## ... and once magnified (larger than life there too).
 
 
 func _ready() -> void:
@@ -37,6 +37,7 @@ func update_sky(moon_dir: Vector3, sun_dir: Vector3, night: float, pole := Vecto
 	mat.set_shader_parameter("north_local", Vector2(pl.dot(x), pl.dot(y)))
 	if mat.get_shader_parameter("albedo_map") == null:
 		mat.set_shader_parameter("albedo_map", load("res://data/sky/moon_albedo.jpg"))
+		mat.set_shader_parameter("normal_map", load("res://data/sky/moon_normal.png"))
 	visible = moon_dir.y > -0.05
 
 
