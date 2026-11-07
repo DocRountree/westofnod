@@ -188,16 +188,25 @@ func _part(at: Vector3, size: Vector3, color: Color, rough := 0.7, parent: Node3
 	mi.mesh = _SPHERE
 	mi.position = at
 	mi.scale = size
-	var m := StandardMaterial3D.new()
-	m.albedo_color = color
-	m.roughness = rough
-	if fur > 0.0:
-		m.rim_enabled = true
-		m.rim = fur
-		m.rim_tint = 0.6
-	mi.material_override = m
+	mi.material_override = _body_mat(color, rough, fur)
 	(parent if parent else _body).add_child(mi)
 	return mi
+
+
+static var _body_shader: Shader
+
+
+## (A body part's material: its colour, soft; swaying with the flower it's
+## on: lepidoptera_body.gdshader.)
+static func _body_mat(color: Color, rough: float, fur: float) -> ShaderMaterial:
+	if _body_shader == null:
+		_body_shader = load("res://shaders/render/lepidoptera_body.gdshader")
+	var m := ShaderMaterial.new()
+	m.shader = _body_shader
+	m.set_shader_parameter("albedo", color)
+	m.set_shader_parameter("roughness", rough)
+	m.set_shader_parameter("rim", fur)
+	return m
 
 
 static var _SPHERE: SphereMesh = _sphere()
@@ -227,10 +236,7 @@ func _stick(a: Vector3, b: Vector3, r: float, color: Color, parent: Node3D = nul
 	var x := y.cross(Vector3.FORWARD if absf(y.z) < 0.9 else Vector3.RIGHT).normalized()
 	var z := x.cross(y)
 	mi.transform = Transform3D(Basis(x * r * 2.0, y * d.length(), z * r * 2.0), (a + b) * 0.5)
-	var m := StandardMaterial3D.new()
-	m.albedo_color = color
-	m.roughness = 0.6
-	mi.material_override = m
+	mi.material_override = _body_mat(color, 0.6, 0.0)
 	(parent if parent else _body).add_child(mi)
 	return mi
 
@@ -420,16 +426,27 @@ func _build_tongue() -> void:
 
 # ---- the motor ----------------------------------------------------------------
 
+## How much what's at a point sways (a flower's floret: its clump's sway *
+## its height's share, squared, as its shader sways it; 0 still): asked as
+## it lands, or feeds hovering, so it sways with it, on the GPU, as the
+## flower does (the creature demos' flowers: theirs to say).
+static var sway_of: Callable
+
+var _sway_at := Vector3.ZERO # (the point it sways with; how much; eased in and out)
+var _sway_k := 0.0
+var _sway_w := 0.0
+var _sway_set := Vector4(INF, INF, INF, INF)
+
+
+## Swaying with the flower at `at` (its parent's space), as it does.
+func sway_with(at: Vector3) -> void:
+	_sway_at = at
+	_sway_k = float(sway_of.call(at)) if sway_of.is_valid() else 0.0
+
+
 ## Lands it on the point at, the surface there facing n (its parent's space).
-## (Told when it settles on something and when it's off again: at, its
-## parent's space; on. The creature demos hold a flower still under it
-## (theirs sway in the wind, and it can't sway with them).)
-static var perch_hook: Callable
-
-
 func land(at: Vector3, n: Vector3) -> void:
-	if perch_hook.is_valid():
-		perch_hook.call(at, true)
+	sway_with(at)
 	flying = false
 	_surface_p = at
 	_surface_n = n.normalized()
@@ -439,8 +456,7 @@ func land(at: Vector3, n: Vector3) -> void:
 ## Off again, a little up from where it was.
 func take_off() -> void:
 	if not flying:
-		if perch_hook.is_valid():
-			perch_hook.call(_surface_p, false)
+		_sway_k = 0.0
 		flying = true
 		_vel = _surface_n * 0.3
 		_target = _pos + _surface_n * 0.05
@@ -492,6 +508,30 @@ func _process(dt: float) -> void:
 	_pose_tongue()
 	for leg in _legs:
 		leg.rotation = Vector3(0.0, 0.0, 0.0) if not flying else Vector3(0.9, 0.0, -0.5 * float(leg.get_meta("side")))
+	_sway(dt)
+
+
+## Its shaders told how much to sway with the flower: all of it on it (or
+## at it, hovering, its tongue in it), none a hand's breadth off; easing in
+## and out. (Its own position is the flower's at rest: the GPU moves it, as
+## it moves the flower.)
+func _sway(dt: float) -> void:
+	var want := 0.0
+	if _sway_k > 0.0:
+		want = 1.0 - smoothstep(0.04, 0.15, _pos.distance_to(_sway_at))
+	_sway_w = move_toward(_sway_w, want, dt / 0.3)
+	var k := _sway_k * _sway_w
+	var set_ := Vector4(_sway_at.x, _sway_at.y, _sway_at.z, k)
+	if set_ == _sway_set:
+		return
+	_sway_set = set_
+	var gp := get_parent() as Node3D
+	var at := gp.to_global(_sway_at) if gp else _sway_at
+	for mi in find_children("*", "GeometryInstance3D", true, false):
+		var m := (mi as GeometryInstance3D).material_override as ShaderMaterial
+		if m:
+			m.set_shader_parameter("sway_at", at)
+			m.set_shader_parameter("sway_k", k)
 
 
 func _place_body() -> void:

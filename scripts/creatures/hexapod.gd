@@ -531,7 +531,9 @@ func _gait(dt: float) -> void:
 		if not legs[i / 2].get("walks", true):
 			continue
 		var h := _home(i) + vel * step_time
-		worst = maxf(worst, Vector2(_feet[i].x - h.x, _feet[i].z - h.z).length())
+		# (left behind, or the ground under it not where its foot is: up a
+		# step, down off one, its body lifted or let down)
+		worst = maxf(worst, maxf(Vector2(_feet[i].x - h.x, _feet[i].z - h.z).length(), absf(_feet[i].y - h.y) * 1.5))
 	if worst > stride * 0.5 * MM * size or (worst > 1.2 * MM * size and _speed < 0.002):
 		_swinging = _next
 		_swing_t = 0.0

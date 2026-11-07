@@ -24,7 +24,7 @@ void vertex() {
 	lp = VERTEX;
 	VERTEX += NORMAL * shell * fur_len;
 	if (sway_k > 0.0)
-		VERTEX += inverse(mat3(MODEL_MATRIX)) * wind_sway(sway_at, TIME) / max(sway, 1e-3) * sway_k;
+		VERTEX += inverse(mat3(MODEL_MATRIX)) * wind_sway(sway_at + world_origin, TIME) / max(sway, 1e-3) * sway_k;
 }
 
 float hh(vec2 p) {

@@ -26,7 +26,7 @@ uniform vec3 vein : source_color = vec3(0.22, 0.13, 0.06);
 
 void vertex() {
 	if (sway_k > 0.0)
-		VERTEX += inverse(mat3(MODEL_MATRIX)) * wind_sway(sway_at, TIME) / max(sway, 1e-3) * sway_k;
+		VERTEX += inverse(mat3(MODEL_MATRIX)) * wind_sway(sway_at + world_origin, TIME) / max(sway, 1e-3) * sway_k;
 }
 
 void fragment() {

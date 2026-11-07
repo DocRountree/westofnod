@@ -75,6 +75,9 @@ const MoltScript := preload("res://scripts/creatures/molt.gd")
 const OpossumScript := preload("res://scripts/creatures/opossum.gd")
 const BeeScript := preload("res://scripts/creatures/bumblebee.gd")
 const CarcassScript := preload("res://scripts/creatures/carcass.gd")
+const CrayScript := preload("res://scripts/creatures/crayfish.gd")
+const RedCrayScript := preload("res://scripts/creatures/red_swamp_crayfish.gd")
+const VirileCrayScript := preload("res://scripts/creatures/virile_crayfish.gd")
 
 const PersonalSpace := preload("res://scripts/creatures/personal_space.gd")
 const HALF := 12.0 ## m: the plain's half width (it's square)
@@ -121,6 +124,8 @@ const CATALOGUE := [
 	["Spiders and kin", "yellow garden spider", "garden_spider", ["adult", "young"]],
 	["Spiders and kin", "Arizona bark scorpion", "scorpion", ["adult", "young"]],
 	["Spiders and kin", "pill bug", "pillbug", ["adult", "young"]],
+	["Crustaceans", "red swamp crayfish", "red_crayfish", ["adult", "young"]],
+	["Crustaceans", "virile crayfish", "virile_crayfish", ["adult", "young"]],
 	["Fish", "sailfin mollies (a school)", "mollies", ["adult"]],
 	["Amphibians and reptiles", "northern leopard frog", "frog", ["adult", "young"]],
 	["Amphibians and reptiles", "American toad", "toad", ["adult", "young"]],
@@ -200,7 +205,7 @@ func _ready() -> void:
 	# (the game's trees here whole wherever they stand: no levels of detail,
 	# no chunks; and a butterfly's flower held still under it)
 	OakTree.set_lod_fade(false)
-	Lepidoptera.perch_hook = _on_perch
+	Lepidoptera.sway_of = _sway_of
 	var env := Environment.new()
 	env.background_mode = Environment.BG_SKY
 	env.sky = Sky.new()
@@ -774,11 +779,26 @@ func _spawn_animal(key: String, at: Vector3, stage: String, male: bool, young: b
 			elif kind == "funnel":
 				sp.spin_funnel(at, 0.14)
 			elif kind == "argiope":
-				_orb_moorings(sp, at)
 				get_tree().create_timer(0.3).timeout.connect(_spin_orb.bind(sp, 0))
 			else:
 				sp.wander(at, 0.25)
 			return sp
+		"red_crayfish", "virile_crayfish": # (in a pond: the one here, or one dug by it; on its bottom)
+			var csc: Script = RedCrayScript if key == "red_crayfish" else VirileCrayScript
+			var cq := _pond_for(at, "small_pond")
+			var cr: Node3D = csc.new(young)
+			cr.set("male", male and not young)
+			cr.set("water_y", POND)
+			cr.set("height", _height)
+			var cc: Vector3 = cq.c
+			var inside := Vector3(clampf(at.x, cc.x - float(cq.hw) + 0.12, cc.x + float(cq.hw) - 0.12), 0.0, clampf(at.z, cc.z - float(cq.hd) + 0.12, cc.z + float(cq.hd) - 0.12))
+			inside.y = _height(inside.x, inside.z)
+			_org(cr, inside, false)
+			cr.set_meta("pond", cc)
+			cr.set("keep_in", Rect2(cc.x - float(cq.hw) + 0.08, cc.z - float(cq.hd) + 0.08, float(cq.hw) * 2.0 - 0.16, float(cq.hd) * 2.0 - 0.16))
+			cr.call("place", inside, randf() * TAU)
+			cr.call("wander", inside, 0.2)
+			return cr
 		"scorpion":
 			var s := ScorpionScript.new(young) if young else ScorpionScript.new()
 			s.male = male and not young
@@ -1168,32 +1188,95 @@ func _leaves_round(n: Node, p: Vector3) -> Array:
 
 ## The garden spider's moorings at p: a trunk and a branch over the ground,
 ## stems and a post round below: solid, for its orb.
-func _orb_moorings(sp: Node, c: Vector3) -> void:
-	var wood := Color(0.35, 0.27, 0.18)
-	var stem := Color(0.36, 0.42, 0.2)
-	_kit_add(sp, _solid(c + Vector3(-0.38, 0.35, -0.05), Vector3(0.04, 0.7, 0.04), wood))
-	_kit_add(sp, _solid(c + Vector3(-0.08, 0.6, -0.05), Vector3(0.62, 0.025, 0.025), wood))
-	var twig := _solid(c + Vector3(0.14, 0.52, -0.05), Vector3(0.012, 0.16, 0.012), wood)
-	twig.rotation.z = 0.6
-	_kit_add(sp, twig)
-	for st: Vector3 in [Vector3(-0.22, 0.11, -0.05), Vector3(0.24, 0.1, -0.04), Vector3(0.05, 0.07, -0.06), Vector3(0.33, 0.14, -0.05)]:
-		_kit_add(sp, _solid(c + st, Vector3(0.006, st.y * 2.0, 0.006), stem))
-	_kit_add(sp, _solid(c + Vector3(0.36, 0.2, -0.05), Vector3(0.03, 0.4, 0.03), Color(0.45, 0.4, 0.33)))
-	sp.set_meta("orb_at", c)
-
-
+## The garden spider's web, in the nearest tree (or a maple sapling put down
+## by it, if there's none near): hung under its lowest branch, moored to the
+## trunk below the branch and to the branch out along it (and to the next
+## lowest branch, if that's by it); the web in the upright plane of trunk and
+## branch, its frame through those points (no posts: the tree's own wood).
 func _spin_orb(sp: Node, k: int) -> void:
 	if not is_instance_valid(sp):
 		return
-	var c: Vector3 = sp.get_meta("orb_at", _where(sp))
-	if not sp.has_meta("orb_at"):
-		_orb_moorings(sp, c)
-	var r := RandomNumberGenerator.new()
-	r.seed = k
-	var centre := c + Vector3(r.randf_range(-0.08, 0.08), r.randf_range(0.28, 0.38), -0.05)
-	var n := Vector3.BACK.rotated(Vector3.UP, r.randf_range(-0.3, 0.3))
-	if not sp.call("spin_orb_auto", centre, n, 0.5):
-		sp.call("spin_orb", c + Vector3(0.0, 0.59, -0.05), c + Vector3(-0.22, 0.2, -0.05), c + Vector3(0.24, 0.18, -0.05))
+	var at := _where(sp)
+	var tree := _tree_near(at, 6.0)
+	if tree == null:
+		tree = _plant_game("maple", at + Vector3(0.45, 0.0, 0.3), true)
+	var anchors := _web_anchors(tree, k)
+	if anchors.size() < 2:
+		return
+	if not sp.call("spin_orb_at", anchors[0], anchors[1]):
+		sp.call("wander", at, 0.1)
+
+
+## The nearest of the game's trees and saplings within r of p (planted here).
+func _tree_near(p: Vector3, r: float) -> Node3D:
+	var best: Node3D = null
+	var bd := r
+	for n in _plants:
+		if is_instance_valid(n) and (n as Node).has_meta("game_tree"):
+			var gt: Array = (n as Node).get_meta("game_tree")
+			if String(gt[0]) in ["blueberry", "raspberry"]:
+				continue
+			var d := Vector2((n as Node3D).position.x - p.x, (n as Node3D).position.z - p.z).length()
+			if d < bd:
+				bd = d
+				best = n
+	return best
+
+
+## [anchor points (world), the web's normal] for an orb web under tree's
+## lowest branch (k: which of the lowest few, and how far out); [] if it
+## has no branch low enough.
+func _web_anchors(tree: Node3D, k: int) -> Array:
+	var gt: Array = tree.get_meta("game_tree")
+	var sc: Script = _game_trees()[gt[0]][1]
+	var tb: TreeBuilder = sc.call("grow", gt[1]) if gt[0] == "oak" else (sc.call("species") as Object).call("grow", gt[1])
+	if tb == null:
+		return []
+	# its branches off the trunk (level 1), lowest first
+	var low: Array = [] # [height of its base, branch index]
+	for bi in tb.branches.size():
+		var b: PackedInt32Array = tb.branches[bi]
+		if b.size() < 3 or tb.level[b[1]] != 1:
+			continue
+		low.append([tb.pos[b[0]].y, bi])
+	if low.is_empty():
+		return []
+	low.sort_custom(func(x: Array, y: Array) -> bool: return x[0] < y[0])
+	var pick: Array = low[mini(posmod(k, 2), low.size() - 1)]
+	var br: PackedInt32Array = tb.branches[int(pick[1])]
+	var base := tb.pos[br[0]]
+	var rad := func(i: int) -> float: return tb.radius[i] if i < tb.radius.size() else 0.03
+	# along the branch: points a third and two thirds of the way to 0.6 m out
+	var along := func(dist: float) -> Vector3:
+		var acc := 0.0
+		for j in range(1, br.size()):
+			var a := tb.pos[br[j - 1]]
+			var c := tb.pos[br[j]]
+			var l := a.distance_to(c)
+			if acc + l >= dist:
+				return a.lerp(c, (dist - acc) / maxf(l, 1e-4))
+			acc += l
+		return tb.pos[br[br.size() - 1]]
+	var b1: Vector3 = along.call(0.22)
+	var b2: Vector3 = along.call(0.55)
+	var dir := Vector3(b2.x - base.x, 0.0, b2.z - base.z)
+	dir = dir.normalized() if dir.length() > 1e-3 else Vector3.RIGHT
+	var normal := dir.cross(Vector3.UP).normalized()
+	# the trunk below it, on its side toward the branch (its bark's)
+	var tr: Vector3 = base - Vector3.UP * minf(0.45, base.y * 0.7)
+	var trunk_r: float = sc.call("trunk_radius_at", gt[1], tr.y)
+	tr += dir * trunk_r
+	var pts := [b1 - Vector3.UP * float(rad.call(br[1])) * 0.8, b2 - Vector3.UP * float(rad.call(br[mini(3, br.size() - 1)])) * 0.8, tr]
+	# the next lowest branch, if it's near this one's plane, just below or above
+	if low.size() > 1:
+		var other: PackedInt32Array = tb.branches[int((low[1] if pick == low[0] else low[0])[1])]
+		var o := tb.pos[other[mini(3, other.size() - 1)]]
+		if absf((o - base).dot(normal)) < 0.15 and absf(o.y - base.y) < 0.6:
+			pts.append(o)
+	var out: Array = []
+	for q: Vector3 in pts:
+		out.append(tree.global_transform * q)
+	return [out, normal]
 
 
 func _solid(at: Vector3, size: Vector3, col: Color) -> Node3D:
@@ -1746,6 +1829,9 @@ func _do(c: Node, act_: String) -> void:
 		if act_ == "hatch":
 			CarcassScript.set_stage(c as Node3D, int(c.get_meta("carcass")) % 3 + 1)
 		return
+	if c is CrayScript: # (its own: in its pond)
+		_crayfish_do(c, act_, young, p)
+		return
 	if act_ == "hatch":
 		if sc == PupaScript:
 			c.call("eclose", func(ad: Node3D) -> void:
@@ -2175,6 +2261,59 @@ func _turtle_do(c: Node, act_: String, young: bool, p: Vector3) -> void:
 			c.call("withdraw")
 		"wander", "forage":
 			c.call("wander", pond[0], 1.5 if sc == SeaScript else 0.6)
+
+
+## A crayfish's ways, in its pond: E a dead deer mouse on the bottom eaten
+## where it lies, H a grasshopper nymph fallen in hunted, X the tail flip,
+## D the threat, B foraging over the bottom, F / Z a burrow at the pond's
+## edge (the red swamp's chimney), 1 in berry, 2 her young hatched (or else
+## a moult), W wandering again.
+func _crayfish_do(c: Node, act_: String, young: bool, p: Vector3) -> void:
+	var pc: Vector3 = c.get_meta("pond", p)
+	var q := _pond_near(pc, 0.5)
+	var a := randf() * TAU
+	var near := Vector3(cos(a), 0.0, sin(a))
+	var fwd := Vector3(-sin(float(c.get("_yaw"))), 0.0, -cos(float(c.get("_yaw"))))
+	var inside := func(v: Vector3) -> Vector3: # (kept in the pond, on its bottom)
+		if not q.is_empty():
+			var cc: Vector3 = q.c
+			v.x = clampf(v.x, cc.x - float(q.hw) + 0.08, cc.x + float(q.hw) - 0.08)
+			v.z = clampf(v.z, cc.z - float(q.hd) + 0.08, cc.z + float(q.hd) - 0.08)
+		v.y = _height(v.x, v.z)
+		return v
+	match act_:
+		"eat": # (carrion: a dead deer mouse on the bottom)
+			var at: Vector3 = inside.call(p + (fwd * 0.6 + near * 0.4).normalized() * 0.12)
+			c.call("eat", _real_prey("dead_mouse", at))
+		"hunt":
+			var at: Vector3 = inside.call(p + (fwd * 0.6 + near * 0.4).normalized() * 0.16)
+			c.call("hunt", _insect_at(at, 0.5, true))
+		"alarm":
+			c.call("flee", p + fwd * 0.2)
+		"display":
+			c.call("threat", p + fwd * 0.2)
+		"forage":
+			c.call("forage", p, 0.2)
+		"fly", "sleep", "sit": # (a burrow at the pond's edge, inside it)
+			var edge := p
+			if not q.is_empty():
+				var cc: Vector3 = q.c
+				var d := Vector3(p.x - cc.x, 0.0, p.z - cc.z)
+				if d.length() < 0.01:
+					d = near
+				var k := minf((float(q.hw) - 0.07) / maxf(absf(d.x), 1e-4), (float(q.hd) - 0.07) / maxf(absf(d.z), 1e-4))
+				edge = cc + d * k
+			c.call("burrow", inside.call(edge))
+		"lay":
+			if not young:
+				c.call("lay")
+		"hatch":
+			if bool(c.get("berried")):
+				c.call("hatch")
+			else:
+				c.call("moult")
+		_:
+			c.call("wander", p if q.is_empty() else (q.c as Vector3), 0.25)
 
 
 ## Something to eat (or hunt), its own kind of food: what's here, or set
@@ -2632,36 +2771,21 @@ func _name_of(key: String) -> String:
 
 
 func _exit_tree() -> void:
-	Lepidoptera.perch_hook = Callable()
+	Lepidoptera.sway_of = Callable()
 
 
-## (A butterfly settled at, or off (on false), a flower's floret: that flower
-## eased still while it's on it, swaying again after: it can't sway with it.)
-func _on_perch(at: Vector3, on: bool) -> void:
+## (How much the flower's floret at `at` sways, for a butterfly or a moth
+## on it or at it to sway with it: its head's share, squared, as the
+## flower's shader sways it; 0 for anything else.)
+func _sway_of(at: Vector3) -> float:
 	for n: Node in _plants_near(at, 1.0, FLOWER_KINDS):
-		for f: Vector3 in n.get_meta("florets", []):
-			if f.distance_to(at) < 0.08:
-				n.set_meta("held", on)
-				return
-
-
-## (The flowers' sway eased toward theirs, or to still where one's held.)
-func _ease_sway(dt: float) -> void:
-	for n in _plants:
-		if not is_instance_valid(n) or float(n.get_meta("sway_k", 0.0)) <= 0.0:
-			continue
-		var want := 0.0 if n.get_meta("held", false) else float(n.get_meta("sway_k"))
-		var now := move_toward(float(n.get_meta("sway_now", want)), want, dt * float(n.get_meta("sway_k")) * 2.0)
-		if now == float(n.get_meta("sway_now", -1.0)):
-			continue
-		n.set_meta("sway_now", now)
-		for c in n.get_children():
-			if c is MeshInstance3D and (c as MeshInstance3D).material_override is ShaderMaterial:
-				((c as MeshInstance3D).material_override as ShaderMaterial).set_shader_parameter("sway_k", now)
+		for h: Array in n.get_meta("heads", []):
+			if (h[0] as Vector3).distance_to(at) < 0.03:
+				return float(h[2]) * float(h[2])
+	return 0.0
 
 
 func _process(dt: float) -> void:
-	_ease_sway(dt)
 	# the camera, round its focus
 	var k := Input.get_vector("ui_left", "ui_right", "ui_up", "ui_down")
 	if k != Vector2.ZERO and not (get_viewport().gui_get_focus_owner() is LineEdit):

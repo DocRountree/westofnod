@@ -113,12 +113,19 @@ static func _fur(olive: Color, cream: Color, burgundy: Color, band0: float, band
 	if _fur_shader == null:
 		_fur_shader = Shader.new()
 		_fur_shader.code = """shader_type spatial;
+#include "res://shaders/render/wind.gdshaderinc"
+uniform vec3 sway_at; // (swaying with the flower it's at: Lepidoptera)
+uniform float sway_k = 0.0;
 uniform vec3 olive : source_color;
 uniform vec3 cream : source_color;
 uniform vec3 burgundy : source_color;
 uniform vec2 band = vec2(-100.0);
 varying vec3 o;
-void vertex() { o = VERTEX; }
+void vertex() {
+	o = VERTEX;
+	if (sway_k > 0.0)
+		VERTEX += inverse(mat3(MODEL_MATRIX)) * wind_sway(sway_at + world_origin, TIME) / max(sway, 1e-3) * sway_k;
+}
 void fragment() {
 	float under = smoothstep(-0.8, -2.0, o.y); // (beneath)
 	vec3 c = mix(olive, cream, under * (1.0 - smoothstep(4.0, 6.0, o.z)));
@@ -193,6 +200,7 @@ func _think(dt: float) -> void:
 	var hovering := (_target - _pos).length() < 0.02
 	if _mode == "search":
 		_tongue = 0.0
+		_sway_k = 0.0
 		if hovering and _wait <= 0.0:
 			if not _flowers.is_empty() and rng.randf() < 0.45:
 				# up to a flower, a few cm in front of it, facing it
@@ -224,6 +232,7 @@ func _think(dt: float) -> void:
 						next = c
 						break
 			_at = next
+			sway_with(_florets[_at]) # (hovering at it, its tongue in it: swaying with it)
 			_wait = rng.randf_range(1.0, 2.4)
 			_tongue = 0.0 # (out of the old one, into the next)
 		var p: Vector3 = _florets[_at]

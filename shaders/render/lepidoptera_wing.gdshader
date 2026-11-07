@@ -14,6 +14,17 @@ render_mode cull_disabled, depth_prepass_alpha;
 // moth's, ~40 a second): a fan round the hinge, UV.x out from it, UV.y round
 // the stroke; faint, a little more at its two ends.
 
+#include "res://shaders/render/wind.gdshaderinc"
+
+// swaying with the flower it's on (Lepidoptera: as lepidoptera_body.gdshader)
+uniform vec3 sway_at;
+uniform float sway_k = 0.0;
+
+void vertex() {
+	if (sway_k > 0.0)
+		VERTEX += inverse(mat3(MODEL_MATRIX)) * wind_sway(sway_at + world_origin, TIME) / max(sway, 1e-3) * sway_k;
+}
+
 uniform sampler2D wings : source_color, filter_linear_mipmap_anisotropic, repeat_disable;
 uniform vec2 under = vec2(0.0);
 uniform int pattern = 0; // 0 a monarch, 1 a clearwing (the blur's colour)
