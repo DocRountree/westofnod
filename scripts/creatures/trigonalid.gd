@@ -13,8 +13,12 @@ extends "res://scripts/creatures/wasp.gd" # (by path: found whether or not the e
 ## lays her eggs by the thousand, tiny, along the margins of leaves (one in
 ## each little slit she makes there): they hatch only if a caterpillar eats
 ## them with the leaf, the larva then a parasite of whatever parasite is in
-## the caterpillar (or of the caterpillar's own wasp hunter's prey). So they
-## don't hatch here.
+## the caterpillar (a tachinid fly's maggot, say), coming out, grown, of
+## what's left of the caterpillar's pupa. Here, her eggs are just left (none
+## followed, none hatching, none kept); some milkweeds are seen with rows of
+## them on their leaves (one in ten, near: GroundCover's egg_share); and
+## one monarch chrysalis in three gives no butterfly but a trigonalid,
+## chewing its way out of it, dead (Pupa: parasitized).
 ##
 ## Its own (the paper wasp's others, but feed_on_insect, sting and
 ## lay_eggs, it has as theirs):

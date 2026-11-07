@@ -25,6 +25,13 @@ extends Node3D
 ## Its origin: the monarch's, the stalk's top (hang it there); the
 ## clearwing's, the ground under its middle, its head toward -z.
 ##
+## One monarch chrysalis in three (parasitized: its caterpillar ate a
+## trigonalid wasp's eggs with a leaf, and its larva lived on the fly's
+## maggot in it) gives no butterfly: ripening, it dulls and darkens, dead,
+## brown to black, no wings showing through, and then a trigonalid wasp
+## (Trigonalid) chews a little round hole in its front and comes out of it,
+## rests on it a while, and flies off; the dead case left hanging, holed.
+##
 ## And the rest (no shader of their own: plain, painted with parts):
 ## - lady: the lady beetle's, glued by its tail to where its larva stopped,
 ##   hunched, its front raised: orange, black spots over its back, its
@@ -54,6 +61,10 @@ const MOTH_SHELL := [[0.0, 0.4, 0.4], [1.0, 2.6, 2.4], [3.0, 4.0, 3.7], [8.0, 4.
 		[19.0, 3.1, 2.8], [22.0, 2.0, 1.8], [24.0, 1.0, 0.9], [25.5, 0.25, 0.25]]
 
 var kind := "monarch"
+## (A monarch's: a trigonalid wasp in it, not a butterfly: one in
+## PARASITIZED_ONE_IN, chosen when it's made.)
+var parasitized := false
+const PARASITIZED_ONE_IN := 3
 var adult: Node3D ## once out (the others': their colony)
 var colony: Node ## (the lady's, the June bug's, the ants': the colony its adult joins)
 var _shell: MeshInstance3D
@@ -71,6 +82,7 @@ var _after := Callable()
 
 func _init(k := "monarch") -> void:
 	kind = k
+	parasitized = kind == "monarch" and randf() < 1.0 / PARASITIZED_ONE_IN
 
 
 func _ready() -> void:
@@ -276,10 +288,13 @@ func _process(dt: float) -> void:
 	if _state == "ripening":
 		var ripe := clampf(_t / 3.5, 0.0, 1.0)
 		if _mat:
-			_mat.set_shader_parameter("ripe", ripe)
-		# working inside it: wriggling, more as it ripens
+			_mat.set_shader_parameter("dead" if parasitized else "ripe", ripe)
+		# working inside it: wriggling, more as it ripens (dead, parasitized:
+		# only a tremor at the end, the wasp chewing its way out)
 		var w := ripe * ripe
-		if kind == "monarch":
+		if parasitized:
+			_body.rotation = Vector3(0.0, sin(_t * 40.0) * 0.01 * smoothstep(0.7, 1.0, ripe), 0.0)
+		elif kind == "monarch":
 			_body.rotation = Vector3(sin(_t * 7.0) * 0.05 * w, sin(_t * 3.1) * 0.15 * w, sin(_t * 9.0) * 0.04 * w)
 		elif kind != "wasp":
 			_body.rotation = Vector3(0.0, sin(_t * 8.0) * 0.07 * w, 0.0)
@@ -300,9 +315,12 @@ func _process(dt: float) -> void:
 func _split() -> void:
 	_state = "out"
 	_body.rotation = Vector3.ZERO
+	var parent := get_parent() as Node3D
+	if parasitized:
+		_wasp_out(parent)
+		return
 	if _mat:
 		_mat.set_shader_parameter("empty", true)
-	var parent := get_parent() as Node3D
 	if parent == null:
 		return
 	if kind != "monarch" and kind != "hemaris":
@@ -337,6 +355,31 @@ func _split() -> void:
 		a.call("place", to.call(Vector3(0.0, 4.0, -6.0)))
 		a.call("emerge", at, n, head, _done.bind(a), to.call(Vector3(0.0, 4.0, -6.0)), fwd, Vector3.UP)
 	adult = a
+
+
+## (Parasitized: a hole chewed in its front, the case left dead and dark;
+## a trigonalid out of it, a while on it, then off.)
+const HOLE := Vector3(0.0, -13.9, 5.6) ## mm: where the wasp chews out (the case's front, at its widest)
+
+
+func _wasp_out(parent: Node3D) -> void:
+	if _mat:
+		_mat.set_shader_parameter("holed", true)
+	if parent == null:
+		return
+	var w: Node3D = load("res://scripts/creatures/trigonalid.gd").new()
+	w.set("male", randf() < 0.5)
+	parent.add_child(w)
+	var b := global_transform.basis
+	var front := (b * Vector3.BACK).normalized()
+	var hole := global_transform * (HOLE * MM)
+	w.call("place", parent.to_local(hole + front * 0.004))
+	w.call("land", parent.to_local(hole), front)
+	adult = w
+	_done(w)
+	await get_tree().create_timer(4.0).timeout
+	if is_instance_valid(w) and w.is_inside_tree():
+		w.call("seek_food", parent.to_local(hole) + Vector3(0.0, -parent.to_local(hole).y, 0.0), 1.2)
 
 
 ## (The others out: the case left empty, pale (the cocoon as it is, the

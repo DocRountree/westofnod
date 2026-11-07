@@ -15,10 +15,16 @@ render_mode depth_prepass_alpha, cull_disabled;
 // ripe 0..1: going dark and clear, the wings inside showing through (the
 // monarch's orange and black). empty: split, left behind: pale, see-
 // through, a slit open where it came out.
+// dead 0..1 (the monarch's, parasitized: a trigonalid wasp in it, not a
+// butterfly): going dull, brown to black, its gold gone dim, no wings
+// showing; holed: the little round hole the wasp chewed out of it, on its
+// front (left hanging so, dead, dark, whole but for that).
 
 uniform int kind = 0;
 uniform float ripe = 0.0;
 uniform bool empty = false;
+uniform float dead = 0.0;
+uniform bool holed = false;
 
 float dot_at(vec2 p, vec2 c, float r) {
 	return 1.0 - smoothstep(r * 0.7, r, length(p - c));
@@ -67,6 +73,12 @@ void fragment() {
 		vec3 wing = mix(vec3(0.85, 0.36, 0.05), dark, max(vein, rim));
 		vec3 ripe_c = mix(dark, wing, wings);
 		c = mix(c, ripe_c, smoothstep(0.0, 1.0, ripe) * (1.0 - gold * 0.6));
+		// dead: dulled through brown to near black, the gold gone dim
+		vec3 dead_c = mix(vec3(0.24, 0.16, 0.07), vec3(0.06, 0.045, 0.03), smoothstep(0.3, 1.0, dead));
+		c = mix(c, dead_c * (1.0 + gold * 0.6), smoothstep(0.0, 1.0, dead));
+		metal *= 1.0 - 0.7 * dead;
+		if (holed && fr > 0.9 && length(vec2((1.0 - fr) * 4.0, (v - 0.42) * 26.0)) < 0.7)
+			discard; // (the wasp's way out)
 	} else {
 		c = vec3(0.27, 0.14, 0.07);
 		// the abdomen's rings (the back half of it), darker in the joints

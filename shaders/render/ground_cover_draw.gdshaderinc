@@ -71,6 +71,11 @@ uniform vec3 frond_mean = vec3(0.03, 0.07, 0.006); // linear: the frond texture'
 // too): a trodden layer (the forest's grass) is bent flat and muddied where
 // the boots have left mud. One read a clump.
 uniform bool trodden = false;
+// A trigonalid wasp's eggs, rows along some leaves' margins (the milkweeds':
+// UV.x 5..6): on egg_share of the clumps, and only within egg_reach m (no
+// more than dots, nearer; nothing to see further off)
+uniform float egg_share = 0.0;
+uniform float egg_reach = 3.0;
 uniform sampler2D print_tex : filter_linear, repeat_disable;
 uniform vec3 print_window = vec3(0.0);
 
@@ -133,9 +138,9 @@ void vertex() {
 	}
 	frac = COLOR.b;
 	pick = 0.0;
-	part = UV.x > 4.0 ? 4 : (UV.x > 3.0 ? 3 : (UV.x > 1.5 ? 2 : (UV.x > 1.1 ? 1 : 0)));
+	part = UV.x > 5.0 ? 5 : (UV.x > 4.0 ? 4 : (UV.x > 3.0 ? 3 : (UV.x > 1.5 ? 2 : (UV.x > 1.1 ? 1 : 0))));
 	fade = grow;
-	if (size <= 0.0) {
+	if (size <= 0.0 || (part == 5 && (h2(c, 12) >= egg_share || d > egg_reach))) {
 		VERTEX = vec3(0.0, -1e4, 0.0); // nothing here: no pixels
 		world_pos = vec3(0.0);
 		root_col = vec3(0.0);
@@ -216,7 +221,9 @@ void fragment() {
 		// a flower's head darker at dusk and night than the grass (pale
 		// petals glowed under the night's wider exposure)
 		float head_dim = 1.0 - 0.8 * night;
-		if (part == 4) // a flower's disc
+		if (part == 5) // a wasp's egg: dark brown, glossy
+			c = pow(vec3(0.24, 0.15, 0.08), vec3(2.2)) * head_dim;
+		else if (part == 4) // a flower's disc
 			c = pow(disc_color, vec3(2.2)) * COLOR.r * head_dim;
 		else if (part == 3) // its rays
 			c = pow(petal_mix > 0.0 ? mix(petal_color, petal_alt, pow(pick, petal_mix))
@@ -230,12 +237,12 @@ void fragment() {
 	// a flower's head: its own colours, or its stem's once it's only a few
 	// pixels across (the metres a pixel spans at its distance)
 	float head_k = 1.0;
-	if (part >= 3) {
+	if (part == 3 || part == 4) {
 		float mpp = 2.0 * max(-VERTEX.z, 0.01) / (PROJECTION_MATRIX[1][1] * VIEWPORT_SIZE.y);
 		head_k = smoothstep(head_px.x, head_px.y, head_size / max(mpp, 1e-6));
 		c = mix(tip_col * 0.9, c, head_k);
 	}
-	ALBEDO = mix(c, root_col, part >= 3 ? far * (1.0 - head_k) : far);
+	ALBEDO = mix(c, root_col, part == 5 ? 0.0 : (part >= 3 ? far * (1.0 - head_k) : far));
 	ROUGHNESS = 0.85;
 	SPECULAR = 0.2;
 	FOG = aerial_fog(world_pos, CAMERA_POSITION_WORLD + world_origin);

@@ -85,6 +85,11 @@ static func build(parent: Node3D, flowers: String, near: Vector2, tall: float, g
 	out_c.resize(vs.size())
 	out_f.resize(vs.size())
 	var heads := []
+	# (a trigonalid wasp's eggs along its leaves: on one in so many, as the
+	# game's: GroundCover, egg_share)
+	var egg_rng := RandomNumberGenerator.new()
+	egg_rng.seed = seed * 31 + 7
+	var eggs_here := egg_rng.randf() < float(u.get("egg_share", 0.0))
 	for i in vs.size():
 		var root := _turn(uv2s[i], spin)
 		var v := _turn(Vector2(vs[i].x, vs[i].z), spin)
@@ -95,7 +100,11 @@ static func build(parent: Node3D, flowers: String, near: Vector2, tall: float, g
 		var frac := cols[i].b
 		var col: Vector3
 		var ux := uvs[i].x
-		if ux > 4.0: # (a disc)
+		if ux > 5.0: # (a wasp's egg: there, or none: down to a point)
+			col = Vector3(0.24, 0.15, 0.08)
+			if not eggs_here:
+				w = Vector3(pos.x, 0.0, pos.y)
+		elif ux > 4.0: # (a disc)
 			col = disc * cols[i].r
 			if uvs[i].y < 0.01:
 				heads.append([w, nrm, frac])

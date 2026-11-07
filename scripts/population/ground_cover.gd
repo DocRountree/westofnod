@@ -146,7 +146,7 @@ const LAYERS := [
 	# small mauve-pink flowers. On a coarser grid (3 m cells): a clump's
 	# flowers are many
 	{"cell": 3.0, "cells": 8, "tiles": 5, "flowers": "milkweed", "stems": 1, "radius": 0.15,
-		"u": {"kind": 2, "seed": 14, "in_forest": false, "cover": 0.5, "drift": Vector3(18.0, 0.3, 12.7),
+		"u": {"kind": 2, "seed": 14, "in_forest": false, "cover": 0.5, "drift": Vector3(18.0, 0.3, 12.7), "egg_share": 0.1,
 			"forest_height": Vector2(0.6, 0.9), "prairie_height": Vector2(1.1, 1.5),
 			"prairie_green": Vector3(0.3, 0.4, 0.22), "prairie_blonde": Vector3(0.36, 0.42, 0.24), # (blue-grey green)
 			"petal_color": Vector3(0.86, 0.56, 0.66), "petal_base": Vector3(0.74, 0.42, 0.52), "petal_alt": Vector3(0.9, 0.68, 0.74), "petal_alt_share": 0.3,
@@ -155,7 +155,7 @@ const LAYERS := [
 	# swamp milkweed (Asclepias incarnata): the swamp's, sparse; branching near
 	# its top into flat clusters of small deep pink flowers, narrow leaves
 	{"cell": 3.0, "cells": 8, "tiles": 5, "flowers": "swamp_milkweed", "stems": 2, "radius": 0.2,
-		"u": {"kind": 2, "seed": 15, "in_forest": false, "in_prairie": false, "in_swamp": true, "swamp_clumped": false, "cover": 0.4,
+		"u": {"kind": 2, "seed": 15, "in_forest": false, "in_prairie": false, "in_swamp": true, "swamp_clumped": false, "cover": 0.4, "egg_share": 0.1,
 			"drift": Vector3(16.0, 0.35, -9.1), "prairie_height": Vector2(1.0, 1.4),
 			"prairie_green": Vector3(0.24, 0.35, 0.13), "prairie_blonde": Vector3(0.3, 0.38, 0.15),
 			"petal_color": Vector3(0.85, 0.3, 0.5), "petal_base": Vector3(0.72, 0.2, 0.4), "petal_alt": Vector3(0.92, 0.55, 0.68), "petal_alt_share": 0.2,
@@ -184,7 +184,7 @@ const BAKE_KEYS := ["kind", "seed", "in_forest", "in_prairie", "in_swamp", "swam
 		"fade_in", "fade_out", "thin_from"]
 const BAKE_MARGIN := 6.0 ## m past a layer's rebake distance the eye may go before a bake's distance culling shows (the bake's, the readback's lag)
 const DRAW_KEYS := ["kind", "seed", "fade_in", "fade_out", "thin_from", "prairie_green", "prairie_blonde", "patch_tints",
-		"petal_color", "petal_base", "petal_alt", "petal_alt_share", "disc_color", "head_size", "head_px", "petal_mix", "trodden"]
+		"petal_color", "petal_base", "petal_alt", "petal_alt_share", "disc_color", "head_size", "head_px", "petal_mix", "trodden", "egg_share"]
 
 var world: WorldData
 var population: Population ## (optional) its logs and stumps keep the grass off
@@ -1005,6 +1005,26 @@ static func flower_mesh(kind: String, stems: int, radius: float, seed: int, leav
 			st.add_index(b0 + 1 + i)
 			st.add_index(b0 + 1 + (i + 1) % RIM)
 		base[0] += RIM + 1
+	# a trigonalid wasp's eggs, a row of them just in from a leaf's margin
+	# (its blade from p0 to p2 through p1, half widths hw (m), its side and
+	# normal): tiny dark dots, each a quad (UV.x 5.25: shown on one clump in
+	# so many, and only near: ground_cover_draw.gdshaderinc egg_share)
+	var eggs := func(root: Vector2, p0: Vector3, p1: Vector3, p2: Vector3, hw: Array, side: Vector3, n: Vector3) -> void:
+		const EGGS := 11
+		const R_EGG := 0.0006 # m (larger than life, to see: theirs are ~0.15 mm)
+		for k in EGGS:
+			var t := 0.18 + 0.64 * k / (EGGS - 1.0)
+			var q := (p0.lerp(p1, t * 2.0) if t < 0.5 else p1.lerp(p2, t * 2.0 - 1.0))
+			var h: float = lerpf(float(hw[0]), float(hw[1]), t * 2.0) if t < 0.5 else lerpf(float(hw[1]), float(hw[2]), t * 2.0 - 1.0)
+			var along := ((p2 - p0) * Vector3(1.0, 0.0, 1.0)).normalized()
+			var mid := side * h * 0.82 + along * sin(k * 12.9898) * 0.0004 # (not the rng: the clump otherwise as it was)
+			var col := Color(1.0, 0.0, q.y)
+			var b0: int = base[0]
+			for c in [Vector2(-1, -1), Vector2(1, -1), Vector2(1, 1), Vector2(-1, 1)]:
+				vert.call(root, q, n, Vector2(5.25, 0.0), col, mid + along * c.x * R_EGG * 1.4 + side * c.y * R_EGG + n * 0.0003)
+			for i in [b0, b0 + 1, b0 + 2, b0, b0 + 2, b0 + 3]:
+				st.add_index(i)
+			base[0] += 4
 	for b in stems:
 		var a := rng.randf() * TAU
 		var root := Vector2(cos(a), sin(a)) * sqrt(rng.randf()) * radius
@@ -1060,6 +1080,8 @@ static func flower_mesh(kind: String, stems: int, radius: float, seed: int, leav
 					var ll := rng.randf_range(0.11, 0.15) / H
 					var pts := [at, at + Vector3(ld.x * ll * 0.5, ll * 0.22, ld.y * ll * 0.5), at + Vector3(ld.x * ll, ll * 0.15, ld.y * ll)]
 					strip.call(root, pts, [0.004, 0.032, 0.003], Vector3(-ld.y, 0.0, ld.x), Vector3(ld.x * 0.3, 1.0, ld.y * 0.3).normalized(), shade, 0.0)
+					if (k == 1 or k == 3) and sd > 0.0: # (eggs along two of its leaves)
+						eggs.call(root, pts[0], pts[1], pts[2], [0.004, 0.032, 0.003], Vector3(-ld.y, 0.0, ld.x), Vector3(ld.x * 0.3, 1.0, ld.y * 0.3).normalized())
 					# (where its leaves are, if asked: a caterpillar's to sit on, a
 					# monarch's to lay on: [its stem's root, its blade's middle, its
 					# normal, its way out] in the mesh's space)
@@ -1113,6 +1135,8 @@ static func flower_mesh(kind: String, stems: int, radius: float, seed: int, leav
 					var ll := rng.randf_range(0.09, 0.13) / H
 					var pts := [at, at + Vector3(ld.x * ll * 0.5, ll * 0.35, ld.y * ll * 0.5), at + Vector3(ld.x * ll, ll * 0.45, ld.y * ll)]
 					strip.call(root, pts, [0.002, 0.008, 0.001], Vector3(-ld.y, 0.0, ld.x), Vector3(ld.x * 0.4, 1.0, ld.y * 0.4).normalized(), shade, 0.0)
+					if (k == 2 or k == 4) and sd > 0.0 and b == 0: # (eggs along two of its leaves)
+						eggs.call(root, pts[0], pts[1], pts[2], [0.002, 0.008, 0.001], Vector3(-ld.y, 0.0, ld.x), Vector3(ld.x * 0.4, 1.0, ld.y * 0.4).normalized())
 			for cl in rng.randi_range(3, 4):
 				var ba := rng.randf() * TAU
 				var reach := rng.randf_range(0.03, 0.08)
