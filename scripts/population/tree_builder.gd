@@ -198,6 +198,7 @@ func _mesh(bark_mat: Material, leaf_mat: Material, max_level: int, clump_size: f
 	var crown_r := _crown_radius(centre)
 	var r := RandomNumberGenerator.new()
 	r.seed = rng.seed + 77
+	var clumps := 0
 	for i in sprigs.size():
 		var s: Array = sprigs[i]
 		var p: Vector3 = pos[s[0]]
@@ -215,8 +216,22 @@ func _mesh(bark_mat: Material, leaf_mat: Material, max_level: int, clump_size: f
 			var spin := r.randf() * TAU
 			_card(leaves, at, d, spin, clump_size, tile, centre, crown_r, true, r)
 			_card(leaves, at, d, spin + PI * 0.5, clump_size, sprig_tiles + (tile + 1) % clump_tiles, centre, crown_r, true, r)
+			clumps += 1
+	if thin > 0 and clumps == 0:
+		# (a small bush's few sprigs, 1 in thin of them kept, could keep
+		# none: bare far off. One clump at least, on a sprig picked alike)
+		var s: Array = sprigs[r.randi() % sprigs.size()]
+		var d: Vector3 = s[1]
+		_card_sway = sway[s[0]] if sways else 0.0
+		_cur_limb = limb[s[0]]
+		var tile := sprig_tiles + r.randi() % clump_tiles
+		var at: Vector3 = pos[s[0]] + d * clump_size * 0.3
+		var spin := r.randf() * TAU
+		_card(leaves, at, d, spin, clump_size, tile, centre, crown_r, true, r)
+		_card(leaves, at, d, spin + PI * 0.5, clump_size, sprig_tiles + (tile + 1) % clump_tiles, centre, crown_r, true, r)
 	leaves.commit(mesh)
-	mesh.surface_set_material(1, leaf_mat)
+	if mesh.get_surface_count() > 1:
+		mesh.surface_set_material(1, leaf_mat)
 	return mesh
 
 
