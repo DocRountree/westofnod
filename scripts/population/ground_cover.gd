@@ -19,12 +19,13 @@ const SettingsScript := preload("res://scripts/settings.gd") # (by path: found w
 ## it's ready.
 ##
 ## Layers:
-## - grass, near (to 17 m): dense; short in the forest (the ground's colour,
-##   a little lighter at the tips), about head-high on the prairie (green
-##   to blonde);
-## - grass, middle (12-52 m): bigger, fewer clumps of the same (fewer,
-##   wider blades);
-## - grass, far (42-125 m): the prairie's only (fewer blades still, straight);
+## - the prairie's grass, near (to 17 m): dense, about head-high (green to
+##   blonde); short where it gives way to the forest;
+## - its middle (12-52 m): bigger, fewer clumps of the same (fewer, wider
+##   blades);
+## - its far (42-125 m): fewer blades still, straight;
+## - the forest's grass: short (the ground's colour, a little lighter at
+##   the tips), a few straight blades a clump, to 22 m;
 ## - reeds: the swamp's, 1.8-2.3 m, broad-bladed, in clumps here and there
 ##   (sparse patches, in the water too); to 72 m;
 ## - cattails among them: stalks with brown heads, a few leaves; to 66 m;
@@ -52,21 +53,37 @@ const SettingsScript := preload("res://scripts/settings.gd") # (by path: found w
 ## A tile where its layer can't grow anything (no biome it grows in reaches
 ## it, as the ground blends them: WorldData.biome_bits_at; the marram, no
 ## beach either) isn't drawn at all: the reeds' tiles on the prairie, the
-## ferns' out of the forest. Every empty cell of a drawn tile still costs
-## its clump's every corner.
+## ferns' out of the forest. Nor is an empty cell: each bake is read back
+## and every tile given only its cells with a clump (out of range, or
+## thinned away, counting as empty), and the tiles further off a simpler
+## mesh (a layer's lods). Only the ferns' shader throws pixels away
+## (ground_cover_draw.gdshaderinc): the rest come and go by growing and
+## shrinking.
 
 const LAYERS := [
 	# cell (m), cells a tile side, tiles a side (odd), the mesh, uniforms
+	# the prairie's grass (the forest's is its own, short and cheap, below);
+	# lods: [from (m, the tile's nearest), blades, segments, width x],
+	# simpler meshes for the tiles further off (the same blades, the first
+	# so many of them, in fewer segments)
 	{"cell": 0.25, "cells": 24, "tiles": 7, "blades": 10, "segs": 3, "radius": 0.16, "width": 0.016,
-		"u": {"kind": 0, "seed": 1, "forest_height": Vector2(0.07, 0.16), "prairie_height": Vector2(1.5, 2.0),
+		"lods": [[6.0, 10, 2, 1.0], [11.0, 8, 2, 1.15]],
+		"u": {"kind": 0, "seed": 1, "in_forest": false, "forest_height": Vector2(0.07, 0.16), "prairie_height": Vector2(1.5, 2.0),
 			"fade_out": Vector2(12.0, 17.0), "thin_from": 1000.0}},
 	{"cell": 0.55, "cells": 24, "tiles": 9, "blades": 11, "segs": 2, "radius": 0.32, "width": 0.027,
-		"u": {"kind": 0, "seed": 2, "forest_height": Vector2(0.07, 0.16), "prairie_height": Vector2(1.5, 2.0),
+		"lods": [[26.0, 8, 1, 1.3]],
+		"u": {"kind": 0, "seed": 2, "in_forest": false, "forest_height": Vector2(0.07, 0.16), "prairie_height": Vector2(1.5, 2.0),
 			"fade_in": Vector2(12.0, 17.0), "fade_out": Vector2(40.0, 52.0), "thin_from": 28.0}},
 	{"cell": 1.3, "cells": 20, "tiles": 11, "blades": 9, "segs": 1, "radius": 0.6, "width": 0.065,
 		"u": {"kind": 0, "seed": 3, "in_forest": false, "prairie_height": Vector2(1.5, 2.0),
 			"fade_in": Vector2(42.0, 52.0), "fade_out": Vector2(100.0, 125.0), "thin_from": 80.0}},
+	# the forest's grass: short (7-16 cm), so a few straight blades a clump,
+	# and only near: further off it's no more than the ground's colour
+	{"cell": 0.25, "cells": 24, "tiles": 7, "blades": 5, "segs": 1, "radius": 0.16, "width": 0.02,
+		"u": {"kind": 0, "seed": 17, "in_prairie": false, "forest_height": Vector2(0.07, 0.16),
+			"fade_out": Vector2(16.0, 22.0), "thin_from": 12.0}},
 	{"cell": 1.0, "cells": 16, "tiles": 9, "blades": 11, "segs": 4, "radius": 0.4, "width": 0.068,
+		"lods": [[22.0, 11, 2, 1.0], [42.0, 8, 1, 1.25]],
 		"u": {"kind": 0, "seed": 5, "in_forest": false, "in_prairie": false, "in_swamp": true, "prairie_height": Vector2(1.8, 2.3),
 			"prairie_green": Vector3(0.22, 0.33, 0.12), "prairie_blonde": Vector3(0.5, 0.45, 0.28),
 			"fade_out": Vector2(55.0, 72.0), "thin_from": 40.0}},
@@ -76,10 +93,12 @@ const LAYERS := [
 			"fade_out": Vector2(50.0, 66.0), "thin_from": 40.0}},
 	# marram, along the coast: half the prairie grass's height, as pale as the sand
 	{"cell": 0.3, "cells": 24, "tiles": 9, "blades": 12, "segs": 3, "radius": 0.2, "width": 0.018,
+		"lods": [[10.0, 12, 2, 1.0]],
 		"u": {"kind": 0, "seed": 7, "in_forest": false, "in_prairie": false, "in_coast": true, "prairie_height": Vector2(0.75, 1.0),
 			"prairie_green": Vector3(0.76, 0.74, 0.58), "prairie_blonde": Vector3(0.88, 0.84, 0.69), "patch_tints": Vector2(0.2, 0.2),
 			"fade_out": Vector2(18.0, 25.0), "thin_from": 1000.0}},
 	{"cell": 0.7, "cells": 20, "tiles": 9, "blades": 14, "segs": 2, "radius": 0.38, "width": 0.028,
+		"lods": [[32.0, 10, 1, 1.2]],
 		"u": {"kind": 0, "seed": 8, "in_forest": false, "in_prairie": false, "in_coast": true, "prairie_height": Vector2(0.75, 1.0),
 			"prairie_green": Vector3(0.76, 0.74, 0.58), "prairie_blonde": Vector3(0.88, 0.84, 0.69), "patch_tints": Vector2(0.2, 0.2),
 			"fade_in": Vector2(18.0, 25.0), "fade_out": Vector2(48.0, 62.0), "thin_from": 32.0}},
@@ -153,7 +172,7 @@ const LAYERS := [
 			"petal_color": Vector3(0.42, 0.48, 0.27), "petal_base": Vector3(0.36, 0.42, 0.22), "petal_alt": Vector3(0.5, 0.48, 0.3), "petal_alt_share": 0.3,
 			"disc_color": Vector3(0.38, 0.44, 0.24), "head_size": 0.008, "head_px": Vector2(2.0, 5.0),
 			"fade_out": Vector2(22.0, 30.0), "thin_from": 16.0}},
-	{"cell": 0.5, "cells": 24, "tiles": 9, "fronds": 8,
+	{"cell": 0.5, "cells": 24, "tiles": 9, "fronds": 8, "lods": [[14.0, 8, 2, 1.0]],
 		"u": {"kind": 1, "seed": 4, "in_prairie": false, "forest_height": Vector2(0.25, 0.45),
 			"fade_out": Vector2(32.0, 45.0), "thin_from": 16.0}},
 ]
@@ -161,7 +180,9 @@ const MAX_LOGS := 256 ## logs, stumps, trunks and boulders the grass is kept out
 const MAX_GONE := 64 ## clumps picked a layer hides (ground_cover_bake.gdshader: gone[]), the nearest
 const REBAKE := 5.0 ## m the camera moves before a layer's grid is worked out again (more for the layers further out: 8% of their fade_out)
 const BAKES_PER_FRAME := 2 ## layers' grids worked out a frame, at most (all thirteen at once made a hitch)
-const BAKE_KEYS := ["kind", "seed", "in_forest", "in_prairie", "in_swamp", "swamp_clumped", "in_coast", "forest_height", "prairie_height", "cover", "drift", "on_litter"]
+const BAKE_KEYS := ["kind", "seed", "in_forest", "in_prairie", "in_swamp", "swamp_clumped", "in_coast", "forest_height", "prairie_height", "cover", "drift", "on_litter",
+		"fade_in", "fade_out", "thin_from"]
+const BAKE_MARGIN := 6.0 ## m past a layer's rebake distance the eye may go before a bake's distance culling shows (the bake's, the readback's lag)
 const DRAW_KEYS := ["kind", "seed", "fade_in", "fade_out", "thin_from", "prairie_green", "prairie_blonde", "patch_tints",
 		"petal_color", "petal_base", "petal_alt", "petal_alt_share", "disc_color", "head_size", "head_px", "petal_mix"]
 
@@ -198,11 +219,14 @@ func setup(w: WorldData) -> void:
 				L.u[key] = (L.u[key] as Vector2) * gs
 		if L.u.has("thin_from") and float(L.u.thin_from) < 999.0:
 			L.u.thin_from = float(L.u.thin_from) * gs
+		var lods: Array = []
+		for lo: Array in L.get("lods", []):
+			lods.append([float(lo[0]) * gs, lo[1], lo[2], lo[3]])
 		var reach: float = (L.u.get("fade_out", Vector2(30.0, 40.0)) as Vector2).y
 		L.tiles = mini(maxi(L.tiles, ceili(L.tiles * gs)) | 1, 2 * ceili(reach / (L.cell * L.cells)) + 1)
 		var grid: int = L.cells * L.tiles
 		var m := ShaderMaterial.new()
-		m.shader = load("res://shaders/render/ground_cover.gdshader")
+		m.shader = load("res://shaders/render/ground_cover_fern.gdshader" if L.u.kind == 1 else "res://shaders/render/ground_cover.gdshader")
 		m.set_shader_parameter("cell", L.cell)
 		if L.u.kind == 1:
 			m.set_shader_parameter("frond_tex", OakTree._texture("res://data/population/textures/fern_frond.png"))
@@ -237,6 +261,7 @@ func setup(w: WorldData) -> void:
 			bm.set_shader_parameter("cd_leaf", Cdlod.GRID * world.cell() / 8.0)
 			bm.set_shader_parameter("cd_range_factor", Cdlod.RANGE_FACTOR)
 			bm.set_shader_parameter("cd_morph_start", Cdlod.MORPH_START)
+			bm.set_shader_parameter("margin", _again(L) + BAKE_MARGIN)
 			for k in L.u:
 				if k in BAKE_KEYS:
 					bm.set_shader_parameter(k, L.u[k])
@@ -257,13 +282,12 @@ func setup(w: WorldData) -> void:
 		else:
 			mesh = grass_mesh(L.blades, L.segs, L.radius, L.width, L.u.seed)
 		mesh.surface_set_material(0, m)
-		var mm := MultiMesh.new()
-		mm.transform_format = MultiMesh.TRANSFORM_3D
-		mm.mesh = mesh
-		mm.instance_count = L.cells * L.cells
-		for i in L.cells:
-			for j in L.cells:
-				mm.set_instance_transform(i * L.cells + j, Transform3D(Basis(), Vector3(i * L.cell, 0.0, j * L.cell)))
+		# the simpler meshes for the tiles further off ([from, mesh], nearest first)
+		var meshes: Array = [[0.0, mesh]]
+		for lo: Array in lods:
+			var lm: Mesh = fern_mesh(lo[1], lo[2]) if L.u.kind == 1 else grass_mesh(lo[1], lo[2], L.radius, L.width * float(lo[3]), L.u.seed)
+			lm.surface_set_material(0, m)
+			meshes.append([lo[0], lm])
 		# what it grows in: biome bits, and whether beaches too
 		var need := 0
 		for pair in [["forest", L.u.get("in_forest", true)], ["prairie", L.u.get("in_prairie", true)],
@@ -272,7 +296,7 @@ func setup(w: WorldData) -> void:
 			if pair[1] and b >= 0 and b < 31:
 				need |= 1 << b
 		_layers.append({"need": need, "beach": L.u.get("in_coast", false), "live": {},
-				"L": L, "mm": mm, "size": L.cell * L.cells, "tiles": {}, "centre": Vector2i.MAX,
+				"L": L, "meshes": meshes, "size": L.cell * L.cells, "tiles": {}, "bufs": {}, "task": -1, "centre": Vector2i.MAX,
 				"material": m, "vps": vps, "bakes": bakes, "shown": -1, "baking": false, "want": Vector2i.MAX, "cam": Vector3.ZERO, "baked": Vector3.INF, "walks": -1,
 				"grid_shown": Vector2i.MAX, "cull_at": Vector3.INF,
 				"item": item_of(L), "gone": [], "img": null})
@@ -322,26 +346,38 @@ func update(cam: Vector3) -> void:
 				if not wanted.has(key):
 					spare.append(tiles[key])
 					tiles.erase(key)
+					layer.bufs.erase(key)
 			for key: Vector2i in wanted:
 				if tiles.has(key):
 					continue
 				var mi: MultiMeshInstance3D = spare.pop_back() if not spare.is_empty() else null
 				if mi == null:
 					mi = MultiMeshInstance3D.new()
-					mi.multimesh = layer.mm
+					var mm := MultiMesh.new() # (its own: only its cells that grow anything, _fill_tiles)
+					mm.transform_format = MultiMesh.TRANSFORM_3D
+					mm.mesh = layer.meshes[0][1]
+					mi.multimesh = mm
 					mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 					add_child(mi)
+				else:
+					_show_cells(mi, PackedFloat32Array(), mi.multimesh.mesh) # (empty till its cells are worked out)
 				mi.position = Vector3(key.x * size, 0.0, key.y * size)
 				mi.custom_aabb = _box(mi.position, size)
 				tiles[key] = mi
 			for mi in spare:
 				mi.queue_free()
 			layer.cull_at = Vector3.INF
-		# the tiles shown: those that can grow anything, within range
+		# the tiles shown: those with anything growing, within range; each
+		# with the mesh for its distance
 		if cam.distance_to(layer.cull_at) > 1.0:
 			layer.cull_at = cam
 			for key: Vector2i in tiles:
-				(tiles[key] as MultiMeshInstance3D).visible = _tile_grows(layer, key) and _tile_in_range(layer, key, cam)
+				var mi: MultiMeshInstance3D = tiles[key]
+				mi.visible = mi.multimesh.instance_count > 0 and _tile_grows(layer, key) and _tile_in_range(layer, key, cam)
+				if mi.visible:
+					var want := _lod_mesh(layer, _tile_near(layer, key, cam))
+					if mi.multimesh.mesh != want:
+						_show_cells(mi, layer.bufs.get(key, PackedFloat32Array()), want)
 		# (the ground's heights are as the terrain draws them from the eye,
 		# which changes as it moves: worked out again every few metres, more
 		# for the layers further out; and when logs or stumps come or go)
@@ -349,7 +385,7 @@ func update(cam: Vector3) -> void:
 			continue
 		var moved: bool = layer.want != layer.grid_shown
 		var logs_moved: bool = population != null and population.walk_changes != layer.walks
-		var again := maxf(REBAKE, (L.u.get("fade_out", Vector2(30.0, 40.0)) as Vector2).y * 0.08)
+		var again := _again(L)
 		if moved or logs_moved or cam.distance_to(layer.baked) > again:
 			due.append([0 if moved else 1, layer])
 	due.sort_custom(func(a: Array, b: Array) -> bool: return a[0] < b[0])
@@ -357,6 +393,44 @@ func update(cam: Vector3) -> void:
 		var layer: Dictionary = due[i][1]
 		layer.cam = cam
 		_bake(layer)
+
+
+## m the camera goes before a layer's grid is worked out again.
+static func _again(L: Dictionary) -> float:
+	return maxf(REBAKE, (L.u.get("fade_out", Vector2(30.0, 40.0)) as Vector2).y * 0.08)
+
+
+## How far tile key's nearest point is from cam (m, across the ground).
+func _tile_near(layer: Dictionary, key: Vector2i, cam: Vector3) -> float:
+	var size: float = layer.size
+	var lo := Vector2(key) * size
+	var c := Vector2(cam.x, cam.z)
+	return c.clamp(lo, lo + Vector2(size, size)).distance_to(c)
+
+
+## The layer's mesh for a tile whose nearest point is near m off.
+static func _lod_mesh(layer: Dictionary, near: float) -> Mesh:
+	var meshes: Array = layer.meshes
+	var m: Mesh = meshes[0][1]
+	for e: Array in meshes:
+		if near >= float(e[0]):
+			m = e[1]
+	return m
+
+
+## Tile mi draws the cells in buf (12 floats each, MultiMesh.buffer) with
+## mesh. (The mesh changed with none to draw: changing a MultiMesh's mesh
+## while it holds any reads its buffer back from the GPU.)
+static func _show_cells(mi: MultiMeshInstance3D, buf: PackedFloat32Array, mesh: Mesh) -> void:
+	var mm := mi.multimesh
+	var n := buf.size() / 12
+	if mm.mesh != mesh:
+		mm.instance_count = 0
+		mm.mesh = mesh
+	if mm.instance_count != n:
+		mm.instance_count = n
+	if n > 0:
+		mm.buffer = buf
 
 
 ## Whether any of tile key's clumps can show from cam: not all of it past
@@ -368,7 +442,7 @@ func _tile_in_range(layer: Dictionary, key: Vector2i, cam: Vector3) -> bool:
 	var lo := Vector2(key) * size
 	var hi := lo + Vector2(size, size)
 	var c := Vector2(cam.x, cam.z)
-	var near := c.clamp(lo, hi).distance_to(c)
+	var near := _tile_near(layer, key, cam)
 	var fade_out: Vector2 = u.get("fade_out", Vector2(30.0, 40.0))
 	if near > fade_out.y + 1.0:
 		return false
@@ -470,17 +544,114 @@ func _bake(layer: Dictionary) -> void:
 		bm.set_shader_parameter("gone", gone)
 		layer.vps[k].render_target_update_mode = SubViewport.UPDATE_ONCE
 		await RenderingServer.frame_post_draw
+		# read back, and on a worker thread each tile's cells that grow
+		# anything gathered (only those are drawn: an empty cell's clump
+		# costs its every corner)
+		var bytes: PackedByteArray = await _read_back(layer.vps[k])
+		if not is_inside_tree():
+			return
+		var cells: int = layer.L.cells
+		var grid: int = cells * int(layer.L.tiles)
+		var out := {}
+		layer.task = WorkerThreadPool.add_task(_compact.bind(bytes, grid, cells, int(layer.L.tiles), float(layer.L.cell), out))
+		while not WorkerThreadPool.is_task_completed(layer.task):
+			await get_tree().process_frame
+		WorkerThreadPool.wait_for_task_completion(layer.task)
+		layer.task = -1
+		if not is_inside_tree():
+			return
+		# the grid and the tiles' cells shown together
 		var m: ShaderMaterial = layer.material
 		m.set_shader_parameter("data_tex", layer.vps[k].get_texture())
 		m.set_shader_parameter("grid_origin", origin)
 		m.set_shader_parameter("grid_size", layer.bakes[k].get_shader_parameter("grid_size"))
 		m.set_shader_parameter("base_h", base_h)
+		_fill_tiles(layer, origin, out)
 		layer.shown = k
 		layer.grid_shown = origin
-		layer.img = null # (read back again when next picked from: pick_near)
+		# (what grows where, for pick_near)
+		layer.img = Image.create_from_data(grid * 2, grid, false, Image.FORMAT_RGBA8, bytes) if bytes.size() == grid * grid * 8 else null
 		if layer.want == origin and layer.cam == cam:
 			break
 	layer.baking = false
+
+
+func _exit_tree() -> void:
+	for layer in _layers:
+		if layer.task >= 0:
+			WorkerThreadPool.wait_for_task_completion(layer.task)
+			layer.task = -1
+
+
+## A layer's grid, as baked into vp: RGBA8, its rows one after another.
+## Without stalling the GPU where the renderer can (RenderingDevice's
+## texture_get_data_async, Godot 4.4 on: a frame or two later); otherwise
+## (the Compatibility renderer, older Godot) read straight back.
+func _read_back(vp: SubViewport) -> PackedByteArray:
+	var tex := vp.get_texture()
+	var rd := RenderingServer.get_rendering_device()
+	if rd != null and rd.has_method("texture_get_data_async"):
+		var rid := RenderingServer.texture_get_rd_texture(tex.get_rid())
+		if rid.is_valid():
+			# (the data handed to the array's own append, no script: quitting
+			# with a read under way, RenderingDevice hands it over as it shuts
+			# down, after the scripts have gone, and a lambda there crashed)
+			var got: Array = []
+			var err: int = rd.call("texture_get_data_async", rid, 0, Callable.create(got, "append"))
+			if err == OK:
+				while got.is_empty():
+					await get_tree().process_frame
+					if not is_inside_tree():
+						return PackedByteArray()
+				var data: PackedByteArray = got[0]
+				if data.size() == vp.size.x * vp.size.y * 4:
+					return data
+	var img := tex.get_image()
+	if img.get_format() != Image.FORMAT_RGBA8:
+		img.convert(Image.FORMAT_RGBA8)
+	return img.get_data()
+
+
+## (On a worker thread.) Each tile's cells that grow anything (the size
+## texel's blue byte not 0), as a MultiMesh buffer: 12 floats each, the
+## cell's corner from the tile's. out: tile (from the grid's first) ->
+## PackedFloat32Array. Read back wrong (its size), every cell.
+static func _compact(bytes: PackedByteArray, grid: int, cells: int, tiles: int, cell: float, out: Dictionary) -> void:
+	var row_bytes := grid * 8
+	var all := bytes.size() != row_bytes * grid
+	for by in tiles:
+		for bx in tiles:
+			var buf := PackedFloat32Array()
+			buf.resize(cells * cells * 12)
+			buf.fill(0.0)
+			var n := 0
+			for j in cells:
+				var at := (by * cells + j) * row_bytes + bx * cells * 8 + 2
+				for i in cells:
+					if all or bytes[at + i * 8] != 0:
+						var o := n * 12
+						buf[o] = 1.0
+						buf[o + 3] = i * cell
+						buf[o + 5] = 1.0
+						buf[o + 10] = 1.0
+						buf[o + 11] = j * cell
+						n += 1
+			buf.resize(n * 12)
+			out[Vector2i(bx, by)] = buf
+
+
+## The layer's tiles given their cells from a grid baked at origin (out:
+## _compact's); a tile the grid doesn't reach, none.
+func _fill_tiles(layer: Dictionary, origin: Vector2i, out: Dictionary) -> void:
+	var cells: int = layer.L.cells
+	var first := Vector2i(origin.x / cells, origin.y / cells) # (origin's on the tiles' corners)
+	var tiles: Dictionary = layer.tiles
+	for key: Vector2i in tiles:
+		var buf: PackedFloat32Array = out.get(key - first, PackedFloat32Array())
+		layer.bufs[key] = buf
+		var mi: MultiMeshInstance3D = tiles[key]
+		_show_cells(mi, buf, mi.multimesh.mesh)
+	layer.cull_at = Vector3.INF # (which to show, and their meshes, again)
 
 
 ## The item a layer's clumps are picked as (Foraging): its flowers', or a
@@ -535,6 +706,8 @@ func pick_near(eye: Vector3, fwd: Vector3, reach: float) -> Dictionary:
 		var bm: ShaderMaterial = layer.bakes[k]
 		if layer.img == null:
 			layer.img = layer.vps[k].get_texture().get_image()
+			if layer.img.get_format() != Image.FORMAT_RGBA8:
+				layer.img.convert(Image.FORMAT_RGBA8)
 		var img: Image = layer.img
 		var origin: Vector2i = bm.get_shader_parameter("grid_origin")
 		var base_h: float = bm.get_shader_parameter("base_h")
@@ -735,6 +908,10 @@ static func cattail_mesh(stalks: int, radius: float, seed: int) -> ArrayMesh:
 ## golden rays drooping a little round a dark brown dome. Fleabane: a stem
 ## branching near its top into a few small heads, 2 cm across, a fringe
 ## of fine rays, white to light purple, round a yellow disc.
+const TINY_RAYS := 7 ## a flower head of this many rays or fewer is drawn as a fan (flower_mesh)
+const TINY_RIM := 5 ## its rim's corners
+
+
 static func flower_mesh(kind: String, stems: int, radius: float, seed: int, leaves: Array = []) -> ArrayMesh:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed * 17 + 3
@@ -770,6 +947,27 @@ static func flower_mesh(kind: String, stems: int, radius: float, seed: int, leav
 		var v := up.cross(u)
 		var col := Color(rng.randf_range(0.9, 1.1), g, c.y)
 		var turn := rng.randf() * TAU
+		if rays <= TINY_RAYS:
+			# a floret a few mm across (yampah's, the milkweeds', the
+			# nettle's): a fan, its middle the rays' base colour, its rim
+			# their tips', drooping; no disc. (Its rays each a quad and its
+			# disc a fan, a clump of them ran to thousands of corners.)
+			# The same random numbers drawn as the rays would: the clump
+			# otherwise as it was
+			for i in rays:
+				rng.randf_range(-0.15, 0.15)
+			var b0: int = base[0]
+			vert.call(root, c + up * (dome / H), up, Vector2(3.25, 0.0), col)
+			for i in TINY_RIM:
+				var a := turn + TAU * i / TINY_RIM
+				var out := u * cos(a) + v * sin(a)
+				vert.call(root, c + out * (r_out / H) - up * (droop / H), (out * 0.3 + up).normalized(), Vector2(3.25, 1.0), col)
+			for i in TINY_RIM:
+				st.add_index(b0)
+				st.add_index(b0 + 1 + i)
+				st.add_index(b0 + 1 + (i + 1) % TINY_RIM)
+			base[0] += TINY_RIM + 1
+			return
 		for i in rays:
 			var a := turn + TAU * (i + rng.randf_range(-0.15, 0.15)) / rays
 			var out := u * cos(a) + v * sin(a)
@@ -1005,14 +1203,14 @@ static func _capsule(st: SurfaceTool, base: Array, root: Vector2, a: Vector3, b:
 
 ## A fern: fronds arching out and down from the middle, each a bent strip
 ## carrying fern_frond.png, in units of the frond's length.
-static func fern_mesh(fronds: int) -> ArrayMesh:
+static func fern_mesh(fronds: int, segs := 4) -> ArrayMesh:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 91
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	st.set_custom_format(0, SurfaceTool.CUSTOM_RGB_FLOAT)
 	var base := 0
-	const SEGS := 4
+	var SEGS := segs
 	for f in fronds:
 		var a := TAU * (f + rng.randf_range(-0.3, 0.3)) / fronds
 		var dir := Vector3(cos(a), 0.0, sin(a))

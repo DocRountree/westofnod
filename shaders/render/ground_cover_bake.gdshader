@@ -30,6 +30,24 @@ uniform float cover = 1.0; // the share of cells with a clump
 uniform bool on_litter = false; // (up through the forest's leaf litter too: the nettles)
 uniform vec3 drift = vec3(0.0); // in drifts (the flowers): x m across, y the share of the ground, z a seed; 0: everywhere
 uniform float clear = 0.2; // m kept clear round a log, stump or trunk, past its radius
+// the layer's range and thinning, as ground_cover.gdshader draws them: a
+// cell none of whose clump could show anywhere within margin m of the eye
+// (till the next bake) is baked empty, and isn't drawn at all (GroundCover
+// draws only the cells that grow anything)
+uniform vec2 fade_in = vec2(0.0, 0.0);
+uniform vec2 fade_out = vec2(30.0, 40.0);
+uniform float thin_from = 12.0;
+uniform float margin = 11.0;
+
+bool could_show(ivec2 c, vec2 pos) {
+	float d = distance(eye.xz, pos);
+	float dn = max(d - margin, 0.01);
+	float keep = clamp(pow(thin_from / dn, 1.5), 0.0, 1.0);
+	float vis = keep * (1.0 - smoothstep(fade_out.x, fade_out.y, dn));
+	if (fade_in.y > 0.0)
+		vis *= smoothstep(fade_in.x, fade_in.y, d + margin);
+	return vis * 1.15 > h2(c, 3);
+}
 // fallen logs, stumps, trunks and boulders (Population.walk_near()):
 // segments over the ground (ax, az, bx, bz; a trunk a point) and their
 // radii; nothing grows through them
@@ -177,7 +195,7 @@ void fragment() {
 	float size = 0.0;
 	// (the size only for the texel that keeps it: the logs' loop, up to 256
 	// a pixel, not for the ground's colour beside it)
-	if ((px.x & 1) == 0 && h2(c, 5) < grows && h2(c, 4) < cover && !under_log(pos) && !picked(c)) {
+	if ((px.x & 1) == 0 && h2(c, 5) < grows && h2(c, 4) < cover && could_show(c, pos) && !under_log(pos) && !picked(c)) {
 		// not on rock, sand, mud or the shore; nothing on the forest's litter
 		float bare = max(max(rocky, in_coast ? 0.0 : m.a), mud * 3.0) + (in_swamp ? 0.0 : 1.0 - smoothstep(0.3, 1.2, h)); // (reeds stand in water; marram on sand)
 		float here = on_litter ? 1.0 : mix(smoothstep(0.3, 0.05, litter / max(fw, 1e-4)), 1.0, prairie);
