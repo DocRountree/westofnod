@@ -170,3 +170,85 @@ static func patch(parent: Node3D, centre: Vector2, ground: Color) -> Dictionary:
 			n += 1
 		out[key] = clump(parent, p[0], centre + (p[1] as Vector2), p[2], ground)
 	return out
+
+
+## The game's short grass (GroundCover's finest grass layer: its clumps of
+## blades, grass_mesh, the forest floor's height, 7 to 16 cm) over the
+## ground from x0 to x1, z within zd either side: per_m2 clumps a square
+## metre, at random, but none where clear(x, z) says so (the ponds; the
+## small creatures' spots). Coloured as ground_cover.gdshader colours them:
+## the ground's colour at the root, a little lighter toward the tip, each
+## blade its own shade; and swaying in the same wind, as much as the
+## game's grass does (grass_sway 0.3 clump heights per m of the wind, at
+## the tip, falling off as the square of how far up). Built ready placed in
+## strips (each its own mesh, for culling), drawn by demo_flower.gdshader.
+static func meadow(parent: Node3D, x0: float, x1: float, zd: float, ground: Color, clear: Callable, per_m2 := 5.0, seed := 1) -> void:
+	var L: Dictionary = GroundCover.LAYERS[0]
+	var hts: Vector2 = (L.u as Dictionary).forest_height
+	var kinds := []
+	for k in 4: # (a few clumps' shapes, each used many times, turned)
+		var src := GroundCover.grass_mesh(L.blades, L.segs, L.radius, L.width, 101 + k * 17)
+		kinds.append(src.surface_get_arrays(0))
+	var rng := RandomNumberGenerator.new()
+	rng.seed = seed
+	var root_col := Vector3(ground.r, ground.g, ground.b)
+	var tip_col := root_col * Vector3(1.12, 1.22, 1.05)
+	var m := ShaderMaterial.new()
+	m.shader = load("res://tools/creatures/demo_flower.gdshader")
+	m.set_shader_parameter("sway_k", 0.3)
+	const STRIP := 8.0
+	var x := x0
+	while x < x1:
+		var xe := minf(x + STRIP, x1)
+		var n := int((xe - x) * zd * 2.0 * per_m2)
+		var vs := PackedVector3Array()
+		var ns := PackedVector3Array()
+		var cs := PackedColorArray()
+		var fs := PackedVector2Array()
+		var ix := PackedInt32Array()
+		for c in n:
+			var px := rng.randf_range(x, xe)
+			var pz := rng.randf_range(-zd, zd)
+			if clear.call(px, pz):
+				continue
+			var a: Array = kinds[rng.randi() % kinds.size()]
+			var size := rng.randf_range(hts.x, hts.y)
+			var spin := rng.randf() * TAU
+			var sv: PackedVector3Array = a[Mesh.ARRAY_VERTEX]
+			var sn: PackedVector3Array = a[Mesh.ARRAY_NORMAL]
+			var su2: PackedVector2Array = a[Mesh.ARRAY_TEX_UV2]
+			var sc: PackedColorArray = a[Mesh.ARRAY_COLOR]
+			var cu: Variant = a[Mesh.ARRAY_CUSTOM0]
+			var across: PackedFloat32Array = cu.to_float32_array() if cu is PackedByteArray else cu
+			var si: PackedInt32Array = a[Mesh.ARRAY_INDEX]
+			var base := vs.size()
+			var sq := sqrt(size)
+			for i in sv.size():
+				var root := _turn(su2[i], spin)
+				var v := _turn(Vector2(sv[i].x, sv[i].z), spin)
+				var ac := _turn(Vector2(across[i * 3], across[i * 3 + 2]), spin)
+				vs.append(Vector3(px + root.x + v.x * size + ac.x, sv[i].y * size + across[i * 3 + 1], pz + root.y + v.y * size + ac.y))
+				var n2 := _turn(Vector2(sn[i].x, sn[i].z), spin)
+				ns.append(Vector3(n2.x, sn[i].y, n2.y).normalized().lerp(Vector3.UP, 0.85).normalized()) # (lit mostly as the ground is)
+				var frac := sc[i].b
+				var col := root_col.lerp(tip_col * sc[i].r, smoothstep(0.0, 0.7, frac)) * lerpf(0.75, 1.0, frac)
+				cs.append(Color(col.x, col.y, col.z))
+				fs.append(Vector2(frac * sq, 0.0)) # (the sway's share: its height's, times the clump's size, squared in the shader)
+			for i in si:
+				ix.append(base + i)
+		if not vs.is_empty():
+			var arrays := []
+			arrays.resize(Mesh.ARRAY_MAX)
+			arrays[Mesh.ARRAY_VERTEX] = vs
+			arrays[Mesh.ARRAY_NORMAL] = ns
+			arrays[Mesh.ARRAY_COLOR] = cs
+			arrays[Mesh.ARRAY_TEX_UV2] = fs
+			arrays[Mesh.ARRAY_INDEX] = ix
+			var mesh := ArrayMesh.new()
+			mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+			var mi := MeshInstance3D.new()
+			mi.mesh = mesh
+			mi.material_override = m
+			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			parent.add_child(mi)
+		x = xe

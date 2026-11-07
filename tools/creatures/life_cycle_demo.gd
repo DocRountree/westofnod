@@ -78,6 +78,11 @@ extends Node3D
 ##   leaves gathered and carried in its tail to her den; E fruit or carrion,
 ##   H a mouse or a grasshopper, U a snake, a toad...; K he mounts her and
 ##   they topple over together)
+## common eastern bumble bee: a worker and a drone, their nest (a hole in
+##   the ground), flowers (E / H foraging: landing on flower after flower,
+##   its tongue in, buzzing them, its pollen loads growing, and home with
+##   them when they're full; B home now; F about; G down on the ground,
+##   grooming; X a sting; K mate)
 ## (every station a male too, but the ants': the female's partner)
 ##
 ## THE KEYS (the same for every creature, acting only on those at the
@@ -110,7 +115,7 @@ const PupaScript := preload("res://scripts/creatures/pupa.gd")
 
 const NAMES := ["monarch", "hummingbird clearwing", "paper wasp", "carpenter ant (queen)", "red harvester (queen)", "June bug", "convergent lady beetle", "differential grasshopper", "Carolina mantis", "eastern diamondback rattlesnake", "eastern milk snake",
 		"Carolina wolf spider", "six-spotted fishing spider", "grass spider (funnel weaver)", "yellow garden spider", "pill bug", "deer mouse",
-		"green anole", "Arizona bark scorpion", "snowshoe hare", "red fox", "bobcat", "coyote", "grey wolf", "American black bear", "brown bear (grizzly)", "American bison", "white-tailed deer", "trigonalid wasp", "eastern fox squirrel", "North American beaver", "eastern grey squirrel", "blue-winged grasshopper", "common green darner", "moose", "northern leopard frog", "eastern box turtle", "common snapping turtle", "green sea turtle", "American toad", "Virginia opossum"]
+		"green anole", "Arizona bark scorpion", "snowshoe hare", "red fox", "bobcat", "coyote", "grey wolf", "American black bear", "brown bear (grizzly)", "American bison", "white-tailed deer", "trigonalid wasp", "eastern fox squirrel", "North American beaver", "eastern grey squirrel", "blue-winged grasshopper", "common green darner", "moose", "northern leopard frog", "eastern box turtle", "common snapping turtle", "green sea turtle", "American toad", "Virginia opossum", "common eastern bumble bee"]
 const SpiderScript := preload("res://scripts/creatures/spider.gd")
 const IsopodScript := preload("res://scripts/creatures/isopod.gd")
 const SnakeScript := preload("res://scripts/creatures/snake.gd")
@@ -146,6 +151,7 @@ const TrigScript := preload("res://scripts/creatures/trigonalid.gd")
 const MealScript := preload("res://scripts/creatures/meal.gd")
 const MoltScript := preload("res://scripts/creatures/molt.gd")
 const OpossumScript := preload("res://scripts/creatures/opossum.gd")
+const BeeScript := preload("res://scripts/creatures/bumblebee.gd")
 const GAP := 0.9 # m between stations
 
 var cam: Camera3D
@@ -230,6 +236,8 @@ var _possum_den: Node3D
 var _possum_snag: Array = [] # [foot, top, radius]
 var _possum_fruit: Array = [] # (the fallen persimmons: where)
 var _possum_litter := Vector3.ZERO # (leaves, to gather for her nest)
+var _bee_heads: Array = [] # (the bumble bees' flowers' heads: [top, facing, sway share])
+var _bee_nest := Vector3.ZERO
 const POND := -0.004 # m: the pond's surface, a little below the plain's
 const POND_W := 0.42 # (its half width, x)
 const POND_D := 0.36 # (its half depth, z)
@@ -257,7 +265,7 @@ var _moth_perch_n := Vector3.BACK
 
 func _station(i: int) -> Vector3:
 	# (the snakes, life size, given more room)
-	return Vector3(i * GAP + (1.2 if i >= 9 else 0.0) + (1.8 if i >= 10 else 0.0) + (1.6 if i >= 11 else 0.0) + (3.0 if i >= 19 else 0.0) + (4.0 if i >= 20 else 0.0) + (4.0 if i >= 21 else 0.0) + (4.0 if i >= 22 else 0.0) + (5.0 if i >= 23 else 0.0) + (6.0 if i >= 24 else 0.0) + (7.0 if i >= 25 else 0.0) + (9.0 if i >= 26 else 0.0) + (9.0 if i >= 27 else 0.0) + (4.5 if i >= 28 else 0.0) + (3.0 if i >= 29 else 0.0) + (5.0 if i >= 30 else 0.0) + (5.0 if i >= 31 else 0.0) + (2.0 if i >= 32 else 0.0) + (4.0 if i >= 33 else 0.0) + (6.0 if i >= 34 else 0.0) + (6.0 if i >= 35 else 0.0) + (3.0 if i >= 36 else 0.0) + (3.0 if i >= 37 else 0.0) + (7.5 if i >= 38 else 0.0) + (3.5 if i >= 39 else 0.0) + (2.5 if i >= 40 else 0.0), 0.0, 0.0)
+	return Vector3(i * GAP + (1.2 if i >= 9 else 0.0) + (1.8 if i >= 10 else 0.0) + (1.6 if i >= 11 else 0.0) + (3.0 if i >= 19 else 0.0) + (4.0 if i >= 20 else 0.0) + (4.0 if i >= 21 else 0.0) + (4.0 if i >= 22 else 0.0) + (5.0 if i >= 23 else 0.0) + (6.0 if i >= 24 else 0.0) + (7.0 if i >= 25 else 0.0) + (9.0 if i >= 26 else 0.0) + (9.0 if i >= 27 else 0.0) + (4.5 if i >= 28 else 0.0) + (3.0 if i >= 29 else 0.0) + (5.0 if i >= 30 else 0.0) + (5.0 if i >= 31 else 0.0) + (2.0 if i >= 32 else 0.0) + (4.0 if i >= 33 else 0.0) + (6.0 if i >= 34 else 0.0) + (6.0 if i >= 35 else 0.0) + (3.0 if i >= 36 else 0.0) + (3.0 if i >= 37 else 0.0) + (7.5 if i >= 38 else 0.0) + (3.5 if i >= 39 else 0.0) + (2.5 if i >= 40 else 0.0) + (2.0 if i >= 41 else 0.0), 0.0, 0.0)
 
 
 func _ready() -> void:
@@ -293,6 +301,8 @@ func _ready() -> void:
 			_box(Vector3(hc.x, -0.005, sgn * (hd + PLAIN_D) * 0.5), Vector3(hw * 2.0, 0.01, PLAIN_D - hd), grass)
 		at = hc.x + hw
 	_box(Vector3((at + x1) * 0.5, -0.005, 0.0), Vector3(x1 - at, 0.01, PLAIN_D * 2.0), grass)
+	# its grass: the game's, swaying in the wind as it does there
+	Flowers.meadow(self, x0, x1, PLAIN_D, grass, _grass_clear)
 	cam = Camera3D.new()
 	cam.near = 0.002
 	cam.far = 60.0
@@ -336,6 +346,7 @@ func _ready() -> void:
 	_snap_station()
 	_sea_station()
 	_possum_station()
+	_bee_station()
 	_male_partners()
 	_new_pupae()
 	_focus = _station(0) + Vector3(0.0, 0.08, 0.0)
@@ -989,6 +1000,23 @@ func _spider_stations() -> void:
 ## The fishing spider's pond: the game's own water (ocean.gdshader), calm,
 ## 30 cm deep over a muddy basin sunk in the plain.
 ## The ponds sunk in the plain: [centre, half width (x), half depth (z), deep] each, by x.
+## Whether the grass is kept off (x, z): the ponds (and the beavers' and
+## the darners'), and round the small creatures' stations, to see them.
+func _grass_clear(x: float, z: float) -> bool:
+	for h: Array in _ponds():
+		var c: Vector3 = h[0]
+		if absf(x - c.x) < float(h[1]) + 0.06 and absf(z - c.z) < float(h[2]) + 0.06:
+			return true
+	var bv := _station(30)
+	if x > bv.x - 0.35 and x < bv.x + 2.8 and absf(z) < 2.1: # (the beavers' pond)
+		return true
+	for i: int in [0, 1, 2, 3, 4, 5, 6, 7, 8, 11, 13, 14, 15, 16, 17, 18, 28, 32, 33, 41]:
+		var c := _station(i)
+		if Vector2(x - c.x, z - c.z).length() < (0.75 if i == 33 else 0.38):
+			return true
+	return false
+
+
 func _ponds() -> Array:
 	return [[_station(12), POND_W, POND_D, 0.3], [_station(34), MOOSE_PW, MOOSE_PD, MOOSE_DEEP], [_station(35), FROG_PW, FROG_PD, FROG_DEEP], [_station(36), TURTLE_PW, TURTLE_PD, TURTLE_DEEP], [_station(37), SNAP_PW, SNAP_PD, SNAP_DEEP], [_station(38), SEA_PW, SEA_PD, SEA_DEEP], [_station(39), FROG_PW, FROG_PD, FROG_DEEP]]
 
@@ -1254,6 +1282,30 @@ func _possum_station() -> void:
 	add_child(possum_m)
 	possum_m.call("place", c + Vector3(0.6, 0.0, 0.5), 2.2)
 	possum_m.call("wander", c, 0.8)
+
+
+## The bumble bees: a worker and a drone, their nest's mouth in the ground,
+## a bed of the prairie's flowers (coneflowers, black-eyed Susans, fleabane,
+## common milkweed) to work.
+func _bee_station() -> void:
+	var c := _station(41)
+	var ground := Color(0.36, 0.4, 0.22)
+	for f: Array in [["coneflower", Vector2(-0.2, -0.2), 0.6], ["susan", Vector2(0.22, -0.15), 0.65], ["fleabane", Vector2(0.05, 0.25), 0.5], ["milkweed", Vector2(-0.3, 0.2), 0.9]]:
+		var info: Dictionary = Flowers.build(self, f[0], Vector2(c.x, c.z) + (f[1] as Vector2), f[2], ground, 0.0)
+		_bee_heads.append_array(info.heads)
+	var nest: Node3D = BeeScript.nest()
+	_bee_nest = c + Vector3(0.3, 0.0, 0.3)
+	nest.position = _bee_nest
+	add_child(nest)
+	var w: Node3D = BeeScript.new()
+	add_child(w)
+	w.call("place", c + Vector3(0.0, 0.4, 0.1))
+	w.call("forage", _bee_heads, _bee_nest)
+	var m: Node3D = BeeScript.new()
+	m.set("male", true)
+	add_child(m)
+	m.call("place", c + Vector3(0.1, 0.35, -0.1))
+	m.call("seek_food", c, 0.4)
 
 
 ## The bobcats: a female and a male, her rock den; a hare to hunt.
@@ -2273,6 +2325,8 @@ func _do(c: Node, act: String, all: Array) -> void:
 				c.call("fly", st, 0.4)
 			elif sc == MothScript:
 				c.call("search", st, 0.4, _moth_flowers)
+			elif sc == BeeScript:
+				c.call("forage", _bee_heads, _bee_nest)
 			elif sc == Wasp or sc == TrigScript:
 				c.call("seek_food", st, 0.5 if sc == Wasp else 0.35)
 			elif sc == MantisScript:
@@ -2339,7 +2393,7 @@ func _do(c: Node, act: String, all: Array) -> void:
 		"groom":
 			if c.has_method("groom"):
 				c.call("groom")
-			elif sc == Wasp:
+			elif sc == Wasp or sc == BeeScript:
 				c.call("land", st + Vector3(0.1, 0.0, 0.08))
 			elif sc == TrigScript: # (down on a leaf, cleaning its antennae)
 				var lf: Array = _trig_leaves[randi() % _trig_leaves.size()]
@@ -2358,7 +2412,7 @@ func _do(c: Node, act: String, all: Array) -> void:
 				c.call("fly", st, 0.6)
 			elif sc == MothScript:
 				c.call("search", st, 0.5, _moth_flowers)
-			elif sc == Wasp or sc == TrigScript:
+			elif sc == Wasp or sc == TrigScript or sc == BeeScript:
 				c.call("seek_food", st, 0.6 if sc == Wasp else 0.4)
 			elif sc == OpossumScript and not young: # (F: up the dead branch)
 				c.call("climb", _possum_snag[0], _possum_snag[1], _possum_snag[2])
@@ -2377,6 +2431,8 @@ func _do(c: Node, act: String, all: Array) -> void:
 				c.call("roll", 5.0)
 			elif sc == BeaverScript: # (its tail slapped on the water, and under)
 				c.call("slap")
+			elif sc == BeeScript: # (a sting, at something by the nest)
+				c.call("sting", _bee_nest + Vector3(randf_range(-0.1, 0.1), 0.02, randf_range(-0.1, 0.1)))
 			elif sc == OpossumScript: # (playing possum)
 				c.call("play_dead", randf_range(14.0, 20.0))
 			elif sc == HareScript or (sc == SquirrelScript or sc == GreySqScript): # (a squirrel: up its tree)
@@ -2417,7 +2473,9 @@ func _do(c: Node, act: String, all: Array) -> void:
 			if c.has_method("nurse"):
 				c.call("nurse")
 		"forage":
-			if sc == OpossumScript and not young: # (B: leaves for her nest, in its tail)
+			if sc == BeeScript: # (B: home to the nest)
+				c.call("home", _bee_nest)
+			elif sc == OpossumScript and not young: # (B: leaves for her nest, in its tail)
 				var a := randf() * TAU
 				c.call("gather", _possum_litter + Vector3(cos(a), 0.0, sin(a)) * 0.08, _possum_den.position)
 			elif sc == BeaverScript and not young: # (B: off for a swim)
@@ -2737,6 +2795,8 @@ func _feed(c: Node, act: String, young: bool, p: Vector3, st: Vector3) -> void:
 	elif sc == MothScript: # (nectar: hovering at its flowers, one floret after another)
 		if not young:
 			c.call("feed", _moth_flowers)
+	elif sc == BeeScript: # (nectar and pollen: from flower to flower, and home full)
+		c.call("forage", _bee_heads, _bee_nest)
 	elif sc == TrigScript: # (nectar: from flower to flower)
 		c.call("visit_flowers", _trig_heads, 0.0)
 	elif sc == Wasp:
@@ -2788,7 +2848,7 @@ func _feed(c: Node, act: String, young: bool, p: Vector3, st: Vector3) -> void:
 ## To station i (the camera further off for the snakes).
 func _go(i: int) -> void:
 	_at = i
-	_dist = 1.7 if i == 40 else 5.0 if i == 38 else 1.6 if i == 35 or i == 36 or i == 39 else 9.0 if i == 34 else 2.2 if i == 33 else 0.8 if i == 32 else 2.4 if i == 31 else 4.2 if i == 30 else 2.4 if i == 29 else 0.8 if i == 28 else 2.2 if i == 9 or i == 10 else (2.4 if i == 19 else ((6.0 if i >= 27 else (9.0 if i >= 26 else (7.5 if i >= 24 else (5.0 if i >= 22 else 3.6)))) if i >= 20 else minf(_dist, 0.8)))
+	_dist = 1.3 if i == 41 else 1.7 if i == 40 else 5.0 if i == 38 else 1.6 if i == 35 or i == 36 or i == 39 else 9.0 if i == 34 else 2.2 if i == 33 else 0.8 if i == 32 else 2.4 if i == 31 else 4.2 if i == 30 else 2.4 if i == 29 else 0.8 if i == 28 else 2.2 if i == 9 or i == 10 else (2.4 if i == 19 else ((6.0 if i >= 27 else (9.0 if i >= 26 else (7.5 if i >= 24 else (5.0 if i >= 22 else 3.6)))) if i >= 20 else minf(_dist, 0.8)))
 	_say()
 
 
@@ -2797,7 +2857,7 @@ func _say() -> void:
 
 
 func _process(dt: float) -> void:
-	var want := _station(_at) + Vector3(0.0, 0.38 if _at == 28 else 0.08, 0.0) # (the trigonalids up at the flowers' heads)
+	var want := _station(_at) + Vector3(0.0, 0.38 if _at == 28 else (0.4 if _at == 41 else 0.08), 0.0) # (the trigonalids and the bumble bees up at the flowers' heads)
 	_focus = _focus.lerp(want, 1.0 - exp(-4.0 * dt / maxf(Engine.time_scale, 0.01)))
 	var off := Vector3(sin(_yaw) * cos(_pitch), -sin(_pitch), cos(_yaw) * cos(_pitch)) * _dist
 	cam.global_position = _focus + off

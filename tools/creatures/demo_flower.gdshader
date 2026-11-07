@@ -22,7 +22,11 @@ void vertex() {
 void fragment() {
 	if (!FRONT_FACING)
 		NORMAL = -NORMAL; // (both faces lit alike)
+#if CURRENT_RENDERER == RENDERER_COMPATIBILITY
+	ALBEDO = COLOR.rgb; // (its vertex colours already made linear there)
+#else
 	ALBEDO = pow(COLOR.rgb, vec3(2.2));
+#endif
 	ROUGHNESS = 0.85;
 	SPECULAR = 0.2;
 }

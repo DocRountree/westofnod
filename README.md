@@ -223,7 +223,17 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   hunts nothing: `visit_flowers(heads)` (from flower to flower, hovering, drinking nectar) and, a female's,
   `lay_on_leaf(edge)` (down on a leaf, along its margin, the gaster curled to the edge, rows of tiny dark eggs left
   there: they would hatch only inside a caterpillar that ate them, so here they don't). The life cycle demo's last
-  station: a female and a male, fleabane, leaves to lay along (E nectar, 1 lay, G land, W / F fly about, K mate).
+  station's: a female and a male, fleabane, leaves to lay along (E nectar, 1 lay, G land, W / F fly about, K mate).
+  `bumblebee.gd` (`Bumblebee`, *Bombus impatiens*, a common eastern bumble bee) makes the model over as a bee: stout
+  and round, no wasp waist, its gaster short and blunt, all of it in dense short pile (`shaders/render/bee_fur.gdshader`:
+  shells of hairs, darker at their roots), the thorax yellow above with a small bare black spot between the wings,
+  black beneath, the gaster's first segment yellow and the rest black, its wings smoky, its legs black and stout, the
+  hind tibiae broad (the pollen baskets). `forage(heads, nest)`: landing on flower after flower, its tongue out,
+  crawling over each and now and then buzzing it (its body shaking, its wings still), the pollen loads on its hind legs
+  growing; full, home to its nest (`Bumblebee.nest()`, a hole in the ground), down into it, a while, out unloaded and
+  back to the flowers; `home(nest)`. A drone (male) drinks only, no loads. The life cycle demo's last station: a worker
+  and a drone, their nest, coneflowers, Susans, fleabane and milkweed (E / H forage, B home, F about, G land, X sting,
+  K mate).
   `tools/creatures/wasp_demo.tscn` puts one on a plain with a clump of the game's purple coneflowers, a caterpillar on a
   leaf, a plank and a ball (and for the scale the player's figure with its axe, and a pawpaw, a
   black-eyed Susan, a yampah and a cattail on the plank), each animation on a key (`godot --path . res://tools/creatures/wasp_demo.tscn`);
@@ -447,7 +457,8 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   down to play (a stalk, a pounce, a tumble) and back on, she waiting for them; nursed at her belly, she on her
   side; mating: he clicks, mounts her gripping her neck fur, and they topple over together onto their sides. The
   life cycle demo's last station: a female and a male, her den, the branch, persimmons, leaf litter (1 birth, V
-  play, N nurse, X play dead, D gape, F climb, B gather, E eat, H hunt, U a snake or a toad, K mate).
+  play, N nurse, X play dead, D gape, F climb, B gather, E eat, H hunt, U a snake or a toad, K mate). (Its station
+  is the last but one now; the bumble bees' is the last.)
 - `scripts/creatures/fox_squirrel.gd` (`FoxSquirrel`, *Sciurus niger*, on the hare's motor): an eastern fox squirrel,
   life size; one skin, a long supple body, round head, short blunt muzzle, big dark eyes ringed pale, short rounded
   ears, orange incisors, sharp claws; its long bushy tail a chain of bones carried up over its back in an S,
@@ -606,6 +617,9 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   wings spread; feed on a flower, its wings closed over its back). `tools/creatures/lepidoptera_demo.tscn` shows them
   in a patch of the game's flowers (`DemoFlowers.patch`: three clumps of common milkweed, one of swamp milkweed,
   coneflowers, Susans, fleabane, asters, yampah) and a stone, each animation on a key.
+  The life cycle demo's plain is grown over with the game's own short grass (`DemoFlowers.meadow`: GroundCover's
+  finest grass layer's clumps, 7 to 16 cm, coloured as `ground_cover.gdshader` colours them, swaying in the same
+  wind and as much), kept off the ponds and round the small creatures' stations.
 
 ## The planet and the sky
 
