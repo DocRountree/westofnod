@@ -10,7 +10,7 @@ extends "res://scripts/creatures/hexapod.gd" # (by path: found whether or not th
 ## chevrons (a herringbone), folded with the knee up behind, the tibia
 ## yellow, spined. A nymph (Grasshopper.new(true, size)): paler, greener,
 ## its head bigger for its body, only little wing pads; growing.
-## Not yet in the game (tools/creatures/life_cycle_demo.tscn).
+## Not yet in the game (tools/creatures/ecology_demo.tscn).
 ##
 ## - wander(centre, radius): walking about, stopping, now and then a hop
 ## - feed(at): to a plant (a point), head down, chewing

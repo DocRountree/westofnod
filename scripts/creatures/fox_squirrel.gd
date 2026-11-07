@@ -673,7 +673,7 @@ func _kit() -> void:
 	parent.add_child(k)
 	var a := kits.size() * 2.1
 	k.call("place", drey + Vector3(cos(a), -0.05, sin(a)) * 0.05, rng.randf() * TAU)
-	k.set("height", func(_x: float, _z: float) -> float: return drey.y - 0.08)
+	k.set("ground_y", drey.y - 0.08) # (on the drey's floor: a height of its own, not a lambda of hers (gone with her, if she's taken))
 	k.call("grow", _adult_size(), 900.0)
 	k.set("_mother", self)
 	kits.append(k)

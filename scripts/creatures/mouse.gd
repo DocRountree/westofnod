@@ -13,7 +13,7 @@ extends "res://scripts/creatures/hexapod.gd" # (by path: found whether or not th
 ## folded flat, helpless; lying and wriggling where they're born, growing
 ## (grow): their fur coming in (grey: a juvenile's), eyes open, up and
 ## about once they're big enough; brown as they grow up.
-## Not yet in the game (tools/creatures/life_cycle_demo.tscn).
+## Not yet in the game (tools/creatures/ecology_demo.tscn).
 ##
 ## - wander(centre, radius): scurrying about, stopping, sniffing (the nose
 ##   and whiskers going, the ears turning), now and then sitting up to look

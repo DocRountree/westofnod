@@ -9,7 +9,7 @@ extends "res://scripts/creatures/hexapod.gd" # (by path: found whether or not th
 ## the forewings over it (shorter than it: a female's), a dark spot on
 ## each, the hindwings smoky under them. A nymph (Mantis.new(true, size)):
 ## wingless, slender, its abdomen held curled up over its back; growing.
-## Not yet in the game (tools/creatures/life_cycle_demo.tscn).
+## Not yet in the game (tools/creatures/ecology_demo.tscn).
 ##
 ## - stalk(centre, radius): stepping slowly about, rocking side to side
 ##   like a leaf in the wind, stopping to watch, the head turning

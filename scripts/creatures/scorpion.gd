@@ -10,7 +10,7 @@ extends "res://scripts/creatures/hexapod.gd" # (by path: found whether or not th
 ## chelae's fingers long, reddish; small chelicerae; four pairs of legs
 ## (hexapod.gd's eight-legged gait). Young (Scorpion.new(true)): the
 ## scorplings, born white, soft; growing, yellowing. The two sexes the same
-## to see. Not yet in the game (tools/creatures/life_cycle_demo.tscn).
+## to see. Not yet in the game (tools/creatures/ecology_demo.tscn).
 ##
 ## - wander(centre, radius): still a long while (its tail coiled round to
 ##   its side), then walking slowly a little way, its tail up in a loose

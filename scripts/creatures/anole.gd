@@ -16,7 +16,7 @@ extends "res://scripts/creatures/hexapod.gd" # (by path: found whether or not th
 ## throat, flared to display (his, only: hers is none to see; otherwise the
 ## two the same). Young (Anole.new(true)): a hatchling, a third as long,
 ## duller and browner; growing. Not yet in the game
-## (tools/creatures/life_cycle_demo.tscn).
+## (tools/creatures/ecology_demo.tscn).
 ##
 ## - wander(centre, radius): darting a little way, stopping, still, its
 ##   head turning; now and then bobbing its head (a male doing push-ups,

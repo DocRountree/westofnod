@@ -10,7 +10,7 @@ extends "res://scripts/creatures/hexapod.gd" # (by path: found whether or not th
 ## uropods; seven pairs of short legs under it, walked in two alternating
 ## sets down the body. Young (mancae: Isopod.new(true)): small, pale, only
 ## six pairs of legs; growing. Not yet in the game
-## (tools/creatures/life_cycle_demo.tscn).
+## (tools/creatures/ecology_demo.tscn).
 ##
 ## - wander(centre, radius): trundling about, its antennae tapping
 ## - eat(at): at the leaf litter there, head down, its mouthparts working

@@ -9,7 +9,7 @@ extends "res://scripts/creatures/hexapod.gd" # (by path: found whether or not th
 ## tail; long slender forelegs; its hind feet huge, furred, flat (the
 ## snowshoes), heel to toe. Young (Hare.new(true)): leverets, born furred,
 ## eyes open, a fifth her length; hopping about soon; growing. The two sexes
-## the same to see. Not yet in the game (tools/creatures/life_cycle_demo.tscn).
+## the same to see. Not yet in the game (tools/creatures/ecology_demo.tscn).
 ##
 ## Its gait its own: hopping (the hind feet pushing off together, a moment
 ## in the air, the forefeet down one then the other, the hind feet swung

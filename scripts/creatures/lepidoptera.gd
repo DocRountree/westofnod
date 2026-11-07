@@ -849,7 +849,9 @@ func _mate_think(dt: float) -> void:
 			var spot := _mate_at if not male else _mate_at - _mate_h * (tail + float(her.call("_tail")))
 			_surface_p = _surface_p.lerp(spot, 1.0 - exp(-6.0 * dt))
 			var face := _mate_h if not male else -_mate_h
-			_heading = _heading.slerp(face, 1.0 - exp(-5.0 * dt)).normalized()
+			var hn := _heading.normalized().lerp(face.normalized(), 1.0 - exp(-5.0 * dt)) # (turned toward its way: a lerp (a slerp's axis, its length a hair off one, it rejected))
+			if hn.length() > 0.01:
+				_heading = hn.normalized()
 			# (now and then his wings part a little, and close)
 			_open = 0.15 * maxf(sin(_t * 0.6 + (1.5 if male else 0.0)), 0.0)
 			if male and _mate_t > mate_secs:

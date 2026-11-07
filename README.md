@@ -222,8 +222,7 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   second and third segments only, reddish legs, a pale ring on each antenna, near clear wings. It builds no nest and
   hunts nothing: `visit_flowers(heads)` (from flower to flower, hovering, drinking nectar) and, a female's,
   `lay_on_leaf(edge)` (down on a leaf, along its margin, the gaster curled to the edge, rows of tiny dark eggs left
-  there: they would hatch only inside a caterpillar that ate them, so here they don't). The life cycle demo's last
-  station's: a female and a male, fleabane, leaves to lay along (E nectar, 1 lay, G land, W / F fly about, K mate).
+  there: they would hatch only inside a caterpillar that ate them, so here they don't). In the ecology sandbox, with what it uses there: a female and a male, fleabane, leaves to lay along (E nectar, 1 lay, G land, W / F fly about, K mate).
   `bumblebee.gd` (`Bumblebee`, *Bombus impatiens*, a common eastern bumble bee) makes the model over as a bee: stout
   and round, no wasp waist, its gaster short and blunt, all of it in dense short pile (`shaders/render/bee_fur.gdshader`:
   shells of hairs, darker at their roots), the thorax yellow above with a small bare black spot between the wings,
@@ -231,7 +230,7 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   hind tibiae broad (the pollen baskets). `forage(heads, nest)`: landing on flower after flower, its tongue out,
   crawling over each and now and then buzzing it (its body shaking, its wings still), the pollen loads on its hind legs
   growing; full, home to its nest (`Bumblebee.nest()`, a hole in the ground), down into it, a while, out unloaded and
-  back to the flowers; `home(nest)`. A drone (male) drinks only, no loads. The life cycle demo's last station: a worker
+  back to the flowers; `home(nest)`. A drone (male) drinks only, no loads. In the ecology sandbox, with what it uses there: a worker
   and a drone, their nest, coneflowers, Susans, fleabane and milkweed (E / H forage, B home, F about, G land, X sting,
   K mate).
   `tools/creatures/wasp_demo.tscn` puts one on a plain with a clump of the game's purple coneflowers, a caterpillar on a
@@ -245,7 +244,7 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   tail; dark brown near black, pale grey brown stockings (`carnivore.gdshader`'s species 13); a bull's palmate
   antlers (a broad palm a side fringed with points, a brow palm before it; in velvet or hard), a calf red brown.
   The deer's grazing, browsing, bedding, alarm, rub and scrape, sparring, calving and nursing; its own wading out
-  into the water to feed under it. Its demo station: a bull, a cow and her calf, willows and a pond (B wade).
+  into the water to feed under it. In the ecology sandbox: willows and a pond by it (B wade).
 - `scripts/creatures/frog.gd` (`Frog`): a northern leopard frog (*Lithobates pipiens*), twice life size: its body
   and head one lofted skin (a pointed snout, a broad flat head, no neck, the sacral hump, its dorsolateral folds
   raised), painted in its own shader: green or brown, rows of dark spots ringed pale, the folds cream bronze, a pale
@@ -320,7 +319,7 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   curled forward under his to its base), then off in tandem to the water where she lays while he holds her. The
   nymph (a naiad: mottled olive, broad headed, wing pads, its hinged mask shot out at prey) walks the pond's floor and
   grows; then climbs a reed out of the water, its back splits, and the adult comes out pale, its wings crumpled,
-  swelling and hardening, its colour coming, the empty skin left on the reed. The life cycle demo's last station: a
+  swelling and hardening, its colour coming, the empty skin left on the reed. In the ecology sandbox, with what it uses there: a
   little pond with reeds and trigonalid wasps flying over it, a male, a female and two nymphs.
 - `scripts/creatures/hexapod.gd`: a walking insect built from parts (feet planted in a tripod gait, legs reaching
   hip to foot; leaps, flights, falls on a thread), under `grasshopper.gd` (`Grasshopper`: a differential
@@ -328,11 +327,11 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   hatches nymphs up out of the ground; and `blue_winged_grasshopper.gd`, `BlueWingedGrasshopper`, Saussure's
   blue-winged grasshopper on its model: mottled brown, its tegmina tan and veined with dark crossbands, its
   hindwings sky blue in a broad black band, clear at the edge, shown as it flies; its hind tibiae blue; its own
-  station in the life cycle demo) and `mantis.gd` (`Mantis`: a Carolina mantis, its raised prothorax, turning
+  place in the ecology sandbox) and `mantis.gd` (`Mantis`: a Carolina mantis, its raised prothorax, turning
   head and raptorial forelegs; stalking with its rocking sway, watching, striking a grasshopper nymph and eating it, grooming,
   flying; building a foam egg case on a stem, whose nymphs come out along its seam, let down on threads). Their
   nymphs small, wingless (the mantis's abdomen curled up), growing. Not yet in the game:
-  `tools/creatures/life_cycle_demo.tscn`'s stations.
+  the ecology sandbox (`tools/creatures/ecology_demo.tscn`).
 - `scripts/creatures/snake.gd` (`Snake`): snakes, life size, not yet in the game: the eastern diamondback
   rattlesnake (broad triangular head, heat pits, slit pupils, the stripe through the eye, dark diamonds edged in
   cream, keeled scales, a banded tail and its rattle; a newborn only a button) and the eastern milk snake (narrow head,
@@ -341,7 +340,7 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   (lateral undulation), the tongue flicking; coiling; eating a mouse (the rattler coils, rattles, strikes and lets go,
   waits, swallows; the milk snake strikes, constricts in its coils, swallows: the jaws gaping, the meal a bulge going
   down). The milk snake lays leathery eggs that hatch (a slit, the young's head out, then the young); the rattler gives
-  birth, each young in a clear membrane it wriggles out of. In the life cycle demo.
+  birth, each young in a clear membrane it wriggles out of. In the ecology sandbox.
 - `scripts/creatures/spider.gd` (`Spider`, on `hexapod.gd`'s eight-legged gait): a Carolina wolf spider (its egg sac
   carried on its spinnerets, its spiderlings riding on its back), a six-spotted fishing spider (running on water, its
   sac carried in its jaws, a nursery web spun over it to hatch in), a grass spider (a funnel weaver: its sheet web laid
@@ -414,7 +413,7 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   a shake); a bull's bellow and sparring (head to head, horns locked, pushing back and forth); stampeding at a
   gallop, tail up; a cow's calf born in the open (red orange, no hump or horns), licked, struggling up, suckling at
   her udder, following her, at play (a run and a buck); mating (the bull tending her, his chin on her rump, then on
-  her, briefly). The life cycle demo's bison station: two bulls, two cows, a calf.
+  her, briefly). In the ecology sandbox, with what it uses there: two bulls, two cows, a calf.
 - `scripts/creatures/deer.gd` (`Deer`, *Odocoileus virginianus*, on the hunters' make, a browser's ways): a
   white-tailed deer, life size (a doe 90 cm at the shoulder, a buck a little bigger); slender and deep chested on
   long thin legs, small cloven hooves with dewclaws; the long neck carried high, a narrow tapering head, big dark
@@ -428,7 +427,7 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   scrape (pawing, then the licking branch), his snort wheeze and lip curl, sparring (antlers locked, twisting,
   pushing); a doe's twin fawns, licked, up on their feet, then hidden flat in the grass apart; nursing (the fawns
   come to her, butting, tails wagging), the fawns at play (running in circles, bucking); mating (the buck tending
-  her, his head low, then mounting briefly). The life cycle demo's last station: a summer doe with twins and a buck
+  her, his head low, then mounting briefly). In the ecology sandbox, with what it uses there: a summer doe with twins and a buck
   in velvet; two winter bucks and a winter doe; a shrub to browse (B), a sapling to rub (M).
 - `scripts/creatures/beaver.gd` (`Beaver`, *Castor canadensis*, on the hunters' make, plantigrade, waddling): a North
   American beaver, life size; one skin, heavy, humped, broadest at its hips, a broad blunt head, small eyes and
@@ -439,7 +438,7 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   round it, chips flying, the tree falling, a length gnawed off and carried in its jaws out to its lodge
   (`Beaver.lodge_of()`) and laid on it; eating bark off a stick held across its forepaws, turned like a cob, left
   peeled; mud plastered on the lodge; grooming sat up; kits born furred, following her on land and swimming; mating
-  in the water. The life cycle demo's station: a female and a male, a bank with aspens and sticks, a pond and
+  in the water. In the ecology sandbox, with what it uses there: a female and a male, a bank with aspens and sticks, a pond and
   their lodge (E eat bark, H fell an aspen, B swim, X slap and dive, M mud, 1 birth).
 - `scripts/creatures/opossum.gd` (`Opossum`, *Didelphis virginiana*, on the hunters' make, plantigrade): a Virginia
   opossum, life size; one skin, low and round backed, its rump high, its long head conical, white faced, the eyes
@@ -455,10 +454,8 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   carrion; mice, grasshoppers; snakes, toads, frogs, grubs); her young born the size of bees, pink and naked, up
   her fur into her pouch, out of sight; out after a while, clinging to her back in rows, carried as she goes;
   down to play (a stalk, a pounce, a tumble) and back on, she waiting for them; nursed at her belly, she on her
-  side; mating: he clicks, mounts her gripping her neck fur, and they topple over together onto their sides. The
-  life cycle demo's last station: a female and a male, her den, the branch, persimmons, leaf litter (1 birth, V
-  play, N nurse, X play dead, D gape, F climb, B gather, E eat, H hunt, U a snake or a toad, K mate). (Its station
-  is the last but one now; the bumble bees' is the last.)
+  side; mating: he clicks, mounts her gripping her neck fur, and they topple over together onto their sides. In the ecology sandbox, with what it uses there: a female and a male, her den, the branch, persimmons, leaf litter (1 birth, V
+  play, N nurse, X play dead, D gape, F climb, B gather, E eat, H hunt, U a snake or a toad, K mate).
 - `scripts/creatures/fox_squirrel.gd` (`FoxSquirrel`, *Sciurus niger*, on the hare's motor): an eastern fox squirrel,
   life size; one skin, a long supple body, round head, short blunt muzzle, big dark eyes ringed pale, short rounded
   ears, orange incisors, sharp claws; its long bushy tail a chain of bones carried up over its back in an S,
@@ -468,12 +465,12 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   and gnawed; caching one (dug in with its forepaws, pushed down with its nose, raked over and patted, a little
   mound left); climbing its tree (`FoxSquirrel.tree()`) in bounds, claws gripping, a look round at the top, down
   head first; fleeing up it; its tail-flicking, chattering alarm; birth up in her leaf drey, the kits pink, naked,
-  blind, furred as they grow; the hare's mating chase. The life cycle demo's last station: a female and a male, an
+  blind, furred as they grow; the hare's mating chase. In the ecology sandbox, with what it uses there: a female and a male, an
   oak with her drey, nuts under it (E eat, B cache, F climb, X flee up, D flick, 1 birth in the drey).
 - `scripts/creatures/grey_squirrel.gd` (`GreySquirrel`, *Sciurus carolinensis*, on `FoxSquirrel`): an eastern grey
   squirrel, its model and ways the fox squirrel's, a little larger here (size 0.33); its coat `carnivore.gdshader`'s
   species 12: grizzled silver grey washed brown along the back, over the head and down the legs, white beneath and
-  round the eyes, the tail grey, its hairs black banded, a white fringe. Its own station in the life cycle demo
+  round the eyes, the tail grey, its hairs black banded, a white fringe. Its own entry in the ecology sandbox
   (after the beavers'), the same keys.
 - `scripts/creatures/hare.gd` (`Hare`, on `hexapod.gd`'s motor, its gait its own): a snowshoe hare (*Lepus
   americanus*), life size, in its summer coat (`carnivore.gdshader`'s species 8: brown, grizzled, darker along the back,
@@ -516,7 +513,7 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   dark tubes) and `prickly_pear.gd` (`PricklyPear`: obovate pads off one another's rims, glochid tufts and pale spines
   in diagonal rows, the oldest pads woody; wine-red tunas, yellow flowers). Four variants each, three levels of
   detail (`build(v)`, `build_lods(v)`); `tools/plants/preview.gd` renders them (`xvfb-run godot --path .
-  --resolution 1600x900 --script res://tools/plants/preview.gd -- <out_dir> [joshua | sanpedro | pear]`),; none of them are in the life cycle demo.
+  --resolution 1600x900 --script res://tools/plants/preview.gd -- <out_dir> [joshua | sanpedro | pear]`),; none of them are in the ecology sandbox.
 - Mating (every species but the ants: their workers don't; `hexapod.gd`'s `mate(partner)` for the walkers, each
   species saying how): a male of each (`male`, set before it's added; told apart only where it must be: the male
   spiders smaller with the swollen bulbs of their palps, the garden spider's male a quarter her size, tan and slender;
@@ -533,23 +530,36 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   joined end to end; the wasp's pouncing on her back, stroking her antennae; the snakes', the male crawling up along
   her back, chin rubbing, their tails twisted together; the mice's, the male following her, mounting from behind,
   thrusting in bouts, then washing. `act("mate", {partner})` for any of them (pilot.gd).
-- `tools/creatures/life_cycle_demo.tscn`: every creature not yet in the game, a station each (Tab / Shift+Tab the
-  next). The keys are the same for all of them and act only on those at the station in view: 1 lay eggs / give birth,
-  2 hatch / come out, 3 new pupae, E eat, H hunt, U an unusual meal, K mate, G groom, Z sleep / rest, F fly / hop, X alarm (flee, roll up,
-  coil, sting, scatter), D display / call, V the young play, N nurse, B forage, S spin a web, M mark, A sit, W back to
-  their own ways, P steered (pilot.gd); each creature doing it its own way (the hunters' prey set before them, the
-  fishing spider's a molly come up from the pond). U: the mammals' rarer meals, plausible if seldom seen, each another
-  of the game's own animals set out for it: the fox a newborn fawn, a beaver kit, a bobcat kitten, a June grub, a
-  grasshopper; the bobcat a fawn, a grown deer, a fox; the coyote a fawn, a fox, a beaver; the wolf a deer, a moose or
-  bison calf, a beaver, a coyote; the bears a fawn, a calf, a beaver, grubs, the grizzly a black bear cub or a wolf
-  pup; the deer a mouse pup; the deer mouse a grasshopper nymph, a caterpillar, a grub, a pill bug, a mantis nymph;
-  the squirrels a caterpillar, a grub, a mouse pup; the snowshoe hare a dead mouse; the fox, the bobcat, the coyote a
-  snake; the snakes a leopard frog, a toad, an anole, the milk snake a young rattler. A kill more than half the
-  hunter's length isn't carried off or lifted: it's eaten where it fell, longer. The fox's fruit, ants and wasps (a
-  huckleberry bush, a harvester ants' nest, a fallen paper wasp comb at its station): eaten where they are
-  (`eat_at(point, seconds)`, any of the four-legged make's), its snout brought to the point and kept there, licking,
-  snapping, nosing about; nothing taken away or moved (fruit's anyone's to pick, ants and such are drawn by the
-  hundred).
+- `tools/creatures/ecology_demo.tscn`: the ecology sandbox, every creature not yet in the game and the plants and
+  water they live by, staged by hand in one scene to try any mix of them together. A list down the left (plants:
+  the game's flowers, a berry bush, an aspen, an oak, fallen persimmons, clover, a willow shoot, a mushroom, a leaf;
+  features: a puddle, ponds, a sea with its beach, sand, gravel, a dead branch; the insects, spiders and kin, fish,
+  amphibians and reptiles, mammals): pick one, then left click the ground to put one there (again and again; right
+  click or Esc: done), as an adult, young or a pupa, female or male (the boxes under the list). Left click a creature
+  to select it (Shift: add to the selection; the ground: none); Delete takes the selection away with whatever was
+  put down with it. Right drag turns round, middle drag (or the arrow keys) moves along the ground, the wheel zooms,
+  C centres on the selection; the grass can be turned off. The keys act on the selection, or on everything if
+  nothing's selected: 1 lay eggs / give birth, 2 hatch / come out / moult, 3 pupate, E eat, H hunt, U an unusual
+  meal, K mate (each male with the nearest female of his kind), G groom, Z sleep / rest, F fly / hop / climb, X alarm
+  (flee, roll up, coil, sting, play dead, scatter), D display / call, V the young play, N nurse, B forage (home,
+  gather, swim, cache, wade), S spin a web, M mark, A sit, W back to their own ways, Space slow motion. What a creature
+  needs and isn't there is put down for it, close by, the first time it needs it (a den, a nest, a comb, a web's
+  moorings, a pond, a sapling, its food), and what's there already is used first: a hunter goes for prey that's in
+  the scene (a fox put down by mice hunts those mice), a butterfly or a bee for the flowers there, a frog to the pond
+  there; a young deer, moose or bison put down by a grown female of its kind follows her. The water creatures dig
+  their pond beside them if there's none (sunk in the plain, the game's own water over it, reeds in it), and the
+  plain's grass is kept off it and round the small creatures. U: the mammals' rarer meals, plausible if seldom
+  seen, each another of the game's own animals (one in the scene first, or set out for it): the fox a newborn
+  fawn, a beaver kit, a bobcat kitten, a June grub, a grasshopper; the bobcat a fawn, a grown deer, a fox; the coyote
+  a fawn, a fox, a beaver; the wolf a deer, a moose or bison calf, a beaver, a coyote; the bears a fawn, a calf, a
+  beaver, grubs, the grizzly a black bear cub or a wolf pup; the deer a mouse pup; the deer mouse a grasshopper
+  nymph, a caterpillar, a grub, a pill bug, a mantis nymph; the squirrels a caterpillar, a grub, a mouse pup; the
+  snowshoe hare a dead mouse; the fox, the bobcat, the coyote, the opossum a snake; the snakes a leopard frog, a
+  toad, an anole, the milk snake a young rattler. A kill more than half the hunter's length isn't carried off or
+  lifted: it's eaten where it fell, longer. The fox's fruit, ants and wasps (a huckleberry bush, a harvester ants'
+  nest, a fallen paper wasp comb), the opossum's fallen persimmons: eaten where they are (`eat_at(point, seconds)`,
+  any of the four-legged make's), its snout brought to the point and kept there, licking, snapping, nosing about;
+  nothing taken away or moved (fruit's anyone's to pick, ants and such are drawn by the hundred).
 - The mammals' look (`scripts/creatures/mammal_skin.gd`, `MammalSkin`): each one skin, not parts stacked. Its rings
   are swept into tubes (the body rounding up through the neck into the head to its nose, the jaw, each leg from
   inside its shoulder or haunch to its toes, the tail), every vertex weighted to the bones the animal's own motor
@@ -575,7 +585,7 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   (`behaviours()` lists its own: eat, lay, hop, fly, strike, watch, groom, coil, bask, feed, land, sting, ...),
   `is_busy()`, the signal `action_finished(name, ok)`, and `height` (a Callable, the ground's y at x, z: for the
   walkers and crawlers; the ants' already had it). Driven, a creature sets aside its own wandering, and holds still
-  once an order's done. The life cycle demo's P runs a few creatures through orders one after another this way.
+  once an order's done. (Its orders can be run one after another, each given once the last's done: `action_finished`.)
 - Life cycles (not yet in the game): eggs (`scripts/creatures/brood.gd`, `Brood`; `egg.gd`: rice grains, each kind
   its size and colour) laid by the butterflies one to a leaf (the clearwing hovering), by the wasp one to each cell of
   its comb, each egg filling its cell (`Wasp.comb`, `lay_eggs`; the demo's 1 lays in the next empty cell, one a lay), by the beetles in a cluster (`AntColony.lay`, a beetle's: tipped tail down; the
@@ -601,11 +611,11 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   `Molt.begin`: one moult to grown, not the several a real one takes): the nymph still, gripping, swelling; its skin
   splitting, the adult backing up and out of it nose first, swelling to full size as it walks off; the cast skin left
   pale and see-through (the grasshoppers', the mantis'; the darner's own climbing out of the water as before). Demo:
-  3 pupates the larvae at a station, 2 hatches the pupae and moults the nymphs. They ripen (the monarch's going clear, its wings showing through),
+  3 pupates the larvae (the selected, or all), 2 hatches the pupae and moults the nymphs. They ripen (the monarch's going clear, its wings showing through),
   wriggle, split, and are left empty skins; the adult pushes out (the monarch head first, down; the clearwing out of
   its cocoon), turns or climbs to hang, its abdomen swollen, its crumpled wings hanging down and pumped out to full
-  size, dried, opened and closed (`Lepidoptera.emerge`); then flies. `tools/creatures/life_cycle_demo.tscn`, a station each. The clearwing's
-  station has purple coneflowers and asters: it hovers at them, its tongue in one floret after another (E; its
+  size, dried, opened and closed (`Lepidoptera.emerge`); then flies. In the ecology sandbox (`tools/creatures/ecology_demo.tscn`) the clearwing goes
+  to the flowers there (a coneflower put down for it, if there are none): it hovers at them, its tongue in one floret after another (E; its
   searching flights, W and F, stop at them too).
 - `scripts/creatures/lepidoptera.gd` (`Lepidoptera`): a butterfly or moth at twice life size, not yet in the game: built
   from parts (furred where the species is), its wings cut to their real outlines and painted, veins, borders and
@@ -617,9 +627,9 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   wings spread; feed on a flower, its wings closed over its back). `tools/creatures/lepidoptera_demo.tscn` shows them
   in a patch of the game's flowers (`DemoFlowers.patch`: three clumps of common milkweed, one of swamp milkweed,
   coneflowers, Susans, fleabane, asters, yampah) and a stone, each animation on a key.
-  The life cycle demo's plain is grown over with the game's own short grass (`DemoFlowers.meadow`: GroundCover's
+  The ecology sandbox's plain is grown over with the game's own short grass (`DemoFlowers.meadow`: GroundCover's
   finest grass layer's clumps, 7 to 16 cm, coloured as `ground_cover.gdshader` colours them, swaying in the same
-  wind and as much), kept off the ponds and round the small creatures' stations.
+  wind and as much), kept off the ponds and round the small creatures.
 
 ## The planet and the sky
 
