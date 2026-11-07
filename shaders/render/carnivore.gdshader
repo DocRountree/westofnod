@@ -23,7 +23,7 @@ render_mode diffuse_lambert_wrap, specular_schlick_ggx;
 // (phase: 0 brown, 1 grizzled, 2 blond), 6 an American bison (front_z: its
 // shaggy front's hind edge), 7 a white-tailed deer (phase: 0 summer, 1
 // winter; muzzle_z: the white band behind its nose; bare_a, bare_b, bare_r:
-// its eyes, ringed white).
+// its eyes, ringed white), ... 14 a Virginia opossum.
 
 uniform int species = 0;
 uniform int part = 0;
@@ -451,6 +451,49 @@ void fragment() {
 			c = vec3(0.05, 0.045, 0.04);
 		if (pt == 7.0)
 			c = phase == 0 ? vec3(0.27, 0.19, 0.13) * (0.9 + 0.2 * vn(rp * 0.05)) : mix(vec3(0.74, 0.68, 0.57), vec3(0.45, 0.38, 0.3), vn(rp * 0.02) * 0.6);
+	} else if (species == 14) {
+		// a Virginia opossum: grizzled, its underfur white, its long guard
+		// hairs white, a black one among them here and there (darker over
+		// its shoulders and down its back, paler, frosted, on its flanks);
+		// its legs black, its feet bare, pinkish white; its face white, a
+		// dark smudge round each eye, a faint dark line up its forehead, its
+		// crown greyer; its nose pink; its ears black, naked, pale tipped; its
+		// tail furred dark at its root, then bare and scaled, black for a
+		// third of its length, white to its tip. A newborn pink and naked
+		// (fur: 0); a joey's coat softer, paler.
+		vec3 frost = vec3(0.88, 0.87, 0.84);
+		vec3 black = vec3(0.1, 0.095, 0.095);
+		float gz = vn(rp * vec3(0.42, 0.42, 0.13)) * 0.5 + vn(rp * vec3(0.95, 0.95, 0.3) + 3.0) * 0.3 + vn(rp * 0.05) * 0.2; // (the guard hairs, fine, in streaks)
+		vec3 grey = mix(vec3(0.34, 0.33, 0.32), frost, 0.25 + 0.6 * smoothstep(0.25, 0.75, gz));
+		c = countershade(grey * 0.78, grey, mix(grey, vec3(0.74, 0.7, 0.64), 0.5), ny, -0.45);
+		c = mix(c, c * 0.62, smoothstep(0.5, 0.7, a) * (1.0 - smoothstep(0.82, 0.9, a)) * (1.0 - smoothstep(-0.2, 0.5, ny)) * (pt == 0.0 && fw < 0.5 ? 1.0 : 0.0)); // (its shoulders, chest dark)
+		if (young)
+			c = mix(c, frost * 0.92, 0.22);
+		if (fw > 0.0) {
+			vec3 face = vec3(0.94, 0.92, 0.87);
+			float crown = smoothstep(bare_b.z - 6.0, bare_b.z + 22.0, hp.z) * smoothstep(-0.1, 0.5, ny);
+			face = mix(face, mix(grey, frost, 0.35), crown * 0.75);
+			float line = (1.0 - smoothstep(1.5, 4.0, abs(hp.x))) * smoothstep(bare_b.z - 30.0, bare_b.z - 10.0, hp.z) * (1.0 - smoothstep(bare_b.z + 10.0, bare_b.z + 25.0, hp.z)) * smoothstep(0.2, 0.7, ny);
+			face = mix(face, vec3(0.4, 0.38, 0.37), line * 0.7);
+			float er = min(length((hp - bare_a) / vec3(1.0, 0.8, 1.35)), length((hp - bare_b) / vec3(1.0, 0.8, 1.35))) / max(bare_r, 1.0);
+			face = mix(face, vec3(0.12, 0.11, 0.11), (1.0 - smoothstep(1.2, 2.1, er)) * 0.85); // (dark round its eyes)
+			c = mix(c, face, fw);
+		}
+		if (leg) {
+			c = mix(c, black * (0.9 + 0.3 * gz), smoothstep(0.12, 0.4, a));
+			c = mix(c, vec3(0.88, 0.78, 0.75), smoothstep(0.8, 0.9, a)); // (its feet, its toes)
+		}
+		if (pt == 4.0)
+			c = vec3(0.88, 0.78, 0.75);
+		if (pt == 5.0) // (its ears: black, bare, their rims pale)
+			c = mix(vec3(0.07, 0.065, 0.065), vec3(0.86, 0.76, 0.74), smoothstep(ear_len * 0.72, ear_len * 0.9, rp.y));
+		if (pt == 6.0) {
+			float cell = max(abs(fract(rp.x / 4.0) - 0.5), abs(fract(rp.z / 4.0 + 0.5 * floor(rp.x / 4.0)) - 0.5));
+			vec3 tail = mix(vec3(0.09, 0.085, 0.085), vec3(0.86, 0.8, 0.77), smoothstep(0.32, 0.55, a));
+			tail *= 0.86 + 0.24 * smoothstep(0.36, 0.48, cell);
+			c = mix(c * 0.6, tail, smoothstep(0.04, 0.1, a));
+		}
+		c = mix(vec3(0.9, 0.62, 0.6), c, fur);
 	} else {
 		// a white-tailed deer: summer red brown, darker down its spine;
 		// winter grey brown; white beneath and inside its legs, its chin, a
@@ -566,7 +609,7 @@ void fragment() {
 	// its tip, darker at its root; the strands gathered in locks; a soft
 	// mottling. Its grain in the light, too: the surface bumped by the
 	// strands and the locks (fading out where they'd shimmer, far off).
-	bool bare = pt == 4.0 || pt == 7.0 || (species == 11 && ((pt == 6.0 && a > 0.12) || (leg && a > 0.7))) || leather > 0.5;
+	bool bare = pt == 4.0 || pt == 7.0 || (species == 11 && ((pt == 6.0 && a > 0.12) || (leg && a > 0.7))) || (species == 14 && ((pt == 6.0 && a > 0.08) || (leg && a > 0.85) || pt == 5.0 || fur < 0.5)) || leather > 0.5;
 	float s = clamp(hair * 0.06, 0.3, 4.0); // (a strand's width, mm)
 	vec3 stretch = leg ? vec3(1.0, 4.0, 1.0) : vec3(1.0, 1.0, 4.0);
 	vec3 q = rp / (s * stretch);

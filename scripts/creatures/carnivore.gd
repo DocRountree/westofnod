@@ -1558,7 +1558,7 @@ func _pose(dt: float) -> void:
 	var lick := 0.25 * _lick * maxf(sin(_t * 6.0), 0.0)
 	var tilt := float(S.get("tilt", 0.0)) * (1.0 if _mode == "hunt" and _stage == 2 else 0.0)
 	_head.rotation = Vector3(-float(S.neck_pitch) * 0.85 + _neck_now.x * 0.5 + _look_now.x + sniff - lick, _neck_now.y * 0.45 + _look_now.y, tilt * sin(_t * 0.7))
-	_jaw.rotation.x = maxf(_jaw_to, 0.25 * _lick * maxf(sin(_t * 6.0), 0.0)) + 0.1 * _chew * maxf(sin(_t * 9.0), 0.0)
+	_jaw.rotation.x = -(maxf(_jaw_to, 0.25 * _lick * maxf(sin(_t * 6.0), 0.0)) + 0.1 * _chew * maxf(sin(_t * 9.0), 0.0)) # (open: its jaw's tip down, away from its upper teeth)
 	# its forepaw licked, its face washed (sitting)
 	if _mode == "groom" and s > 0.6:
 		var ph := fmod(_st, 9.0)

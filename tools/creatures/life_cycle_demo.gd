@@ -70,6 +70,14 @@ extends Node3D
 ## North American beaver: a female and a male, a bank with aspens and sticks
 ##   (E eat bark, H fell an aspen and take it to the lodge), a pond and their
 ##   lodge (B swim, X tail slap and dive, M mud on the lodge)
+## Virginia opossum: a female and a male, her den (a hollow log), a leaning
+##   dead branch, fallen persimmons, leaf litter (1 her young born into her
+##   pouch, out after a while and riding on her back; V they climb down and
+##   play, and back on; N she nurses them; X playing possum; D gaping,
+##   hissing; F up the branch, its tail round it, and down head first; B
+##   leaves gathered and carried in its tail to her den; E fruit or carrion,
+##   H a mouse or a grasshopper, U a snake, a toad...; K he mounts her and
+##   they topple over together)
 ## (every station a male too, but the ants': the female's partner)
 ##
 ## THE KEYS (the same for every creature, acting only on those at the
@@ -102,7 +110,7 @@ const PupaScript := preload("res://scripts/creatures/pupa.gd")
 
 const NAMES := ["monarch", "hummingbird clearwing", "paper wasp", "carpenter ant (queen)", "red harvester (queen)", "June bug", "convergent lady beetle", "differential grasshopper", "Carolina mantis", "eastern diamondback rattlesnake", "eastern milk snake",
 		"Carolina wolf spider", "six-spotted fishing spider", "grass spider (funnel weaver)", "yellow garden spider", "pill bug", "deer mouse",
-		"green anole", "Arizona bark scorpion", "snowshoe hare", "red fox", "bobcat", "coyote", "grey wolf", "American black bear", "brown bear (grizzly)", "American bison", "white-tailed deer", "trigonalid wasp", "eastern fox squirrel", "North American beaver", "eastern grey squirrel", "blue-winged grasshopper", "common green darner", "moose", "northern leopard frog", "eastern box turtle", "common snapping turtle", "green sea turtle", "American toad"]
+		"green anole", "Arizona bark scorpion", "snowshoe hare", "red fox", "bobcat", "coyote", "grey wolf", "American black bear", "brown bear (grizzly)", "American bison", "white-tailed deer", "trigonalid wasp", "eastern fox squirrel", "North American beaver", "eastern grey squirrel", "blue-winged grasshopper", "common green darner", "moose", "northern leopard frog", "eastern box turtle", "common snapping turtle", "green sea turtle", "American toad", "Virginia opossum"]
 const SpiderScript := preload("res://scripts/creatures/spider.gd")
 const IsopodScript := preload("res://scripts/creatures/isopod.gd")
 const SnakeScript := preload("res://scripts/creatures/snake.gd")
@@ -137,6 +145,7 @@ const BeaverScript := preload("res://scripts/creatures/beaver.gd")
 const TrigScript := preload("res://scripts/creatures/trigonalid.gd")
 const MealScript := preload("res://scripts/creatures/meal.gd")
 const MoltScript := preload("res://scripts/creatures/molt.gd")
+const OpossumScript := preload("res://scripts/creatures/opossum.gd")
 const GAP := 0.9 # m between stations
 
 var cam: Camera3D
@@ -215,6 +224,12 @@ var bears: Array = [] # [female, male, another] each kind: black, brown
 var _bear_dens: Array = []
 var _bushes: Array = [] # each kind's
 var _rub_trees: Array = []
+var possum_f: Node3D
+var possum_m: Node3D
+var _possum_den: Node3D
+var _possum_snag: Array = [] # [foot, top, radius]
+var _possum_fruit: Array = [] # (the fallen persimmons: where)
+var _possum_litter := Vector3.ZERO # (leaves, to gather for her nest)
 const POND := -0.004 # m: the pond's surface, a little below the plain's
 const POND_W := 0.42 # (its half width, x)
 const POND_D := 0.36 # (its half depth, z)
@@ -242,7 +257,7 @@ var _moth_perch_n := Vector3.BACK
 
 func _station(i: int) -> Vector3:
 	# (the snakes, life size, given more room)
-	return Vector3(i * GAP + (1.2 if i >= 9 else 0.0) + (1.8 if i >= 10 else 0.0) + (1.6 if i >= 11 else 0.0) + (3.0 if i >= 19 else 0.0) + (4.0 if i >= 20 else 0.0) + (4.0 if i >= 21 else 0.0) + (4.0 if i >= 22 else 0.0) + (5.0 if i >= 23 else 0.0) + (6.0 if i >= 24 else 0.0) + (7.0 if i >= 25 else 0.0) + (9.0 if i >= 26 else 0.0) + (9.0 if i >= 27 else 0.0) + (4.5 if i >= 28 else 0.0) + (3.0 if i >= 29 else 0.0) + (5.0 if i >= 30 else 0.0) + (5.0 if i >= 31 else 0.0) + (2.0 if i >= 32 else 0.0) + (4.0 if i >= 33 else 0.0) + (6.0 if i >= 34 else 0.0) + (6.0 if i >= 35 else 0.0) + (3.0 if i >= 36 else 0.0) + (3.0 if i >= 37 else 0.0) + (7.5 if i >= 38 else 0.0) + (3.5 if i >= 39 else 0.0), 0.0, 0.0)
+	return Vector3(i * GAP + (1.2 if i >= 9 else 0.0) + (1.8 if i >= 10 else 0.0) + (1.6 if i >= 11 else 0.0) + (3.0 if i >= 19 else 0.0) + (4.0 if i >= 20 else 0.0) + (4.0 if i >= 21 else 0.0) + (4.0 if i >= 22 else 0.0) + (5.0 if i >= 23 else 0.0) + (6.0 if i >= 24 else 0.0) + (7.0 if i >= 25 else 0.0) + (9.0 if i >= 26 else 0.0) + (9.0 if i >= 27 else 0.0) + (4.5 if i >= 28 else 0.0) + (3.0 if i >= 29 else 0.0) + (5.0 if i >= 30 else 0.0) + (5.0 if i >= 31 else 0.0) + (2.0 if i >= 32 else 0.0) + (4.0 if i >= 33 else 0.0) + (6.0 if i >= 34 else 0.0) + (6.0 if i >= 35 else 0.0) + (3.0 if i >= 36 else 0.0) + (3.0 if i >= 37 else 0.0) + (7.5 if i >= 38 else 0.0) + (3.5 if i >= 39 else 0.0) + (2.5 if i >= 40 else 0.0), 0.0, 0.0)
 
 
 func _ready() -> void:
@@ -320,6 +335,7 @@ func _ready() -> void:
 	_turtle_station()
 	_snap_station()
 	_sea_station()
+	_possum_station()
 	_male_partners()
 	_new_pupae()
 	_focus = _station(0) + Vector3(0.0, 0.08, 0.0)
@@ -1207,6 +1223,39 @@ func _fox_mouse() -> Node3D:
 	return mo
 
 
+## The opossums: a female and a male, her den (a hollow log), a dead branch
+## leaning on the ground to climb, persimmons fallen under it, leaves to
+## gather.
+func _possum_station() -> void:
+	var c := _station(40)
+	_box(c + Vector3(0.0, 0.0006, 0.0), Vector3(3.0, 0.002, 2.4), Color(0.36, 0.3, 0.2))
+	_possum_den = OpossumScript.den()
+	_possum_den.position = c + Vector3(-0.75, 0.0, -0.45)
+	_possum_den.rotation.y = -1.0
+	add_child(_possum_den)
+	_possum_snag = [c + Vector3(0.65, 0.0, -0.35), c + Vector3(0.2, 0.85, -0.85), 0.035]
+	add_child(OpossumScript.snag(_possum_snag[0], _possum_snag[1], _possum_snag[2]))
+	var wf := OpossumScript.windfall(c + Vector3(0.55, 0.0, 0.55))
+	add_child(wf)
+	_possum_fruit = wf.get_meta("fruit")
+	_possum_litter = c + Vector3(-0.35, 0.0, 0.7)
+	for k in 14: # (the leaf litter)
+		var lf := OpossumScript.leaf(k)
+		var a := float(k) * 2.4
+		lf.position = _possum_litter + Vector3(cos(a), 0.0, sin(a)) * (0.03 + 0.012 * k) + Vector3.UP * 0.002
+		add_child(lf)
+	possum_f = OpossumScript.new()
+	add_child(possum_f)
+	possum_f.call("place", c, 0.4)
+	possum_f.set("home_den", _possum_den)
+	possum_f.call("wander", c, 0.7)
+	possum_m = OpossumScript.new()
+	possum_m.set("male", true)
+	add_child(possum_m)
+	possum_m.call("place", c + Vector3(0.6, 0.0, 0.5), 2.2)
+	possum_m.call("wander", c, 0.8)
+
+
 ## The bobcats: a female and a male, her rock den; a hare to hunt.
 func _bobcat_station() -> void:
 	var c := _station(21)
@@ -1692,6 +1741,7 @@ func _mate_all() -> void:
 	pairs.append([cat_m, cat_f])
 	pairs.append([coy_m, coy_f])
 	pairs.append([wolf_m, wolf_f])
+	pairs.append([possum_m, possum_f])
 	for b: Array in bears:
 		pairs.append([b[1], b[0]])
 	for pr: Array in pairs:
@@ -2277,6 +2327,8 @@ func _do(c: Node, act: String, all: Array) -> void:
 				c.call("birth", 3) # (up in her drey)
 			elif sc == BeaverScript:
 				c.call("birth", 3)
+			elif sc == OpossumScript: # (into her pouch)
+				c.call("birth", 7)
 			elif c.has_method("birth"): # (the hunters: in their dens)
 				c.call("birth", 4, c.get("home_den"))
 		"eat", "hunt":
@@ -2308,6 +2360,8 @@ func _do(c: Node, act: String, all: Array) -> void:
 				c.call("search", st, 0.5, _moth_flowers)
 			elif sc == Wasp or sc == TrigScript:
 				c.call("seek_food", st, 0.6 if sc == Wasp else 0.4)
+			elif sc == OpossumScript and not young: # (F: up the dead branch)
+				c.call("climb", _possum_snag[0], _possum_snag[1], _possum_snag[2])
 			elif (sc == SquirrelScript or sc == GreySqScript) and not young: # (F: up its tree)
 				c.call("climb", c.get("tree_at"), randf_range(1.8, 3.0))
 			elif (sc == HopperScript or sc == BlueHopperScript):
@@ -2323,6 +2377,8 @@ func _do(c: Node, act: String, all: Array) -> void:
 				c.call("roll", 5.0)
 			elif sc == BeaverScript: # (its tail slapped on the water, and under)
 				c.call("slap")
+			elif sc == OpossumScript: # (playing possum)
+				c.call("play_dead", randf_range(14.0, 20.0))
 			elif sc == HareScript or (sc == SquirrelScript or sc == GreySqScript): # (a squirrel: up its tree)
 				c.call("flee", p + Vector3(randf_range(-1, 1), 0.0, randf_range(-1, 1)).normalized() * 0.5)
 			elif sc == ScorpionScript and not young:
@@ -2337,6 +2393,8 @@ func _do(c: Node, act: String, all: Array) -> void:
 		"display":
 			if sc == AnoleScript:
 				c.call("display")
+			elif sc == OpossumScript: # (gaping, hissing)
+				c.call("gape", 6.0)
 			elif sc == HareScript:
 				c.call("thump")
 			elif (sc == SquirrelScript or sc == GreySqScript):
@@ -2359,7 +2417,10 @@ func _do(c: Node, act: String, all: Array) -> void:
 			if c.has_method("nurse"):
 				c.call("nurse")
 		"forage":
-			if sc == BeaverScript and not young: # (B: off for a swim)
+			if sc == OpossumScript and not young: # (B: leaves for her nest, in its tail)
+				var a := randf() * TAU
+				c.call("gather", _possum_litter + Vector3(cos(a), 0.0, sin(a)) * 0.08, _possum_den.position)
+			elif sc == BeaverScript and not young: # (B: off for a swim)
 				c.call("swim", Vector3(_bv_bank + 1.4, 0.0, st.z), 1.0)
 			elif (sc == SquirrelScript or sc == GreySqScript) and not young: # (B: a nut cached)
 				var a := randf() * TAU
@@ -2434,6 +2495,7 @@ const UNUSUAL := {
 	"mouse": ["nymph", "caterpillar", "grub", "pillbug", "mantis_nymph"],
 	"squirrel": ["caterpillar", "grub", "mouse_pup"],
 	"hare": ["dead_mouse"],
+	"opossum": ["snake", "snake_young", "toad", "frog", "grub", "caterpillar", "mouse_pup", "anole", "fruit"],
 }
 
 
@@ -2462,18 +2524,22 @@ func _unusual(c: Node, p: Vector3) -> void:
 		who = "hare"
 	elif sc == SnakeScript:
 		who = String(c.get("kind"))
+	elif sc == OpossumScript:
+		who = "opossum"
 	if who == "" or not UNUSUAL.has(who):
 		return
 	var kinds: Array = UNUSUAL[who]
 	var kind: String = kinds[randi() % kinds.size()]
 	var a := randf() * TAU
 	var dir := Vector3(cos(a), 0.0, sin(a))
-	if kind in ["fruit", "ants", "wasps"]: # (eaten where it is, nothing taken)
+	if kind == "fruit" and who == "opossum": # (a persimmon, fallen)
+		c.call("eat_at", _possum_fruit[randi() % _possum_fruit.size()], 12.0)
+	elif kind in ["fruit", "ants", "wasps"]: # (eaten where it is, nothing taken)
 		c.call("eat_at", _fox_spot(kind, p), 10.0)
 	elif sc == SnakeScript: # (a little way off: to it, the strike)
 		c.call("eat", _real_prey(kind, p + dir * 0.35))
 	elif c.has_method("hunt") and who != "deer": # (a hunter: out a way before it, to stalk)
-		var f := _real_prey(kind, p + dir * randf_range(1.6, 2.4))
+		var f := _real_prey(kind, p + dir * (randf_range(0.6, 0.9) if who == "opossum" else randf_range(1.6, 2.4)))
 		c.call("hunt", f)
 	else: # (set before it, close)
 		var near := 0.08 if who == "mouse" else (0.25 if who == "squirrel" else 0.6)
@@ -2689,6 +2755,15 @@ func _feed(c: Node, act: String, young: bool, p: Vector3, st: Vector3) -> void:
 				if o != c and o.get_script() == sc and _flag(o, "male") and not _young(o) and (sc == BisonScript or o.get("season") == c.get("season")):
 					c.call("spar", o)
 					break
+	elif sc == OpossumScript:
+		if young:
+			return
+		if act == "hunt": # (H: a mouse, a grasshopper)
+			c.call("hunt", _station_mouse(40) if randf() < 0.5 else _real_prey("grasshopper", p + near * 0.8))
+		elif randf() < 0.55: # (E: a fallen persimmon, eaten where it lies; or carrion)
+			c.call("eat_at", _possum_fruit[randi() % _possum_fruit.size()], 12.0)
+		else:
+			c.call("eat", _real_prey("dead_mouse", p + near * 0.4))
 	elif c.has_method("browse") and act == "eat": # (a bear: berries)
 		var trio := _bear_trio_of(c)
 		var k := bears.find(trio)
@@ -2713,7 +2788,7 @@ func _feed(c: Node, act: String, young: bool, p: Vector3, st: Vector3) -> void:
 ## To station i (the camera further off for the snakes).
 func _go(i: int) -> void:
 	_at = i
-	_dist = 5.0 if i == 38 else 1.6 if i == 35 or i == 36 or i == 39 else 9.0 if i == 34 else 2.2 if i == 33 else 0.8 if i == 32 else 2.4 if i == 31 else 4.2 if i == 30 else 2.4 if i == 29 else 0.8 if i == 28 else 2.2 if i == 9 or i == 10 else (2.4 if i == 19 else ((6.0 if i >= 27 else (9.0 if i >= 26 else (7.5 if i >= 24 else (5.0 if i >= 22 else 3.6)))) if i >= 20 else minf(_dist, 0.8)))
+	_dist = 1.7 if i == 40 else 5.0 if i == 38 else 1.6 if i == 35 or i == 36 or i == 39 else 9.0 if i == 34 else 2.2 if i == 33 else 0.8 if i == 32 else 2.4 if i == 31 else 4.2 if i == 30 else 2.4 if i == 29 else 0.8 if i == 28 else 2.2 if i == 9 or i == 10 else (2.4 if i == 19 else ((6.0 if i >= 27 else (9.0 if i >= 26 else (7.5 if i >= 24 else (5.0 if i >= 22 else 3.6)))) if i >= 20 else minf(_dist, 0.8)))
 	_say()
 
 

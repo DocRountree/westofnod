@@ -429,8 +429,25 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   round it, chips flying, the tree falling, a length gnawed off and carried in its jaws out to its lodge
   (`Beaver.lodge_of()`) and laid on it; eating bark off a stick held across its forepaws, turned like a cob, left
   peeled; mud plastered on the lodge; grooming sat up; kits born furred, following her on land and swimming; mating
-  in the water. The life cycle demo's last station: a female and a male, a bank with aspens and sticks, a pond and
+  in the water. The life cycle demo's station: a female and a male, a bank with aspens and sticks, a pond and
   their lodge (E eat bark, H fell an aspen, B swim, X slap and dive, M mud, 1 birth).
+- `scripts/creatures/opossum.gd` (`Opossum`, *Didelphis virginiana*, on the hunters' make, plantigrade): a Virginia
+  opossum, life size; one skin, low and round backed, its rump high, its long head conical, white faced, the eyes
+  small and black, a dark smudge round each, the pink nose overhanging the jaw; its fifty teeth (shown only with its
+  mouth open); its ears black, naked, pale rimmed; short black legs, bare pink five-fingered feet, the hind foot's
+  big toe an opposable thumb; its tail long, bare, scaled, black from its furred root for a third of its length,
+  then white (`carnivore.gdshader`'s species 14: grizzled grey, white underfur and guard hairs, black ones among
+  them). Playing possum (over on its side, stiff, mouth open, tongue out, drooling; an ear twitches, its head comes
+  up, it gets up and goes); gaping and hissing, every tooth bared; climbing a leaning branch (`Opossum.snag()`),
+  its feet round it, its tail coiled round it, a while up there, turned round and down head first; leaves gathered
+  in its mouth, tucked back under it with its forefeet into the loop of its tail and carried to its den
+  (`Opossum.den()`, a hollow log); eating anything (fallen persimmons, `Opossum.windfall()`, eaten where they lie;
+  carrion; mice, grasshoppers; snakes, toads, frogs, grubs); her young born the size of bees, pink and naked, up
+  her fur into her pouch, out of sight; out after a while, clinging to her back in rows, carried as she goes;
+  down to play (a stalk, a pounce, a tumble) and back on, she waiting for them; nursed at her belly, she on her
+  side; mating: he clicks, mounts her gripping her neck fur, and they topple over together onto their sides. The
+  life cycle demo's last station: a female and a male, her den, the branch, persimmons, leaf litter (1 birth, V
+  play, N nurse, X play dead, D gape, F climb, B gather, E eat, H hunt, U a snake or a toad, K mate).
 - `scripts/creatures/fox_squirrel.gd` (`FoxSquirrel`, *Sciurus niger*, on the hare's motor): an eastern fox squirrel,
   life size; one skin, a long supple body, round head, short blunt muzzle, big dark eyes ringed pale, short rounded
   ears, orange incisors, sharp claws; its long bushy tail a chain of bones carried up over its back in an S,
@@ -534,7 +551,7 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   the coat (fading out far off, where they'd shimmer), matte, a velvet rim; the bison's front in curled wool. The
   faces: almond eyes set in, dark-lidded; the lip line along the jaw to the mouth's corner; whisker spots in rows;
   the muzzle darker toward the nose; the ears furred pale within, their backs the species' own. The heads of the
-  fox, bobcat, coyote, wolf, both bears, bison, deer and beaver are sculpted (`scripts/creatures/sculpt_head.gd`,
+  fox, bobcat, coyote, wolf, both bears, bison, deer, beaver and opossum are sculpted (`scripts/creatures/sculpt_head.gd`,
   `SculptHead`: each species' `sculpt` in its SPEC, fitted to photographs): cross-sections changing along the head,
   its profile's own line, the eye sockets, lids, brows, cheeks, stop, whisker pads and lips pushed in or out; the
   lower jaw tucked under the lips; the nose leather and the face's marks painted on (`carnivore.gdshader`'s `sculpt`).
