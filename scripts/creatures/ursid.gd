@@ -344,24 +344,6 @@ func _next_berry() -> Node3D:
 	return on[rng.randi() % mini(on.size(), 4)][1]
 
 
-var _berry: Node3D # (the berry its lips are going to)
-var _berry_for := 0.0 # (s at it: given up, too awkward, after a while)
-var _berry_pitch := -0.2
-
-
-## (One of the bush's berries to go to: among the few nearest its mouth.)
-func _next_berry() -> Node3D:
-	var m := _mouth()
-	var on: Array = []
-	for b in _bush.get_children():
-		if b.name.begins_with("berry") and (b as Node3D).visible:
-			on.append([m.distance_to((b as Node3D).global_position), b])
-	if on.is_empty():
-		return null
-	on.sort_custom(func(x: Array, y: Array) -> bool: return x[0] < y[0])
-	return on[rng.randi() % mini(on.size(), 4)][1]
-
-
 func _rub(dt: float) -> void:
 	var to := _rub_at - _pos
 	to.y = 0.0

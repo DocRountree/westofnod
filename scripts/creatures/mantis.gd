@@ -53,6 +53,9 @@ var _look := Vector3.INF # (its parent's space)
 var _prey: Node3D
 var _held := false # (no longer: its prey's never moved, pinned where it was struck)
 var _seized_it := false
+var _pin_from := Transform3D() # (a male seized: where he was; where his neck's pinned)
+var _pin_at := Vector3.ZERO
+var _pin_k := 1.0
 var _bite_pitch := 0.2 # (its prothorax's pitch, eating: its mouth to the next bite)
 const PIN := Vector3(0.8, 0.6, 2.8) # (its forelegs reached out, the tibiae snapped shut: pinning its prey where it is)
 # a mantis (a male) as her prey: his head torn off (0..1)
@@ -331,8 +334,13 @@ func _think(dt: float) -> void:
 					_bite_pitch = 0.2
 					if _prey and not _seized_it and _st > 0.05:
 						_seized_it = true
-						if _prey.has_method("_seized"): # (a mantis: limp in her grip)
+						if _prey.has_method("_seized"): # (a mantis: limp in her grip, pulled down, pinned to the ground before her)
 							_prey.call("_seized")
+							_pin_from = (_prey as Node3D).transform
+							var fw := Vector3(-sin(_yaw), 0.0, -cos(_yaw))
+							var m := _mouth()
+							_pin_at = Vector3(m.x, 0.0, m.z) + fw * 4.0 * MM * size
+							_pin_k = 0.0
 						else: # (a live insect: still in her grip)
 							MealScript.subdue(_prey)
 					if _st > 0.6:
@@ -584,6 +592,22 @@ func _hang(h: Vector3, yaw: float, rip: float) -> void:
 	_head.rotation = Vector3(0.7 * rip, 0.0, 1.3 * rip) # (wrenched round)
 
 
+## (A male seized after mating, pulled down by her and pinned to the
+## ground under her forelegs, to be eaten there: lying flat on his front,
+## his head toward her, his neck at neck_at (on the ground); k (0..1) how
+## far down from where he was (from), quickly, once; then still.)
+func _pin(neck_at: Vector3, yaw: float, k: float, from: Transform3D) -> void:
+	var neck := _pro.position + Vector3(0.0, 0.2, -16.5) # (his body mm)
+	_body.scale = Vector3.ONE * MM * size
+	var b := Basis(Vector3.UP, yaw + PI)
+	var to := Transform3D(b, Vector3.ZERO)
+	var g := _ground(neck_at.x, neck_at.z)
+	to.origin = Vector3(neck_at.x, g, neck_at.z) - to * (_body.transform * neck)
+	to.origin.y = g - (to * _body.transform * Vector3.ZERO).y + 2.0 * MM * size # (his underside on the ground)
+	var e := smoothstep(0.0, 1.0, k)
+	transform = Transform3D(from.basis.orthonormalized().slerp(to.basis, e), from.origin.lerp(to.origin, e))
+
+
 ## Let down from p on a thread (a hatchling, from its egg case): falling
 ## slowly, its legs out.
 func drop(p: Vector3) -> void:
@@ -624,6 +648,11 @@ func _pose(dt: float) -> void:
 		(parts[0] as Node3D).rotation.x = now.x
 		(parts[1] as Node3D).rotation.x = now.y
 		(parts[2] as Node3D).rotation.x = now.z
+	# a male seized: pulled down to the ground before her, quickly, then
+	# pinned there, still (eaten where he lies)
+	if _seized_it and _pin_k < 1.0 and is_instance_valid(_prey) and _prey.has_method("_pin"):
+		_pin_k = minf(_pin_k + dt / 0.4, 1.0)
+		_prey.call("_pin", _pin_at, _yaw, _pin_k, _pin_from)
 	# the prey, held in the forelegs at its mouth (a mantis: by his neck,
 	# between them)
 	if _held and is_instance_valid(_prey):

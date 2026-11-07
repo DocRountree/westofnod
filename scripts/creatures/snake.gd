@@ -947,28 +947,29 @@ func _update(_dt: float) -> void:
 	# (pushed, turned hard) the body curves through it, a little off the
 	# path, not creased (the coil, the strike, the mating pose, after: theirs)
 	var max_turn := seg / maxf(R * MIN_BEND, L * MIN_BEND_L)
+	# (each joint, every frame the same way, so nothing toggles: its own
+	# length (the path's, there) behind the joint before, toward its point
+	# on the path (steadied by the path's own way there, so a joint just on
+	# its point doesn't spin), turned no more than its body bends. Its
+	# length the path's: never more, the tail never stretched out)
+	var path: Array[Vector2] = []
+	for q in _pts:
+		path.append(Vector2(q.x, q.z))
 	var prev := Vector2.ZERO
 	for i in range(1, SPINE):
 		var a := Vector2(_pts[i - 1].x, _pts[i - 1].z)
-		var d := Vector2(_pts[i].x, _pts[i].z) - a
-		var l := d.length()
+		var along := path[i] - path[i - 1]
+		var l := along.length()
 		if l < 1e-6:
 			continue
-		d /= l
-		# (a segment's own length, no more: a joint turned off the path
-		# (below), the path's next point may be far from it (doubled back on
-		# itself), and that distance kept would grow joint by joint, the tail
-		# stretched out without end)
-		var moved := l > seg * 1.02
-		l = minf(l, seg)
+		var d := (path[i] - a) + along * 0.5
+		d = d.normalized() if d.length() > 1e-7 else along / l
 		if prev != Vector2.ZERO:
 			var turn := prev.angle_to(d)
 			if absf(turn) > max_turn:
 				d = prev.rotated(signf(turn) * max_turn)
-				moved = true
-		if moved:
-			var q := a + d * l
-			_pts[i] = Vector3(q.x, _ground(q.x, q.y) + R * _profile(float(i) / (SPINE - 1)) * 0.85, q.y)
+		var q := a + d * l
+		_pts[i] = Vector3(q.x, _ground(q.x, q.y) + R * _profile(float(i) / (SPINE - 1)) * 0.85, q.y)
 		prev = d
 	# coiled: an Archimedean spiral round _coil_at, the tail outside, the
 	# head on top of it, raised a little
