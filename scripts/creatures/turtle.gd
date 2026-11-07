@@ -524,7 +524,11 @@ void fragment() {
 
 
 ## Its skin: its ground, spotted (spots: how many), paler beneath; its
-## scales, bumped (bumps); in its own mm (turtle_inv: the spots stay on it).
+## scales, bumped (bumps). Painted on each part in that part's own frame
+## (its mm: turtle_inv for the scale): the pattern goes with a flipper, a
+## leg, the head, as they move, not swimming over them; the scales baked
+## (scale_tex: tools/creatures/bake_turtle_scales.py), mipmapped, laid on
+## from three sides as the surface faces: no shimmer.
 static func _skin_shader() -> Shader:
 	if _skin_sh == null:
 		_skin_sh = Shader.new()
@@ -540,38 +544,30 @@ uniform float cell = 3.2; // (how big they are)
 uniform float seam_w = 0.06; // (how wide the pale between them)
 uniform vec3 edge : source_color = vec3(0.82, 0.74, 0.52);
 uniform mat4 turtle_inv;
-varying vec3 wp;
+uniform sampler2D scale_tex : filter_linear_mipmap_anisotropic, repeat_enable; // (R into each scale from its seam, G its tone, B its dome)
+varying vec3 bp; // (the part's own mm)
+varying vec3 bn; // (its normal, its own)
 float h3(vec3 p) { return fract(sin(dot(p, vec3(12.9898, 78.233, 37.719))) * 43758.5453); }
 float vn(vec3 p) {
 	vec3 i = floor(p); vec3 f = fract(p); f = f * f * (3.0 - 2.0 * f);
 	return mix(mix(mix(h3(i), h3(i + vec3(1,0,0)), f.x), mix(h3(i + vec3(0,1,0)), h3(i + vec3(1,1,0)), f.x), f.y),
 		mix(mix(h3(i + vec3(0,0,1)), h3(i + vec3(1,0,1)), f.x), mix(h3(i + vec3(0,1,1)), h3(i + vec3(1,1,1)), f.x), f.y), f.z);
 }
-float cells(vec3 p) { // (distance to the nearest of its scattered points, 0 .. 1)
-	vec3 i = floor(p);
-	float best = 9.0;
-	for (int x = -1; x <= 1; x++) for (int y = -1; y <= 1; y++) for (int z = -1; z <= 1; z++) {
-		vec3 k = i + vec3(float(x), float(y), float(z));
-		vec3 at = k + vec3(h3(k), h3(k + 1.3), h3(k + 2.7));
-		best = min(best, length(p - at));
-	}
-	return best;
+vec4 scales(vec3 p, vec3 w3, float per) { // (the baked tile, a scale per units of p, from three sides)
+	float t = 1.0 / (8.0 * per); // (8 scales a tile)
+	return texture(scale_tex, p.zy * t) * w3.x + texture(scale_tex, p.xz * t) * w3.y + texture(scale_tex, p.xy * t) * w3.z;
 }
-vec2 cells2(vec3 p) { // (nearest and next nearest of its scattered points)
-	vec3 i = floor(p);
-	float d1 = 9.0;
-	float d2 = 9.0;
-	for (int x = -1; x <= 1; x++) for (int y = -1; y <= 1; y++) for (int z = -1; z <= 1; z++) {
-		vec3 k = i + vec3(float(x), float(y), float(z));
-		float d = length(p - k - vec3(h3(k), h3(k + 1.3), h3(k + 2.7)));
-		if (d < d1) { d2 = d1; d1 = d; } else if (d < d2) { d2 = d; }
-	}
-	return vec2(d1, d2);
+void vertex() {
+	mat3 m = mat3(turtle_inv * MODEL_MATRIX);
+	vec3 k = vec3(length(m[0]), length(m[1]), length(m[2])); // (its own units to the turtle's mm)
+	bp = VERTEX * k;
+	bn = NORMAL / k;
 }
-void vertex() { wp = (turtle_inv * (MODEL_MATRIX * vec4(VERTEX, 1.0))).xyz; }
 void fragment() {
 	vec3 n = (inverse(VIEW_MATRIX) * vec4(NORMAL, 0.0)).xyz;
-	vec3 p = wp / scale;
+	vec3 p = bp / scale;
+	vec3 w3 = pow(abs(normalize(bn)), vec3(4.0));
+	w3 /= (w3.x + w3.y + w3.z);
 	vec3 c = base * (0.85 + 0.3 * vn(p * 0.5));
 	// (its spots: scattered, irregular, some run together)
 	vec3 g = p / 4.5;
@@ -586,15 +582,15 @@ void fragment() {
 	}
 	c = mix(c, spot, sp);
 	if (mosaic > 0.0) { // (big polygonal scales, dark, each outlined pale)
-		vec2 cc = cells2(p / cell);
-		float seam = 1.0 - smoothstep(seam_w * 0.5, seam_w * 1.5, cc.y - cc.x);
-		float inner = smoothstep(0.0, 0.6, cc.y - cc.x); // (each scale darker in its middle, paler toward its rim)
-		c = mix(c * (0.75 + 0.35 * h3(floor(p / cell))) * mix(1.25, 0.8, inner), edge, seam * mosaic);
+		vec4 sc = scales(p, w3, cell);
+		float into = sc.r * 0.6; // (in from its seam, scale units)
+		float seam = 1.0 - smoothstep(seam_w * 0.5, seam_w * 1.5, into);
+		c = mix(c * (0.75 + 0.35 * sc.g) * mix(1.25, 0.8, sc.r), edge, seam * mosaic); // (each scale darker in its middle, paler toward its rim)
 	}
 	c = mix(pale, c, smoothstep(-0.55, -0.05, n.y));
 	ALBEDO = c;
 	// (its scales: bumped)
-	float h = 1.0 - smoothstep(0.0, 0.62, cells(p / 3.6)); // (each scale a rounded dome, the skin between creased)
+	float h = scales(p, w3, 3.6).b; // (each scale a rounded dome, the skin between creased)
 	vec3 dpx = dFdx(VERTEX);
 	vec3 dpy = dFdy(VERTEX);
 	float dhx = dFdx(h);
@@ -681,6 +677,7 @@ func _build() -> void:
 	# its skin
 	_skin = ShaderMaterial.new()
 	_skin.shader = _skin_shader()
+	_skin.set_shader_parameter("scale_tex", load("res://data/creatures/turtle_scales.png")) # (baked: tools/creatures/bake_turtle_scales.py)
 	_skin.set_shader_parameter("base", C.skin)
 	_skin.set_shader_parameter("spot", (C.spot as Color) * bright)
 	_skin.set_shader_parameter("pale", C.under)
@@ -966,6 +963,8 @@ func _eat_think(_dt: float) -> void:
 		_st = 0.0
 		MealScript.subdue(_food) # (a live one: caught in its jaws)
 		_meal = MealScript.of(_food, 3)
+		if _meal:
+			_meal.set("held", true) # (in its jaws: the bite it's at drawn in to them)
 	_neck_to = 1.2 + 0.15 * sin(_st * 4.0)
 	_look = -0.5 # (its head down to it)
 	_jaw_to = 0.45 * maxf(sin(_st * 5.0), 0.0)

@@ -1423,6 +1423,8 @@ func _pose_prey(dt: float) -> void:
 	_prey_ball = minf(_prey_ball + dt * 0.03 * _a.chew, 1.0)
 	if _meal == null:
 		_meal = MealScript.of(_holding, 4)
+		if _meal:
+			_meal.set("held", true) # (up in its forelegs: the bite it's at drawn into its mandibles)
 	if _meal:
 		_meal.call("tear", _prey_ball, _head.to_global(Vector3(0.0, -1.7, -2.3)))
 

@@ -297,53 +297,83 @@ func _browse(dt: float) -> void:
 				_turn_to = atan2(-to.x, -to.z)
 				_stage = 1
 				_st = 0.0
-		1: # stripping the berries with its lips; up for the higher ones
+		1: # stripping the berries with its lips, its mouth to each in turn; up for the higher ones
 			_target = _pos
 			_chew = 1.0
 			_jaw_to = 0.12 * maxf(sin(_st * 7.0), 0.0)
-			var high := fmod(_st, 10.0) > 6.0
-			_stand_to = 0.55 if high else 0.0
-			_neck_to = Vector2(-0.2 if not high else 0.3, 0.3 * sin(_st * 0.6))
-			if fmod(_st, 1.5) < dt: # (a berry taken: a copy of one, the bush's own left hanging)
-				_take_berry()
+			if not is_instance_valid(_berry) or _berry_for > 2.5:
+				_berry = _next_berry()
+				_berry_for = 0.0
+			_berry_for += dt
+			if _berry == null:
+				_neck_to = Vector2(-0.2, 0.3 * sin(_st * 0.6))
+			else:
+				var b := _berry.global_position
+				var m := _mouth()
+				# (its head raised or lowered till its lips are at it; up on its
+				# hind legs for one its neck won't reach)
+				_berry_pitch = clampf(_berry_pitch + clampf((b.y - m.y) * 6.0, -1.0, 1.0) * dt, -0.7, 0.5)
+				_stand_to = move_toward(_stand_to, 0.55 if (_berry_pitch >= 0.45 and b.y > m.y + 0.03) else (0.0 if _berry_pitch < 0.2 else _stand_to), dt)
+				_neck_to = Vector2(_berry_pitch, 0.0)
+				# (shuffling, its mouth over it)
+				var off := Vector3(b.x - m.x, 0.0, b.z - m.z)
+				if off.length() > 0.02:
+					_pos += off.limit_length(0.1 * dt)
+					_target = _pos
+				if m.distance_to(b) < 0.05: # (its lips on it: a copy of it taken in, the bush's own left hanging)
+					_take_berry(_berry)
+					_berry = null
 			if _st > 18.0:
 				_stand_to = 0.0
+				_berry = null
 				wander(_home_spot(), _radius)
+
+
+var _berry: Node3D # (the berry its lips are going to)
+var _berry_for := 0.0 # (s at it: given up, too awkward, after a while)
+var _berry_pitch := -0.2
+
+
+## (One of the bush's berries to go to: among the few nearest its mouth.)
+func _next_berry() -> Node3D:
+	var m := _mouth()
+	var on: Array = []
+	for b in _bush.get_children():
+		if b.name.begins_with("berry") and (b as Node3D).visible:
+			on.append([m.distance_to((b as Node3D).global_position), b])
+	if on.is_empty():
+		return null
+	on.sort_custom(func(x: Array, y: Array) -> bool: return x[0] < y[0])
+	return on[rng.randi() % mini(on.size(), 4)][1]
 
 
 var _snacks: Array = [] # [the copy, its time] (berries on their way to its mouth)
 
 
-## (A copy of one of the bush's berries (berry_n), from where it hangs, to
-## its mouth: the bush keeps its own.)
-func _take_berry() -> void:
-	var on: Array = []
-	for b in _bush.get_children():
-		if b.name.begins_with("berry") and (b as Node3D).visible:
-			on.append(b)
-	if on.is_empty():
-		return
-	var b: Node3D = on[rng.randi() % on.size()]
+## (A copy of berry b, where it hangs, its lips on it, taken in: the bush
+## keeps its own.)
+func _take_berry(b: Node3D) -> void:
 	var copy := b.duplicate() as Node3D
 	copy.name = "snack"
 	get_parent().add_child(copy)
 	copy.global_transform = b.global_transform
-	_snacks.append([copy, 0.0])
+	_snacks.append([copy, 0.0, copy.global_transform])
 
 
-## (The copies drawn to its mouth, and gone in it.)
+## (The copies drawn the little way in past its lips, going.)
 func _snacks_to_mouth(dt: float) -> void:
 	for k in range(_snacks.size() - 1, -1, -1):
 		var s: Array = _snacks[k]
 		var copy: Node3D = s[0]
-		s[1] = float(s[1]) + dt
-		if not is_instance_valid(copy) or float(s[1]) > 0.5:
+		s[1] = float(s[1]) + dt / 0.25
+		if not is_instance_valid(copy) or float(s[1]) >= 1.0:
 			if is_instance_valid(copy):
 				copy.queue_free()
 			_snacks.remove_at(k)
 			continue
-		var m := _mouth()
-		copy.global_position = copy.global_position.lerp(m, clampf(dt * 10.0, 0.0, 1.0))
+		var t: float = s[1]
+		var xf: Transform3D = s[2]
+		copy.global_transform = Transform3D(xf.basis.scaled(Vector3.ONE * lerpf(1.0, 0.1, t)), xf.origin.lerp(_mouth(), t))
 
 
 func _clear_snacks() -> void:

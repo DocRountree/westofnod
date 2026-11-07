@@ -5,8 +5,9 @@ extends Node3D
 ## across it each way; a skinned body baked first in the pose it died in),
 ## the originals hidden; each frame the eater says how much of it's gone
 ## (tear(k, mouth): 0..1) and where its mouth is, and each next piece, the
-## one nearest its mouth now, is torn off, drawn to the mouth and taken in
-## (into the lips at the end of its way). What's left goes on being carried
+## one nearest its mouth now, is torn off once the mouth's on it (no piece
+## flies across to a mouth: the eater brings its mouth to next_at, or the
+## food's drawn to the mouth, held or dragged) and taken in past the lips. What's left goes on being carried
 ## as the food is (the pieces are its children).
 ##
 ## Bloody (a vertebrate: a mammal above all, a fish, a frog, a lizard, a
@@ -20,14 +21,15 @@ extends Node3D
 ## Its mouth on it: held (in jaws, forelegs, chelae, paws), the food's drawn
 ## in so the bite it's at is in the mouth; dragged (lying on the ground), it's
 ## pulled over the ground under the mouth (the eater's head down to it). Held
-## or dragged, a piece is torn off only once the mouth's on it.
+## or dragged, or lying in place, a piece is torn off only once the mouth's
+## on it (a mouth that never gets there: the piece just gone, in place).
 ##
 ##   var meal := Meal.of(prey)         # (once: bloody if it's a vertebrate)
 ##   meal.tear(k, mouth_world)         # (each frame, k 0..1)
 ##   prey.queue_free()                 # (done: the meal finishes the pieces
 ##                                     #  still on their way, then itself)
 
-const FLY := 0.45 ## s: a piece's way from the food into the mouth
+const FLY := 0.22 ## s: a piece's way from the food (the mouth on it) in past the lips
 const POOL_SECS := 90.0 ## s: blood on the ground, before it's soaked in
 const INSTANCE_PARAMS := ["shell", "fur_obj", "fur_dens", "bars", "tree_at"]
 const BLEEDS := ["mouse", "squirrel", "hare", "deer", "moose", "bison", "beaver", "canid", "coyote", "wolf", "fox", "bobcat",
@@ -39,7 +41,7 @@ var swallow := false
 var ground := NAN ## the ground's height under it (lying there: blood runs out), or NAN
 var held := false ## in its mouth (jaws, forelegs, paws): drawn in, the bite it's at in the mouth
 var dragged := false ## lying on the ground: pulled over it under the mouth
-var in_place := false ## lying where it is, not moved: but a piece torn off only once the mouth's on it
+var in_place := false ## lying where it is, not moved (the eater's mouth brought to it: next_at)
 
 var _pieces: Array[Node3D] = [] # still on it (its children)
 var _flying: Array = [] # [piece, t, from (world), from basis, spin axis, secs]
@@ -48,6 +50,7 @@ var _n := 0
 var _torn := 0
 var _cell := 0.01 # (a piece's size, the food's own units)
 var _w := 1.0 # (the food's units to metres)
+var _span := 0.1 # (m: its length, its longest way)
 var _mouth := Vector3.ZERO
 var _rng := RandomNumberGenerator.new()
 var _idle := 0.0
@@ -118,7 +121,7 @@ func tear(k: float, mouth: Vector3) -> void:
 	_due = int(ceil(clampf(k, 0.0, 1.0) * _n - 1e-4))
 	while _torn < _due and not _pieces.is_empty():
 		var i := _nearest()
-		if (held or dragged or in_place) and _pieces[i].global_position.distance_to(_mouth) > _reach() and _late < 1.5:
+		if _pieces[i].global_position.distance_to(_mouth) > _reach() and _late < 1.5:
 			break # (not till its mouth's on it)
 		_tear_next(i)
 		_late = 0.0
@@ -138,9 +141,11 @@ func _prune() -> void:
 			_pieces.remove_at(i)
 
 
-## (How near the mouth a piece must be, to be bitten off (m).)
+## (How near the mouth a piece must be, to be bitten off (m): about a
+## piece's size, and a little more, the more for bigger food (a big
+## mammal's kill), the less for an insect's (a wasp's caterpillar).)
 func _reach() -> float:
-	return _cell * _w * 0.75 + 0.012
+	return _cell * _w * 0.75 + 0.012 * clampf(_span / 0.12, 0.1, 1.0)
 
 
 func _nearest() -> int:
@@ -202,6 +207,7 @@ func _build(across: int) -> void:
 		return
 	_cell = maxf(box.get_longest_axis_size() / maxf(across, 1), 1e-5)
 	_w = food.global_transform.basis.get_scale().x
+	_span = _cell * maxf(across, 1) * _w
 	# each triangle to the cell its middle's in; each cell a piece
 	var cells := {} # Vector3i -> {"mi:surface": [mi, surface, arrays, its triangles' indices]}
 	var sums := {} # Vector3i -> [sum of middles, count]
@@ -460,7 +466,10 @@ func _tear_next(best: int) -> void:
 	piece.reparent(self, true)
 	piece.global_transform = g
 	var axis := Vector3(_rng.randf_range(-1.0, 1.0), _rng.randf_range(-1.0, 1.0), _rng.randf_range(-1.0, 1.0))
-	_flying.append([piece, 0.0, g.origin, g.basis, axis.normalized() if axis.length() > 0.01 else Vector3.UP, FLY * _rng.randf_range(0.8, 1.25)])
+	# (the mouth not on it (it never got there: _late): no flight across to
+	# it, the piece just gone where it is, quickly)
+	var far := g.origin.distance_to(_mouth) > _reach() * 1.5
+	_flying.append([piece, 0.0, g.origin, g.basis, axis.normalized() if axis.length() > 0.01 else Vector3.UP, FLY * _rng.randf_range(0.8, 1.25), far])
 
 
 ## Torn off a bleeding body: raw flesh in the piece torn away (showing in
@@ -540,13 +549,15 @@ func _process(dt: float) -> void:
 				piece.queue_free()
 			_flying.remove_at(i)
 			continue
-		# pulled away, up a little, to the mouth; then in past the lips
-		var e := smoothstep(0.0, 0.75, t)
+		# the mouth on it: drawn the little way in, past the lips, going
+		# (the mouth never on it: gone where it is)
 		var from: Vector3 = f[2]
-		var pos := from.lerp(_mouth, e) + Vector3.UP * sin(PI * e) * _cell * _w * 0.35
-		var into := clampf((t - 0.75) / 0.25, 0.0, 1.0)
-		var b: Basis = (f[3] as Basis) * Basis(f[4] as Vector3, e * 0.9)
-		piece.global_transform = Transform3D(b.scaled(Vector3.ONE * lerpf(1.0, 0.1, into)), pos)
+		if f[6]:
+			piece.global_transform = Transform3D((f[3] as Basis).scaled(Vector3.ONE * lerpf(1.0, 0.05, t)), from)
+			continue
+		var e := smoothstep(0.0, 1.0, t)
+		var b: Basis = (f[3] as Basis) * Basis(f[4] as Vector3, e * 0.4)
+		piece.global_transform = Transform3D(b.scaled(Vector3.ONE * lerpf(1.0, 0.1, e)), from.lerp(_mouth, e))
 	for p: Array in _pools:
 		p[1] = float(p[1]) + dt
 		var pool: MeshInstance3D = p[0]

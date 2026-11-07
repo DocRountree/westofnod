@@ -47,6 +47,7 @@ var _st := 0.0
 var _stage := 0
 var _food: Node3D
 var _meal: Node3D # (its food, bitten away bit by bit: Meal)
+var _bite_look := -0.55 # (its head's pitch, eating: to the next bite)
 var _meal_k0 := 0.0 # (how much of it was gone already, a plant it's been at before)
 const MealScript := preload("res://scripts/creatures/meal.gd")
 var _food_s := Vector3.ONE
@@ -482,7 +483,7 @@ func _think(dt: float) -> void:
 		_crouch = move_toward(_crouch, 0.0, dt * 2.0)
 
 
-func _eat(_dt: float) -> void:
+func _eat(dt: float) -> void:
 	if not is_instance_valid(_food):
 		_sit_to = 0.0
 		wander(_pos if _centre == Vector3.ZERO else _centre, _radius)
@@ -507,10 +508,20 @@ func _eat(_dt: float) -> void:
 			_chew = 1.0
 			if _meal == null: # (bitten off, bit by bit; a plant up high only cropped)
 				_meal = MealScript.of(_food, 4) # (a plant; or, now and then, carrion: a dead mouse, bleeding)
+				_bite_look = 0.35 if high else -0.55
 				_meal_k0 = 1.0 - float(_meal.call("left")) if _meal else 0.0
 			if _meal:
 				var k := clampf((_st - 0.5) / 9.0, 0.0, 1.0)
-				_meal.call("tear", minf(_meal_k0 + k * 0.4, 0.92) if high else k, _body.global_transform * (_head.transform * Vector3(0.0, -18.0, -90.0)))
+				var mouth := _body.global_transform * (_head.transform * Vector3(0.0, -18.0, -90.0))
+				# (its mouth to the next bite: its head up or down to it, shuffling over it)
+				var na: Vector3 = _meal.call("next_at")
+				_bite_look = clampf(_bite_look + clampf((na.y - mouth.y) * 8.0, -1.0, 1.0) * dt, -0.9, 0.6)
+				_look_to = Vector2(0.15 * sin(_st * 0.7), _bite_look)
+				var off := Vector3(na.x - mouth.x, 0.0, na.z - mouth.z)
+				if off.length() > 0.01:
+					_pos += off.limit_length(0.06 * dt)
+					_target = _pos
+				_meal.call("tear", minf(_meal_k0 + k * 0.4, 0.92) if high else k, mouth)
 			if _st > 10.0:
 				if not high:
 					_food.queue_free()

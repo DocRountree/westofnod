@@ -942,12 +942,20 @@ func _update(_dt: float) -> void:
 		if l < 1e-6:
 			continue
 		d /= l
+		# (a segment's own length, no more: a joint turned off the path
+		# (below), the path's next point may be far from it (doubled back on
+		# itself), and that distance kept would grow joint by joint, the tail
+		# stretched out without end)
+		var moved := l > seg * 1.02
+		l = minf(l, seg)
 		if prev != Vector2.ZERO:
 			var turn := prev.angle_to(d)
 			if absf(turn) > max_turn:
 				d = prev.rotated(signf(turn) * max_turn)
-				var q := a + d * l
-				_pts[i] = Vector3(q.x, _ground(q.x, q.y) + R * _profile(float(i) / (SPINE - 1)) * 0.85, q.y)
+				moved = true
+		if moved:
+			var q := a + d * l
+			_pts[i] = Vector3(q.x, _ground(q.x, q.y) + R * _profile(float(i) / (SPINE - 1)) * 0.85, q.y)
 		prev = d
 	# coiled: an Archimedean spiral round _coil_at, the tail outside, the
 	# head on top of it, raised a little
