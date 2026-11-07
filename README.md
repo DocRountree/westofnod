@@ -560,6 +560,26 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   nest, a fallen paper wasp comb), the opossum's fallen persimmons: eaten where they are (`eat_at(point, seconds)`,
   any of the four-legged make's), its snout brought to the point and kept there, licking, snapping, nosing about;
   nothing taken away or moved (fruit's anyone's to pick, ants and such are drawn by the hundred).
+- `scripts/creatures/carcass.gd` (`Carcass`): the carcass of a mammal bigger than a beaver dead of something else
+  (the grey wolf, both bears, the white-tailed deer, the moose, the bison), the animal's own model where it lies,
+  in three stages (`Carcass.make(parent, script, at, yaw, stage)`, `Carcass.set_stage(c, stage)` to take it further
+  on). 1 fresh: down on its side, its legs out stiff (rigor) and all four feet on the ground, the upper pair fallen
+  across toward the lower, its head along the ground, its mouth a little open, its eyes glazed. 2 rotting
+  (`carnivore.gdshader`'s `decay` 1): its skin sunk in deep between its ribs, over its flanks and belly, round its
+  eyes, its legs thin; its fur slipped off in patches, the skin under it discoloured green grey and purplish; its
+  flesh open and rotting at its belly and flank, its face (its eyes gone), its rump, its legs' tops, along its back,
+  wet, maggots in it; rotted through here and there in small ragged holes, a broken bit of bloody rib or the meat
+  inside showing in each; the grass under it dark and dead, tufts of its fur about. 3 bones (`decay` 2): its
+  skeleton, built on its own frame where it lay (skull, eye sockets empty, teeth, lower jaw, the antlers or horns
+  still on it; the spine, its spines tallest over the withers; ribs and breastbone; shoulder blades and pelvis; each
+  leg's bones, the hooves or claws still on its feet; the tail's vertebrae), still much of it covered: its hide dried
+  and shrunk onto the bones, rotting flesh dark red brown under and between it, wet in the hollows, maggots in it,
+  here and there its fur still on it, torn open in ragged holes where the bones show; meat rotting on along its
+  back, over its haunches and shoulders, on its upper legs and its neck, between its ribs; strips of it hanging off
+  its ribs, sinews along its legs; a rib and a vertebra or two fallen from it; the ground under it bare and pale.
+  Carrion: a scavenger's `eat(carcass)` (stages 1 and 2) tears it up as any kill. In the ecology sandbox: the
+  Carcasses group, fresh, rotting or bones (the box under the list); 2 takes one a stage further on; E sends the
+  wolves, coyotes, foxes, bobcats, bears and opossums to one near them.
 - The mammals' look (`scripts/creatures/mammal_skin.gd`, `MammalSkin`): each one skin, not parts stacked. Its rings
   are swept into tubes (the body rounding up through the neck into the head to its nose, the jaw, each leg from
   inside its shoulder or haunch to its toes, the tail), every vertex weighted to the bones the animal's own motor

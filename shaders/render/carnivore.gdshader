@@ -51,6 +51,15 @@ uniform vec3 nose_col = vec3(0.045, 0.038, 0.036); // (its nose leather: black, 
 uniform float almond = 0.72; // (its eye's opening: height to length)
 uniform float slant = 0.0; // (its outer corner raised)
 uniform float hair = 20.0; // (its coat's length, mm: the grain's size)
+// a carcass (Carcass): 0 fresh; 1 rotting (its skin sunk in between its ribs,
+// over its flanks and belly, round its eyes, its legs thin; its fur slipped
+// in patches, the skin under it discoloured; its flesh open and rotting at
+// its belly, its face, its rump, maggots in it); 2 bones (its hide dried
+// and shrunk down onto the skeleton, torn away in ragged holes, tatters of
+// it left): sink_mm its body's half width (mm), rib_mm its ribs' spacing
+uniform float decay = 0.0;
+uniform float sink_mm = 100.0;
+uniform float rib_mm = 60.0;
 
 
 varying vec4 c0;
@@ -64,6 +73,29 @@ void vertex() {
 		rp = CUSTOM1.xyz;
 		rn = CUSTOM2.xyz;
 		hp = CUSTOM3.xyz;
+		if (decay > 0.0) {
+			// (sunk in: drawn in along its normal, the most where there's
+			// least under the skin but bone)
+			float pt_ = floor(CUSTOM0.x + 0.5);
+			float a_ = CUSTOM0.y;
+			float fw_ = CUSTOM0.z;
+			vec3 nrm = normalize(rn);
+			float s = 0.0;
+			if (pt_ == 0.0 && fw_ < 0.5) {
+				float side = smoothstep(0.2, 0.7, abs(nrm.x));
+				float ribs = (0.5 + 0.5 * cos(rp.z * 6.2832 / rib_mm)) * smoothstep(0.42, 0.5, a_) * (1.0 - smoothstep(0.78, 0.86, a_)) * side;
+				float flank = smoothstep(0.12, 0.28, a_) * (1.0 - smoothstep(0.48, 0.6, a_)) * (1.0 - smoothstep(-0.6, 0.5, nrm.y));
+				s = decay > 1.0 ? 0.1 + 0.12 * ribs + 0.22 * flank : 0.07 + 0.13 * ribs + 0.26 * flank;
+			} else if (pt_ == 2.0 || pt_ == 3.0) {
+				s = (decay > 1.0 ? 0.08 : 0.06) * (1.0 - smoothstep(0.75, 0.92, a_));
+			} else if (fw_ > 0.5) {
+				float e = min(length(hp - bare_a), length(hp - bare_b)) / max(bare_r, 1.0);
+				s = (decay > 1.0 ? 0.09 : 0.07) + 0.06 * (1.0 - smoothstep(1.0, 2.6, e));
+			} else if (pt_ == 6.0) {
+				s = decay > 1.0 ? 0.04 : 0.02;
+			}
+			VERTEX -= normalize(NORMAL) * s * sink_mm;
+		}
 	} else {
 		c0 = vec4(float(part), along, part == 1 ? 1.0 : 0.0, 0.0);
 		rp = VERTEX;
@@ -609,7 +641,55 @@ void fragment() {
 	// its tip, darker at its root; the strands gathered in locks; a soft
 	// mottling. Its grain in the light, too: the surface bumped by the
 	// strands and the locks (fading out where they'd shimmer, far off).
-	bool bare = pt == 4.0 || pt == 7.0 || (species == 11 && ((pt == 6.0 && a > 0.12) || (leg && a > 0.7))) || (species == 14 && ((pt == 6.0 && a > 0.08) || (leg && a > 0.85) || pt == 5.0 || fur < 0.5)) || leather > 0.5;
+	// a carcass's decay
+	float rot = 0.0; // (open, rotting flesh)
+	float slip = 0.0; // (its fur slipped off)
+	if (decay > 0.0 && skin && pt != 7.0 && pt != 4.0) {
+		float dk = clamp(decay, 0.0, 1.0);
+		c = mix(c, c * vec3(0.74, 0.69, 0.62), dk); // (matted, dulled)
+		float n1 = vn(rp * 0.011 + 11.0) * 0.6 + vn(rp * 0.035 + 4.0) * 0.4;
+		slip = smoothstep(0.47, 0.53, n1) * dk;
+		vec3 skin_c = mix(vec3(0.34, 0.34, 0.25), vec3(0.33, 0.25, 0.28), vn(rp * 0.02 + 2.0)); // (green grey, purplish)
+		c = mix(c, skin_c, slip);
+		float e = min(length(hp - bare_a), length(hp - bare_b)) / max(bare_r, 1.0);
+		float n2 = vn(rp * 0.02 + 5.0) * 0.6 + vn(rp * 0.07 + 1.0) * 0.4;
+		float where_ = 0.0;
+		if (pt == 0.0 && fw < 0.5) // (its belly and flank, opened; under its tail; along its back where the scavengers have been)
+			where_ = max(max(smoothstep(0.15, 0.3, a) * (1.0 - smoothstep(0.62, 0.74, a)) * (1.0 - smoothstep(-0.55, 0.1, ny)), 1.0 - smoothstep(0.03, 0.09, a)), 0.55 * smoothstep(0.55, 0.7, vn(rp * 0.008 + 21.0)));
+		if (pt == 2.0 || pt == 3.0) // (its legs' tops)
+			where_ = max(where_, 0.6 * (1.0 - smoothstep(0.15, 0.35, a)));
+		if (fw > 0.0) // (its eyes gone, its lips eaten back)
+			where_ = max(where_, fw * max(1.0 - smoothstep(0.9, 1.7, e), smoothstep(0.55, 0.75, fw) * (1.0 - smoothstep(-0.8, -0.4, ny)) * 0.8));
+		rot = where_ * smoothstep(0.3, 0.5, n2 + where_ * 0.25) * dk;
+		vec3 flesh = mix(vec3(0.3, 0.09, 0.07), vec3(0.2, 0.13, 0.06), vn(rp * 0.05));
+		flesh = mix(flesh, vec3(0.86, 0.83, 0.7), spots(rp, 3.0, 0.35) * smoothstep(0.5, 0.8, rot) * 0.9); // (maggots)
+		c = mix(c, flesh, rot);
+		// (rotted through, here and there: small ragged holes, a bit of a rib
+		// and what's left in it showing in each)
+		float n4 = vn(rp * 0.09 + 31.0) * 0.7 + vn(rp * 0.25 + 17.0) * 0.3;
+		if (decay <= 1.0 && pt == 0.0 && fw < 0.5 && rot > 0.8 && n4 > 0.7)
+			discard;
+	}
+	if (decay > 1.0 && skin && pt != 7.0 && pt != 4.0) {
+		// (its hide dried, shrunk onto its bones and torn away: tatters left,
+		// the most along its back and on its lower legs, the least on its face)
+		bool lg = pt == 2.0 || pt == 3.0;
+		float n3 = vn(rp * 0.018 + 7.0) * 0.65 + vn(rp * 0.07 + 3.0) * 0.35;
+		float keep = pt == 0.0 && fw < 0.5 ? 0.62 + 0.2 * smoothstep(-0.2, 0.8, ny) : (lg ? mix(0.6, 0.92, smoothstep(0.35, 0.7, a)) : (fw > 0.5 ? 0.45 : 0.62));
+		if (n3 > keep)
+			discard;
+		// (dried hide, and under and between it rotting flesh, dark red brown,
+		// wet in the hollows, maggots in it; here and there its fur still on it)
+		vec3 leath = mix(vec3(0.16, 0.1, 0.065), vec3(0.3, 0.22, 0.14), vn(rp * 0.05));
+		vec3 meat = mix(vec3(0.3, 0.1, 0.07), vec3(0.2, 0.1, 0.05), vn(rp * 0.06 + 2.0));
+		float wet = smoothstep(0.35, 0.65, vn(rp * 0.015 + 13.0) + (keep - n3) * 1.5);
+		c = mix(leath, c, smoothstep(0.6, 0.78, vn(rp * 0.04 + 9.0)) * 0.6);
+		c = mix(c, meat, wet * 0.9);
+		c = mix(c, vec3(0.84, 0.81, 0.68), spots(rp, 3.0, 0.3) * smoothstep(0.6, 0.9, wet) * 0.7); // (maggots)
+		rot = max(rot, wet * 0.8);
+		slip = max(slip, 0.7);
+	}
+	bool bare = rot > 0.5 || slip > 0.5 || pt == 4.0 || pt == 7.0 || (species == 11 && ((pt == 6.0 && a > 0.12) || (leg && a > 0.7))) || (species == 14 && ((pt == 6.0 && a > 0.08) || (leg && a > 0.85) || pt == 5.0 || fur < 0.5)) || leather > 0.5;
 	float s = clamp(hair * 0.06, 0.3, 4.0); // (a strand's width, mm)
 	vec3 stretch = leg ? vec3(1.0, 4.0, 1.0) : vec3(1.0, 1.0, 4.0);
 	vec3 q = rp / (s * stretch);
@@ -649,7 +729,10 @@ void fragment() {
 		vec3 grad = sign(det) * (dhdx * r1 + dhdy * r2);
 		NORMAL = normalize(abs(det) * n - grad * k);
 	}
-	if (pt == 7.0) { // (horn, antler, claw: hard, a sheen)
+	if (rot > 0.3) { // (its rotting flesh: wet)
+		ROUGHNESS = 0.3;
+		SPECULAR = 0.5;
+	} else if (pt == 7.0) { // (horn, antler, claw: hard, a sheen)
 		ROUGHNESS = (species == 7 || species == 13) && phase == 0 ? 0.85 : 0.4;
 		SPECULAR = 0.5;
 	} else if (pt == 4.0 && (species == 6 || species == 7 || species == 13)) {

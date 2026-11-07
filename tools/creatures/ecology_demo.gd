@@ -74,6 +74,7 @@ const MealScript := preload("res://scripts/creatures/meal.gd")
 const MoltScript := preload("res://scripts/creatures/molt.gd")
 const OpossumScript := preload("res://scripts/creatures/opossum.gd")
 const BeeScript := preload("res://scripts/creatures/bumblebee.gd")
+const CarcassScript := preload("res://scripts/creatures/carcass.gd")
 
 const PersonalSpace := preload("res://scripts/creatures/personal_space.gd")
 const HALF := 12.0 ## m: the plain's half width (it's square)
@@ -152,6 +153,12 @@ const CATALOGUE := [
 	["Mammals", "white-tailed deer (winter)", "deer_winter", ["adult"]],
 	["Mammals", "moose", "moose", ["adult", "young"]],
 	["Mammals", "American bison", "bison", ["adult", "young"]],
+	["Carcasses", "grey wolf", "carcass_wolf", ["adult"]],
+	["Carcasses", "American black bear", "carcass_black_bear", ["adult"]],
+	["Carcasses", "brown bear (grizzly)", "carcass_brown_bear", ["adult"]],
+	["Carcasses", "white-tailed deer", "carcass_deer", ["adult"]],
+	["Carcasses", "moose", "carcass_moose", ["adult"]],
+	["Carcasses", "American bison", "carcass_bison", ["adult"]],
 ]
 
 ## Ponds by their size: [half width, half depth, deep] (m).
@@ -188,6 +195,7 @@ var _ghost: MeshInstance3D
 var _ui_tree: Tree
 var _ui_stage: OptionButton
 var _ui_male: CheckBox
+var _ui_decay: OptionButton
 var _ui_info: Label
 var _status := ""
 var _ring_mesh: TorusMesh
@@ -452,6 +460,11 @@ func spawn(key: String, at: Vector3, stage := "adult", male := false) -> Node:
 			n = OpossumScript.snag(at, at + Vector3(-0.45, 0.85, -0.5))
 			n.set_meta("snag", [at, at + Vector3(-0.45, 0.85, -0.5), 0.035])
 			add_child(n)
+		"carcass_wolf", "carcass_black_bear", "carcass_brown_bear", "carcass_deer", "carcass_moose", "carcass_bison":
+			var k := key.substr(8)
+			var sc: Script = {"wolf": WolfScript, "black_bear": BlackBearScript, "brown_bear": BrownBearScript, "deer": DeerScript, "moose": MooseScript, "bison": BisonScript}[k]
+			var args: Array = {"black_bear": ["black"], "brown_bear": [["brown", "grizzled", "blond"][randi() % 3]], "deer": ["summer" if randf() < 0.5 else "winter"]}.get(k, [])
+			n = CarcassScript.make(self, sc, at, randf() * TAU, (_ui_decay.selected + 1) if _ui_decay else 1, male, args)
 		_:
 			n = _spawn_animal(key, at, stage, male, young)
 	if n == null:
@@ -1654,6 +1667,10 @@ func _do(c: Node, act_: String) -> void:
 	var st: Vector3 = c.get_meta("home", Vector3(p.x, 0.0, p.z))
 	var a := randf() * TAU
 	var near := Vector3(cos(a), 0.0, sin(a))
+	if c.has_meta("carcass"): # (a carcass: 2 takes it a stage further on; nothing else)
+		if act_ == "hatch":
+			CarcassScript.set_stage(c as Node3D, int(c.get_meta("carcass")) % 3 + 1)
+		return
 	if act_ == "hatch":
 		if sc == PupaScript:
 			c.call("eclose", func(ad: Node3D) -> void:
@@ -2094,6 +2111,12 @@ func _turtle_do(c: Node, act_: String, young: bool, p: Vector3) -> void:
 ## out for it.
 func _feed(c: Node, act_: String, young: bool, p: Vector3, st: Vector3, near: Vector3) -> void:
 	var sc: Script = c.get_script()
+	if act_ == "eat" and not young and sc in [WolfScript, CoyoteScript, FoxScript, BobcatScript, BlackBearScript, BrownBearScript, OpossumScript]:
+		var carrion := _carrion_near(p, 8.0) # (a carcass, fresh or rotting: scavenged)
+		if carrion:
+			carrion.set_meta("hunted", c)
+			c.call("eat", carrion)
+			return
 	if sc == LarvaScript:
 		c.call("eat")
 	elif sc == MonarchScript and not young:
@@ -2201,6 +2224,18 @@ func _feed(c: Node, act_: String, young: bool, p: Vector3, st: Vector3, near: Ve
 		var diet: Array = {FoxScript: ["mouse", "squirrel", "hare"], BobcatScript: ["hare", "squirrel", "mouse"],
 				CoyoteScript: ["mouse", "hare", "squirrel"], WolfScript: ["hare", "mouse", "deer", "fawn"]}.get(sc, ["hare", "mouse", "squirrel"])
 		c.call("hunt", _prey(c, diet, 1.4))
+
+
+## The nearest carcass (fresh or rotting, not yet anyone's) within r of p.
+func _carrion_near(p: Vector3, r: float) -> Node3D:
+	var best: Node3D = null
+	for o in get_children():
+		if not o.has_meta("carcass") or int(o.get_meta("carcass")) > 2 or o.has_meta("hunted"):
+			continue
+		var q: Vector3 = (o as Node3D).get("_pos")
+		if q.distance_to(p) <= r and (best == null or q.distance_to(p) < (best.get("_pos") as Vector3).distance_to(p)):
+			best = o
+	return best
 
 
 ## The mammals' (and the snakes') rarer meals (U), each plausible, if
@@ -2601,6 +2636,12 @@ func _build_ui() -> void:
 	_ui_male.text = "male"
 	_ui_male.focus_mode = Control.FOCUS_NONE
 	row.add_child(_ui_male)
+	_ui_decay = OptionButton.new()
+	_ui_decay.focus_mode = Control.FOCUS_NONE
+	for s_ in ["fresh", "rotting", "bones"]:
+		_ui_decay.add_item(s_)
+	_ui_decay.tooltip_text = "a carcass's decay"
+	row.add_child(_ui_decay)
 	var grass := CheckBox.new()
 	grass.text = "grass"
 	grass.button_pressed = true
@@ -2633,7 +2674,7 @@ func _say() -> void:
 		return
 	var sel := _selected.filter(func(n) -> bool: return is_instance_valid(n))
 	var who := "everything here (%d)" % _creatures().size() if sel.is_empty() else ", ".join(sel.slice(0, 4).map(func(n: Node) -> String: return _label_of(n))) + (" ..." if sel.size() > 4 else "")
-	_ui_info.text = "Keys act on: %s     %s\n1 lay / birth   2 hatch / moult   3 pupate   E eat   H hunt   U an unusual meal   K mate   G groom   Z sleep\nF fly / hop / climb   X alarm   D display / call   V play   N nurse   B forage / home   S spin   M mark   A sit   W own ways\nclick: select (Shift: add)   Del: delete   C: centre   right drag: turn   middle drag / arrows: move   wheel: zoom   Space: slow" % [who, _status]
+	_ui_info.text = "Keys act on: %s     %s\n1 lay / birth   2 hatch / moult / decay on   3 pupate   E eat   H hunt   U an unusual meal   K mate   G groom   Z sleep\nF fly / hop / climb   X alarm   D display / call   V play   N nurse   B forage / home   S spin   M mark   A sit   W own ways\nclick: select (Shift: add)   Del: delete   C: centre   right drag: turn   middle drag / arrows: move   wheel: zoom   Space: slow" % [who, _status]
 
 
 func _label_of(n: Node) -> String:
