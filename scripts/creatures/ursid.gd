@@ -9,8 +9,8 @@ extends "res://scripts/creatures/carnivore.gd" # (by path: found whether or not 
 ##   stopping to dig (its forepaws raking the earth back by turns, its head
 ##   down in the hole, eating what it finds)
 ## - browse(bush) (Ursid.berry_bush()): at it, stripping the berries with
-##   its lips, now and then up on its hind legs to the higher ones (copies
-##   of the bush's berries eaten: the bush keeps its own)
+##   its lips, its mouth to each in turn, now and then up on its hind legs
+##   to the higher ones (the bush keeps its own: none taken off it)
 ## - stand(secs): up on its hind legs, tall, its forepaws hanging, its nose
 ##   up, sniffing the air
 ## - rub(at): its back to a tree (at: its trunk), up on its hind legs
@@ -194,8 +194,6 @@ func rub(at: Vector3) -> void:
 
 
 func _think(dt: float) -> void:
-	if not _snacks.is_empty():
-		_snacks_to_mouth(dt)
 	match _mode:
 		"forage":
 			_common(dt)
@@ -320,8 +318,7 @@ func _browse(dt: float) -> void:
 				if off.length() > 0.02:
 					_pos += off.limit_length(0.1 * dt)
 					_target = _pos
-				if m.distance_to(b) < 0.09: # (its lips on it: a copy of it taken in, the bush's own left hanging)
-					_take_berry(_berry)
+				if m.distance_to(b) < 0.09: # (its lips on it: eaten, and on to another; the bush's own left hanging, as it was)
 					_berry = null
 			if _st > 18.0:
 				_stand_to = 0.0
@@ -347,45 +344,22 @@ func _next_berry() -> Node3D:
 	return on[rng.randi() % mini(on.size(), 4)][1]
 
 
-var _snacks: Array = [] # [the copy, its time] (berries on their way to its mouth)
+var _berry: Node3D # (the berry its lips are going to)
+var _berry_for := 0.0 # (s at it: given up, too awkward, after a while)
+var _berry_pitch := -0.2
 
 
-## (A copy of berry b, where it hangs, its lips on it, taken in: the bush
-## keeps its own.)
-func _take_berry(b: Node3D) -> void:
-	var copy := b.duplicate() as Node3D
-	copy.name = "snack"
-	get_parent().add_child(copy)
-	copy.global_transform = b.global_transform
-	_snacks.append([copy, 0.0, copy.global_transform])
-
-
-## (The copies drawn the little way in past its lips, going.)
-func _snacks_to_mouth(dt: float) -> void:
-	for k in range(_snacks.size() - 1, -1, -1):
-		var s: Array = _snacks[k]
-		var copy: Node3D = s[0]
-		s[1] = float(s[1]) + dt / 0.25
-		if not is_instance_valid(copy) or float(s[1]) >= 1.0:
-			if is_instance_valid(copy):
-				copy.queue_free()
-			_snacks.remove_at(k)
-			continue
-		var t: float = s[1]
-		var xf: Transform3D = s[2]
-		copy.global_transform = Transform3D(xf.basis.scaled(Vector3.ONE * lerpf(1.0, 0.1, t)), xf.origin.lerp(_mouth(), t))
-
-
-func _clear_snacks() -> void:
-	for s: Array in _snacks:
-		if is_instance_valid(s[0]):
-			(s[0] as Node3D).queue_free()
-	_snacks.clear()
-
-
-func _exit_tree() -> void:
-	_clear_snacks()
-	super()
+## (One of the bush's berries to go to: among the few nearest its mouth.)
+func _next_berry() -> Node3D:
+	var m := _mouth()
+	var on: Array = []
+	for b in _bush.get_children():
+		if b.name.begins_with("berry") and (b as Node3D).visible:
+			on.append([m.distance_to((b as Node3D).global_position), b])
+	if on.is_empty():
+		return null
+	on.sort_custom(func(x: Array, y: Array) -> bool: return x[0] < y[0])
+	return on[rng.randi() % mini(on.size(), 4)][1]
 
 
 func _rub(dt: float) -> void:

@@ -5,9 +5,10 @@ extends Node3D
 ## across it each way; a skinned body baked first in the pose it died in),
 ## the originals hidden; each frame the eater says how much of it's gone
 ## (tear(k, mouth): 0..1) and where its mouth is, and each next piece, the
-## one nearest its mouth now, is torn off once the mouth's on it (no piece
-## flies across to a mouth: the eater brings its mouth to next_at, or the
-## food's drawn to the mouth, held or dragged) and taken in past the lips. What's left goes on being carried
+## one nearest its mouth now, is bitten off once the mouth's on it: simply
+## gone, there, at once (not shrinking). Small food (a seed, a berry, an
+## insect, for a mammal): one piece, across 1, gone in a single bite. The food never moves: not drawn to the
+## mouth, not held up to it; the eater brings its mouth to it (next_at). What's left goes on being carried
 ## as the food is (the pieces are its children).
 ##
 ## Bloody (a vertebrate: a mammal above all, a fish, a frog, a lizard, a
@@ -18,18 +19,16 @@ extends Node3D
 ## swallow (a snake's: whole, no tearing): each piece gone as the jaws come
 ## over it.
 ##
-## Its mouth on it: held (in jaws, forelegs, chelae, paws), the food's drawn
-## in so the bite it's at is in the mouth; dragged (lying on the ground), it's
-## pulled over the ground under the mouth (the eater's head down to it). Held
-## or dragged, or lying in place, a piece is torn off only once the mouth's
-## on it (a mouth that never gets there: the piece just gone, in place).
+## A piece is bitten off only once the mouth's on it (a mouth that never
+## gets there, after a while: the piece gone all the same, where it is).
+## (held, dragged, in_place: no longer anything; the food lies still,
+## whatever.)
 ##
 ##   var meal := Meal.of(prey)         # (once: bloody if it's a vertebrate)
 ##   meal.tear(k, mouth_world)         # (each frame, k 0..1)
 ##   prey.queue_free()                 # (done: the meal finishes the pieces
 ##                                     #  still on their way, then itself)
 
-const FLY := 0.22 ## s: a piece's way from the food (the mouth on it) in past the lips
 const POOL_SECS := 90.0 ## s: blood on the ground, before it's soaked in
 const INSTANCE_PARAMS := ["shell", "fur_obj", "fur_dens", "bars", "tree_at"]
 const BLEEDS := ["mouse", "squirrel", "hare", "deer", "moose", "bison", "beaver", "canid", "coyote", "wolf", "fox", "bobcat",
@@ -39,12 +38,11 @@ var food: Node3D
 var bloody := false
 var swallow := false
 var ground := NAN ## the ground's height under it (lying there: blood runs out), or NAN
-var held := false ## in its mouth (jaws, forelegs, paws): drawn in, the bite it's at in the mouth
-var dragged := false ## lying on the ground: pulled over it under the mouth
-var in_place := false ## lying where it is, not moved (the eater's mouth brought to it: next_at)
+var held := false ## (no longer anything: the food's never moved)
+var dragged := false ## (no longer anything)
+var in_place := false ## (no longer anything: always so)
 
 var _pieces: Array[Node3D] = [] # still on it (its children)
-var _flying: Array = [] # [piece, t, from (world), from basis, spin axis, secs]
 var _pools: Array = [] # [disc, age, radius]
 var _n := 0
 var _torn := 0
@@ -56,8 +54,6 @@ var _rng := RandomNumberGenerator.new()
 var _idle := 0.0
 var _due := 0 # (pieces it should have torn off by now)
 var _late := 0.0 # (s a piece has been due, the mouth not yet on it)
-var _shift := Vector3.ZERO # (how far it's been drawn to the mouth)
-var _set_at := Vector3.INF # (where it was put, drawn: unmoved since, it's still drawn)
 static var _flesh: StandardMaterial3D
 static var _blood: StandardMaterial3D
 static var _ball: SphereMesh
@@ -121,7 +117,7 @@ func tear(k: float, mouth: Vector3) -> void:
 	_due = int(ceil(clampf(k, 0.0, 1.0) * _n - 1e-4))
 	while _torn < _due and not _pieces.is_empty():
 		var i := _nearest()
-		if _pieces[i].global_position.distance_to(_mouth) > _reach() and _late < 1.5:
+		if _pieces[i].global_position.distance_to(_mouth) > _reach() and _late < 2.5:
 			break # (not till its mouth's on it)
 		_tear_next(i)
 		_late = 0.0
@@ -158,6 +154,11 @@ func _nearest() -> int:
 			bd = d
 			best = i
 	return best
+
+
+## (Its length, m: its longest way.)
+func span() -> float:
+	return _span
 
 
 ## (How much of it's left: 1 whole .. 0 gone.)
@@ -457,19 +458,9 @@ func _tear_next(best: int) -> void:
 	var piece: Node3D = _pieces[best]
 	_pieces.remove_at(best)
 	_torn += 1
-	if swallow:
-		piece.queue_free()
-		return
-	if bloody:
-		_wound(piece)
-	var g := piece.global_transform
-	piece.reparent(self, true)
-	piece.global_transform = g
-	var axis := Vector3(_rng.randf_range(-1.0, 1.0), _rng.randf_range(-1.0, 1.0), _rng.randf_range(-1.0, 1.0))
-	# (the mouth not on it (it never got there: _late): no flight across to
-	# it, the piece just gone where it is, quickly)
-	var far := g.origin.distance_to(_mouth) > _reach() * 1.5
-	_flying.append([piece, 0.0, g.origin, g.basis, axis.normalized() if axis.length() > 0.01 else Vector3.UP, FLY * _rng.randf_range(0.8, 1.25), far])
+	if bloody and not swallow:
+		_wound(piece) # (the raw edge left on what's left)
+	piece.queue_free() # (bitten off: simply gone, there, at once)
 
 
 ## Torn off a bleeding body: raw flesh in the piece torn away (showing in
@@ -512,52 +503,9 @@ func _wound(torn: Node3D) -> void:
 		_pools.append([pool, 0.0, r * _rng.randf_range(1.2, 2.0)])
 
 
-## (Held or dragged: drawn so its next bite's at the mouth: held, wholly;
-## dragged, over the ground only. The eater places it each frame, or not:
-## either way it's drawn from where the eater has it.)
-func _bring(dt: float) -> void:
-	if not (held or dragged) or not is_instance_valid(food) or _pieces.is_empty():
-		_shift = Vector3.ZERO
-		_set_at = Vector3.INF
-		return
-	if not held:
-		_shift.y = 0.0
-	var now := food.global_position
-	var base := now - _shift if now.is_equal_approx(_set_at) else now
-	var off := _pieces[_nearest()].global_position - now
-	var want := _mouth - (base + off)
-	if not held:
-		want.y = 0.0
-		if want.length() > 0.6: # (not dragged off across the ground)
-			want = want.normalized() * 0.6
-	_shift = _shift.move_toward(want, (0.5 if held else 0.3) * dt)
-	food.global_position = base + _shift
-	_set_at = food.global_position
-
-
 func _process(dt: float) -> void:
 	if _torn < _due:
 		_late += dt
-	_bring(dt)
-	for i in range(_flying.size() - 1, -1, -1):
-		var f: Array = _flying[i]
-		var piece: Node3D = f[0]
-		f[1] = float(f[1]) + dt / float(f[5])
-		var t: float = f[1]
-		if t >= 1.0 or not is_instance_valid(piece):
-			if is_instance_valid(piece):
-				piece.queue_free()
-			_flying.remove_at(i)
-			continue
-		# the mouth on it: drawn the little way in, past the lips, going
-		# (the mouth never on it: gone where it is)
-		var from: Vector3 = f[2]
-		if f[6]:
-			piece.global_transform = Transform3D((f[3] as Basis).scaled(Vector3.ONE * lerpf(1.0, 0.05, t)), from)
-			continue
-		var e := smoothstep(0.0, 1.0, t)
-		var b: Basis = (f[3] as Basis) * Basis(f[4] as Vector3, e * 0.4)
-		piece.global_transform = Transform3D(b.scaled(Vector3.ONE * lerpf(1.0, 0.1, e)), from.lerp(_mouth, e))
 	for p: Array in _pools:
 		p[1] = float(p[1]) + dt
 		var pool: MeshInstance3D = p[0]
@@ -569,7 +517,7 @@ func _process(dt: float) -> void:
 	if not is_instance_valid(food) or food.is_queued_for_deletion():
 		_idle += dt
 		var pooled := not _pools.is_empty() and _idle < POOL_SECS + 10.0
-		if _flying.is_empty() and not pooled:
+		if not pooled:
 			queue_free()
 
 

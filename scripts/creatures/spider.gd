@@ -274,18 +274,24 @@ func wander(centre: Vector3, radius: float) -> void:
 	_wait = 0.0
 
 
-## (Its prey in its jaws, chewed up: k of it gone, piece by piece, into its
-## mouth.)
+## (Its prey where it lies (or hangs, in its web), not moved: chewed up,
+## k of it gone, piece by piece, where its jaws are on it; on the ground,
+## a step to each next bite.)
 func _eat_prey(k: float) -> void:
 	if not is_instance_valid(_prey):
 		return
 	if _meal == null:
 		_meal = MealScript.of(_prey, 3)
-		if _meal:
-			_meal.set("held", true) # (in its mouth: the bite it's at drawn in to it)
 	if _meal:
 		var ceph: Vector3 = S.ceph
-		_meal.call("tear", clampf(k, 0.0, 1.0), _body.global_transform * Vector3(0.0, -1.5, _ceph_c.z - ceph.x * 0.5 - 0.5))
+		var mouth := _body.global_transform * Vector3(0.0, -1.5, _ceph_c.z - ceph.x * 0.5 - 0.5)
+		if not _in_orb:
+			var na: Vector3 = _meal.call("next_at")
+			var off := Vector3(na.x - mouth.x, 0.0, na.z - mouth.z)
+			if off.length() > 0.0008:
+				_pos += off.limit_length(0.01 * size * get_process_delta_time())
+				_target = _pos
+		_meal.call("tear", clampf(k, 0.0, 1.0), mouth)
 
 
 func hunt(prey: Node3D) -> void:
@@ -465,18 +471,14 @@ func _think(dt: float) -> void:
 						_st = 0.0
 				2: # holding it in its jaws (once landed)
 					if not airborne:
-						_held = true
-						MealScript.subdue(_prey) # (a live insect: still in its jaws)
+						_held = false # (bitten where it is, not lifted)
+						MealScript.subdue(_prey) # (a live insect: still, bitten)
 						_pace = -1.0
 						_target = _pos
 						_stage = 3
 						_st = 0.0
 				3: # eating it (the funnel weaver back in its funnel's mouth with it first)
-					var home_to := Vector3.INF
-					if kind == "funnel" and is_instance_valid(web):
-						home_to = web.call("mouth")
-					elif kind == "fishing" and shore != Vector3.INF: # (a fish: dragged ashore to eat)
-						home_to = shore
+					var home_to := Vector3.INF # (eaten where it was caught: not carried off)
 					if home_to != Vector3.INF and _pos.distance_to(home_to) > 0.008:
 						_target = home_to
 						_pace = walk_speed
@@ -700,9 +702,9 @@ func _orb(dt: float) -> void:
 						_abd.rotation.x = 0.3 * sin(_st * 10.0)
 						if _st > 3.5:
 							_abd.rotation.x = 0.0
-							_held = true
+							_held = false # (eaten where it hangs, wrapped: not carried)
 							MealScript.subdue(_prey) # (a live insect: still, wrapped)
-							_stage = 2
+							_stage = 3
 							_st = 0.0
 					2: # back to the hub with it
 						if _path.is_empty():
@@ -711,8 +713,10 @@ func _orb(dt: float) -> void:
 						if not _follow_web(0.12, dt):
 							_stage = 3
 							_st = 0.0
-					3: # eating it at the hub, head down
-						_web_head = _web_head.lerp(Vector3.DOWN, 1.0 - exp(-4.0 * dt)).normalized()
+					3: # eating it where it hangs, its head to it
+						var to_prey: Vector3 = _prey.position - _web_pos
+						if to_prey.length() > 0.0005:
+							_web_head = _web_head.lerp(to_prey.normalized(), 1.0 - exp(-4.0 * dt)).normalized()
 						_chew = 1.0
 						_eat_prey(_st / 14.0)
 						if _st > 15.0:

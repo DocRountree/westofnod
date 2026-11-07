@@ -641,17 +641,12 @@ func _think(dt: float) -> void:
 			_speed = 2.2
 			_look_to = Vector2(0.0, -0.2)
 			if _pos.distance_to(_prey.position) < 0.035:
-				# (swept up in its legs' basket, to its mouth)
-				_held_prey = _prey
+				# (snapped up whole as it's caught, in the air: nothing held,
+				# nothing to lie anywhere; chewed, perched)
+				_prey.set("caught", true)
+				_prey.queue_free()
 				_prey = null
-				_held_prey.set("caught", true)
-				MealScript.subdue(_held_prey) # (a live insect: still in its legs)
-				var gx := _held_prey.global_transform
-				_held_prey.get_parent().remove_child(_held_prey)
-				_head.add_child(_held_prey)
-				_held_prey.global_transform = gx
-				_held_prey.position = Vector3(0.0, -4.0, -3.5)
-				_held_prey.scale = Vector3.ONE / (MM * size) # (its own size still, under the head's mm)
+				_held_prey = null
 				_meal = null
 				_mode = "eat"
 				_stage = 0
@@ -672,13 +667,6 @@ func _think(dt: float) -> void:
 				_target = _pos # (eaten on the wing, hovering)
 			if _perched:
 				_beat_to = 0.0
-			if is_instance_valid(_held_prey): # (chewed up, a piece at a time)
-				if _meal == null:
-					_meal = MealScript.of(_held_prey, 3)
-					if _meal:
-						_meal.set("held", true) # (in its mouth: the bite it's at drawn in to it)
-				if _meal:
-					_meal.call("tear", clampf(1.0 - (_wait - 0.4) / 4.4, 0.0, 1.0), _head.global_transform * Vector3(0.0, -2.5, -3.0))
 			if _wait <= 0.0:
 				_chew = 0.0
 				if _held_prey:

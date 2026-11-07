@@ -463,7 +463,8 @@ func _common(dt: float) -> void:
 		_pace = -1.0
 
 
-## (A nut: picked up, then sat up with it held at its mouth, turned, gnawed.)
+## (A nut: gnawed where it lies, its head down to it, its mouth on each next
+## bit; the nut not picked up, not moved.)
 func _eat_nut(dt: float) -> void:
 	if not is_instance_valid(_food):
 		_sit_to = 0.0
@@ -482,32 +483,34 @@ func _eat_nut(dt: float) -> void:
 				MealScript.subdue(_food) # (a caterpillar, a mouse pup: bitten, still)
 				_stage = 1
 				_st = 0.0
-		1: # (picked up in its teeth)
+		1: # (its head down to it)
 			_target = _pos
 			_look_to = Vector2(0.0, -0.7)
+			_bite_look = -0.7
 			if _st > 0.6:
 				_stage = 2
 				_st = 0.0
-		2: # (sat up, the nut in its forepaws at its mouth, turned, gnawed)
+		2: # (gnawing it where it lies, its mouth on the next bit)
 			_target = _pos
-			_sit_to = 1.0
-			_look_to = Vector2(0.15 * sin(_st * 0.6), 0.1)
+			_sit_to = 0.0
 			_chew = 1.0
 			if _meal == null: # (gnawed open and eaten, bit by bit)
-				_meal = MealScript.of(_food, 4)
-				if _meal:
-					_meal.set("held", true) # (in its mouth: the bite it's at drawn in to it)
+				_meal = MealScript.of(_food, 1) # (a nut, a seed, an insect: one bite, gone)
+			var mouth := _head.global_transform * Vector3(0.0, -22.0, -82.0)
+			var na: Vector3 = _meal.call("next_at") if _meal else _food.global_position
+			_bite_look = clampf(_bite_look + clampf((na.y - mouth.y) * 30.0, -1.5, 1.5) * dt, -1.2, 0.3)
+			_look_to = Vector2(0.12 * sin(_st * 0.6), _bite_look)
+			var off := Vector3(na.x - mouth.x, 0.0, na.z - mouth.z)
+			if off.length() > 0.003:
+				_pos += off.limit_length(0.05 * size * dt)
+				_target = _pos
 			if _meal:
-				_meal.call("tear", clampf((_st - 1.0) / 10.5, 0.0, 1.0), _head.global_transform * Vector3(0.0, -22.0, -82.0))
-			if _st > 12.0:
+				_meal.call("tear", 1.0, mouth)
+			if _st > 12.0 or (_meal and float(_meal.call("left")) <= 0.0 and _st > 3.5):
 				_food.queue_free()
 				_food = null
 				_sit_to = 0.0
 				groom()
-	if _stage >= 1 and is_instance_valid(_food): # (in its mouth, or its paws)
-		var mouth := _head.global_transform * Vector3(0.0, -22.0, -82.0)
-		_food.global_position = mouth + Vector3.DOWN * 0.012 * (0.2 if _stage == 2 else 1.0)
-		_food.rotation.y = _st * (2.0 if _stage == 2 else 0.0)
 
 
 ## (Burying it: carried to the spot, a hole dug, the nut pushed in with its

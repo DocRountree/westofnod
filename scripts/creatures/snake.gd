@@ -74,6 +74,8 @@ var _st := 0.0
 var _t := 0.0
 var _speed := 0.0
 var _prey: Node3D
+var _swallow_from := Vector3.ZERO # (its head, swallowing: from, to, over its prey)
+var _swallow_to := Vector3.ZERO
 var _meal: Node3D # (its prey, swallowed whole: Meal, each part gone as the jaws come over it)
 const MealScript := preload("res://scripts/creatures/meal.gd")
 var _coil_k := 0.0 # 0 as it goes .. 1 coiled
@@ -870,14 +872,25 @@ func _eat(dt: float) -> bool:
 				return true
 			_stage = 7
 			_st = 0.0
-		7: # swallowing: the jaws gaping, walking on over it, the meal drawn in
+		7: # swallowing: the jaws gaping, walking on over it where it lies (it not moved), head first
 			var into := clampf(_st / 7.0, 0.0, 1.0)
 			_gape = 0.85 - 0.15 * sin(_st * 4.0)
-			_prey.position = p.lerp(_pts[0], 1.0 - exp(-dt * 0.6))
 			if _meal == null:
 				_meal = MealScript.of(_prey, 6, 0)
 				if _meal:
 					_meal.set("swallow", true)
+				var along := Vector3(p.x - _pos.x, 0.0, p.z - _pos.z)
+				along = along.normalized() if along.length() > 1e-4 else _dir
+				_swallow_from = _pos
+				_swallow_to = Vector3(p.x, _pos.y, p.z) + along * (float(_meal.call("span")) * 0.55 if _meal else 0.05)
+			# (its head creeping on over it, its jaws walked over it, a side at a time)
+			var was := _pos
+			_pos = _swallow_from.lerp(_swallow_to, smoothstep(0.0, 1.0, into))
+			_pos.y = _ground(_pos.x, _pos.z)
+			if (_pos - was).length() > 1e-6:
+				_dir = Vector3(_pos.x - was.x, 0.0, _pos.z - was.z).normalized()
+			_speed = 0.0
+			_target = _pos
 			if _meal:
 				var par := get_parent() as Node3D
 				_meal.call("tear", into, par.global_transform * _pts[0] if par else _pts[0])

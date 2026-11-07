@@ -46,7 +46,8 @@ var _wait := 0.0
 var _st := 0.0
 var _stage := 0
 var _seed: Node3D
-var _meal: Node3D # (its seed, nibbled away bit by bit: Meal)
+var _meal: Node3D # (its seed, nibbled away bit by bit where it lies: Meal)
+var _bite_look := -0.5 # (its head's pitch, eating: to the next bite)
 const MealScript := preload("res://scripts/creatures/meal.gd")
 var _seed_size := Vector3.ONE
 var _sit := 0.0 # 0 on all fours .. 1 sitting up on its haunches
@@ -482,24 +483,29 @@ func _think(dt: float) -> void:
 						MealScript.subdue(_seed) # (an insect, a grub: bitten, still)
 						_stage = 1
 						_st = 0.0
-				1: # picked up in its teeth, up onto its haunches
+				1: # its head down to it
 					_look_to = Vector2(0.0, -0.5)
+					_bite_look = -0.5
 					if _st > 0.4:
-						_sit_to = 1.0
 						_stage = 2
 						_st = 0.0
-				2: # turning it in its forepaws, nibbling it away
+				2: # nibbling it away where it lies, its mouth on the next bit (not picked up)
 					_target = _pos
-					_sit_to = 1.0
+					_sit_to = 0.0
 					_chew = 1.0
-					_look_to = Vector2(0.15 * sin(_st * 0.9), -0.15)
 					if _meal == null:
-						_meal = MealScript.of(_seed, 3)
-						if _meal:
-							_meal.set("held", true) # (in its mouth: the bite it's at drawn in to it)
+						_meal = MealScript.of(_seed, 1) # (a seed, an insect: one bite, gone)
+					var m := _body.global_transform * (_head.transform * Vector3(0.0, -6.5, -19.5))
+					var na: Vector3 = _meal.call("next_at") if _meal else _seed.global_position
+					_bite_look = clampf(_bite_look + clampf((na.y - m.y) * 60.0, -1.5, 1.5) * dt, -1.2, 0.3)
+					_look_to = Vector2(0.12 * sin(_st * 0.9), _bite_look)
+					var off := Vector3(na.x - m.x, 0.0, na.z - m.z)
+					if off.length() > 0.0015:
+						_pos += off.limit_length(0.03 * size * dt)
+						_target = _pos
 					if _meal:
-						_meal.call("tear", clampf((_st - 0.5) / 8.0, 0.0, 1.0), _body.global_transform * (_head.transform * Vector3(0.0, -6.5, -19.5)))
-					if _st > 9.0:
+						_meal.call("tear", 1.0, m)
+					if _st > 9.0 or (_meal and float(_meal.call("left")) <= 0.0 and _st > 3.0):
 						_seed.queue_free()
 						_seed = null
 						groom()
@@ -701,10 +707,6 @@ func _pose(dt: float) -> void:
 			_pose_foot[i] = Vector3(side * 4.5, -10.0, -24.0) # (held up before its chest)
 		elif not (young and size < 0.25):
 			_pose_foot[i] = null
-	# its seed in its paws (or its teeth)
-	if is_instance_valid(_seed) and _mode == "eat" and _stage >= 1:
-		var at := mouth + Vector3(0.0, -0.5, 0.0) if _sit > 0.5 else _head.transform * Vector3(0.0, -4.0, -25.0)
-		_seed.global_transform = Transform3D(_body.global_transform.basis.orthonormalized() * Basis(Vector3.RIGHT, PI * 0.5) * Basis.from_scale(_seed.scale), _body.global_transform * at)
 
 
 ## Its legs, a mammal's: from the shoulder or hip to the foot, the foot

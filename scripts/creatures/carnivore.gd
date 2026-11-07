@@ -1031,7 +1031,7 @@ func _hunt(dt: float) -> void:
 				var nose := _out(Vector3(0.0, -body_h, float(S.mouth_z)))
 				if Vector2(nose.x - p.x, nose.z - p.z).length() < 0.35 * size / 0.5 + 0.05:
 					MealScript.subdue(_prey)
-					_held = not _too_big() # (a kill too big to carry: eaten where it fell)
+					_held = false # (every kill eaten where it fell: not carried off in its jaws)
 					_stage = 5
 					_st = 0.0
 				else:
@@ -1076,18 +1076,17 @@ func _hunt(dt: float) -> void:
 			_held = false
 			if _meal == null: # (torn up piece by piece, its blood run out on the ground)
 				var big := _too_big()
-				_meal = MealScript.of(_prey, 4 if _small_prey() else (9 if big else 6), -1, _ground(_lay.x, _lay.z))
+				# (an insect, a grub: one bite, gone; anything bigger torn up)
+				var across := 1 if not MealScript.is_vertebrate(_prey) else (4 if _small_prey() else (9 if big else 6))
+				_meal = MealScript.of(_prey, across, -1, _ground(_lay.x, _lay.z))
 				_bite_pitch = -0.95
 				_reach_crouch = 0.0
 				# (how long at it: a bigger kill longer, a tug a piece)
-				_eat_secs = clampf(15.0 * _prey_len() / 0.4, 15.0, 45.0) if not _small_prey() else 9.0
+				_eat_secs = clampf(15.0 * _prey_len() / 0.4, 15.0, 45.0) if not _small_prey() else (9.0 if across > 1 else 3.5)
 			var ph := fmod(_st, 2.4)
 			var tugging := ph > 1.2 and ph < 2.1
 			var mouth := _mouth()
 			if _meal:
-				_meal.set("held", false)
-				_meal.set("dragged", false)
-				_meal.set("in_place", true) # (a piece torn off only once its mouth's on it)
 				var na: Vector3 = _meal.call("next_at")
 				if not tugging: # (its head lowered, or raised, till its mouth's on the next bite)
 					_mouth_down_to(na.y, dt, -0.25)

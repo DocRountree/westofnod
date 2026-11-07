@@ -946,6 +946,10 @@ func _hide_think(_dt: float) -> void:
 
 
 ## To it, its head down to it, bites torn off, gulped; gone.
+var _bite_look := -0.5
+var _bite_neck := 1.2
+
+
 func _eat_think(_dt: float) -> void:
 	if not is_instance_valid(_food):
 		wander(_pos, 0.3)
@@ -962,14 +966,26 @@ func _eat_think(_dt: float) -> void:
 		_stage = 1
 		_st = 0.0
 		MealScript.subdue(_food) # (a live one: caught in its jaws)
-		_meal = MealScript.of(_food, 3)
-		if _meal:
-			_meal.set("held", true) # (in its jaws: the bite it's at drawn in to them)
-	_neck_to = 1.2 + 0.15 * sin(_st * 4.0)
-	_look = -0.5 # (its head down to it)
+		# (an insect, a snail: one bite, gone; a fruit, a weed bitten at)
+		var small := _food.has_method("act") and not MealScript.is_vertebrate(_food)
+		_meal = MealScript.of(_food, 1 if small else 3)
+		_bite_look = -0.5
+		_bite_neck = 1.2
+	# (the food where it lies, still: its head brought down onto the next
+	# bite, its neck out to it, a step to it; bites taken there)
+	var mouth := _head.global_position
+	var na: Vector3 = _meal.call("next_at") if _meal else fp
+	_bite_look = clampf(_bite_look + clampf((na.y - mouth.y) * 40.0, -1.5, 1.5) * _dt, -1.8, 0.6)
+	var ahead := Vector3(-sin(_yaw), 0.0, -cos(_yaw))
+	var off := Vector3(na.x - mouth.x, 0.0, na.z - mouth.z)
+	_bite_neck = clampf(_bite_neck + clampf(off.dot(ahead) * 30.0, -1.0, 1.0) * _dt, 0.6, 1.5)
+	if off.length() > 0.004:
+		_pos += off.limit_length(0.02 * size * _dt)
+	_neck_to = _bite_neck
+	_look = _bite_look
 	_jaw_to = 0.45 * maxf(sin(_st * 5.0), 0.0)
-	if _meal and is_instance_valid(_food): # (bites torn off, gulped)
-		_meal.call("tear", clampf((_st - 0.3) / 2.6, 0.0, 1.0), _head.global_position)
+	if _meal and is_instance_valid(_food): # (bites torn off where its mouth's on them, gulped)
+		_meal.call("tear", clampf((_st - 0.3) / 2.6, 0.0, 1.0), mouth)
 	if _st > 3.0 and is_instance_valid(_food):
 		_food.queue_free()
 		_food = null

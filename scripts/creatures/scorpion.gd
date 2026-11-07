@@ -515,7 +515,7 @@ func _hunt(dt: float) -> void:
 			_palp_rate = 30.0
 			_grip = 0.0 if _st < 0.12 else 1.0
 			if _st > 0.25:
-				_held = true
+				_held = false # (gripped where it lies, not lifted)
 				MealScript.subdue(_prey) # (a live insect: still in its chelae)
 				_stage = 3
 				_st = 0.0
@@ -535,13 +535,17 @@ func _hunt(dt: float) -> void:
 			_chew = 1.0
 			if _meal == null:
 				_meal = MealScript.of(_prey, 4)
-				if _meal:
-					_meal.set("held", true) # (in its mouth: the bite it's at drawn in to it)
 			if _meal and not _chel.is_empty():
 				var mouth := Vector3.ZERO
 				for c in _chel:
 					mouth += (c as Node3D).global_position
-				_meal.call("tear", clampf((_st - 0.5) / 11.0, 0.0, 1.0), mouth / _chel.size())
+				mouth /= _chel.size()
+				var na: Vector3 = _meal.call("next_at")
+				var off := Vector3(na.x - mouth.x, 0.0, na.z - mouth.z)
+				if off.length() > 0.001:
+					_pos += off.limit_length(0.012 * size * dt)
+					_target = _pos
+				_meal.call("tear", clampf((_st - 0.5) / 11.0, 0.0, 1.0), mouth)
 			if _st > 12.0:
 				_prey.queue_free()
 				_prey = null

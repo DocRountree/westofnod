@@ -59,6 +59,7 @@ var _prey_s := Vector3.ONE
 var _meal: Node3D # (its prey, eaten bite by bite: Meal)
 const MealScript := preload("res://scripts/creatures/meal.gd")
 var _held := false
+var _bite_look := -0.3 # (its head's pitch, eating: to the next bite)
 var _phase := 0.0 # the trunk's swing, with its stride
 var _turn_rate := 0.0
 var _last_yaw := 0.0
@@ -340,20 +341,28 @@ func _hunt(dt: float) -> void:
 			if d < mouth * 1.15 or _st > 1.0:
 				_lunge = 4.0
 				_jaw_open = 0.0
-				_held = true
-				MealScript.subdue(_prey) # (a live insect: still in its jaws)
+				_held = false # (not lifted: it lies where it was snapped at)
+				MealScript.subdue(_prey) # (a live insect: still, bitten)
 				_stage = 3
 				_st = 0.0
 		3: # chewing it, swallowing, the head jerking
 			_target = _pos
 			_chew = 1.0
-			_look_to = Vector2(0.15 * sin(_st * 9.0), -0.1 + 0.15 * maxf(sin(_st * 4.0), 0.0))
 			if _meal == null:
-				_meal = MealScript.of(_prey, 3)
-				if _meal:
-					_meal.set("held", true) # (in its mouth: the bite it's at drawn in to it)
+				_meal = MealScript.of(_prey, 1) # (an insect: one bite, gone)
+				_bite_look = -0.3
+			# (its prey where it lies, still: its head down onto the next bite,
+			# a step to it; bitten off there)
+			var m := _body.global_transform * (_head.transform * Vector3(0.0, -1.0, -11.0))
+			var na: Vector3 = _meal.call("next_at") if _meal else _prey.global_position
+			_bite_look = clampf(_bite_look + clampf((na.y - m.y) * 80.0, -1.5, 1.5) * dt, -1.0, 0.4)
+			_look_to = Vector2(0.12 * sin(_st * 9.0), _bite_look)
+			var off := Vector3(na.x - m.x, 0.0, na.z - m.z)
+			if off.length() > 0.0015:
+				_pos += off.limit_length(0.03 * size * dt)
+				_target = _pos
 			if _meal: # (crushed and gulped down, a piece at a time)
-				_meal.call("tear", clampf((_st - 0.3) / 3.4, 0.0, 1.0), _body.global_transform * (_head.transform * Vector3(0.0, -1.0, -11.0)))
+				_meal.call("tear", 1.0, m)
 			if _st > 4.0:
 				_prey.queue_free()
 				_prey = null

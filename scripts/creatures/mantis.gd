@@ -51,7 +51,10 @@ var _stage := 0
 var _at := Vector3.ZERO
 var _look := Vector3.INF # (its parent's space)
 var _prey: Node3D
-var _held := false
+var _held := false # (no longer: its prey's never moved, pinned where it was struck)
+var _seized_it := false
+var _bite_pitch := 0.2 # (its prothorax's pitch, eating: its mouth to the next bite)
+const PIN := Vector3(0.8, 0.6, 2.8) # (its forelegs reached out, the tibiae snapped shut: pinning its prey where it is)
 # a mantis (a male) as her prey: his head torn off (0..1)
 var _rip := 0.0
 var _meal: Node3D # (its prey, eaten piece by piece: Meal)
@@ -229,6 +232,7 @@ func strike(target: Vector3, prey: Node3D = null) -> void:
 	_at = target
 	_prey = prey
 	_held = false
+	_seized_it = false
 	_rip = 0.0
 	_meal = null
 	_stage = 0
@@ -319,13 +323,14 @@ func _think(dt: float) -> void:
 					if _st > 0.09:
 						_stage = 3
 						_st = 0.0
-				3: # snapped shut, drawn in, holding it at its mouth
-					_ask = [Vector3(0.2, 1.4, 2.95), Vector3(0.2, 1.4, 2.95)] # (shut, drawn in to its mouth)
+				3: # snapped shut on it, pinning it where it is (not drawn in)
+					_ask = [PIN, PIN]
 					_fore_rate = 18.0
 					_lift = 0.0
-					_pro_pitch = 0.4
-					if _prey and not _held and _st > 0.05:
-						_held = true
+					_pro_pitch = 0.2
+					_bite_pitch = 0.2
+					if _prey and not _seized_it and _st > 0.05:
+						_seized_it = true
 						if _prey.has_method("_seized"): # (a mantis: limp in her grip)
 							_prey.call("_seized")
 						else: # (a live insect: still in her grip)
@@ -333,44 +338,33 @@ func _think(dt: float) -> void:
 					if _st > 0.6:
 						_stage = 4 if _prey else 5
 						_st = 0.0
-				4: # eating it
+				4: # eating it where it is, pinned under its forelegs: its head down onto each next bite
 					_chew = 1.0
 					_look = Vector3.INF
 					var whole := is_instance_valid(_prey) and _prey.has_method("_hang") # (a mantis)
 					var meal := 32.0 if whole else 9.0
-					if whole:
-						# a tug, a wrench: his head torn off; then eaten,
-						# bite by bite, the head first, then the rest of
-						# him from the neck back
-						_rip = smoothstep(0.2, 1.4, _st)
-						if _st > 1.6:
-							if _meal == null:
-								_meal = MealScript.of(_prey, 9)
-								if _meal:
-									_meal.set("held", true) # (in its mouth: the bite it's at drawn in to it)
-							if _meal:
-								_meal.call("tear", clampf((_st - 1.6) / (meal - 2.5), 0.0, 1.0), _mouth())
-						if _st < 1.5:
-							var j := 0.3 * sin(_st * 15.0)
-							_ask = [Vector3(0.2 + j, 1.4, 2.95), Vector3(0.2 - j, 1.4, 2.95)]
-							_fore_rate = 22.0
-							_pro_pitch = 0.4 + 0.12 * sin(_st * 9.0)
-							_chew = 0.3
-						else:
-							_ask = [Vector3(0.2, 1.4, 2.95), Vector3(0.2, 1.4, 2.95)] # (held at her mouth)
-							_fore_rate = 8.0
-					elif is_instance_valid(_prey): # (bite by bite)
+					_ask = [PIN, PIN]
+					_fore_rate = 8.0
+					if is_instance_valid(_prey):
 						if _meal == null:
-							_meal = MealScript.of(_prey, 3)
-							if _meal:
-								_meal.set("held", true) # (in its mouth: the bite it's at drawn in to it)
+							_meal = MealScript.of(_prey, 9 if whole else 3)
 						if _meal:
-							_meal.call("tear", clampf((_st - 0.5) / (meal - 1.5), 0.0, 1.0), _mouth())
+							var m := _mouth()
+							var na: Vector3 = _meal.call("next_at")
+							# (its front raised or lowered till its mouth's on it; a step to it)
+							_bite_pitch = clampf(_bite_pitch + clampf((na.y - m.y) * 120.0, -1.5, 1.5) * dt, -0.6, 1.2)
+							_pro_pitch = _bite_pitch
+							var off := Vector3(na.x - m.x, 0.0, na.z - m.z)
+							if off.length() > 0.001:
+								_pos += off.limit_length(0.015 * size * dt)
+								_target = _pos
+							_meal.call("tear", clampf((_st - 0.5) / (meal - 1.5), 0.0, 1.0), m)
 					if _st > meal:
 						if is_instance_valid(_prey):
 							_prey.queue_free()
 						_prey = null
 						_held = false
+						_seized_it = false
 						groom()
 				5:
 					_rest_fore()

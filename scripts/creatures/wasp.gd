@@ -367,13 +367,24 @@ func feed_on_insect(prey: Node3D, at: Vector3, normal := Vector3.UP) -> void:
 	_p.crouch = 0.35
 	_p.pump = 0.4
 	while true:
-		if not await _wait(id, rng.randf_range(2.0, 4.0)):
+		# to the next bite (the prey still where it lies): stepped up to it,
+		# turned to it, its head down on it, chewing it off
+		if is_instance_valid(_holding):
+			var na: Vector3 = _meal.call("next_at") if _meal else _holding.global_position
+			var to := _flat(na - _pos, surface_n)
+			var face := to.normalized() if to.length() > 0.0005 else _heading
+			var stand := na - face * 4.2 * MM
+			if _pos.distance_to(stand) > 0.0012:
+				_p.chew = 0.0
+				_walk_target = stand
+				if not await _until(id, func() -> bool: return _walk_target == Vector3.INF, 2.0):
+					return
+			if not await _turn(id, face):
+				return
+			_p.head_pitch = -0.45
+			_p.chew = 1.0
+		if not await _wait(id, rng.randf_range(1.2, 2.4)):
 			return
-		# a pause, and round a little
-		_p.chew = 0.0
-		if not await _turn(id, _heading.rotated(surface_n, rng.randf_range(-0.8, 0.8))):
-			return
-		_p.chew = 1.0
 
 
 ## Down onto a surface (at, normal); walking about on it a bit, stopping
@@ -1413,8 +1424,9 @@ func _pose_wings() -> void:
 		_fans[s].transform = Transform3D(plane * Basis.from_scale(Vector3(W.l * side, 1.0, W.l)), Vector3(W.hinge.x * side, W.hinge.y, W.hinge.z))
 
 
-## Its prey where it lies, under it (not lifted, not turned): once it's
-## limp, chewed off piece by piece into its mouth (Meal), as it chews.
+## Its prey where it lies, under it (not lifted, not turned, not moved):
+## once it's limp, chewed off piece by piece where its mouth is (Meal), as
+## it chews (feed_on_insect: its head to each next bite).
 func _pose_prey(dt: float) -> void:
 	if _holding == null or not is_instance_valid(_holding):
 		return
@@ -1423,8 +1435,6 @@ func _pose_prey(dt: float) -> void:
 	_prey_ball = minf(_prey_ball + dt * 0.03 * _a.chew, 1.0)
 	if _meal == null:
 		_meal = MealScript.of(_holding, 4)
-		if _meal:
-			_meal.set("held", true) # (up in its forelegs: the bite it's at drawn into its mandibles)
 	if _meal:
 		_meal.call("tear", _prey_ball, _head.to_global(Vector3(0.0, -1.7, -2.3)))
 

@@ -84,6 +84,7 @@ var _branch: Node3D
 var _splash: Array[MeshInstance3D] = []
 var _chips: Array[MeshInstance3D] = []
 var _held_stick := false
+var _gnaw_pitch := -0.6 # (its neck's pitch, gnawing a stick where it lies)
 
 
 func _init(young_ := false) -> void:
@@ -533,7 +534,8 @@ func _chip(at: Vector3) -> void:
 	_chips.append(mi)
 
 
-## (Sat up, the stick across its forepaws at its mouth, turned, its bark gnawed off.)
+## (The stick where it lies, not picked up: its head down to it, its mouth
+## working along it, its bark gnawed off.)
 func _eat_stick(dt: float) -> void:
 	if not is_instance_valid(_branch):
 		wander(_pos, 0.8)
@@ -551,10 +553,20 @@ func _eat_stick(dt: float) -> void:
 				_st = 0.0
 		1:
 			_target = _pos
-			_sit_to = 1.0
+			_sit_to = 0.0
 			_chew = 1.0
-			_neck_to = Vector2(-0.25, 0.0)
-			_held_stick = true
+			_held_stick = false
+			# (its mouth along the stick, end to end and back, on it)
+			var m := _jaw.global_transform * Vector3(0.0, -5.0, -70.0)
+			if _st < dt * 1.5 or _gnaw_ends.is_empty():
+				_gnaw_ends = _ends_of(_branch)
+			var at: Vector3 = (_gnaw_ends[0] as Vector3).lerp(_gnaw_ends[1], 0.5 + 0.35 * sin(_st * 0.5))
+			_gnaw_pitch = clampf(_gnaw_pitch + clampf((at.y - m.y) * 10.0, -1.0, 1.0) * dt, -1.1, 0.2)
+			_neck_to = Vector2(_gnaw_pitch, 0.0)
+			var off := Vector3(at.x - m.x, 0.0, at.z - m.z)
+			if off.length() > 0.01:
+				_pos += off.limit_length(0.08 * size * dt)
+				_target = _pos
 			var bark := _bark_of(_branch)
 			if bark:
 				bark.albedo_color = _bark_was.lerp(Color(0.93, 0.9, 0.8), clampf(_st / 12.0, 0.0, 1.0))
@@ -566,6 +578,23 @@ func _eat_stick(dt: float) -> void:
 
 
 var _bark_was := Color(0.6, 0.6, 0.5)
+var _gnaw_ends: Array = []
+
+
+## (A stick's two ends, lying: along its longer way over the ground, at its top.)
+static func _ends_of(stick: Node3D) -> Array:
+	var box := AABB()
+	var first := true
+	for mi: MeshInstance3D in stick.find_children("*", "MeshInstance3D", true, false):
+		var b := mi.global_transform * mi.get_aabb()
+		box = b if first else box.merge(b)
+		first = false
+	if first:
+		return [stick.global_position, stick.global_position]
+	var c := box.get_center()
+	c.y = box.end.y
+	var along := Vector3(box.size.x * 0.5, 0.0, 0.0) if box.size.x >= box.size.z else Vector3(0.0, 0.0, box.size.z * 0.5)
+	return [c - along, c + along]
 
 
 ## (A stick's bark, to whiten as it's gnawed: its first mesh's material, its

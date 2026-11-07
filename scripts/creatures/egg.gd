@@ -94,8 +94,6 @@ func _process(dt: float) -> void:
 			if is_instance_valid(larva):
 				if _meal == null:
 					_meal = load("res://scripts/creatures/meal.gd").of(_shell, 3, 0)
-					if _meal:
-						_meal.set("held", true) # (in its mandibles: the bite it's at drawn in to them)
 				var head: Node3D = larva.get("_head")
 				if _meal and head:
 					_meal.call("tear", clampf((_t - 0.3) / 2.8, 0.0, 1.0), head.global_position)
