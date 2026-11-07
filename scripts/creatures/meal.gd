@@ -39,6 +39,7 @@ var swallow := false
 var ground := NAN ## the ground's height under it (lying there: blood runs out), or NAN
 var held := false ## in its mouth (jaws, forelegs, paws): drawn in, the bite it's at in the mouth
 var dragged := false ## lying on the ground: pulled over it under the mouth
+var in_place := false ## lying where it is, not moved: but a piece torn off only once the mouth's on it
 
 var _pieces: Array[Node3D] = [] # still on it (its children)
 var _flying: Array = [] # [piece, t, from (world), from basis, spin axis, secs]
@@ -116,7 +117,7 @@ func tear(k: float, mouth: Vector3) -> void:
 	_due = int(ceil(clampf(k, 0.0, 1.0) * _n - 1e-4))
 	while _torn < _due and not _pieces.is_empty():
 		var i := _nearest()
-		if (held or dragged) and _pieces[i].global_position.distance_to(_mouth) > _reach() and _late < 1.5:
+		if (held or dragged or in_place) and _pieces[i].global_position.distance_to(_mouth) > _reach() and _late < 1.5:
 			break # (not till its mouth's on it)
 		_tear_next(i)
 		_late = 0.0

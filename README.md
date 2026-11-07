@@ -372,9 +372,9 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   scraping); hunting (stalking low and slow, freezing; the fox listening, head cocked, then its high arcing pounce
   diving nose first; the bobcat treading, tail tip twitching, then the rush and the spring), the prey (a deer mouse,
   a snowshoe hare, a grey squirrel: anything with die()) killed, carried off in its jaws a few of its lengths, then
-  eaten: a small one (a quarter of its own length or less: a mouse for any of them, a squirrel for a coyote, a wolf, a
-  bear) from its jaws, its head up, chewing, working it down; a bigger one laid down and torn at, lifted in its jaws
-  and pulled, let down, again, a piece torn off at each pull (raw and bloody where it's torn, blood run out under it);
+  eaten: every kill laid down on its side on the ground and left lying there, still, the hunter's head down to it,
+  stepping round it till its mouth's on the next bite, tearing it off with a tug of its head, the carcass never
+  lifted or moved (raw and bloody where it's torn, blood run out under it);
   grooming (a forepaw licked, the face washed, a flank licked); sitting; sleeping curled, then a stretch. The female gives birth in
   her den (`RedFox.den()`: a mound of dug earth; `Bobcat.den()`: a shelter of rocks), lying on her side, licking each;
   nursing them at her belly; the young born blind and helpless (a fox kit dark grey brown, a kitten spotted, greyer),

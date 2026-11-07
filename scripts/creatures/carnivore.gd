@@ -1037,8 +1037,9 @@ func _hunt(dt: float) -> void:
 				if d < -float(S.mouth_z) * MM * size * 1.1 and _speed < 0.05:
 					_target = _pos
 					_turn_to = atan2(-to.x, -to.z)
-					_lay = p
+					_lay = Vector3(p.x, _ground(p.x, p.z), p.z)
 					MealScript.subdue(_prey) # (food still alive, set before it: killed)
+					_lay_down(_prey, _lay)
 					_stage = 6
 					_st = 0.0
 			else:
@@ -1054,72 +1055,88 @@ func _hunt(dt: float) -> void:
 					_pace = -1.0
 					var lay := _out(Vector3(0.0, -body_h, float(S.mouth_z) - 40.0))
 					_lay = Vector3(lay.x, _ground(lay.x, lay.z), lay.z)
-					_held = _from_jaws() # (a little one eaten from its jaws; a bigger laid down, and a big hunter's every kill)
-					if not _held:
-						_prey.global_position = _lay
+					_held = false # (laid down, every kill: eaten off the ground, where it lies)
+					_lay_down(_prey, _lay)
 					_stage = 6
 					_st = 0.0
-		6:
+		6: # (its kill on the ground, lying where it was laid, still: its head down
+			# to it, its mouth on the next bite, tearing it off; a tug at it now and
+			# then, its head pulled up and back, the bite in its teeth, the carcass
+			# left where it lies; a step or two round it, its mouth to the next)
 			_target = _pos
 			_chew = 1.0
-			var jaws := _from_jaws()
-			if _meal == null: # (torn up piece by piece; laid down, its blood run out on the ground)
+			_held = false
+			if _meal == null: # (torn up piece by piece, its blood run out on the ground)
 				var big := _too_big()
-				_meal = MealScript.of(_prey, 4 if _small_prey() else (9 if big else 6), -1, NAN if jaws else _ground(_lay.x, _lay.z))
+				_meal = MealScript.of(_prey, 4 if _small_prey() else (9 if big else 6), -1, _ground(_lay.x, _lay.z))
 				_bite_pitch = -0.95
-				# (how long at it: a bigger kill longer, a pull a piece)
-				_eat_secs = clampf(15.0 * _prey_len() / 0.4, 15.0, 45.0) if not jaws else 9.0
-			if jaws: # (in its jaws: its head up, chewing, working it down, a toss now and then)
-				_held = true
-				if _meal:
-					_meal.set("held", true)
-				_neck_to = Vector2(-0.15, 0.0)
-				_look_to = Vector2(0.15 + 0.2 * maxf(sin(_st * 1.3), 0.0), 0.15 * sin(_st * 0.9))
-				_jaw_to = 0.22 * maxf(sin(_st * 7.0), 0.0)
-				if _meal:
-					_meal.call("tear", clampf((_st - 0.6) / 8.0, 0.0, 1.0), _mouth())
-				if _st > 9.0:
-					_prey.queue_free()
-					_prey = null
-					_held = false
-					groom()
-			else: # (laid down: its head down to it, its mouth on it, tearing: a bite, the carcass lifted in its jaws and pulled at, let down)
-				var ph := fmod(_st, 2.4)
-				var pulling := ph > 1.2 and ph < 2.1
-				if _meal and not pulling: # (its head lowered, or raised, till its mouth's on the next bite)
-					var na: Vector3 = _meal.call("next_at")
-					var err := na.y - _mouth().y
+				# (how long at it: a bigger kill longer, a tug a piece)
+				_eat_secs = clampf(15.0 * _prey_len() / 0.4, 15.0, 45.0) if not _small_prey() else 9.0
+			var ph := fmod(_st, 2.4)
+			var tugging := ph > 1.2 and ph < 2.1
+			var mouth := _mouth()
+			if _meal:
+				_meal.set("held", false)
+				_meal.set("dragged", false)
+				_meal.set("in_place", true) # (a piece torn off only once its mouth's on it)
+				var na: Vector3 = _meal.call("next_at")
+				if not tugging: # (its head lowered, or raised, till its mouth's on the next bite)
+					var err := na.y - mouth.y
 					_bite_pitch = clampf(_bite_pitch + clampf(err * 10.0, -1.2, 1.2) * dt, -1.6, -0.25)
-				_neck_to = Vector2(_bite_pitch, 0.0)
-				_look_to = Vector2(-0.3 + (0.55 if pulling else 0.0), 0.25 * sin(_st * 1.7)) # (pulling up and to the side)
-				_jaw_to = 0.08 if pulling else 0.3 * maxf(sin(_st * 6.0), 0.0)
-				if _too_big(): # (too heavy to lift: pulled at where it lies)
-					pulling = false
-				if pulling != _held:
-					_held = pulling
-					if not pulling and is_instance_valid(_prey):
-						_prey.global_position = _lay
-				if _meal: # (lifted, in its jaws; let down, drawn over the ground under its mouth)
-					_meal.set("held", _held)
-					_meal.set("dragged", not _held)
-					# (a piece torn away at the top of each pull; the last of it at the end)
-					var pulls := maxf(roundf((_eat_secs - 1.0) / 2.4), 1.0)
-					_meal.call("tear", 1.0 if _st > _eat_secs - 1.0 else clampf(floorf((_st + 0.65) / 2.4) / pulls, 0.0, 1.0), _mouth())
-				if _st > _eat_secs:
-					_held = false
-					_prey.queue_free()
-					_prey = null
-					groom()
+				# (its mouth over the next bite: shuffling round it, facing it)
+				var off := Vector3(na.x - mouth.x, 0.0, na.z - mouth.z)
+				var to_bite := Vector3(na.x - _pos.x, 0.0, na.z - _pos.z)
+				if to_bite.length() > 0.01:
+					_yaw = lerp_angle(_yaw, atan2(-to_bite.x, -to_bite.z), 1.0 - exp(-1.5 * dt))
+				if off.length() > 0.015:
+					_pos += off.limit_length(0.12 * size / 0.5 * dt)
+					_target = _pos
+				# (a piece torn away at the top of each tug; the last of it at the end)
+				var pulls := maxf(roundf((_eat_secs - 1.0) / 2.4), 1.0)
+				_meal.call("tear", 1.0 if _st > _eat_secs - 1.0 else clampf(floorf((_st + 0.65) / 2.4) / pulls, 0.0, 1.0), mouth)
+			_neck_to = Vector2(_bite_pitch + (0.25 if tugging else 0.0), 0.0)
+			_look_to = Vector2(-0.3 + (0.3 if tugging else 0.0), 0.2 * sin(_st * 1.7)) # (tugging: up and to the side)
+			_jaw_to = 0.06 if tugging else 0.3 * maxf(sin(_st * 6.0), 0.0)
+			if _st > _eat_secs:
+				_prey.queue_free()
+				_prey = null
+				groom()
+
+
+## Its kill laid on the ground at `at`, still: on its side, level, as it
+## lay; not to move again till it's eaten.
+func _lay_down(prey: Node3D, at: Vector3) -> void:
+	if not is_instance_valid(prey):
+		return
+	var f := -prey.global_basis.z
+	f.y = 0.0
+	if f.length() < 0.01:
+		f = Vector3.FORWARD
+	f = f.normalized()
+	var lie := 0.0 # (how high its middle is, lying on its side: half its width)
+	var bh: Variant = prey.get("body_h")
+	var sz: Variant = prey.get("size")
+	var bw: Variant = (prey.get("S") as Dictionary).get("body_w") if prey.get("S") is Dictionary else null
+	if bw != null and sz is float:
+		lie = float(bw) * MM * float(sz)
+	elif bh is float and sz is float:
+		lie = float(bh) * MM * float(sz) * 0.5
+	var yaw := atan2(-f.x, -f.z)
+	if not (bh is float): # (a snake, a grub, a caterpillar: lying as it is, along the ground)
+		prey.global_position = Vector3(prey.global_position.x, at.y + maxf(prey.global_position.y - _ground(prey.global_position.x, prey.global_position.z), 0.0), prey.global_position.z) if prey.global_position.distance_to(at) < 0.3 else at
+		return
+	var b := Basis(Vector3.UP, yaw) * Basis(Vector3.BACK, PI * 0.5) * Basis.from_scale(prey.global_basis.get_scale())
+	prey.global_transform = Transform3D(b, at + Vector3.UP * lie)
 
 
 var _bite_pitch := -0.95 # (its neck's, eating off the ground: down till its mouth's on it)
 
 
 ## Whether it eats its kill from its jaws, head up (a small one, for a
-## smaller hunter: a fox's mouse, a bobcat's); the big hunters (a coyote, a
-## wolf, a bear) lay every kill down and eat it off the ground.
+## smaller hunter: a fox's mouse, a bobcat's). (Not now: every kill is laid
+## down and eaten off the ground, where it lies.)
 func _from_jaws() -> bool:
-	return _small_prey() and float(S.body_len) * MM * size < 0.68
+	return false
 
 
 ## A spring at its prey at p: aimed for its mouth to come down on it (not
