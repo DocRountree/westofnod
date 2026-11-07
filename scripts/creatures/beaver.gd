@@ -555,13 +555,37 @@ func _eat_stick(dt: float) -> void:
 			_chew = 1.0
 			_neck_to = Vector2(-0.25, 0.0)
 			_held_stick = true
-			var bark := ((_branch.get_child(0) as MeshInstance3D).material_override as StandardMaterial3D)
-			bark.albedo_color = Color(0.6, 0.6, 0.5).lerp(Color(0.93, 0.9, 0.8), clampf(_st / 12.0, 0.0, 1.0))
+			var bark := _bark_of(_branch)
+			if bark:
+				bark.albedo_color = _bark_was.lerp(Color(0.93, 0.9, 0.8), clampf(_st / 12.0, 0.0, 1.0))
 			if _st > 12.0:
 				_held_stick = false
 				_branch = null
 				_sit_to = 0.0
 				groom()
+
+
+var _bark_was := Color(0.6, 0.6, 0.5)
+
+
+## (A stick's bark, to whiten as it's gnawed: its first mesh's material, its
+## own copy (its bark's colour first kept), wherever in it that mesh is
+## (its own stick_of's, or the game's stick, laid as dropped).)
+func _bark_of(stick: Node) -> StandardMaterial3D:
+	if stick.has_meta("gnawed"):
+		return stick.get_meta("gnawed")
+	var mi: MeshInstance3D = stick as MeshInstance3D
+	if mi == null:
+		var found := stick.find_children("*", "MeshInstance3D", true, false)
+		mi = found[0] if not found.is_empty() else null
+	if mi == null:
+		return null
+	var m := mi.material_override if mi.material_override else mi.get_active_material(0)
+	var bark := (m.duplicate() as StandardMaterial3D) if m is StandardMaterial3D else StandardMaterial3D.new()
+	_bark_was = bark.albedo_color
+	mi.material_override = bark
+	stick.set_meta("gnawed", bark)
+	return bark
 
 
 ## (Mud: scooped up against its chest with its forepaws, pushed on to its

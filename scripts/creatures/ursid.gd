@@ -9,7 +9,8 @@ extends "res://scripts/creatures/carnivore.gd" # (by path: found whether or not 
 ##   stopping to dig (its forepaws raking the earth back by turns, its head
 ##   down in the hole, eating what it finds)
 ## - browse(bush) (Ursid.berry_bush()): at it, stripping the berries with
-##   its lips, now and then up on its hind legs to the higher ones
+##   its lips, now and then up on its hind legs to the higher ones (copies
+##   of the bush's berries eaten: the bush keeps its own)
 ## - stand(secs): up on its hind legs, tall, its forepaws hanging, its nose
 ##   up, sniffing the air
 ## - rub(at): its back to a tree (at: its trunk), up on its hind legs
@@ -193,6 +194,8 @@ func rub(at: Vector3) -> void:
 
 
 func _think(dt: float) -> void:
+	if not _snacks.is_empty():
+		_snacks_to_mouth(dt)
 	match _mode:
 		"forage":
 			_common(dt)
@@ -301,14 +304,58 @@ func _browse(dt: float) -> void:
 			var high := fmod(_st, 10.0) > 6.0
 			_stand_to = 0.55 if high else 0.0
 			_neck_to = Vector2(-0.2 if not high else 0.3, 0.3 * sin(_st * 0.6))
-			if fmod(_st, 1.5) < dt: # (a berry gone)
-				for b in _bush.get_children():
-					if b.name.begins_with("berry") and (b as Node3D).visible:
-						(b as Node3D).visible = false
-						break
+			if fmod(_st, 1.5) < dt: # (a berry taken: a copy of one, the bush's own left hanging)
+				_take_berry()
 			if _st > 18.0:
 				_stand_to = 0.0
 				wander(_home_spot(), _radius)
+
+
+var _snacks: Array = [] # [the copy, its time] (berries on their way to its mouth)
+
+
+## (A copy of one of the bush's berries (berry_n), from where it hangs, to
+## its mouth: the bush keeps its own.)
+func _take_berry() -> void:
+	var on: Array = []
+	for b in _bush.get_children():
+		if b.name.begins_with("berry") and (b as Node3D).visible:
+			on.append(b)
+	if on.is_empty():
+		return
+	var b: Node3D = on[rng.randi() % on.size()]
+	var copy := b.duplicate() as Node3D
+	copy.name = "snack"
+	get_parent().add_child(copy)
+	copy.global_transform = b.global_transform
+	_snacks.append([copy, 0.0])
+
+
+## (The copies drawn to its mouth, and gone in it.)
+func _snacks_to_mouth(dt: float) -> void:
+	for k in range(_snacks.size() - 1, -1, -1):
+		var s: Array = _snacks[k]
+		var copy: Node3D = s[0]
+		s[1] = float(s[1]) + dt
+		if not is_instance_valid(copy) or float(s[1]) > 0.5:
+			if is_instance_valid(copy):
+				copy.queue_free()
+			_snacks.remove_at(k)
+			continue
+		var m := _mouth()
+		copy.global_position = copy.global_position.lerp(m, clampf(dt * 10.0, 0.0, 1.0))
+
+
+func _clear_snacks() -> void:
+	for s: Array in _snacks:
+		if is_instance_valid(s[0]):
+			(s[0] as Node3D).queue_free()
+	_snacks.clear()
+
+
+func _exit_tree() -> void:
+	_clear_snacks()
+	super()
 
 
 func _rub(dt: float) -> void:

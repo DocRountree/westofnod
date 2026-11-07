@@ -499,7 +499,7 @@ func _plant_flowers(kind: String, at: Vector3) -> Node3D:
 ## One of the game's trees or bushes (id: _game_trees()), grown, or a
 ## sapling (young): its own mesh, swaying in the wind as it does in the
 ## game, its fruit hanging where it bears it (Items' models, each named
-## berry_n: a bear strips them, Ursid.browse). Its origin at its foot.
+## berry_n: a bear eats copies of them, Ursid.browse, the bush keeping its own). Its origin at its foot.
 func _plant_game(id: String, at: Vector3, young: bool) -> Node3D:
 	var gt := _game_trees()
 	if not gt.has(id):
