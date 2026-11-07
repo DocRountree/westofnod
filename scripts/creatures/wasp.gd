@@ -374,10 +374,18 @@ func feed_on_insect(prey: Node3D, at: Vector3, normal := Vector3.UP) -> void:
 			var to := _flat(na - _pos, surface_n)
 			var face := to.normalized() if to.length() > 0.0005 else _heading
 			var stand := na - face * 4.2 * MM
-			if _pos.distance_to(stand) > 0.0012:
+			stand -= surface_n * (stand - surface_p).dot(surface_n)
+			if _pos.distance_to(stand) > 0.0008:
+				# (a shuffle straight to it, sideways if need be, its feet stepping
+				# after it: not walked round and round it)
 				_p.chew = 0.0
-				_walk_target = stand
-				if not await _until(id, func() -> bool: return _walk_target == Vector3.INF, 2.0):
+				if not await _until(id, func() -> bool:
+					var d := stand - _pos
+					d -= surface_n * d.dot(surface_n)
+					if d.length() < 0.0004:
+						return true
+					_pos += d.limit_length(0.012 * get_process_delta_time())
+					return false, 2.0):
 					return
 			if not await _turn(id, face):
 				return
