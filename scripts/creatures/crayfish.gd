@@ -73,7 +73,8 @@ var water_y := INF ## (its pond's surface: under it, it swims its flips; INF: no
 var berried := false ## (a female's: her eggs under her)
 var brood: Array[Node3D] = [] ## its young, hatched
 var burrow_at := Vector3.INF ## its burrow's mouth (once dug)
-var keep_in := Rect2() ## where it keeps to, x and z (its pond's floor), if set: where it wanders
+var pond := Rect2() ## its pond (x, z: banks and all), if it has one: in it, out of it by its ramp
+var ramp: Array = [] ## its pond's sloping bank: [its foot, its top, its half width]; in and out that way
 var _mode := "idle"
 var _centre := Vector3.ZERO
 var _radius := 0.3
@@ -556,14 +557,53 @@ func hatch() -> void:
 	_begin("hatch")
 
 
-## The ground at (x, z): kept to its pond's floor near its edge (a foot
-## reaching past where the floor ends reads the floor, not the bank above).
+## The ground at (x, z); but never across a drop from where it is (a pond's
+## steep bank): a foot reaching over the edge reads its own level, not the
+## bank above it nor the floor below (none stretched up or down the wall).
 func _ground(x: float, z: float) -> float:
-	if keep_in.has_area():
-		var r := keep_in.grow(0.04)
-		x = clampf(x, r.position.x, r.end.x)
-		z = clampf(z, r.position.y, r.end.y)
-	return super(x, z)
+	var h := super(x, z)
+	if not height.is_valid():
+		return h
+	var here := float(height.call(_pos.x, _pos.z))
+	return here if absf(h - here) > 0.04 * maxf(size / ADULT, 0.3) else h
+
+
+## Whether (x, z) is in its pond (off its sloping bank).
+func _in_pond(p: Vector3) -> bool:
+	return pond.has_area() and pond.has_point(Vector2(p.x, p.z)) and not _on_ramp(p)
+
+
+func _on_ramp(p: Vector3) -> bool:
+	if ramp.is_empty():
+		return false
+	var f: Vector3 = ramp[0]
+	var t: Vector3 = ramp[1]
+	return absf(p.z - f.z) < float(ramp[2]) and p.x >= f.x - 0.01 and p.x <= t.x + 0.02
+
+
+## (Where to make for, on the way to dest: in or out of its pond by the
+## ramp, up its middle; dest itself if it's on the same side.)
+func _route(dest: Vector3) -> Vector3:
+	if ramp.is_empty() or not pond.has_area():
+		return dest
+	var here_in := _in_pond(_pos)
+	var there_in := _in_pond(dest)
+	if here_in == there_in or (_on_ramp(_pos) and _on_ramp(dest)):
+		return dest
+	var f: Vector3 = ramp[0]
+	var t: Vector3 = ramp[1]
+	var bottom := Vector3(f.x - 0.04, f.y, f.z)
+	var top := Vector3(t.x + 0.06, t.y, t.z)
+	if _on_ramp(_pos): # (on it: on up, or down)
+		return top if not there_in else bottom
+	return bottom if here_in else top
+
+
+func _walk(dt: float) -> void:
+	var dest := _target
+	_target = _route(dest)
+	super(dt)
+	_target = dest
 
 
 func _touch_ok() -> bool:
@@ -580,7 +620,7 @@ func _think(dt: float) -> void:
 	_tail_rate = 4.0
 	_fan = move_toward(_fan, 0.6, dt)
 	_crouch = move_toward(_crouch, 0.0, dt)
-	_pitch = lerpf(_pitch, 0.0, 1.0 - exp(-3.0 * dt))
+	_pitch = lerpf(_pitch, _slope(), 1.0 - exp(-3.0 * dt))
 	if _mode not in ["moult", "lay"]: # (turned back up, whatever turned it)
 		_roll = lerpf(_roll, 0.0, 1.0 - exp(-2.5 * dt))
 	if _soft > 0.0:
@@ -613,6 +653,14 @@ func _think(dt: float) -> void:
 			_target = _pos
 
 
+## (The ground's slope under it, nose up: up its pond's bank, say.)
+func _slope() -> float:
+	var f := _forward() * 0.03 * size / ADULT
+	var a := _ground(_pos.x + f.x, _pos.z + f.z)
+	var b := _ground(_pos.x - f.x, _pos.z - f.z)
+	return atan2(a - b, f.length() * 2.0)
+
+
 func _forward() -> Vector3:
 	return Vector3(-sin(_yaw), 0.0, -cos(_yaw))
 
@@ -626,9 +674,6 @@ func _roam(dt: float) -> void:
 			if _wait <= 0.0:
 				var a := rng.randf() * TAU
 				_target = _centre + Vector3(cos(a), 0.0, sin(a)) * sqrt(rng.randf()) * _radius
-				if keep_in.has_area():
-					_target.x = clampf(_target.x, keep_in.position.x, keep_in.end.x)
-					_target.z = clampf(_target.z, keep_in.position.y, keep_in.end.y)
 				_wait = rng.randf_range(3.0, 8.0)
 				if rng.randf() < (0.6 if _mode == "forage" else 0.25):
 					_stage = 1
@@ -666,10 +711,14 @@ func _eat(dt: float) -> void:
 	var to := Vector3(p.x - _pos.x, 0.0, p.z - _pos.z)
 	var reach := absf(MOUTH.z) * MM * size
 	match _stage:
-		0: # (to it, its mouth over it)
+		0: # (to it, its mouth over it: it eats only once it's there)
 			_target = p - to.normalized() * reach if to.length() > reach * 1.05 else _pos
 			_cl_ask = [CL_REACH, CL_REACH]
-			if (to.length() < reach * 1.2 and _speed < 0.01) or _st > 15.0:
+			if _st > 30.0: # (can't get to it)
+				_food = null
+				wander(_pos, 0.25)
+				return
+			if to.length() < reach * 1.2 and _speed < 0.01:
 				_target = _pos
 				_turn_to = atan2(-to.x, -to.z)
 				_stage = 1
@@ -688,13 +737,22 @@ func _eat(dt: float) -> void:
 			_pitch = _bite
 			var off := Vector3(na.x - m.x, 0.0, na.z - m.z)
 			if off.length() > 0.0015:
-				_pos += off.limit_length(0.02 * dt)
+				_pos += off.limit_length(0.03 * dt)
 				_target = _pos
+			# (its small front legs on the bite, picking at it, if it's in their
+			# reach; else down on the ground before it)
+			var on := (_body.global_transform.affine_inverse()) * na
 			for i in 4:
+				var L: Dictionary = legs[i / 2]
 				var side := 1.0 if i % 2 == 1 else -1.0
 				var ph := _st * 1.6 + i * 0.7
-				var on := (_body.global_transform.affine_inverse()) * na
-				_pose_foot[i] = on + Vector3(2.5 * side * (1.0 + 0.3 * sin(ph)), 1.0 + 0.8 * sin(ph), 2.0 + 1.5 * cos(ph))
+				var hip := Vector3(float(L.hip.x) * side, float(L.hip.y), float(L.hip.z))
+				var lim := (float(L.f) + float(L.t) + float(L.s)) * 0.92
+				var want := on + Vector3(2.5 * side * (1.0 + 0.3 * sin(ph)), 1.0 + 0.8 * sin(ph), 2.0 + 1.5 * cos(ph))
+				if want.distance_to(hip) > lim:
+					_pose_foot[i] = null # (out of its reach: on the ground, walking)
+				else:
+					_pose_foot[i] = want
 			if is_instance_valid(_meal):
 				_meal.call("tear", clampf((_st - 1.0) / 14.0, 0.0, 1.0), m)
 			if _st > 16.0 or not is_instance_valid(f):
@@ -791,9 +849,7 @@ func _flee(dt: float) -> void:
 			_centre = _pos
 	if _flip_v > 0.0:
 		_pos -= _forward() * _flip_v * dt
-		if keep_in.has_area():
-			_pos.x = clampf(_pos.x, keep_in.position.x, keep_in.end.x)
-			_pos.z = clampf(_pos.z, keep_in.position.y, keep_in.end.y)
+		_pos.y = _ground(_pos.x, _pos.z)
 		_flip_v = maxf(_flip_v - dt * (2.2 if wet else 3.0), 0.0)
 
 
@@ -1012,12 +1068,12 @@ func _ride(dt: float) -> void:
 		if is_instance_valid(m):
 			var p: Vector3 = m.get("_pos")
 			var a := rng.randf() * TAU
-			keep_in = m.get("keep_in")
-			var at := p + Vector3(cos(a), 0.0, sin(a)) * rng.randf_range(0.03, 0.09)
-			if keep_in.has_area():
-				at.x = clampf(at.x, keep_in.position.x, keep_in.end.x)
-				at.z = clampf(at.z, keep_in.position.y, keep_in.end.y)
-			at.y = _ground(at.x, at.z)
+			pond = m.get("pond")
+			ramp = m.get("ramp")
+			var at := p + Vector3(cos(a), 0.0, sin(a)) * rng.randf_range(0.02, 0.05)
+			at.y = float(height.call(at.x, at.z)) if height.is_valid() else p.y
+			if absf(at.y - p.y) > 0.03:
+				at = p
 			place(at, a)
 			wander(p, 0.2)
 			grow(YOUNG * 2.5, 300.0)

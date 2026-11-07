@@ -340,9 +340,34 @@ func _dig_pond(c: Vector3, hw: float, hd: float, deep: float, kind := "") -> Dic
 	var mud := Color(0.16, 0.13, 0.09)
 	var nodes: Array = p.nodes
 	nodes.append(_box_at(c + Vector3(0.0, -deep, 0.0), Vector3(hw * 2.0, 0.02, hd * 2.0), mud))
+	# (its banks: steep all round but one, a sloping bank of mud on its +x side,
+	# to walk in and out by: p.ramp, its foot and its top, rw its half width)
+	var ramp := kind not in ["sea", "puddle"] and deep >= 0.08
+	var rw := hd * 0.45
+	var rl := deep * 2.2
 	for sgn: float in [-1.0, 1.0]:
-		nodes.append(_box_at(c + Vector3(sgn * hw, -deep * 0.5, 0.0), Vector3(0.01, deep, hd * 2.0), mud))
+		if sgn > 0.0 and ramp:
+			for zs: float in [-1.0, 1.0]:
+				nodes.append(_box_at(c + Vector3(hw, -deep * 0.5, zs * (rw + (hd - rw) * 0.5)), Vector3(0.01, deep, hd - rw), mud))
+		else:
+			nodes.append(_box_at(c + Vector3(sgn * hw, -deep * 0.5, 0.0), Vector3(0.01, deep, hd * 2.0), mud))
 		nodes.append(_box_at(c + Vector3(0.0, -deep * 0.5, sgn * hd), Vector3(hw * 2.0, deep, 0.01), mud))
+	if ramp:
+		var foot := c + Vector3(hw - rl, -deep + 0.02, 0.0)
+		var top := c + Vector3(hw, 0.0, 0.0)
+		var slope := MeshInstance3D.new()
+		var bm := BoxMesh.new()
+		bm.size = Vector3(foot.distance_to(top), 0.012, rw * 2.0)
+		slope.mesh = bm
+		var sm := StandardMaterial3D.new()
+		sm.albedo_color = mud
+		sm.roughness = 1.0
+		slope.material_override = sm
+		slope.position = (foot + top) * 0.5 - Vector3(0.0, 0.006, 0.0)
+		slope.rotation.z = atan2(top.y - foot.y, top.x - foot.x)
+		add_child(slope)
+		nodes.append(slope)
+		p["ramp"] = [foot, top, rw]
 	var m := ShaderMaterial.new()
 	m.shader = load("res://shaders/render/ocean.gdshader")
 	var img := Image.create(4, 4, false, Image.FORMAT_RF)
@@ -427,9 +452,16 @@ func _in_pond(q: Dictionary, x: float, z: float, margin := 0.0) -> bool:
 	return absf(x - c.x) < float(q.hw) - margin and absf(z - c.z) < float(q.hd) - margin
 
 
-## The ground's height at (x, z): the plain's, or a pond's floor.
+## The ground's height at (x, z): the plain's, a pond's floor, or its
+## sloping bank.
 func _height(x: float, z: float) -> float:
 	for q: Dictionary in _ponds:
+		if q.has("ramp"):
+			var rp: Array = q.ramp
+			var f: Vector3 = rp[0]
+			var t: Vector3 = rp[1]
+			if absf(z - f.z) < float(rp[2]) and x >= f.x and x <= t.x + 0.005:
+				return lerpf(f.y, t.y, clampf((x - f.x) / (t.x - f.x), 0.0, 1.0))
 		if _in_pond(q, x, z, 0.05):
 			return -float(q.deep) + 0.02
 	return 0.0
@@ -791,11 +823,14 @@ func _spawn_animal(key: String, at: Vector3, stage: String, male: bool, young: b
 			cr.set("water_y", POND)
 			cr.set("height", _height)
 			var cc: Vector3 = cq.c
-			var inside := Vector3(clampf(at.x, cc.x - float(cq.hw) + 0.12, cc.x + float(cq.hw) - 0.12), 0.0, clampf(at.z, cc.z - float(cq.hd) + 0.12, cc.z + float(cq.hd) - 0.12))
+			var inside := at # (on the bank where it's put; in the pond, on its floor clear of its walls)
+			if absf(at.x - cc.x) < float(cq.hw) and absf(at.z - cc.z) < float(cq.hd):
+				inside = Vector3(clampf(at.x, cc.x - float(cq.hw) + 0.12, cc.x + float(cq.hw) - 0.12), 0.0, clampf(at.z, cc.z - float(cq.hd) + 0.12, cc.z + float(cq.hd) - 0.12))
 			inside.y = _height(inside.x, inside.z)
 			_org(cr, inside, false)
 			cr.set_meta("pond", cc)
-			cr.set("keep_in", Rect2(cc.x - float(cq.hw) + 0.08, cc.z - float(cq.hd) + 0.08, float(cq.hw) * 2.0 - 0.16, float(cq.hd) * 2.0 - 0.16))
+			cr.set("pond", Rect2(cc.x - float(cq.hw), cc.z - float(cq.hd), float(cq.hw) * 2.0, float(cq.hd) * 2.0))
+			cr.set("ramp", cq.get("ramp", []))
 			cr.call("place", inside, randf() * TAU)
 			cr.call("wander", inside, 0.2)
 			return cr
@@ -2274,12 +2309,13 @@ func _crayfish_do(c: Node, act_: String, young: bool, p: Vector3) -> void:
 	var a := randf() * TAU
 	var near := Vector3(cos(a), 0.0, sin(a))
 	var fwd := Vector3(-sin(float(c.get("_yaw"))), 0.0, -cos(float(c.get("_yaw"))))
-	var inside := func(v: Vector3) -> Vector3: # (kept in the pond, on its bottom)
-		if not q.is_empty():
-			var cc: Vector3 = q.c
-			v.x = clampf(v.x, cc.x - float(q.hw) + 0.08, cc.x + float(q.hw) - 0.08)
-			v.z = clampf(v.z, cc.z - float(q.hd) + 0.08, cc.z + float(q.hd) - 0.08)
+	var inside := func(v: Vector3) -> Vector3: # (on the ground there, in the water or out; not over a drop from it)
 		v.y = _height(v.x, v.z)
+		if absf(v.y - p.y) > 0.03: # (over the pond's steep bank from it: nearer, its side)
+			v = p + (v - p).normalized() * 0.06
+			v.y = _height(v.x, v.z)
+			if absf(v.y - p.y) > 0.03:
+				v = Vector3(p.x, p.y, p.z)
 		return v
 	match act_:
 		"eat": # (carrion: a dead deer mouse on the bottom)
@@ -2294,16 +2330,13 @@ func _crayfish_do(c: Node, act_: String, young: bool, p: Vector3) -> void:
 			c.call("threat", p + fwd * 0.2)
 		"forage":
 			c.call("forage", p, 0.2)
-		"fly", "sleep", "sit": # (a burrow at the pond's edge, inside it)
-			var edge := p
-			if not q.is_empty():
-				var cc: Vector3 = q.c
-				var d := Vector3(p.x - cc.x, 0.0, p.z - cc.z)
-				if d.length() < 0.01:
-					d = near
-				var k := minf((float(q.hw) - 0.07) / maxf(absf(d.x), 1e-4), (float(q.hd) - 0.07) / maxf(absf(d.z), 1e-4))
-				edge = cc + d * k
-			c.call("burrow", inside.call(edge))
+		"fly", "sleep", "sit": # (a burrow on the bank, by the water: up its sloping bank, to one side)
+			var at := p + near * 0.15
+			if not q.is_empty() and q.has("ramp"):
+				var top: Vector3 = (q.ramp as Array)[1]
+				at = top + Vector3(0.07, 0.0, (0.1 if randf() < 0.5 else -0.1))
+			at.y = _height(at.x, at.z)
+			c.call("burrow", at)
 		"lay":
 			if not young:
 				c.call("lay")
@@ -2313,7 +2346,8 @@ func _crayfish_do(c: Node, act_: String, young: bool, p: Vector3) -> void:
 			else:
 				c.call("moult")
 		_:
-			c.call("wander", p if q.is_empty() else (q.c as Vector3), 0.25)
+			# (about its pond and its banks: in the water and out, by the sloping bank)
+			c.call("wander", p if q.is_empty() else (q.c as Vector3), 0.3 if q.is_empty() else maxf(float(q.hw), float(q.hd)) + 0.3)
 
 
 ## Something to eat (or hunt), its own kind of food: what's here, or set
