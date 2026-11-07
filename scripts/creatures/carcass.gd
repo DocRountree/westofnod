@@ -11,8 +11,8 @@ extends RefCounted
 ## 2 rotting: its skin sunk in (between its ribs, over its flanks and belly,
 ##   round its eyes; its legs thin), its fur slipped off in patches and the
 ##   skin under it discoloured green grey and purplish, its flesh open and
-##   rotting at its belly, its face (its eyes gone) and its rump, wet, maggots
-##   in it; the grass dark and dead round it where its fluids ran out, tufts
+##   rotting at its belly, its face (its eyes gone) and its rump, wet; the
+##   grass dark and dead round it where its fluids ran out, tufts
 ##   of its fur about (carnivore.gdshader: decay 1).
 ## 3 bones: its skeleton (built on its own frame where it lay: its skull and
 ##   lower jaw, its teeth, the antlers or horns still on the skull; its spine,

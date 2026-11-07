@@ -54,7 +54,7 @@ uniform float hair = 20.0; // (its coat's length, mm: the grain's size)
 // a carcass (Carcass): 0 fresh; 1 rotting (its skin sunk in between its ribs,
 // over its flanks and belly, round its eyes, its legs thin; its fur slipped
 // in patches, the skin under it discoloured; its flesh open and rotting at
-// its belly, its face, its rump, maggots in it); 2 bones (its hide dried
+// its belly, its face, its rump); 2 bones (its hide dried
 // and shrunk down onto the skeleton, torn away in ragged holes, tatters of
 // it left): sink_mm its body's half width (mm), rib_mm its ribs' spacing
 uniform float decay = 0.0;
@@ -662,7 +662,6 @@ void fragment() {
 			where_ = max(where_, fw * max(1.0 - smoothstep(0.9, 1.7, e), smoothstep(0.55, 0.75, fw) * (1.0 - smoothstep(-0.8, -0.4, ny)) * 0.8));
 		rot = where_ * smoothstep(0.3, 0.5, n2 + where_ * 0.25) * dk;
 		vec3 flesh = mix(vec3(0.3, 0.09, 0.07), vec3(0.2, 0.13, 0.06), vn(rp * 0.05));
-		flesh = mix(flesh, vec3(0.86, 0.83, 0.7), spots(rp, 3.0, 0.35) * smoothstep(0.5, 0.8, rot) * 0.9); // (maggots)
 		c = mix(c, flesh, rot);
 		// (rotted through, here and there: small ragged holes, a bit of a rib
 		// and what's left in it showing in each)
@@ -679,13 +678,12 @@ void fragment() {
 		if (n3 > keep)
 			discard;
 		// (dried hide, and under and between it rotting flesh, dark red brown,
-		// wet in the hollows, maggots in it; here and there its fur still on it)
+		// wet in the hollows; here and there its fur still on it)
 		vec3 leath = mix(vec3(0.16, 0.1, 0.065), vec3(0.3, 0.22, 0.14), vn(rp * 0.05));
 		vec3 meat = mix(vec3(0.3, 0.1, 0.07), vec3(0.2, 0.1, 0.05), vn(rp * 0.06 + 2.0));
 		float wet = smoothstep(0.35, 0.65, vn(rp * 0.015 + 13.0) + (keep - n3) * 1.5);
 		c = mix(leath, c, smoothstep(0.6, 0.78, vn(rp * 0.04 + 9.0)) * 0.6);
 		c = mix(c, meat, wet * 0.9);
-		c = mix(c, vec3(0.84, 0.81, 0.68), spots(rp, 3.0, 0.3) * smoothstep(0.6, 0.9, wet) * 0.7); // (maggots)
 		rot = max(rot, wet * 0.8);
 		slip = max(slip, 0.7);
 	}
