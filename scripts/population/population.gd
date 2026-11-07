@@ -37,6 +37,7 @@ const LOD_MID := 6.0 ## m up a tree's own axis (at scale 1) its level is measure
 ## again (each level holds the trees this much either side of its span, and
 ## its fade, so none is missing between sortings)
 const LOD_SLACK := 6.0
+const SOLID_CORE := 20.0 ## m: a level whose trees can be this far inside its span, no hand-over near, draws those apart, their bark with no discard (_bucket)
 const BUCKETS_PER_FRAME := 24 ## chunks sorted a frame, at the least (more when many are due)
 
 @export var actor_radius := 160.0 ## Actors live in the chunks this near the player.
@@ -1375,7 +1376,30 @@ func _make_group(kind: PropKind, xf: PackedFloat32Array, uids: PackedInt64Array,
 		mi.visibility_range_end = end + pad
 		add_child(mi)
 		g.nodes.append(mi)
-		g.levels.append([begin, end, mm, mi, -1])
+		# the trees well inside the level's span (no hand-over to stipple:
+		# _bucket) drawn apart, their bark with no discard (OakTree.
+		# solid_material); the felled and the overridden as they were
+		var smm: MultiMesh = null
+		var smi: MultiMeshInstance3D = null
+		var bark := (meshes[l] as Mesh).surface_get_material(0) as ShaderMaterial
+		var core := _core(begin, end)
+		# (the levels further off only, whose core is wide: the nearest's is a
+		# few metres, and each level split keeps a copy of its mesh)
+		if not notched and mat == null and bark and bark.shader and bark.shader.resource_path == "res://shaders/render/bark.gdshader" and begin > 0.0 and core.y - core.x >= SOLID_CORE:
+			smm = MultiMesh.new()
+			smm.transform_format = MultiMesh.TRANSFORM_3D
+			smm.mesh = OakTree.solid_mesh(meshes[l])
+			smi = MultiMeshInstance3D.new()
+			smi.multimesh = smm
+			smi.position = origin
+			smi.cast_shadow = mi.cast_shadow
+			smi.custom_aabb = box
+			smi.visibility_range_begin = mi.visibility_range_begin
+			smi.visibility_range_end = mi.visibility_range_end
+			smi.visible = false
+			add_child(smi)
+			g.nodes.append(smi)
+		g.levels.append([begin, end, mm, mi, -1, smm, smi])
 	return g
 
 
@@ -1450,10 +1474,15 @@ func _bucket(g: _Group, force := false) -> void:
 	for lv: Array in g.levels:
 		var lo: float = lv[0] - LOD_FADE - LOD_SLACK if lv[0] > 0.0 else -INF
 		var hi: float = lv[1] + LOD_FADE + LOD_SLACK
+		var smm: MultiMesh = lv[5]
+		var core := _core(lv[0], lv[1]) if smm else Vector2(INF, -INF)
+		# 0 none, 1 all, 2 some (each tree sorted), 3 all inside the core
 		var state := 2
 		if box_near > hi or box_far < lo:
 			state = 0
-		elif box_near >= lo and box_far <= hi:
+		elif box_near >= core.x and box_far <= core.y:
+			state = 3
+		elif box_near >= lo and box_far <= hi and not smm:
 			state = 1
 		if state != 2 and state == lv[4] and not force:
 			continue
@@ -1462,20 +1491,42 @@ func _bucket(g: _Group, force := false) -> void:
 		var mi: MultiMeshInstance3D = lv[3]
 		var buf := g.full
 		var n := count
+		var sbuf := PackedFloat32Array()
+		var sn := 0
 		if state == 0:
+			n = 0
+		elif state == 3:
+			sbuf = g.full
+			sn = count
 			n = 0
 		elif state == 2:
 			buf = PackedFloat32Array()
 			n = 0
 			for i in count:
 				var d := g.mids[i].distance_to(_view)
-				if d >= lo and d <= hi:
+				if d >= core.x and d <= core.y:
+					sbuf.append_array(g.full.slice(i * g.stride, (i + 1) * g.stride))
+					sn += 1
+				elif d >= lo and d <= hi:
 					buf.append_array(g.full.slice(i * g.stride, (i + 1) * g.stride))
 					n += 1
 		mm.instance_count = n
 		if n > 0:
 			mm.buffer = buf
 		mi.visible = n > 0
+		if smm:
+			smm.instance_count = sn
+			if sn > 0:
+				smm.buffer = sbuf
+			(lv[6] as MultiMeshInstance3D).visible = sn > 0
+
+
+## The distances (m) from a level's tree to the camera at which no hand-over
+## stipples it, whatever the camera does before the trees are sorted again
+## (begin, end: the level's span): x to y (y < x: none).
+static func _core(begin: float, end: float) -> Vector2:
+	var m := LOD_FADE + LOD_SLACK
+	return Vector2(begin + m if begin > 0.0 else -INF, end - m)
 
 
 ## Sorts the trees of the chunks the camera has moved LOD_SLACK / 2 from

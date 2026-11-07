@@ -164,7 +164,9 @@ func build(bark_mat: Material, leaf_mat: Material, thin_from := 12.0) -> ArrayMe
 
 ## A simpler version: branches up to max_level, a 1/thin share of the sprigs
 ## as clump cards (clump_size m across), sides_div fewer sides round each
-## branch; its leaves thin out from thin_from m on (where it starts).
+## branch; its leaves thin out from thin_from m on (where it starts). A
+## negative thin: sprig cards still, a 1/-thin share of them, each sqrt(-thin)
+## times the size (the crown's cover as it was, fewer cards).
 func lod(bark_mat: Material, leaf_mat: Material, max_level: int, sides_div: int, thin: int, clump_size: float, thin_from := 50.0) -> ArrayMesh:
 	return _mesh(bark_mat, leaf_mat, max_level, clump_size, sides_div, thin, thin_from)
 
@@ -208,8 +210,12 @@ func _mesh(bark_mat: Material, leaf_mat: Material, max_level: int, clump_size: f
 		if thin <= 0:
 			var tile := r.randi() % sprig_tiles
 			var spin := r.randf() * TAU
-			_card(leaves, p, d, spin, card_size, tile, centre, crown_r, false, r)
-			_card(leaves, p, d, spin + r.randf_range(1.1, 2.0), card_size, (tile + 1) % sprig_tiles, centre, crown_r, false, r)
+			if thin < 0 and r.randi() % -thin != 0:
+				continue
+			var size := card_size * (sqrt(float(-thin)) if thin < 0 else 1.0)
+			_card(leaves, p, d, spin, size, tile, centre, crown_r, false, r)
+			_card(leaves, p, d, spin + r.randf_range(1.1, 2.0), size, (tile + 1) % sprig_tiles, centre, crown_r, false, r)
+			clumps += 1
 		elif r.randi() % thin == 0:
 			var tile := sprig_tiles + r.randi() % clump_tiles
 			var at := p + d * clump_size * 0.3
@@ -217,7 +223,7 @@ func _mesh(bark_mat: Material, leaf_mat: Material, max_level: int, clump_size: f
 			_card(leaves, at, d, spin, clump_size, tile, centre, crown_r, true, r)
 			_card(leaves, at, d, spin + PI * 0.5, clump_size, sprig_tiles + (tile + 1) % clump_tiles, centre, crown_r, true, r)
 			clumps += 1
-	if thin > 0 and clumps == 0:
+	if thin != 0 and clumps == 0:
 		# (a small bush's few sprigs, 1 in thin of them kept, could keep
 		# none: bare far off. One clump at least, on a sprig picked alike)
 		var s: Array = sprigs[r.randi() % sprigs.size()]

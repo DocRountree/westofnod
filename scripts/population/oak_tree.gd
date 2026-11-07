@@ -71,8 +71,24 @@ const TIP_R := 0.006 ## m, the thinnest twig
 
 ## Levels of detail: where each simpler one takes over (m), and the last's
 ## end. Each level has its own materials, which know its span (lod_range)
-## for the stippled hand-over (lod_fade.gdshaderinc).
-const LOD := [40.0, 120.0, 250.0]
+## for the stippled hand-over (lod_fade.gdshaderinc). The whole tree only
+## near (to 15 m); then without its twigs (thinner than a pixel or two from
+## there, and behind its leaves) and half its sprig cards, each the bigger
+## (MID_THIN), to 40 m; then branches and clump cards, limbs and fewer,
+## bigger clumps, and the far card.
+const LOD := [15.0, 40.0, 120.0, 250.0]
+## The second level's leaves: one sprig card in this many kept, each
+## sqrt(this) times the size; they start thinning out as much further off
+## as keeps the crown's cards as many as the whole tree's at any distance
+## (leaves.gdshader: (thin_from / d)^1.3 kept).
+const MID_THIN := 2
+const LEAF_THIN_FROM := 12.0 ## m: the whole tree's leaves thin out from here (leaves.gdshader)
+const LEAF_THIN_POWER := 1.3 ## (leaves.gdshader: thin_power)
+
+
+## Where the second level's leaves start thinning out (see MID_THIN).
+static func mid_thin_from() -> float:
+	return LEAF_THIN_FROM * pow(float(MID_THIN), 1.0 / LEAF_THIN_POWER)
 const VIEW := 600.0
 
 static var _bark_mats := {} # [level, cover] -> ShaderMaterial
@@ -379,7 +395,9 @@ static func view() -> float:
 static func refresh_view() -> void:
 	for mats in [_bark_mats, _leaf_mats]:
 		for key in mats:
-			var r: Vector3 = mats[key].get_shader_parameter("lod_range")
+			var r = mats[key].get_shader_parameter("lod_range")
+			if not r is Vector3:
+				continue # (the moss's sporophytes: no levels)
 			if r.x >= LOD[LOD.size() - 1] - 1.0: # (the last level's: the cards)
 				r.y = view()
 				mats[key].set_shader_parameter("lod_range", r)
@@ -389,7 +407,9 @@ static func refresh_view() -> void:
 static func set_lod_fade(on: bool) -> void:
 	for mats in [_bark_mats, _leaf_mats]:
 		for key in mats:
-			var r: Vector3 = mats[key].get_shader_parameter("lod_range")
+			var r = mats[key].get_shader_parameter("lod_range")
+			if not r is Vector3:
+				continue # (the moss's sporophytes: no levels)
 			r.z = Population.LOD_FADE if on else 0.0
 			mats[key].set_shader_parameter("lod_range", r)
 
@@ -561,12 +581,12 @@ static var _fresh_stump := []
 
 static func fresh_stump() -> Array:
 	if _fresh_stump.is_empty():
-		var b := [bark_material(0, "fresh_stump"), bark_material(1, "fresh_stump"), bark_material(2, "fresh_stump"), bark_material(3, "fresh_stump")]
-		var l := [leaf_material(0), leaf_material(1), leaf_material(2), leaf_material(3)]
+		var b := [bark_material(0, "fresh_stump"), bark_material(1, "fresh_stump"), bark_material(2, "fresh_stump"), bark_material(3, "fresh_stump"), bark_material(4, "fresh_stump")]
+		var l := [leaf_material(0), leaf_material(1), leaf_material(2), leaf_material(3), leaf_material(4)]
 		var tb := grow_stump(VARIANTS[4])
 		tb.splinter = false
 		tb.caps[tb.caps.size() - 1][2] = 0.0 # (sawn flat across)
-		var lods: Array[Mesh] = [tb.lod(b[1], l[1], 0, 2, 0, 1.0), tb.lod(b[2], l[2], 0, 3, 0, 1.0), tb.lod(b[3], l[3], 0, 4, 0, 1.0)]
+		var lods: Array[Mesh] = [tb.lod(b[1], l[1], 99, 1, 0, 1.0), tb.lod(b[2], l[2], 0, 2, 0, 1.0), tb.lod(b[3], l[3], 0, 3, 0, 1.0), tb.lod(b[4], l[4], 0, 4, 0, 1.0)]
 		_fresh_stump = [tb.build(b[0], l[0], 12.0), lods]
 	return _fresh_stump
 
@@ -600,6 +620,40 @@ static func cut_meshes(variant := 0) -> Array:
 	return _cut_meshes[variant]
 
 
+## A bark material's copy with no discard (bark.gdshader compiled with
+## BARK_SOLID): for the trees well inside their level's span, which no
+## hand-over stipples (Population draws them apart), so their bark keeps
+## the early depth test. Told the night, the biomes and the levels with the
+## rest.
+static var _solid_shader: Shader
+
+
+static func solid_material(mat: ShaderMaterial) -> ShaderMaterial:
+	var key := ["solid", mat]
+	if not _bark_mats.has(key):
+		if _solid_shader == null:
+			var src: Shader = load("res://shaders/render/bark.gdshader")
+			_solid_shader = Shader.new()
+			_solid_shader.code = src.code.replace("shader_type spatial;", "shader_type spatial;\n#define BARK_SOLID")
+		var c := mat.duplicate() as ShaderMaterial
+		c.shader = _solid_shader
+		_bark_mats[key] = c
+	return _bark_mats[key]
+
+
+## A copy of a tree's mesh, its bark solid_material's (Population: the
+## trees well inside their level's span).
+static var _solid_meshes := {}
+
+
+static func solid_mesh(mesh: Mesh) -> Mesh:
+	if not _solid_meshes.has(mesh):
+		var c := mesh.duplicate() as ArrayMesh
+		c.surface_set_material(0, solid_material(mesh.surface_get_material(0) as ShaderMaterial))
+		_solid_meshes[mesh] = c
+	return _solid_meshes[mesh]
+
+
 ## The cut variant of a bark material (BARK_CUT): for another species'
 ## cut meshes too (SpeciesTree.cut_meshes).
 static func cut_material(mat: ShaderMaterial) -> ShaderMaterial:
@@ -628,7 +682,7 @@ static func _cut_material(mat: ShaderMaterial) -> ShaderMaterial:
 	return _bark_mats[key]
 
 
-## The card a standing oak is drawn as far off (from LOD[2]): a square on
+## The card a standing oak is drawn as far off (from LOD[3]): a square on
 ## the crown's middle, side the tree's height or width, whichever is more;
 ## its material's atlas photographed from `mesh` by ImpostorBaker (until
 ## then empty: nothing drawn).
@@ -671,29 +725,29 @@ static func _models(variant: int) -> Array:
 	variant = posmod(variant, VARIANTS.size())
 	if not _cache.has(variant):
 		var k := _kind(variant)
-		var b := [bark_material(0, k), bark_material(1, k), bark_material(2, k), bark_material(3, k)]
-		var l := [leaf_material(0), leaf_material(1), leaf_material(2), leaf_material(3)]
+		var b := [bark_material(0, k), bark_material(1, k), bark_material(2, k), bark_material(3, k), bark_material(4, k)]
+		var l := [leaf_material(0), leaf_material(1), leaf_material(2), leaf_material(3), leaf_material(4)]
 		var tb: TreeBuilder
 		var lods: Array[Mesh]
 		match _kind(variant):
 			"stump":
 				tb = grow_stump(VARIANTS[variant])
-				lods = [tb.lod(b[1], l[1], 0, 2, 0, 1.0), tb.lod(b[2], l[2], 0, 3, 0, 1.0), tb.lod(b[3], l[3], 0, 4, 0, 1.0)]
+				lods = [tb.lod(b[1], l[1], 99, 1, 0, 1.0), tb.lod(b[2], l[2], 0, 2, 0, 1.0), tb.lod(b[3], l[3], 0, 3, 0, 1.0), tb.lod(b[4], l[4], 0, 4, 0, 1.0)]
 			"log":
 				tb = grow_log(VARIANTS[variant])
-				lods = [tb.lod(b[1], l[1], 1, 2, 0, 1.0), tb.lod(b[2], l[2], 0, 3, 0, 1.0), tb.lod(b[3], l[3], 0, 4, 0, 1.0)]
+				lods = [tb.lod(b[1], l[1], 99, 1, 0, 1.0), tb.lod(b[2], l[2], 1, 2, 0, 1.0), tb.lod(b[3], l[3], 0, 3, 0, 1.0), tb.lod(b[4], l[4], 0, 4, 0, 1.0)]
 			"dead":
 				tb = grow_dead(VARIANTS[variant])
-				lods = [tb.lod(b[1], l[1], 2, 2, 0, 1.0), tb.lod(b[2], l[2], 1, 3, 0, 1.0), tb.lod(b[3], l[3], 0, 4, 0, 1.0)]
+				lods = [tb.lod(b[1], l[1], 99, 2, 0, 1.0), tb.lod(b[2], l[2], 2, 2, 0, 1.0), tb.lod(b[3], l[3], 1, 3, 0, 1.0), tb.lod(b[4], l[4], 0, 4, 0, 1.0)]
 			_:
 				tb = grow(variant)
-				lods = [tb.lod(b[1], l[1], 2, 2, 4, 1.0, LOD[0]), tb.lod(b[2], l[2], 1, 3, 12, 2.0, LOD[1]), tb.lod(b[3], l[3], 0, 4, 36, 3.2, LOD[2])]
-		var mesh := tb.build(b[0], l[0], 12.0)
+				lods = [tb.lod(b[1], l[1], 2, 1, -MID_THIN, 1.0, mid_thin_from()), tb.lod(b[2], l[2], 2, 2, 4, 1.0, LOD[1]), tb.lod(b[3], l[3], 1, 3, 12, 2.0, LOD[2]), tb.lod(b[4], l[4], 0, 4, 36, 3.2, LOD[3])]
+		var mesh := tb.build(b[0], l[0], LEAF_THIN_FROM)
 		# a standing oak (live or dead) far off: one card, its photograph
 		# (impostor.gdshader), in place of the last level's mesh
 		var solid := lods.duplicate()
 		if k in ["tree", "dead"]:
-			lods[2] = _impostor(variant, lods[1])
+			lods[3] = _impostor(variant, lods[2])
 		var near := []
 		if (COVER.get(k, COVER.tree) as Array)[1] > 0.0:
 			var mm := _sporophyte_multimesh(mesh, VARIANTS[variant].get("seed", variant))

@@ -57,6 +57,11 @@ var climb_limb_r := 0.05
 var fruit := "" ## The item its grown trees bear (Items: "pawpaw", ...), "" none.
 var fruit_band := Vector2(0.0, 0.66) ## Where up its crown its fruit hang (shares of its height, from its bottom): a bush's all over
 var lichen := true ## Lichen on its bark (false: none on any of its kinds; their moss as ever).
+## Its grown trees' finest twigs drawn up close (false: the conifers', a few
+## mm thick and thousands of them, inside their sprays of needles, the
+## needle cards' own twigs showing instead: two thirds of the bark's
+## triangles; the skeleton, and so the sprigs, as ever).
+var twig_bark := true
 
 var _cache := {} # variant -> [mesh, lods]
 var _shadows := {}
@@ -119,31 +124,36 @@ func _models(v: int) -> Array:
 	v = posmod(v, variants.size())
 	if not _cache.has(v):
 		var k := kind_of(v)
-		var b := [bark_material(0, k), bark_material(1, k), bark_material(2, k), bark_material(3, k)]
-		var l := [leaf_material(0), leaf_material(1), leaf_material(2), leaf_material(3)]
+		var b := [bark_material(0, k), bark_material(1, k), bark_material(2, k), bark_material(3, k), bark_material(4, k)]
+		var l := [leaf_material(0), leaf_material(1), leaf_material(2), leaf_material(3), leaf_material(4)]
 		var tb: TreeBuilder
 		var lods: Array[Mesh]
 		var L: Array = OakTree.LOD
 		match k:
 			"stump":
 				tb = grow_stump(variants[v])
-				lods = [tb.lod(b[1], l[1], 0, 2, 0, 1.0), tb.lod(b[2], l[2], 0, 3, 0, 1.0), tb.lod(b[3], l[3], 0, 4, 0, 1.0)]
+				lods = [tb.lod(b[1], l[1], 99, 1, 0, 1.0), tb.lod(b[2], l[2], 0, 2, 0, 1.0), tb.lod(b[3], l[3], 0, 3, 0, 1.0), tb.lod(b[4], l[4], 0, 4, 0, 1.0)]
 			"log":
 				tb = grow_log(variants[v])
-				lods = [tb.lod(b[1], l[1], 1, 2, 0, 1.0), tb.lod(b[2], l[2], 0, 3, 0, 1.0), tb.lod(b[3], l[3], 0, 4, 0, 1.0)]
+				lods = [tb.lod(b[1], l[1], 99, 1, 0, 1.0), tb.lod(b[2], l[2], 1, 2, 0, 1.0), tb.lod(b[3], l[3], 0, 3, 0, 1.0), tb.lod(b[4], l[4], 0, 4, 0, 1.0)]
 			"dead":
 				tb = grow_dead(variants[v])
-				lods = [tb.lod(b[1], l[1], 2, 2, 0, 1.0), tb.lod(b[2], l[2], 1, 3, 0, 1.0), tb.lod(b[3], l[3], 0, 4, 0, 1.0)]
+				lods = [tb.lod(b[1], l[1], 99, 2, 0, 1.0), tb.lod(b[2], l[2], 2, 2, 0, 1.0), tb.lod(b[3], l[3], 1, 3, 0, 1.0), tb.lod(b[4], l[4], 0, 4, 0, 1.0)]
 			_:
 				tb = grow(v)
-				lods = [tb.lod(b[1], l[1], 2, 2, 4, card_size / 0.7, L[0]), tb.lod(b[2], l[2], 1, 3, 12, 2.0 * card_size / 0.7, L[1]), tb.lod(b[3], l[3], 0, 4, 36, 3.2 * card_size / 0.7, L[2])]
+				lods = [tb.lod(b[1], l[1], 2, 1, -OakTree.MID_THIN, card_size, OakTree.mid_thin_from()), tb.lod(b[2], l[2], 2, 2, 4, card_size / 0.7, L[1]), tb.lod(b[3], l[3], 1, 3, 12, 2.0 * card_size / 0.7, L[2]), tb.lod(b[4], l[4], 0, 4, 36, 3.2 * card_size / 0.7, L[3])]
 		# a standing tree (live or dead) far off: one card, its photograph
 		# (OakTree._impostor, ImpostorBaker), in place of the last level's
 		# mesh; the meshes kept whole for the felled (cut_meshes)
 		var solid := lods.duplicate()
 		if k in ["tree", "dead"]:
-			lods[2] = OakTree._impostor(v, lods[1], name)
-		_cache[v] = [tb.build(b[0], l[0], 12.0), lods, solid]
+			lods[3] = OakTree._impostor(v, lods[2], name)
+		var whole: Mesh
+		if k == "tree" and not twig_bark:
+			whole = tb.lod(b[0], l[0], 2, 1, 0, card_size, OakTree.LEAF_THIN_FROM) # (all but the twigs, every sprig's cards)
+		else:
+			whole = tb.build(b[0], l[0], OakTree.LEAF_THIN_FROM)
+		_cache[v] = [whole, lods, solid]
 	return _cache[v]
 
 
@@ -387,8 +397,8 @@ var _fresh_stump := []
 ## oak's (Felling scales it by the trunk's radius over that). [mesh, lods].
 func fresh_stump() -> Array:
 	if _fresh_stump.is_empty():
-		var b := [bark_material(0, "fresh_stump"), bark_material(1, "fresh_stump"), bark_material(2, "fresh_stump"), bark_material(3, "fresh_stump")]
-		var l := [leaf_material(0), leaf_material(1), leaf_material(2), leaf_material(3)]
+		var b := [bark_material(0, "fresh_stump"), bark_material(1, "fresh_stump"), bark_material(2, "fresh_stump"), bark_material(3, "fresh_stump"), bark_material(4, "fresh_stump")]
+		var l := [leaf_material(0), leaf_material(1), leaf_material(2), leaf_material(3), leaf_material(4)]
 		var P := {"seed": 1}
 		for V: Dictionary in variants:
 			if V.get("kind", "tree") == "stump":
@@ -398,7 +408,7 @@ func fresh_stump() -> Array:
 		var tb := grow_stump(P)
 		tb.splinter = false
 		tb.caps[tb.caps.size() - 1][2] = 0.0 # (sawn flat across)
-		var lods: Array[Mesh] = [tb.lod(b[1], l[1], 0, 2, 0, 1.0), tb.lod(b[2], l[2], 0, 3, 0, 1.0), tb.lod(b[3], l[3], 0, 4, 0, 1.0)]
+		var lods: Array[Mesh] = [tb.lod(b[1], l[1], 99, 1, 0, 1.0), tb.lod(b[2], l[2], 0, 2, 0, 1.0), tb.lod(b[3], l[3], 0, 3, 0, 1.0), tb.lod(b[4], l[4], 0, 4, 0, 1.0)]
 		_fresh_stump = [tb.build(b[0], l[0], 12.0), lods]
 	return _fresh_stump
 

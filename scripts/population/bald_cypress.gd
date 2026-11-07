@@ -43,6 +43,7 @@ const SETTINGS := {
 	"opposite": false,
 	"irregular": 0.0,
 	"tip_r": 0.004,
+	"twig_bark": false, # (its twigs, inside the sprays, not drawn: SpeciesTree.twig_bark)
 	"card_size": 0.7,
 	"bark_tex": "res://data/population/textures/cypress_bark.png",
 	"leaf_tex": "res://data/population/textures/cypress_needles.png",

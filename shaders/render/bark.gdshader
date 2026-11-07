@@ -126,7 +126,12 @@ vec3 end_grain(vec2 p, bool fresh) {
 }
 
 void fragment() {
+#ifndef BARK_SOLID
+	// (BARK_SOLID: the trees well inside their level's span, no hand-over
+	// to stipple, drawn by a copy with no discard in it at all, OakTree.
+	// solid_material: a discard anywhere turns off the early depth test)
 	if (lod_hidden(FRAGCOORD.xy, lod_f)) discard;
+#endif
 	bool cut_face = false; // (the cut wood drawn: none of the bark's)
 #ifdef BARK_CUT
 	bool in_notch = false;
