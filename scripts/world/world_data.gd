@@ -19,6 +19,7 @@ var origin: Vector2
 var heights := PackedFloat32Array()
 var height_tex: ImageTexture
 var mask_tex: ImageTexture
+var _mask_img: Image # (mud_at: its wet channel)
 var spawn := Vector3.ZERO
 var meta := {}
 ## Biomes (tools/map/bake_biomes.py): one byte a pixel over the whole map, the
@@ -43,6 +44,7 @@ func load_world() -> WorldData:
 	img.generate_mipmaps()
 	height_tex = ImageTexture.create_from_image(img)
 	var mi := Image.load_from_file(DIR + "masks.png")
+	_mask_img = mi.duplicate() as Image
 	mi.generate_mipmaps()
 	mask_tex = ImageTexture.create_from_image(mi)
 	if meta.has("biomes"):
@@ -118,6 +120,43 @@ func biome_bits_at(x: float, z: float) -> int:
 			if b < 31:
 				bits |= 1 << b
 	return bits
+
+
+## How muddy the ground is at (x, z), 0..1, as the terrain draws it near
+## (ground.gdshaderinc: biome_mud): the forest's damp patches and the
+## prairie's lowland mud; nothing elsewhere. (Its biome the nearest
+## texel's, not the shader's blend of them; the prairie's lowland gauged
+## against the ground round it a little differently: near enough to tell
+## a footstep in the mud from one beside it.)
+func mud_at(x: float, z: float) -> float:
+	var b := biome_index_at(x, z)
+	var from: float
+	var k := 1.0
+	if b == 0:
+		var wet := 0.0
+		if _mask_img:
+			var c := cell()
+			var i := clampi(roundi((x - origin.x) / c), 0, _mask_img.get_width() - 1)
+			var j := clampi(roundi((z - origin.y) / c), 0, _mask_img.get_height() - 1)
+			wet = _mask_img.get_pixel(i, j).g
+		from = 0.71 - 0.05 * wet
+	elif b == 2:
+		# (the flat bottoms of its hollows: a metre or more below the land
+		# round it, as the height map's coarser mip, 8 samples, averages)
+		var h := height_at(x, z)
+		var r := cell() * 4.0
+		var round_about := 0.0
+		for o: Vector2 in [Vector2(-r, -r), Vector2(r, -r), Vector2(-r, r), Vector2(r, r), Vector2.ZERO]:
+			round_about += base_height(x + o.x, z + o.y)
+		var low := smoothstep(1.0, 4.5, round_about / 5.0 - h) * smoothstep(0.984, 0.996, normal_at(x, z).y)
+		if low <= 0.0:
+			return 0.0
+		from = 1.02 - 0.3 * low
+		k = 2.2
+	else:
+		return 0.0
+	var n := vnoise(x / (5.0 * k) + 41.0, z / (5.0 * k) + 41.0) * 0.6 + vnoise(x / (1.7 * k) - 17.0, z / (1.7 * k) - 17.0) * 0.3 + vnoise(x / (0.6 * k), z / (0.6 * k)) * 0.1
+	return smoothstep(from, from + 0.02, n)
 
 
 ## The biome's name at (x, z) ("" where none).

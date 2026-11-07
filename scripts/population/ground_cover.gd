@@ -80,7 +80,7 @@ const LAYERS := [
 	# the forest's grass: short (7-16 cm), so a few straight blades a clump,
 	# and only near: further off it's no more than the ground's colour
 	{"cell": 0.25, "cells": 24, "tiles": 7, "blades": 5, "segs": 1, "radius": 0.16, "width": 0.02,
-		"u": {"kind": 0, "seed": 17, "in_prairie": false, "forest_height": Vector2(0.07, 0.16),
+		"u": {"kind": 0, "seed": 17, "in_prairie": false, "trodden": true, "forest_height": Vector2(0.07, 0.16),
 			"fade_out": Vector2(16.0, 22.0), "thin_from": 12.0}},
 	{"cell": 1.0, "cells": 16, "tiles": 9, "blades": 11, "segs": 4, "radius": 0.4, "width": 0.068,
 		"lods": [[22.0, 11, 2, 1.0], [42.0, 8, 1, 1.25]],
@@ -184,7 +184,7 @@ const BAKE_KEYS := ["kind", "seed", "in_forest", "in_prairie", "in_swamp", "swam
 		"fade_in", "fade_out", "thin_from"]
 const BAKE_MARGIN := 6.0 ## m past a layer's rebake distance the eye may go before a bake's distance culling shows (the bake's, the readback's lag)
 const DRAW_KEYS := ["kind", "seed", "fade_in", "fade_out", "thin_from", "prairie_green", "prairie_blonde", "patch_tints",
-		"petal_color", "petal_base", "petal_alt", "petal_alt_share", "disc_color", "head_size", "head_px", "petal_mix"]
+		"petal_color", "petal_base", "petal_alt", "petal_alt_share", "disc_color", "head_size", "head_px", "petal_mix", "trodden"]
 
 var world: WorldData
 var population: Population ## (optional) its logs and stumps keep the grass off
@@ -310,6 +310,16 @@ static func setup_terrain(terrain: ShaderMaterial) -> void:
 	var n := OakTree._texture("res://data/population/textures/needle_litter.png")
 	terrain.set_shader_parameter("needle_tex", n)
 	terrain.set_shader_parameter("needle_mean", _mean(n))
+
+
+## The materials of the layers trodden down and muddied by the player's
+## footprints (Footprints): the forest's grass.
+func trodden_materials() -> Array[ShaderMaterial]:
+	var out: Array[ShaderMaterial] = []
+	for layer in _layers:
+		if layer.L.u.get("trodden", false):
+			out.append(layer.material)
+	return out
 
 
 ## Every layer's grid worked out and shown (after the first update()s).

@@ -67,6 +67,12 @@ uniform vec2 head_px = vec2(2.5, 6.0); // pixels across: its stem's colour below
 uniform float shadow_strength = 0.7;
 global uniform float night; // 0 day .. 1 night (main.gd: a global): the prairie's grass darker at night, as its ground
 uniform vec3 frond_mean = vec3(0.03, 0.07, 0.006); // linear: the frond texture's mean (GroundCover sets it)
+// The player's muddy footprints (Footprints; terrain.gdshader reads them
+// too): a trodden layer (the forest's grass) is bent flat and muddied where
+// the boots have left mud. One read a clump.
+uniform bool trodden = false;
+uniform sampler2D print_tex : filter_linear, repeat_disable;
+uniform vec3 print_window = vec3(0.0);
 
 varying vec3 world_pos;
 varying vec3 root_col;   // linear
@@ -116,6 +122,14 @@ void vertex() {
 #else
 		size = a.b / 255.0 * SIZE_MAX * smoothstep(0.0, 1.0, grow); // (coming and going, it grows and shrinks)
 #endif
+	}
+	float stain = 0.0; // the boots' mud on it
+	if (trodden && size > 0.0 && print_window.z > 0.0) {
+		vec2 tuv = (pos - print_window.xy) / print_window.z;
+		if (tuv.x > 0.0 && tuv.y > 0.0 && tuv.x < 1.0 && tuv.y < 1.0) {
+			stain = clamp(textureLod(print_tex, tuv, 0.0).g, 0.0, 1.0);
+			size *= 1.0 - 0.55 * stain; // (trodden flat)
+		}
 	}
 	frac = COLOR.b;
 	pick = 0.0;
@@ -174,6 +188,11 @@ void vertex() {
 					tip *= tint_yellow;
 			}
 			tip_col = pow(tip * COLOR.r * (1.0 - 0.5 * night * prairie), vec3(2.2));
+			if (stain > 0.0) { // (muddied, most at the root)
+				vec3 mud = pow(vec3(0.11, 0.085, 0.06) * dim, vec3(2.2));
+				root_col = mix(root_col, mud, stain * 0.85);
+				tip_col = mix(tip_col, mud, stain * 0.5);
+			}
 		}
 	}
 }

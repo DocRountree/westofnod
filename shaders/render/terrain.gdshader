@@ -63,6 +63,14 @@ uniform vec2 litter_fade = vec2(25.0, 45.0); // m
 uniform sampler2D needle_tex : filter_linear_mipmap_anisotropic, repeat_enable; // (sRGB values; tileable every way round)
 uniform float needle_tile = 0.8; // m
 uniform vec3 needle_mean = vec3(0.4, 0.27, 0.16); // the texture's mean (GroundCover sets it)
+// The player's footprints near (Footprints: R pressed in, B the rim pushed
+// up, G mud carried), over print_window (its corner on the map, x and z;
+// its size, m; 0: none): pressed into the mud (forest's, prairie's), the
+// mud carried onto the forest's floor.
+uniform sampler2D print_tex : filter_linear, repeat_disable;
+uniform vec3 print_window = vec3(0.0);
+uniform float print_depth = 0.04; // m: a boot pressed in all the way
+const vec3 FOREST_MUD = vec3(0.11, 0.085, 0.06); // (as ground.gdshaderinc's)
 
 // A litter texture at the pixel (its tiles tile m, from the origin's own
 // tile: small, exact numbers), each tile turned a random quarter turn (the
@@ -172,6 +180,31 @@ void fragment() {
 		float c = clamp(cover * 1.6, 0.0, 1.0) * far_trees;
 		col = mix(col, canopy, c);
 		rough = mix(rough, 1.0, c);
+	}
+	// the footprints: one read a pixel near; only where there's a print the
+	// mud here and the print's slopes worked out
+	vec2 puv = (p - print_window.xy) / max(print_window.z, 1e-3);
+	if (print_window.z > 0.0 && puv.x > 0.0 && puv.y > 0.0 && puv.x < 1.0 && puv.y < 1.0) {
+		vec4 pr = textureLod(print_tex, puv, 0.0);
+		if (pr.r + pr.g + pr.b > 0.004) {
+			float pud;
+			float mud = (b1 == 0 || b1 == 2 ? biome_mud(b1, sh, pud) * w1 : 0.0) + (b2 == 0 || b2 == 2 ? biome_mud(b2, sh, pud) * w2 : 0.0);
+			if (mud > 0.0) {
+				// pressed in: the print's height (down in it, up round it), its
+				// slopes bending the normal
+				float e = 1.0 / float(textureSize(print_tex, 0).x);
+				vec4 px = textureLod(print_tex, puv + vec2(e, 0.0), 0.0);
+				vec4 pz = textureLod(print_tex, puv + vec2(0.0, e), 0.0);
+				float h0 = pr.b * 0.35 - pr.r;
+				vec2 g = vec2(px.b * 0.35 - px.r - h0, pz.b * 0.35 - pz.r - h0) * print_depth * mud / (print_window.z * e);
+				n = normalize(n - vec3(g.x, 0.0, g.y));
+				NORMAL = normalize((VIEW_MATRIX * vec4(n, 0.0)).xyz);
+				col *= 1.0 - 0.3 * clamp(pr.r, 0.0, 1.0) * mud; // (wetter down in it)
+				rough = mix(rough, 0.7, 0.5 * clamp(pr.r, 0.0, 1.0) * mud);
+			}
+			// the mud carried on the boots, left on the forest's floor
+			col = mix(col, FOREST_MUD, clamp(pr.g, 0.0, 1.0) * (1.0 - mud) * forest * 0.85);
+		}
 	}
 	float fine = mix(0.5, vnoise(p * 0.7), 1.0 - smoothstep(0.4, 1.2, fp * 0.7));
 	col *= 0.92 + 0.16 * fine;

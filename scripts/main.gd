@@ -23,6 +23,7 @@ var ocean_material: ShaderMaterial
 var terrain_material: ShaderMaterial
 var population: Population
 var ground_cover: GroundCover
+var footprints: Footprints
 var pause_menu: PauseMenu
 const AUTOSAVE_SECONDS := 60.0
 var _since_save := 0.0
@@ -120,6 +121,11 @@ func _ready() -> void:
 	ground_cover.population = population
 	Origin.root.add_child(ground_cover)
 	ground_cover.setup(world)
+	footprints = Footprints.new()
+	footprints.world = world
+	footprints.materials.append(terrain_material)
+	footprints.materials.append_array(ground_cover.trodden_materials())
+	add_child(footprints)
 	player = Player.new()
 	player.world = world
 	player.population = population
@@ -649,6 +655,7 @@ func _update_world(_cam: Vector3) -> void:
 	population.update(player.position, cam) # (the trees' levels of detail by the camera)
 	OakTree.set_player(player.position)
 	ground_cover.update(cam)
+	footprints.update(player.position, player.grounded and not player.flying)
 	ocean_material.set_shader_parameter("view_pos", cam)
 	ocean.position = Vector3(snappedf(cam.x, 4.0), 0.0, snappedf(cam.z, 4.0))
 	# the sea's fine detail is computed near noise_origin (see ocean.gdshader), in doubles here
