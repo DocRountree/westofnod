@@ -162,7 +162,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		(pot.node as Node).queue_free()
 		_pots.erase(pot)
 		_scan = 0.0
-		main.chat.say("Took up a pot of maple sap." if want == "pot_of_sap" else "Took up the pot (%d%% full: it spills)." % int(pot.fill * 100.0), Color(0.85, 0.85, 0.8))
+		main.chat.say("Took up a pot of sap." if want == "pot_of_sap" else "Took up the pot (%d%% full: it spills)." % int(pot.fill * 100.0), Color(0.85, 0.85, 0.8))
 		return
 	# setting a pot under a dripping notch
 	if held.get("id", "") != "clay_pot":

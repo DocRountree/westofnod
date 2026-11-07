@@ -12,29 +12,28 @@ const KINDS := {
 	"stick": {"name": "Stick", "stack": 16, "shape": "cylinder", "size": Vector3(0.025, 0.55, 0.025), "color": Color(0.42, 0.3, 0.18)},
 	"stone": {"name": "Stone", "stack": 16, "shape": "sphere", "size": Vector3(0.09, 0.07, 0.08), "color": Color(0.5, 0.49, 0.46)},
 	"acorn": {"name": "Acorn", "stack": 10, "shape": "acorn", "size": Vector3(0.016, 0.024, 0.016), "color": Color(0.5, 0.36, 0.16), "bears": 18}, # (OakTree: its grown trees bear them, on long stalks, two or three together)
-	"oak_leaf": {"name": "Oak leaf", "stack": 64, "shape": "box", "size": Vector3(0.07, 0.003, 0.11), "color": Color(0.3, 0.42, 0.14)},
 	# fruit (PawpawTree, CrabappleTree, WalnutTree: their trees bear them; and
 	# OakTree the acorn, above; bears: how many a tree bears at most, Foraging)
 	"pawpaw": {"name": "Pawpaw", "stack": 1, "shape": "pawpaw", "size": Vector3(0.055, 0.11, 0.05), "color": Color(0.55, 0.62, 0.24)},
 	"crabapple": {"name": "Crabapple", "stack": 32, "shape": "crabapple", "size": Vector3(0.026, 0.024, 0.026), "color": Color(0.72, 0.16, 0.1)},
-	"black_cherry": {"name": "Black cherry", "stack": 64, "shape": "cherry", "size": Vector3(0.01, 0.01, 0.01), "color": Color(0.14, 0.03, 0.06), "bears": 20}, # (BlackCherryTree: up in its crown, in drooping clusters)
+	"black_cherry": {"name": "Cherry", "stack": 64, "shape": "cherry", "size": Vector3(0.01, 0.01, 0.01), "color": Color(0.14, 0.03, 0.06), "bears": 20}, # (BlackCherryTree: up in its crown, in drooping clusters)
 	"raspberry": {"name": "Raspberry", "stack": 64, "shape": "raspberry", "size": Vector3(0.016, 0.017, 0.016), "color": Color(0.74, 0.08, 0.16), "bears": 18}, # (RaspberryBush)
 	"blueberry": {"name": "Blueberry", "stack": 64, "shape": "blueberry", "size": Vector3(0.011, 0.01, 0.011), "color": Color(0.27, 0.32, 0.52), "bears": 22}, # (BlueberryBush: dusky under its bloom)
-	"walnut": {"name": "Black walnut", "stack": 5, "shape": "walnut", "size": Vector3(0.046, 0.044, 0.046), "color": Color(0.43, 0.5, 0.18)}, # (in its green husk, as picked)
+	"walnut": {"name": "Walnut", "stack": 5, "shape": "walnut", "size": Vector3(0.046, 0.044, 0.046), "color": Color(0.43, 0.5, 0.18)}, # (in its green husk, as picked)
 	# flowers and cattails (GroundCover: picked where they grow, Foraging):
 	# a stem, its head(s) the petals' colour round the disc's
-	"susan": {"name": "Black-eyed Susan", "stack": 16, "shape": "flower", "size": Vector3(0.068, 0.5, 1.0), "color": Color(0.96, 0.7, 0.06), "disc": Color(0.17, 0.08, 0.04), "heads": 1},
+	"susan": {"name": "Blackeye", "stack": 16, "shape": "flower", "size": Vector3(0.068, 0.5, 1.0), "color": Color(0.96, 0.7, 0.06), "disc": Color(0.17, 0.08, 0.04), "heads": 1},
 	"fleabane": {"name": "Fleabane", "stack": 16, "shape": "flower", "size": Vector3(0.022, 0.45, 1.0), "color": Color(0.96, 0.95, 0.96), "disc": Color(0.95, 0.78, 0.12), "heads": 3},
-	"coneflower": {"name": "Purple coneflower", "stack": 16, "shape": "flower", "size": Vector3(0.09, 0.5, 1.0), "color": Color(0.78, 0.42, 0.62), "disc": Color(0.42, 0.2, 0.06), "heads": 1},
-	"nettle": {"name": "Stinging nettle", "stack": 16, "shape": "nettle", "size": Vector3(0.1, 0.6, 1.0), "color": Color(0.2, 0.33, 0.11)}, # (the forest's; picked, it doesn't sting)
-	"aster": {"name": "Swamp aster", "stack": 16, "shape": "flower", "size": Vector3(0.028, 0.5, 1.0), "color": Color(0.6, 0.45, 0.85), "disc": Color(0.93, 0.72, 0.12), "heads": 4},
-	"milkweed": {"name": "Common milkweed", "stack": 16, "shape": "flower", "size": Vector3(0.05, 0.6, 1.0), "color": Color(0.86, 0.56, 0.66), "disc": Color(0.93, 0.78, 0.82), "heads": 2},
-	"swamp_milkweed": {"name": "Swamp milkweed", "stack": 16, "shape": "flower", "size": Vector3(0.035, 0.55, 1.0), "color": Color(0.85, 0.3, 0.5), "disc": Color(0.95, 0.8, 0.86), "heads": 3},
-	"tobacco": {"name": "Wild tobacco", "stack": 16, "shape": "flower", "size": Vector3(0.024, 0.55, 1.0), "color": Color(0.97, 0.97, 0.94), "disc": Color(0.82, 0.86, 0.7), "heads": 3},
+	"coneflower": {"name": "Purplecone", "stack": 16, "shape": "flower", "size": Vector3(0.09, 0.5, 1.0), "color": Color(0.78, 0.42, 0.62), "disc": Color(0.42, 0.2, 0.06), "heads": 1},
+	"nettle": {"name": "Nettle", "stack": 16, "shape": "nettle", "size": Vector3(0.1, 0.6, 1.0), "color": Color(0.2, 0.33, 0.11)}, # (the forest's; picked, it doesn't sting)
+	"aster": {"name": "Aster", "stack": 16, "shape": "flower", "size": Vector3(0.028, 0.5, 1.0), "color": Color(0.6, 0.45, 0.85), "disc": Color(0.93, 0.72, 0.12), "heads": 4},
+	"milkweed": {"name": "Milkweed", "stack": 16, "shape": "flower", "size": Vector3(0.05, 0.6, 1.0), "color": Color(0.86, 0.56, 0.66), "disc": Color(0.93, 0.78, 0.82), "heads": 2},
+	"swamp_milkweed": {"name": "Milkweed", "stack": 16, "shape": "flower", "size": Vector3(0.035, 0.55, 1.0), "color": Color(0.85, 0.3, 0.5), "disc": Color(0.95, 0.8, 0.86), "heads": 3},
+	"tobacco": {"name": "Baccy", "stack": 16, "shape": "flower", "size": Vector3(0.024, 0.55, 1.0), "color": Color(0.97, 0.97, 0.94), "disc": Color(0.82, 0.86, 0.7), "heads": 3},
 	"yampah": {"name": "Yampah", "stack": 16, "shape": "flower", "size": Vector3(0.04, 0.6, 1.0), "color": Color(0.95, 0.95, 0.9), "disc": Color(0.85, 0.86, 0.72), "heads": 3},
 	# a pot to catch sap in (Tapping: under a maple's notch), and full
-	"clay_pot": {"name": "Clay pot", "stack": 4, "shape": "pot", "size": Vector3(0.15, 0.15, 0.15), "color": Color(0.66, 0.38, 0.24)},
-	"pot_of_sap": {"name": "Pot of maple sap", "stack": 1, "shape": "pot", "size": Vector3(0.15, 0.15, 0.15), "color": Color(0.66, 0.38, 0.24), "full": Color(0.78, 0.6, 0.3)},
+	"clay_pot": {"name": "Pot", "stack": 4, "shape": "pot", "size": Vector3(0.15, 0.15, 0.15), "color": Color(0.66, 0.38, 0.24)},
+	"pot_of_sap": {"name": "Pot of sap", "stack": 1, "shape": "pot", "size": Vector3(0.15, 0.15, 0.15), "color": Color(0.66, 0.38, 0.24), "full": Color(0.78, 0.6, 0.3)},
 	"cattail": {"name": "Cattail", "stack": 16, "shape": "cattail", "size": Vector3(0.024, 0.75, 0.16), "color": Color(0.36, 0.22, 0.12)},
 }
 

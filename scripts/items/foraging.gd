@@ -145,7 +145,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		main.ground_cover.set_gone(_plants)
 	var held: Dictionary = inv.get_at(hand)
 	inv.set_at(hand, {"id": id, "count": int(held.get("count", 0)) + 1})
-	main.chat.say("Picked a %s." % Items.name_of(id).to_lower(), Color(0.8, 1.0, 0.75))
+	var nm := Items.name_of(id).to_lower()
+	main.chat.say("Picked %s %s." % ["an" if nm.left(1) in ["a", "e", "i", "o", "u"] else "a", nm], Color(0.8, 1.0, 0.75))
 
 
 ## Whether a hand holding `held` can take one more of id.
