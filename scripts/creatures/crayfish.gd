@@ -99,6 +99,8 @@ var _tail_rate := 4.0
 var _flips := 0
 var _flip_v := 0.0
 var _bite := 0.0 # (its front's pitch, eating: its mouth to the next bite)
+var _swim_h := 0.0 # (m: swum up off the bottom, after food over it in the water)
+var _swim_want := 0.0
 var _mother: Node3D
 var _ride_t := 0.0
 var _ride_at := Vector3.ZERO
@@ -610,9 +612,40 @@ func _touch_ok() -> bool:
 	return young or _mother != null or _mate_role != "" or _mode in ["burrowed", "moult"]
 
 
+## (Food up in the water over it, at the surface, say: swum up off the
+## bottom, its mouth to its height, its legs tucked and paddling, its
+## swimmerets beating; down again after.)
+func _swim_up_to(p: Vector3) -> void:
+	if _pos.y >= water_y or p.y > water_y + 0.02:
+		return
+	var up := p.y - _ground(p.x, p.z)
+	if up < 0.015 * size / ADULT:
+		return
+	_swim_want = maxf(p.y - _pos.y - (body_h - absf(MOUTH.y)) * MM * size, 0.0)
+
+
+func _place() -> void:
+	super()
+	if _swim_h > 0.0:
+		position.y += _swim_h
+
+
 func _think(dt: float) -> void:
 	_wait -= dt
 	_st += dt
+	# (swimming: up to what it's after, or back down to the bottom)
+	var was_up := _swim_h > 0.002
+	_swim_h = move_toward(_swim_h, _swim_want, dt * 0.06)
+	_swim_want = 0.0
+	if _swim_h > 0.002:
+		for i in _pose_foot.size(): # (its legs tucked, paddling)
+			var L: Dictionary = legs[i / 2]
+			var side := 1.0 if i % 2 == 1 else -1.0
+			var hp: Vector3 = L.hip
+			var ph := _t * 7.0 + i * 0.8
+			_pose_foot[i] = Vector3(hp.x * side * 1.7, hp.y - 7.0 + 1.5 * sin(ph), hp.z + 3.0 * cos(ph))
+	elif was_up:
+		_replant()
 	_chew = move_toward(_chew, 0.0, dt * 2.0)
 	_cl_ask = [CL_WALK, CL_WALK] if _speed > 0.01 else [CL_REST, CL_REST]
 	_cl_rate = 5.0
@@ -710,6 +743,7 @@ func _eat(dt: float) -> void:
 	var p := f.global_position
 	var to := Vector3(p.x - _pos.x, 0.0, p.z - _pos.z)
 	var reach := absf(MOUTH.z) * MM * size
+	_swim_up_to(p)
 	match _stage:
 		0: # (to it, its mouth over it: it eats only once it's there)
 			_target = p - to.normalized() * reach if to.length() > reach * 1.05 else _pos
@@ -772,7 +806,8 @@ func _hunt(dt: float) -> void:
 	var to := Vector3(p.x - _pos.x, 0.0, p.z - _pos.z)
 	var reach := (absf(SHOULDER.z) + 50.0) * MM * size
 	match _stage:
-		0: # (creeping, its claws open before it)
+		0: # (creeping, its claws open before it; swimming up, if it's up in the water)
+			_swim_up_to(p)
 			_target = p - to.normalized() * reach * 1.4
 			_pace = walk_speed * 0.4
 			_cl_ask = [CL_REACH, CL_REACH]
@@ -782,6 +817,7 @@ func _hunt(dt: float) -> void:
 				_st = 0.0
 				_turn_to = atan2(-to.x, -to.z)
 		1: # (the lunge, the claws shut on it)
+			_swim_up_to(p)
 			_pace = walk_speed * 2.5
 			_target = p - to.normalized() * reach * 0.8
 			_cl_ask = [CL_REACH, CL_REACH] if _st < 0.25 else [CL_PIN, CL_PIN]
@@ -1232,7 +1268,7 @@ func _pose(dt: float) -> void:
 		var k: int = u.get_meta("k")
 		u.rotation = Vector3(0.0, -side * (0.15 + 0.35 * k) * _fan, 0.0)
 	# the swimmerets: fanning (her eggs; swimming), else still
-	var fanning := berried or _mode == "flee"
+	var fanning := berried or _mode == "flee" or _swim_h > 0.002
 	for k in _swimmerets.size():
 		_swimmerets[k].rotation = Vector3(0.35 * sin(_t * 9.0 + k * 0.6) if fanning else 0.0, 0.0, 0.0)
 	# the antennae sweeping; the antennules flicking; the mouthparts working
