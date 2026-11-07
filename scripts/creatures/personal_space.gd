@@ -24,7 +24,8 @@ extends RefCounted
 ## role / mode (TOUCHING).
 
 static var all: Array = []
-const MAX_PUSH := 0.04 ## m a frame, at most: eased apart, never thrown
+const MAX_PUSH := 0.08 ## m a frame, at most (never thrown); short of that, the whole overlap, so it never builds up, nor is pushed back and forth
+const SLOP := 0.0015 ## m of overlap let be: none shoved over a hair
 const TOUCHING := ["nurse", "suckle", "play", "spar", "follow", "newborn", "birth", "carry", "piloted",
 		"mate", "courted", "amplexus", "lay", "nest", "tadpole", "mount", "mounted", "groom_other"]
 ## (hunting, eating, feeding, striking: not here, but only between the two:
@@ -71,6 +72,11 @@ static func _dims(n: Node3D) -> Vector2:
 	var d := Vector2(box.size.z * absf(s.z) * 0.8, box.size.x * absf(s.x) * 0.3)
 	if d.x > MAX_LEN or d.y > MAX_LEN * 0.25:
 		d = Vector2.ZERO # (not yet scaled to its size: no capsule till it is)
+	# (its legs, its antennae, its neck move: measured again, the capsule
+	# only the larger of then and now, eased down, never popping out)
+	var was: Vector2 = n.get_meta("space_dims", Vector2.ZERO)
+	if d != Vector2.ZERO and was != Vector2.ZERO and now - int(n.get_meta("space_at", 0)) < REMEASURE * 3:
+		d = Vector2(maxf(d.x, lerpf(was.x, d.x, 0.25)), maxf(d.y, lerpf(was.y, d.y, 0.25)))
 	n.set_meta("space_dims", d)
 	n.set_meta("space_at", now)
 	return d
@@ -232,20 +238,28 @@ static func keep_apart(n: Node3D) -> void:
 						best = dd
 						pa = q[0]
 						pb = q[1]
-				if best >= want:
+				if best >= want - SLOP:
 					continue
 				var nrm := pa - pb
-				if nrm.length() < 1e-4: # (crossing: apart from each other's middle)
-					nrm = (a0 + a1) * 0.5 - (b0 + b1) * 0.5
-					if nrm.length() < 1e-4:
+				if nrm.length() < 0.25 * want: # (near crossing: straight off the other's line, to the side its middle's on (steady: not flipping as they slide))
+					var ab := b1 - b0
+					var side := Vector2(-ab.y, ab.x)
+					if side.length() < 1e-6:
+						side = (a0 + a1) * 0.5 - b0
+					if side.dot((a0 + a1) * 0.5 - (b0 + b1) * 0.5) < 0.0:
+						side = -side
+					nrm = side if nrm.length() < 1e-5 else nrm.normalized() + side.normalized()
+					if nrm.length() < 1e-5:
 						nrm = Vector2(1.0, 0.0).rotated(float(n.get_instance_id() % 628) * 0.01)
 				# (its half; all of it if the other's part won't move)
 				var share := 1.0 if _fixed(o as Node3D, j) else 0.5
-				var v := nrm.normalized() * minf((want - best) * share, MAX_PUSH)
+				if _fixed(n, i):
+					continue # (that part of it can't be moved: the other moves all of it)
+				var v := nrm.normalized() * minf((want - best - SLOP * 0.5) * share, MAX_PUSH)
 				if v.length() > worst.length():
 					worst = v
 					worst_seg = i
-		if worst_seg >= 0 and not _fixed(n, worst_seg):
+		if worst_seg >= 0:
 			push += worst
 	if push != Vector2.ZERO:
 		_push(n, push)

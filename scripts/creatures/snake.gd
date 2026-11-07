@@ -1161,14 +1161,22 @@ func _exit_tree() -> void:
 ## only one it's moved by, its body behind following the head's way: the
 ## others keep off that.)
 const SPACE_SEGS := 5
-const SPACE_PUSH := 0.12 ## of its thickness its head's eased off another a frame, at most (more creased its body)
+const SPACE_PUSH := 0.8 ## of its thickness its head's put off another a frame, at most (its body bends smoothly after it, whatever: _update)
 
 
-## (Its head eased off another: a little a frame, its body following.)
+## (Its head put off another, its body following; and its way turned along
+## the other, not on into it again (no shoving back and forth).)
 func _space_push(v: Vector2) -> void:
 	var most := float(K.r) * size * SPACE_PUSH
 	var w := v.limit_length(most)
 	_pos += Vector3(w.x, 0.0, w.y)
+	if w.length() > 1e-6:
+		var n := Vector3(w.x, 0.0, w.y).normalized()
+		var into := _dir.dot(-n)
+		if into > 0.0: # (heading into it: turned to slide along it)
+			var along := _dir + n * into
+			if along.length() > 1e-4:
+				_dir = _dir.slerp(along.normalized(), 0.5).normalized()
 
 
 func _space_spines() -> Array:
