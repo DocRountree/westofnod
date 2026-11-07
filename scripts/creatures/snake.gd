@@ -514,14 +514,23 @@ func _think(dt: float) -> void:
 		var steer := 0.0
 		var slow := 1.0
 		var ahead := _pos + way * clear * 1.8
-		for i in range(6, _pts.size()):
-			var q: Vector3 = _pts[i]
-			var d := Vector2(ahead.x - q.x, ahead.z - q.z).length()
-			if d < clear * 1.8:
-				var side := signf(_dir.cross(q - _pos).y) # (+: it's to the left)
-				var k := 1.0 - d / (clear * 1.8)
-				steer -= (side if side != 0.0 else 1.0) * k
-				slow = minf(slow, lerpf(1.0, 0.35, k))
+		var bodies: Array = [[_pts, 6, clear]] # (its own body; and the other snakes' near it: their heads go round its body, its round theirs, so their bodies, following, never cross)
+		for o in PersonalSpace.all:
+			if o != self and is_instance_valid(o) and o.get_script() != null and o.has_method("_space_spines") and o.get("_pts") is Array and not PersonalSpace.touching(o):
+				var op: Array = o.get("_pts")
+				if not op.is_empty() and (op[op.size() / 2] as Vector3).distance_to(_pos) < float(o.get("K").len) * float(o.get("size")) + clear * 3.0:
+					bodies.append([op, 0, clear * 0.5 + float(o.get("K").r) * float(o.get("size")) * 1.2])
+		for bd: Array in bodies:
+			var pts: Array = bd[0]
+			var cl: float = bd[2]
+			for i in range(int(bd[1]), pts.size()):
+				var q: Vector3 = pts[i]
+				var d := Vector2(ahead.x - q.x, ahead.z - q.z).length()
+				if d < cl * 1.8:
+					var side := signf(_dir.cross(q - _pos).y) # (+: it's to the left)
+					var k := 1.0 - d / (cl * 1.8)
+					steer -= (side if side != 0.0 else 1.0) * k
+					slow = minf(slow, lerpf(1.0, 0.35, k))
 		if steer != 0.0:
 			_dir = _dir.rotated(Vector3.UP, clampf(steer * 3.0 * dt, -2.5 * dt, 2.5 * dt))
 			way = _dir.rotated(Vector3.UP, 0.3 * sin(_phase))
