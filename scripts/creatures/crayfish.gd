@@ -448,6 +448,16 @@ func _colour() -> void:
 
 
 func _pose_legs() -> void:
+	# (swum up off the bottom: any leg not posed otherwise tucked, paddling,
+	# never reaching down to where its foot was on the floor)
+	if _swim_h > 0.002:
+		for i in _pose_foot.size():
+			if _pose_foot[i] == null:
+				var L: Dictionary = legs[i / 2]
+				var side := 1.0 if i % 2 == 1 else -1.0
+				var hp: Vector3 = L.hip
+				var ph := _t * 7.0 + i * 0.8
+				_pose_foot[i] = Vector3(hp.x * side * 1.7, hp.y - 7.0 + 1.5 * sin(ph), hp.z + 3.0 * cos(ph))
 	super()
 	for i in _pincers.size():
 		var ts := _leg_mesh[i][2] as MeshInstance3D
@@ -644,7 +654,7 @@ func _think(dt: float) -> void:
 			var hp: Vector3 = L.hip
 			var ph := _t * 7.0 + i * 0.8
 			_pose_foot[i] = Vector3(hp.x * side * 1.7, hp.y - 7.0 + 1.5 * sin(ph), hp.z + 3.0 * cos(ph))
-	elif was_up:
+	elif was_up: # (down on the bottom again: its feet set under it)
 		_replant()
 	_chew = move_toward(_chew, 0.0, dt * 2.0)
 	_cl_ask = [CL_WALK, CL_WALK] if _speed > 0.01 else [CL_REST, CL_REST]

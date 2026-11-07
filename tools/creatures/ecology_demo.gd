@@ -462,7 +462,7 @@ func _height(x: float, z: float) -> float:
 			var t: Vector3 = rp[1]
 			if absf(z - f.z) < float(rp[2]) and x >= f.x and x <= t.x + 0.005:
 				return lerpf(f.y, t.y, clampf((x - f.x) / (t.x - f.x), 0.0, 1.0))
-		if _in_pond(q, x, z, 0.05):
+		if _in_pond(q, x, z, 0.0): # (its floor right up to its walls: nothing walks along its rim over the water)
 			return -float(q.deep) + 0.02
 	return 0.0
 

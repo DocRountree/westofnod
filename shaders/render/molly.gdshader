@@ -110,7 +110,10 @@ void vertex() {
 	float L = z_tail - z_head;
 	float s = clamp((VERTEX.z - z_head) / L, 0.0, 1.0);
 	v_s = s;
-	float freq = mix(1.2, 4.8, swim); // (an easy beat)
+	// (an easy beat, each fish its own, steady: its speed in how wide its tail
+	// sweeps, not how fast; a beat changing with its speed would jump its
+	// phase (t is large), flicking the tail)
+	float freq = 1.5 + 0.6 * seed;
 	float ph = t * freq * 6.2832;
 	float amp = L * mix(0.025, 0.1, swim);
 	float k = 6.2832 * 0.95;

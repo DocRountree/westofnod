@@ -197,6 +197,9 @@ func display(i: int) -> void:
 	task_t[i] = rng.randf_range(3.0, 6.0)
 
 
+var _vs := PackedVector3Array() # (each one's velocity, smoothed: its heading and pitch follow this)
+
+
 func _floor(x: float, z: float) -> float:
 	return maxf(float(bottom.call(x, z)) if bottom.is_valid() else tank_min.y, tank_min.y)
 
@@ -242,6 +245,7 @@ func _steer(i: int, dt: float, grid: Dictionary) -> void:
 	var align := Vector3.ZERO
 	var coh := Vector3.ZERO
 	var m := 0
+	var wsum := 0.0
 	var c := Vector3i(floori(p.x / NEAR), floori(p.y / NEAR), floori(p.z / NEAR))
 	for dz in range(-1, 2):
 		for dy in range(-1, 2):
@@ -255,13 +259,16 @@ func _steer(i: int, dt: float, grid: Dictionary) -> void:
 						continue
 					if d < APART * size[i]:
 						sep += off / d * (APART * size[i] - d) / (APART * size[i])
-					align += vel[j]
-					coh += pos[j]
+					# (each counted less the further off: none suddenly in, or out)
+					var w := (1.0 - d / NEAR) * (1.0 - d / NEAR)
+					align += vel[j] * w
+					coh += pos[j] * w
+					wsum += w
 					m += 1
 	var acc := sep * 2.2
-	if m > 0:
-		acc += (align / m - v) * 1.2
-		acc += (coh / m - p) * 1.0
+	if wsum > 1e-4:
+		acc += (align / wsum - v) * 1.0 * minf(wsum, 1.0)
+		acc += (coh / wsum - p) * 1.0 * minf(wsum, 1.0)
 	var want := cruise * (0.8 + 0.4 * seed[i])
 	var t := task[i]
 	match t:
@@ -338,8 +345,8 @@ func _steer(i: int, dt: float, grid: Dictionary) -> void:
 	var least := 0.0 if t in [GRAZE, HOLD, DISPLAY] else want * 0.5
 	if spd > top:
 		v *= top / spd
-	elif spd < least and spd > 1e-5:
-		v *= least / spd
+	elif spd < least and spd > 1e-5: # (eased up to it, not snapped)
+		v *= lerpf(1.0, least / spd, 1.0 - exp(-2.0 * dt))
 	vel[i] = v
 	var np := p + v * dt
 	np.x = clampf(np.x, tank_min.x, tank_max.x)
@@ -351,7 +358,13 @@ func _steer(i: int, dt: float, grid: Dictionary) -> void:
 ## Fish i drawn where it is: facing its way (level, swimming slowly, or
 ## nose down grazing), banked into its turn.
 func _place(i: int, dt: float) -> void:
-	var v := vel[i]
+	# (its way: its velocity smoothed, not each frame's nudges from its
+	# neighbours; its heading turning after that, its bank by how fast it
+	# turns)
+	if _vs.size() != vel.size():
+		_vs = vel.duplicate()
+	var v := _vs[i].lerp(vel[i], 1.0 - exp(-3.0 * dt))
+	_vs[i] = v
 	var h := heading[i]
 	var spd := v.length()
 	if spd > 0.01:
@@ -359,9 +372,10 @@ func _place(i: int, dt: float) -> void:
 		var want := h
 		if flat.length() > 1e-4:
 			want = flat.normalized()
-		var yaw_rate := h.signed_angle_to(want, Vector3.UP)
-		h = h.slerp(want, 1.0 - exp(-6.0 * dt)).normalized()
-		turn[i] = lerpf(turn[i], clampf(yaw_rate / maxf(dt, 1e-4) / 4.0, -1.0, 1.0), 1.0 - exp(-5.0 * dt))
+		var nh := h.slerp(want, 1.0 - exp(-4.0 * dt)).normalized()
+		var rate := h.signed_angle_to(nh, Vector3.UP) / maxf(dt, 1e-4) # (rad/s)
+		h = nh
+		turn[i] = lerpf(turn[i], clampf(rate / 2.0, -1.0, 1.0), 1.0 - exp(-3.0 * dt))
 	else:
 		turn[i] = lerpf(turn[i], 0.0, 1.0 - exp(-3.0 * dt))
 	heading[i] = h
