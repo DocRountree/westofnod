@@ -39,6 +39,10 @@ const SettingsScript := preload("res://scripts/settings.gd") # (by path: found w
 ##   among its grass, in drifts, their heads up
 ## - yampah (Perideridia gairdneri): white umbels, on the prairie and in
 ##   the forest, knee-high there
+## - wild tobacco (Nicotiana quadrivalvis, "Indian tobacco"): the prairie's,
+##   in drifts, as often as yampah is in the forest; knee to waist high, a
+##   stout sticky stem, broad leaves up it, alternate, smaller higher; long
+##   white trumpets at its top, five-lobed. Picked as "tobacco"
 ## - swamp asters (Symphyotrichum puniceum): the swamp's, sparse
 ##   among the grass's tips (taller than they'd be, the grass being head-high);
 ##   to 38 m and 34 m.
@@ -133,6 +137,16 @@ const LAYERS := [
 			"petal_color": Vector3(0.97, 0.97, 0.94), "petal_base": Vector3(0.92, 0.93, 0.84), "petal_alt": Vector3(0.94, 0.95, 0.88), "petal_alt_share": 0.3,
 			"disc_color": Vector3(0.9, 0.9, 0.78), "head_size": 0.011, "head_px": Vector2(4.0, 9.0), # (its tiny flowers green, as the stems, well before they're too small to draw: they shimmered)
 			"fade_out": Vector2(10.0, 15.0), "thin_from": 8.0}}, # (only near: its tiny flowers shimmered further off)
+	# wild tobacco, the prairie's only, as often as yampah grows in the forest
+	# (its drifts as yampah's; its cover yampah's there, the forest's floor
+	# littered for nearly half of it, which yampah doesn't come up through)
+	{"cell": 2.0, "cells": 12, "tiles": 7, "flowers": "tobacco", "stems": 2, "radius": 0.18,
+		"u": {"kind": 2, "seed": 18, "in_forest": false, "cover": 0.3, "drift": Vector3(20.0, 0.4, 3.7),
+			"forest_height": Vector2(0.5, 0.7), "prairie_height": Vector2(0.75, 1.1),
+			"prairie_green": Vector3(0.27, 0.35, 0.16), "prairie_blonde": Vector3(0.33, 0.38, 0.18), # (a dull, sticky green)
+			"petal_color": Vector3(0.97, 0.97, 0.94), "petal_base": Vector3(0.82, 0.86, 0.7), "petal_alt": Vector3(0.95, 0.95, 0.92), "petal_alt_share": 0.0,
+			"disc_color": Vector3(0.82, 0.86, 0.7), "head_size": 0.024, "head_px": Vector2(3.0, 6.0),
+			"fade_out": Vector2(22.0, 30.0), "thin_from": 16.0}},
 	# the swamp's: swamp asters, sparse, here and there in loose drifts
 	{"cell": 2.0, "cells": 12, "tiles": 7, "flowers": "aster", "stems": 2, "radius": 0.25,
 		"u": {"kind": 2, "seed": 12, "in_forest": false, "in_prairie": false, "in_swamp": true, "swamp_clumped": false, "cover": 0.35,
@@ -1148,6 +1162,38 @@ static func flower_mesh(kind: String, stems: int, radius: float, seed: int, leav
 					var fc := bc + Vector3(cos(fa) * fr, 0.008 - fr * 0.3, sin(fa) * fr) / H
 					strip.call(root, [bc, fc], [0.0006, 0.0005], side, n, shade, 0.0)
 					head.call(root, fc, Vector3(cos(fa), 0.0, sin(fa)) * fr * 12.0, 5, 0.0016, 0.0042, 0.0022, 0.0015, 0.0012, rng.randf())
+		elif kind == "tobacco":
+			# a stout stem, unbranched; broad leaves up it one by one round it,
+			# drooping, the lower big, smaller higher; at its top a few long
+			# white trumpets, angled out and up, each flaring into a
+			# five-lobed face (a fan: head's), greenish in the throat
+			strip.call(root, [Vector3.ZERO, top * 0.5, top], [0.006, 0.005, 0.0035], side, n, shade, 0.0)
+			for k in 8:
+				var f := float(k) / 7.0
+				var at := top * (0.07 + 0.78 * f)
+				var ta := face + k * 2.4
+				var ld := Vector2(cos(ta), sin(ta))
+				var ll := lerpf(0.2, 0.08, f) / H
+				var pts := [at, at + Vector3(ld.x * ll * 0.45, ll * 0.18, ld.y * ll * 0.45), at + Vector3(ld.x * ll, -ll * 0.08, ld.y * ll)]
+				strip.call(root, pts, [0.004, 0.042 * lerpf(1.0, 0.55, f), 0.002], Vector3(-ld.y, 0.0, ld.x), Vector3(ld.x * 0.3, 1.0, ld.y * 0.3).normalized(), shade, 0.0)
+			for h in 3:
+				var ha := face + TAU * h / 3.0 + 0.4
+				var hd := Vector3(cos(ha), 0.0, sin(ha))
+				var base0 := top * (0.85 + 0.07 * h)
+				var way := (hd * 0.8 + Vector3.UP * 0.6).normalized()
+				var mouth := base0 + way * 0.034 / H
+				# the tube (as the petals: white, greenish at its foot)
+				var tw := (way.cross(Vector3.UP)).normalized()
+				var col := Color(1.0, rng.randf(), mouth.y)
+				var b0: int = base[0]
+				vert.call(root, base0, Vector3.UP, Vector2(3.25, 0.0), col, tw * 0.002)
+				vert.call(root, base0, Vector3.UP, Vector2(3.25, 0.0), col, -tw * 0.002)
+				vert.call(root, mouth, Vector3.UP, Vector2(3.25, 0.4), col, -tw * 0.0035)
+				vert.call(root, mouth, Vector3.UP, Vector2(3.25, 0.4), col, tw * 0.0035)
+				for i in [b0, b0 + 1, b0 + 2, b0, b0 + 2, b0 + 3]:
+					st.add_index(i)
+				base[0] += 4
+				head.call(root, mouth, way * 1.5, 5, 0.004, 0.012, 0.004, 0.001, 0.0, rng.randf())
 		elif kind == "aster":
 			# branching from half way up into several heads, each 2.5-3 cm
 			var fork := top * 0.6
