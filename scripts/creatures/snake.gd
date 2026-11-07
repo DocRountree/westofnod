@@ -40,6 +40,8 @@ const PilotScript := preload("res://scripts/creatures/pilot.gd")
 const PersonalSpace := preload("res://scripts/creatures/personal_space.gd")
 
 const SPINE := 40
+const MIN_BEND := 2.5 ## its tightest curve's radius, in its thickness (its radius)...
+const MIN_BEND_L := 0.06 ## ... or in its length, whichever's more
 const KINDS := {
 	"rattler": {"len": 1.4, "r": 0.042, "head": Vector3(0.066, 0.03, 0.078), "speed": 0.14, "young": 0.26, "rattle": 9, "egg": "sac"},
 	"milk": {"len": 0.85, "r": 0.014, "head": Vector3(0.022, 0.013, 0.03), "speed": 0.2, "young": 0.3, "rattle": 0, "egg": "egg"},
@@ -926,6 +928,27 @@ func _update(_dt: float) -> void:
 	for i in SPINE:
 		var p := _along_trail(i * seg)
 		_pts.append(Vector3(p.x, _ground(p.x, p.z) + R * _profile(float(i) / (SPINE - 1)) * 0.85, p.z))
+	# no kinks: laid from the head back, each joint turned no more than a
+	# snake's body bends (round a curve no tighter than MIN_BEND of its own
+	# thickness, or MIN_BEND_L of its length): where its head's path jogs
+	# (pushed, turned hard) the body curves through it, a little off the
+	# path, not creased (the coil, the strike, the mating pose, after: theirs)
+	var max_turn := seg / maxf(R * MIN_BEND, L * MIN_BEND_L)
+	var prev := Vector2.ZERO
+	for i in range(1, SPINE):
+		var a := Vector2(_pts[i - 1].x, _pts[i - 1].z)
+		var d := Vector2(_pts[i].x, _pts[i].z) - a
+		var l := d.length()
+		if l < 1e-6:
+			continue
+		d /= l
+		if prev != Vector2.ZERO:
+			var turn := prev.angle_to(d)
+			if absf(turn) > max_turn:
+				d = prev.rotated(signf(turn) * max_turn)
+				var q := a + d * l
+				_pts[i] = Vector3(q.x, _ground(q.x, q.y) + R * _profile(float(i) / (SPINE - 1)) * 0.85, q.y)
+		prev = d
 	# coiled: an Archimedean spiral round _coil_at, the tail outside, the
 	# head on top of it, raised a little
 	if _coil_k > 0.0:
@@ -1116,6 +1139,14 @@ func _exit_tree() -> void:
 ## only one it's moved by, its body behind following the head's way: the
 ## others keep off that.)
 const SPACE_SEGS := 5
+const SPACE_PUSH := 0.12 ## of its thickness its head's eased off another a frame, at most (more creased its body)
+
+
+## (Its head eased off another: a little a frame, its body following.)
+func _space_push(v: Vector2) -> void:
+	var most := float(K.r) * size * SPACE_PUSH
+	var w := v.limit_length(most)
+	_pos += Vector3(w.x, 0.0, w.y)
 
 
 func _space_spines() -> Array:
