@@ -728,6 +728,8 @@ func eat_at(at: Vector3, seconds := 10.0) -> void:
 	_eat_p = at
 	_eat_for = seconds
 	_bite_pitch = -0.6
+	_reach_crouch = 0.0
+	_reach_tilt = 0.0
 	_stage = 0
 	_st = 0.0
 
@@ -756,15 +758,21 @@ func _eat_at(dt: float) -> void:
 				_st = 0.0
 		1: # its snout on it, eating
 			_target = _pos
-			var err := _eat_p.y - _mouth().y
-			_bite_pitch = clampf(_bite_pitch + clampf(err * 10.0, -1.2, 1.2) * dt, -1.6, 0.8)
+			_mouth_down_to(_eat_p.y, dt, 0.8)
+			# (its mouth kept over it: its neck lowered swings it back toward
+			# its chest; a step on after it)
+			var m := _mouth()
+			var off := Vector3(_eat_p.x - m.x, 0.0, _eat_p.z - m.z)
+			if off.length() > 0.015:
+				_pos += off.limit_length(0.12 * size / 0.5 * dt)
+				_target = _pos
 			_neck_to = Vector2(_bite_pitch, 0.0)
 			_look_to = Vector2(0.06 * sin(_st * 5.0), 0.14 * sin(_st * 1.3)) # (nosing about it)
 			_jaw_to = 0.25 * maxf(sin(_st * 9.0), 0.0) # (licking, snapping)
 			_chew = 1.0
 			_ears_to = 0.3
 			var low := _eat_p.y < _pos.y + float(body_h) * MM * size * 0.5
-			_crouch = move_toward(_crouch, float(S.eat_crouch) if low else 0.0, dt)
+			_crouch = move_toward(_crouch, (float(S.eat_crouch) if low else 0.0) + _reach_crouch, dt)
 			if _st > _eat_for:
 				wander(_home_spot(), _radius)
 
@@ -1070,6 +1078,7 @@ func _hunt(dt: float) -> void:
 				var big := _too_big()
 				_meal = MealScript.of(_prey, 4 if _small_prey() else (9 if big else 6), -1, _ground(_lay.x, _lay.z))
 				_bite_pitch = -0.95
+				_reach_crouch = 0.0
 				# (how long at it: a bigger kill longer, a tug a piece)
 				_eat_secs = clampf(15.0 * _prey_len() / 0.4, 15.0, 45.0) if not _small_prey() else 9.0
 			var ph := fmod(_st, 2.4)
@@ -1081,8 +1090,7 @@ func _hunt(dt: float) -> void:
 				_meal.set("in_place", true) # (a piece torn off only once its mouth's on it)
 				var na: Vector3 = _meal.call("next_at")
 				if not tugging: # (its head lowered, or raised, till its mouth's on the next bite)
-					var err := na.y - mouth.y
-					_bite_pitch = clampf(_bite_pitch + clampf(err * 10.0, -1.2, 1.2) * dt, -1.6, -0.25)
+					_mouth_down_to(na.y, dt, -0.25)
 				# (its mouth over the next bite: shuffling round it, facing it)
 				var off := Vector3(na.x - mouth.x, 0.0, na.z - mouth.z)
 				var to_bite := Vector3(na.x - _pos.x, 0.0, na.z - _pos.z)
@@ -1095,6 +1103,7 @@ func _hunt(dt: float) -> void:
 				var pulls := maxf(roundf((_eat_secs - 1.0) / 2.4), 1.0)
 				_meal.call("tear", 1.0 if _st > _eat_secs - 1.0 else clampf(floorf((_st + 0.65) / 2.4) / pulls, 0.0, 1.0), mouth)
 			_neck_to = Vector2(_bite_pitch + (0.25 if tugging else 0.0), 0.0)
+			_crouch = move_toward(_crouch, float(S.eat_crouch) + _reach_crouch, dt)
 			_look_to = Vector2(-0.3 + (0.3 if tugging else 0.0), 0.2 * sin(_st * 1.7)) # (tugging: up and to the side)
 			_jaw_to = 0.06 if tugging else 0.3 * maxf(sin(_st * 6.0), 0.0)
 			if _st > _eat_secs:
@@ -1130,6 +1139,45 @@ func _lay_down(prey: Node3D, at: Vector3) -> void:
 
 
 var _bite_pitch := -0.95 # (its neck's, eating off the ground: down till its mouth's on it)
+var _reach_crouch := 0.0 # (crouched further, its neck as low as it goes and its mouth not there yet)
+var _reach_k := 0.0 # (0..1: eating off the ground, its neck taking the more of its pitch, its head the less)
+var _reach_tilt := 0.0 # (rad: its forequarters tipped down, crouched as far as it goes and its mouth not there yet)
+const BITE_PITCH_LO := -2.1 ## its neck's lowest, eating
+const REACH_CROUCH := 0.6 ## crouched further at most to get its mouth down to its food
+const REACH_TILT := 0.35 ## rad its forequarters tipped down at most besides (a moose's: its neck too short for its legs)
+const BITE_INTO := 0.04 ## of its head's reach, its mouth past the bite (on it, a little in: not hovering over it)
+
+
+## Its mouth brought down (or up) to y, what it's eating's: its neck
+## lowered till its mouth's a little into it, never just over it; once its
+## neck goes no lower, crouched further (a deer's, a moose's, a bison's
+## forelegs bent: no crouch of their own), easing up again only once its
+## neck has room (not bobbing). hi: its neck's highest.
+func _mouth_down_to(y: float, dt: float, hi: float) -> void:
+	var into := absf(float(S.mouth_z)) * MM * size * BITE_INTO
+	var mouth := _mouth()
+	var err := (y - into) - mouth.y
+	# (never its head curled back under its chest: past straight down, its
+	# neck lowered the further only draws its mouth back, and up; its mouth
+	# kept before its chest, crouching and tipping forward instead)
+	var ahead := (mouth - _pos).dot(Vector3(-sin(_yaw), 0.0, -cos(_yaw)))
+	var under := ahead < float(S.body_len) * 0.5 * MM * size * 0.85
+	var rate := clampf(err * 10.0, -1.2, 1.2)
+	if under:
+		rate = maxf(rate, 0.3) # (back up a little: its mouth out before it again)
+	_bite_pitch = clampf(_bite_pitch + rate * dt, BITE_PITCH_LO, hi)
+	if (_bite_pitch <= BITE_PITCH_LO + 0.05 or under) and err < -0.004:
+		if _reach_crouch < REACH_CROUCH:
+			_reach_crouch = move_toward(_reach_crouch, REACH_CROUCH, dt * 0.5)
+		else: # (and then its forequarters tipped down: its forelegs bent the more)
+			_reach_tilt = move_toward(_reach_tilt, REACH_TILT, dt * 0.25)
+	elif err > 0.01 or _bite_pitch > BITE_PITCH_LO + 0.35:
+		# (its mouth down past it, or its neck with room again: up a little,
+		# the tip forward first, then the crouch)
+		if _reach_tilt > 0.0:
+			_reach_tilt = move_toward(_reach_tilt, 0.0, dt * 0.15)
+		else:
+			_reach_crouch = move_toward(_reach_crouch, 0.0, dt * 0.3)
 
 
 ## Whether it eats its kill from its jaws, head up (a small one, for a
@@ -1213,6 +1261,7 @@ func _attack(_dt: float, p: Vector3, _d: float) -> bool:
 
 func _on_landed() -> void:
 	_crouch = 0.0
+	_reach_crouch = 0.0
 
 
 func _birth(dt: float) -> void:
@@ -1534,7 +1583,9 @@ func _pose(dt: float) -> void:
 		var sit_lift := -float(S.sit_drop) * s
 		var lie_lift := (float(S.lie_h) - body_h * (1.0 - 0.45 * _crouch)) * l
 		_lift = bob * (1.0 - maxf(s, l)) + sit_lift * (1.0 - l) + lie_lift
-		_pitch = pitch + float(S.sit_pitch) * s * (1.0 - l) - 0.25 * _stretch * sin(PI * minf(_stretch * 1.5, 1.0))
+		if not ((_mode == "eat_at" and _stage == 1) or (_mode == "hunt" and _stage == 6)):
+			_reach_tilt = move_toward(_reach_tilt, 0.0, dt * 0.5) # (up again, done eating)
+		_pitch = pitch + float(S.sit_pitch) * s * (1.0 - l) - 0.25 * _stretch * sin(PI * minf(_stretch * 1.5, 1.0)) - _reach_tilt
 		_roll = lerpf(_roll, 1.15 * _side * l + 0.25 * _curl * l, 1.0 - exp(-3.0 * dt)) if _mode not in ["play", "roll_over", "wallow"] else _roll
 		# (its feet, sitting: the forefeet straight down before it, the
 		# hind folded; lying: the forelegs out before it, the hind under it)
@@ -1570,12 +1621,17 @@ func _pose(dt: float) -> void:
 		nt = Vector2(-0.4, 1.9 * _curl)
 	nt.x -= float(S.sit_pitch) * s * 0.6 # (kept level, sitting)
 	_neck_now = _neck_now.lerp(nt, 1.0 - exp(-4.0 * dt))
-	_neck.rotation = Vector3(float(S.neck_pitch) + _neck_now.x * 0.6 - 0.35 * _stretch, _neck_now.y * 0.55, 0.0)
+	# (eating off the ground, the neck reaching down and the head held to
+	# it, the muzzle to the ground: not the head curled back under a neck
+	# that hardly bends)
+	var eating_low := (_mode == "eat_at" and _stage == 1) or (_mode == "hunt" and _stage == 6)
+	_reach_k = move_toward(_reach_k, 1.0 if eating_low else 0.0, dt * 1.5)
+	_neck.rotation = Vector3(float(S.neck_pitch) + _neck_now.x * lerpf(0.6, 0.95, _reach_k) - 0.35 * _stretch, _neck_now.y * 0.55, 0.0)
 	_look_now = _look_now.lerp(_look_to, 1.0 - exp(-6.0 * dt))
 	var sniff := 0.04 * _sniff * sin(_t * 18.0)
 	var lick := 0.25 * _lick * maxf(sin(_t * 6.0), 0.0)
 	var tilt := float(S.get("tilt", 0.0)) * (1.0 if _mode == "hunt" and _stage == 2 else 0.0)
-	_head.rotation = Vector3(-float(S.neck_pitch) * 0.85 + _neck_now.x * 0.5 + _look_now.x + sniff - lick, _neck_now.y * 0.45 + _look_now.y, tilt * sin(_t * 0.7))
+	_head.rotation = Vector3(-float(S.neck_pitch) * 0.85 + _neck_now.x * lerpf(0.5, 0.2, _reach_k) + _look_now.x + sniff - lick, _neck_now.y * 0.45 + _look_now.y, tilt * sin(_t * 0.7))
 	_jaw.rotation.x = -(maxf(_jaw_to, 0.25 * _lick * maxf(sin(_t * 6.0), 0.0)) + 0.1 * _chew * maxf(sin(_t * 9.0), 0.0)) # (open: its jaw's tip down, away from its upper teeth)
 	# its forepaw licked, its face washed (sitting)
 	if _mode == "groom" and s > 0.6:

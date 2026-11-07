@@ -114,6 +114,7 @@ static func is_vertebrate(f: Node) -> bool:
 func tear(k: float, mouth: Vector3) -> void:
 	_mouth = mouth
 	_idle = 0.0
+	_prune()
 	_due = int(ceil(clampf(k, 0.0, 1.0) * _n - 1e-4))
 	while _torn < _due and not _pieces.is_empty():
 		var i := _nearest()
@@ -126,7 +127,15 @@ func tear(k: float, mouth: Vector3) -> void:
 ## Where the next bite is (the piece nearest the mouth: the world's), or
 ## the mouth itself, nothing left.
 func next_at() -> Vector3:
+	_prune()
 	return _pieces[_nearest()].global_position if not _pieces.is_empty() else _mouth
+
+
+## (Its pieces gone with what they were part of, freed: no longer to eat.)
+func _prune() -> void:
+	for i in range(_pieces.size() - 1, -1, -1):
+		if not is_instance_valid(_pieces[i]):
+			_pieces.remove_at(i)
 
 
 ## (How near the mouth a piece must be, to be bitten off (m).)
@@ -135,6 +144,7 @@ func _reach() -> float:
 
 
 func _nearest() -> int:
+	_prune()
 	var best := 0
 	var bd := INF
 	for i in _pieces.size():
