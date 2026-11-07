@@ -556,6 +556,16 @@ func hatch() -> void:
 	_begin("hatch")
 
 
+## The ground at (x, z): kept to its pond's floor near its edge (a foot
+## reaching past where the floor ends reads the floor, not the bank above).
+func _ground(x: float, z: float) -> float:
+	if keep_in.has_area():
+		var r := keep_in.grow(0.04)
+		x = clampf(x, r.position.x, r.end.x)
+		z = clampf(z, r.position.y, r.end.y)
+	return super(x, z)
+
+
 func _touch_ok() -> bool:
 	return young or _mother != null or _mate_role != "" or _mode in ["burrowed", "moult"]
 
