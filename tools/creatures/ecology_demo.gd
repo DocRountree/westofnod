@@ -93,14 +93,7 @@ const CATALOGUE := [
 	["Plants", "aster", "aster", ["adult"]],
 	["Plants", "yampah", "yampah", ["adult"]],
 	["Plants", "nettle", "nettle", ["adult"]],
-	["Plants", "berry bush (huckleberry)", "berry_bush", ["adult"]],
-	["Plants", "aspen sapling", "aspen", ["adult"]],
-	["Plants", "oak (a squirrel's tree)", "tree", ["adult"]],
-	["Plants", "fallen persimmons", "persimmons", ["adult"]],
-	["Plants", "clover", "clover", ["adult"]],
-	["Plants", "willow shoot", "willow", ["adult"]],
-	["Plants", "mushroom", "mushroom", ["adult"]],
-	["Plants", "fallen leaf", "leaf", ["adult"]],
+	["Plants", "baccy (wild tobacco)", "tobacco", ["adult"]],
 	["Features", "puddle (5 cm)", "puddle", ["adult"]],
 	["Features", "small pond (20 cm)", "small_pond", ["adult"]],
 	["Features", "pond (45 cm)", "pond", ["adult"]],
@@ -204,6 +197,10 @@ var _worker_colonies := {} # (each queen's (or larva's kind's) workers: kind -> 
 
 
 func _ready() -> void:
+	# (the game's trees here whole wherever they stand: no levels of detail,
+	# no chunks; and a butterfly's flower held still under it)
+	OakTree.set_lod_fade(false)
+	Lepidoptera.perch_hook = _on_perch
 	var env := Environment.new()
 	env.background_mode = Environment.BG_SKY
 	env.sky = Sky.new()
@@ -442,10 +439,8 @@ func spawn(key: String, at: Vector3, stage := "adult", male := false) -> Node:
 	var young := stage == "young"
 	var n: Node = null
 	match key:
-		"milkweed", "swamp_milkweed", "coneflower", "susan", "fleabane", "aster", "yampah", "nettle":
+		"milkweed", "swamp_milkweed", "coneflower", "susan", "fleabane", "aster", "yampah", "nettle", "tobacco":
 			n = _plant_flowers(key, at)
-		"berry_bush", "aspen", "tree", "persimmons", "clover", "willow", "mushroom", "leaf":
-			n = _plant_other(key, at)
 		"puddle", "small_pond", "pond", "large_pond", "sea":
 			var d: Array = PONDS[key]
 			var q := _dig_pond(at, d[0], d[1], d[2], key)
@@ -466,7 +461,12 @@ func spawn(key: String, at: Vector3, stage := "adult", male := false) -> Node:
 			var args: Array = {"black_bear": ["black"], "brown_bear": [["brown", "grizzled", "blond"][randi() % 3]], "deer": ["summer" if randf() < 0.5 else "winter"]}.get(k, [])
 			n = CarcassScript.make(self, sc, at, randf() * TAU, (_ui_decay.selected + 1) if _ui_decay else 1, male, args)
 		_:
-			n = _spawn_animal(key, at, stage, male, young)
+			if key.begins_with("g_") or key.begins_with("s_"):
+				n = _plant_game(key.substr(2), at, key.begins_with("s_") or young)
+			elif key.begins_with("item_"):
+				n = _laid(key.substr(5), at, randf() * TAU)
+			else:
+				n = _spawn_animal(key, at, stage, male, young)
 	if n == null:
 		return null
 	n.set_meta("placed", key)
@@ -476,12 +476,19 @@ func spawn(key: String, at: Vector3, stage := "adult", male := false) -> Node:
 
 
 func _plant_flowers(kind: String, at: Vector3) -> Node3D:
-	var tall := {"milkweed": 1.0, "swamp_milkweed": 0.95, "coneflower": 0.7, "susan": 0.7, "fleabane": 0.5, "aster": 0.6, "yampah": 0.6, "nettle": 0.8}
+	var tall := {"milkweed": 1.0, "swamp_milkweed": 0.95, "coneflower": 0.7, "susan": 0.7, "fleabane": 0.5, "aster": 0.6, "yampah": 0.6, "nettle": 0.8, "tobacco": 0.9}
 	var holder := Node3D.new()
 	add_child(holder)
-	var made: Dictionary = Flowers.build(holder, kind, Vector2(at.x, at.z), tall[kind], GRASS, 0.0)
+	# swaying in the wind as the game's do (the ground cover's grass_sway *
+	# its size); not the milkweeds (stout, stiff, eggs and caterpillars on
+	# their leaves, which don't sway with them)
+	var sway_k: float = 0.0 if kind in ["milkweed", "swamp_milkweed"] else FLOWER_SWAY * float(tall[kind])
+	var made: Dictionary = Flowers.build(holder, kind, Vector2(at.x, at.z), tall[kind], GRASS, sway_k)
 	holder.set_meta("plant", kind)
-	holder.set_meta("heads", made.heads)
+	holder.set_meta("sway_k", sway_k)
+	# (each head's share of its sway, for the insects to sway with it: its
+	# height's share * the square root of the clump's (they square it))
+	holder.set_meta("heads", (made.heads as Array).map(func(h: Array) -> Array: return [h[0], h[1], float(h[2]) * sqrt(sway_k)]))
 	holder.set_meta("florets", (made.heads as Array).map(func(h: Array) -> Vector3: return h[0]))
 	holder.set_meta("leaves", made.get("leaves", []))
 	holder.set_meta("home", at)
@@ -489,37 +496,62 @@ func _plant_flowers(kind: String, at: Vector3) -> Node3D:
 	return holder
 
 
-func _plant_other(kind: String, at: Vector3) -> Node3D:
-	var n: Node3D
-	match kind:
-		"berry_bush":
-			n = UrsidScript.berry_bush()
-		"aspen":
-			n = BeaverScript.sapling()
-		"tree":
-			var made: Array = SquirrelScript.tree(0.12, 4.5)
-			n = made[0]
-			n.set_meta("drey", made[1])
-		"persimmons":
-			n = OpossumScript.windfall(at)
-		"clover":
-			n = HareScript.clover()
-		"willow":
-			n = HareScript.twig()
-			n.set_meta("high", true)
-		"mushroom":
-			n = TurtleScript.food_of(at)
-		"leaf":
-			n = Beetles.leaf()
-	if kind != "persimmons" and kind != "mushroom":
-		n.position = at
-	elif kind == "mushroom":
-		n.position = at
-	add_child(n)
-	n.set_meta("plant", kind)
-	n.set_meta("home", at)
-	_plants.append(n)
-	return n
+## One of the game's trees or bushes (id: _game_trees()), grown, or a
+## sapling (young): its own mesh, swaying in the wind as it does in the
+## game, its fruit hanging where it bears it (Items' models, each named
+## berry_n: a bear strips them, Ursid.browse). Its origin at its foot.
+func _plant_game(id: String, at: Vector3, young: bool) -> Node3D:
+	var gt := _game_trees()
+	if not gt.has(id):
+		return null
+	var sc: Script = gt[id][1]
+	var bush: bool = id in ["blueberry", "raspberry"]
+	var v := 1 if id == "oak" else 0 # (the oak's straight, slim one: a squirrel's)
+	if young and not bush:
+		v = 8 if id == "black_cherry" else 9 # (its sapling)
+	var holder := Node3D.new()
+	holder.position = at
+	add_child(holder)
+	var mi := MeshInstance3D.new()
+	mi.mesh = sc.call("build", v)
+	holder.add_child(mi)
+	var fruit := String(sc.call("fruit_of", v)) if sc.has_method("fruit_of") else ""
+	if fruit != "" and Items.exists(fruit):
+		var spots: PackedVector3Array = sc.call("fruit_spots", v)
+		for i in mini(spots.size(), 24):
+			var f := Items.model(fruit)
+			f.name = "berry_%d" % i
+			f.position = spots[i]
+			holder.add_child(f)
+	var key := ("s_" if young and not bush else "g_") + id
+	holder.set_meta("plant", key)
+	holder.set_meta("game_tree", [id, v])
+	holder.set_meta("home", at)
+	_plants.append(holder)
+	return holder
+
+
+## Item id laid on the ground at at (as it lies dropped in the game:
+## Drops: turned onto its longest side, its bottom on the ground).
+func _laid(id: String, at: Vector3, yaw: float) -> Node3D:
+	if not Items.exists(id):
+		return null
+	var m := Items.model(id)
+	var box := Drops._aabb(m, Transform3D())
+	var lie := Basis()
+	if box.size.y > maxf(box.size.x, box.size.z) * 1.3:
+		lie = Basis(Vector3.RIGHT, PI * 0.5)
+	var turned := Drops._aabb(m, Transform3D(lie, Vector3.ZERO))
+	var root := Node3D.new()
+	var holder := Node3D.new()
+	holder.transform = Transform3D(lie, Vector3(0.0, -turned.position.y, 0.0))
+	holder.add_child(m)
+	root.add_child(holder)
+	root.transform = Transform3D(Basis(Vector3.UP, yaw), at)
+	add_child(root)
+	root.set_meta("item", id)
+	root.set_meta("home", at)
+	return root
 
 
 ## The plants of kind (or any kind, kinds empty) nearest p within r.
@@ -549,7 +581,8 @@ func _plant_near(p: Vector3, kinds: Array, r := 3.0, offset := Vector3(0.35, 0.0
 	return spawn(kinds[0], p + offset)
 
 
-const FLOWER_KINDS := ["milkweed", "swamp_milkweed", "coneflower", "susan", "fleabane", "aster", "yampah"]
+const FLOWER_KINDS := ["milkweed", "swamp_milkweed", "coneflower", "susan", "fleabane", "aster", "yampah", "tobacco"]
+const FLOWER_SWAY := 0.3 ## (the ground cover's grass_sway: a flower's tip's, in its heights a metre of the wind)
 
 
 ## The flowers' heads within r of p ([top, facing, sway share] each); a
@@ -657,7 +690,7 @@ func _spawn_animal(key: String, at: Vector3, stage: String, male: bool, young: b
 			t.set("male", male)
 			_org(t, at, false)
 			t.call("place", at + Vector3(0.0, 0.35, 0.0))
-			t.call("visit_flowers", _heads_near(at, 3.0, "fleabane"), 0.0)
+			t.call("visit_flowers", _heads_near(at, 3.0, "fleabane"), 1.0)
 			return t
 		"carpenter", "harvester":
 			if young:
@@ -842,11 +875,12 @@ func _spawn_animal(key: String, at: Vector3, stage: String, male: bool, young: b
 			var q: Node3D = (SquirrelScript if key == "fox_squirrel" else GreySqScript).new()
 			q.set("male", male)
 			_org(q, at, false)
-			var tree: Node = _plant_near(at, ["tree"], 4.0, Vector3(0.6, 0.0, -0.6))
-			q.set("tree_at", (tree as Node3D).position)
-			q.set("tree_r", 0.12)
+			var tree: Node3D = _plant_near(at, ["g_oak"], 4.0, Vector3(0.6, 0.0, -0.6))
+			_drey_in(tree)
+			q.set("tree_at", tree.position)
+			q.set("tree_r", OakTree.trunk_radius_at(int((tree.get_meta("game_tree") as Array)[1]), 1.0))
 			if not male:
-				q.set("drey", (tree as Node3D).position + (tree.get_meta("drey") as Vector3))
+				q.set("drey", tree.position + (tree.get_meta("drey") as Vector3))
 			q.call("place", at, randf() * TAU)
 			q.call("wander", at, 0.8)
 			return q
@@ -1382,7 +1416,7 @@ func _real_prey(kind: String, at: Vector3) -> Node3D:
 	return n
 
 
-## (A seed for a mouse near p: one of its kit's, a new one if they're gone.)
+## (An acorn for a mouse near p: one of its kit's, a new one if they're gone.)
 func _seed_for(c: Node, p: Vector3) -> Node3D:
 	var kit: Dictionary = c.get_meta("kit", {})
 	var seeds: Array = kit.get("seeds", [])
@@ -1391,7 +1425,8 @@ func _seed_for(c: Node, p: Vector3) -> Node3D:
 		if is_instance_valid(sd) and not sd.has_meta("taken") and (best == null or (sd as Node3D).position.distance_to(p) < best.position.distance_to(p)):
 			best = sd
 	if best == null:
-		best = MouseScript.sunflower_seed()
+		best = _laid("acorn", Vector3.ZERO, randf() * TAU) # (the game's)
+		remove_child(best)
 		var home: Vector3 = c.get_meta("home", p)
 		best.position = home + Vector3(randf_range(-0.22, 0.22), 0.0, randf_range(-0.2, 0.2))
 		best.rotation.y = randf() * TAU
@@ -1403,21 +1438,22 @@ func _seed_for(c: Node, p: Vector3) -> Node3D:
 	return best
 
 
-## (A hare's food near p: the willow shoot (high) or clover, here or set out.)
+## (A hare's food near p: the game's forbs, a yampah or a fleabane; high,
+## a black-eyed Susan, sat up to: here, or set out. Eaten away.)
 func _hare_food(c: Node, p: Vector3, high: bool) -> Node3D:
-	var near := _plants_near(p, 3.0, ["willow"] if high else ["clover"]).filter(func(n: Node) -> bool: return not n.has_meta("taken"))
+	var kinds := ["susan"] if high else ["yampah", "fleabane"]
+	var near := _plants_near(p, 3.0, kinds).filter(func(n: Node) -> bool: return not n.has_meta("taken"))
+	var f: Node
 	if not near.is_empty():
-		if not high:
-			(near[0] as Node).set_meta("taken", true)
-		return near[0]
-	var a := randf() * TAU
-	var f: Node = spawn("willow" if high else "clover", p + Vector3(cos(a), 0.0, sin(a)) * 0.5)
-	if not high:
-		f.set_meta("taken", true)
+		f = near[0]
+	else:
+		var a := randf() * TAU
+		f = spawn(kinds[randi() % kinds.size()], p + Vector3(cos(a), 0.0, sin(a)) * 0.5)
+	f.set_meta("taken", true)
 	return f
 
 
-## (A nut for a squirrel at p: on the ground near, or a new one by it.)
+## (A walnut for a squirrel at p: on the ground near, or a new one by it.)
 func _nut_for(c: Node, p: Vector3) -> Node3D:
 	var kit: Dictionary = c.get_meta("kit", {})
 	var nuts: Array = kit.get("nuts", [])
@@ -1427,7 +1463,8 @@ func _nut_for(c: Node, p: Vector3) -> Node3D:
 			best = n
 	if best == null or best.position.distance_to(p) > 1.2:
 		var a := randf() * TAU
-		best = SquirrelScript.nut()
+		best = _laid("walnut", Vector3.ZERO, randf() * TAU) # (the game's)
+		remove_child(best)
 		var at := p + Vector3(cos(a), 0.0, sin(a)) * 0.4
 		best.position = Vector3(at.x, 0.0, at.z)
 		_kit_add(c, best)
@@ -1437,28 +1474,66 @@ func _nut_for(c: Node, p: Vector3) -> Node3D:
 	return best
 
 
-## (A beaver's stick to eat near p, or one cut for it.)
+## (Fallen fruit near p, an opossum's: the game's pawpaws, lying under it
+## (a few, set out once, nothing taken): their points.)
+func _windfall_near(p: Vector3) -> Array:
+	for n in get_children():
+		if n.has_meta("windfall") and (n as Node3D).position.distance_to(p) < 3.0:
+			return n.get_meta("windfall")
+	var at := p + Vector3(0.5, 0.0, 0.5)
+	var pts: Array = []
+	for k in 5:
+		var a := randf() * TAU
+		var q := at + Vector3(cos(a), 0.0, sin(a)) * randf_range(0.03, 0.18)
+		var f := _laid("pawpaw", q, randf() * TAU)
+		pts.append(q + Vector3(0.0, 0.03, 0.0))
+		if k == 0:
+			f.set_meta("windfall", pts)
+	return pts
+
+
+## (A beaver's stick to eat near p (the game's), or one set out for it.)
 func _stick_for(c: Node, p: Vector3) -> Node3D:
 	for n in get_children():
 		if n.has_meta("stick") and (n as Node3D).position.distance_to(p) < 3.0 and (n as Node3D).get_parent() == self:
 			return n
-	var st: Node3D = BeaverScript.stick_of()
 	var a := randf() * TAU
-	st.position = p + Vector3(cos(a), 0.0, sin(a)) * 0.4 + Vector3(0.0, 0.015, 0.0)
-	st.position.y = 0.015
-	st.rotation.y = randf() * TAU
+	var st := _laid("stick", p + Vector3(cos(a), 0.0, sin(a)) * 0.4, randf() * TAU)
+	remove_child(st)
 	st.set_meta("stick", true)
 	return _kit_add(c, st)
 
 
-## (A bush to browse near p: a berry bush here, or one planted.)
+## (A bush to browse near p: a blueberry bush here, or one planted.)
 func _bush_near(p: Vector3, offset := Vector3(1.0, 0.0, -0.6)) -> Node3D:
-	return _plant_near(p, ["berry_bush"], 4.0, offset) as Node3D
+	return _plant_near(p, ["g_blueberry", "g_raspberry"], 4.0, offset) as Node3D
 
 
-## (A sapling to rub or fell near p: an aspen here, or one planted.)
+## (A sapling to rub or fell near p: a maple's here, or one planted.)
 func _sapling_near(p: Vector3, offset := Vector3(1.2, 0.0, 0.6)) -> Node3D:
-	return _plant_near(p, ["aspen"], 4.0, offset) as Node3D
+	return _plant_near(p, ["s_maple"], 4.0, offset) as Node3D
+
+
+## A squirrel's drey in the game oak tree (once): in its trunk's first fork,
+## against the trunk (its trunk's line, OakTree's climbing one).
+func _drey_in(tree: Node3D) -> void:
+	if tree.has_meta("drey"):
+		return
+	var v := int((tree.get_meta("game_tree") as Array)[1])
+	var line: PackedFloat32Array = OakTree._climb_lines(v)[0]
+	var at := Vector3(line[0], line[1], line[2])
+	var r := 0.2
+	var want := float(OakTree.VARIANTS[v].get("trunk_h", 3.0)) * 0.9
+	for k in range(0, line.size(), 4):
+		at = Vector3(line[k], line[k + 1], line[k + 2])
+		r = line[k + 3]
+		if at.y >= want:
+			break
+	var d := SquirrelScript.drey_nest()
+	var place := at + Vector3(r * 0.9, 0.0, 0.0)
+	d.position = place
+	tree.add_child(d)
+	tree.set_meta("drey", place)
 
 
 ## The fishing spider's catch: a molly of its pond's school, up near the
@@ -1976,7 +2051,7 @@ func _do(c: Node, act_: String) -> void:
 				if _flag(c, "male") and not young:
 					c.call("mark", _sapling_near(p).position)
 			elif c.has_method("rub"):
-				var tree: Node3D = _kit(c, "rub_tree", func() -> Node3D: return _box_at(st + Vector3(2.4, 2.0, 1.4), Vector3(0.35, 4.0, 0.35), Color(0.35, 0.27, 0.18)))
+				var tree: Node3D = _kit(c, "rub_tree", func() -> Node3D: return _plant_game("maple", st + Vector3(2.4, 0.0, 1.4), false))
 				c.call("rub", tree.position * Vector3(1.0, 0.0, 1.0))
 			elif c.has_method("mark"):
 				c.call("mark")
@@ -2073,21 +2148,16 @@ func _turtle_do(c: Node, act_: String, young: bool, p: Vector3) -> void:
 		"eat", "hunt":
 			var f: Node3D
 			var at := p + Vector3(cos(a), 0.0, sin(a)) * (0.3 if snap else 0.2)
-			if snap: # (on the bottom by it: weed; or a grasshopper nymph fallen on the water)
-				at = p + Vector3(cos(a), 0.0, sin(a)) * (0.9 if sc == SeaScript else 0.3)
-				at.y = (float(c.get("floor_y")) + 0.02) if act_ == "eat" else POND
-				if act_ == "eat":
-					f = TurtleScript.weed_of(at)
-					add_child(f)
-				else:
-					f = _insect_at(at, 0.5, true)
-			else: # (a mushroom on the forest floor; or a pill bug at it)
+			if sc == SeaScript: # (its seagrass isn't in the game: nothing for it)
+				return
+			if snap: # (a grasshopper nymph fallen on the water: its weed isn't in the game)
+				at = p + Vector3(cos(a), 0.0, sin(a)) * 0.3
+				at.y = POND
+				f = _insect_at(at, 0.5, true)
+			else: # (a fallen crabapple (the game's); or a pill bug at it)
 				at.y = 0.0
 				if act_ == "eat":
-					var ms := _plants_near(p, 1.5, ["mushroom"])
-					f = ms[0] if not ms.is_empty() else TurtleScript.food_of(at)
-					if f.get_parent() == null:
-						add_child(f)
+					f = _laid("crabapple", at, randf() * TAU)
 				else:
 					f = IsopodScript.new()
 					add_child(f)
@@ -2122,13 +2192,8 @@ func _feed(c: Node, act_: String, young: bool, p: Vector3, st: Vector3, near: Ve
 	elif sc == MonarchScript and not young:
 		var cl := _clumps_near(p)
 		c.call("feed", cl[randi() % cl.size()])
-	elif sc == HopperScript or sc == BlueHopperScript:
-		var leaf: Node3D = _kit(c, "leaf", func() -> Node3D:
-			var lf := Beetles.leaf()
-			lf.position = Vector3(p.x, 0.0, p.z) + near * (0.03 if young else 0.12)
-			lf.scale = Vector3(0.5, 1.0, 0.5) if young else Vector3(1.5, 1.0, 1.5)
-			return lf)
-		c.call("feed", leaf.position + Vector3.UP * (0.001 if young else 0.002))
+	elif sc == HopperScript or sc == BlueHopperScript: # (the grass: chewing it where it stands)
+		c.call("feed", Vector3(p.x, 0.0, p.z) + near * (0.03 if young else 0.12) + Vector3.UP * (0.001 if young else 0.002))
 	elif sc == MantisScript:
 		var f := _insect_at(p + near * (0.03 if young else 0.06), 0.2 if young else 0.45)
 		c.call("strike", f.position + Vector3(0.0, 0.004, 0.0), f)
@@ -2162,12 +2227,12 @@ func _feed(c: Node, act_: String, young: bool, p: Vector3, st: Vector3, near: Ve
 		if young:
 			return
 		if act_ == "hunt": # (H: a sapling felled, a length of it to the lodge)
-			for t in _plants_near(p, 6.0, ["aspen"]):
+			for t in _plants_near(p, 6.0, ["s_maple"]):
 				if (t as Node3D).transform.basis.y.y > 0.9 and not t.has_meta("felling"):
 					t.set_meta("felling", true)
 					c.call("fell", t)
 					return
-			var sp: Node3D = spawn("aspen", p + near * 0.8)
+			var sp: Node3D = spawn("s_maple", p + near * 0.8)
 			sp.set_meta("felling", true)
 			c.call("fell", sp)
 			return
@@ -2176,7 +2241,7 @@ func _feed(c: Node, act_: String, young: bool, p: Vector3, st: Vector3, near: Ve
 		if not young:
 			c.call("feed", _flat(_clumps_near(p)))
 	elif sc == TrigScript:
-		c.call("visit_flowers", _heads_near(p, 3.0, "fleabane"), 0.0)
+		c.call("visit_flowers", _heads_near(p, 3.0, "fleabane"), 1.0)
 	elif sc == BeeScript:
 		c.call("forage", _heads_near(p), _kit(c, "nest", func() -> Node3D:
 			var ns: Node3D = BeeScript.nest()
@@ -2215,8 +2280,7 @@ func _feed(c: Node, act_: String, young: bool, p: Vector3, st: Vector3, near: Ve
 		if act_ == "hunt": # (H: a mouse, a grasshopper)
 			c.call("hunt", _prey(c, ["mouse", "grasshopper", "nymph"], 0.8))
 		elif randf() < 0.55: # (E: fallen fruit, eaten where it lies; or carrion)
-			var wf: Node = _plant_near(p, ["persimmons"], 3.0, Vector3(0.5, 0.0, 0.5))
-			var fruit: Array = wf.get_meta("fruit")
+			var fruit: Array = _windfall_near(p)
 			c.call("eat_at", fruit[randi() % fruit.size()], 12.0)
 		else:
 			c.call("eat", _real_prey("dead_mouse", p + near * 0.4))
@@ -2273,8 +2337,7 @@ func _unusual(c: Node, p: Vector3) -> void:
 	var a := randf() * TAU
 	var dir := Vector3(cos(a), 0.0, sin(a))
 	if kind == "fruit" and who == "opossum":
-		var wf: Node = _plant_near(p, ["persimmons"], 3.0, Vector3(0.5, 0.0, 0.5))
-		var fruit: Array = wf.get_meta("fruit")
+		var fruit: Array = _windfall_near(p)
 		c.call("eat_at", fruit[randi() % fruit.size()], 12.0)
 	elif kind in ["fruit", "ants", "wasps"]: # (the fox's: eaten where it is, nothing taken)
 		c.call("eat_at", _fox_spot(c, kind, p), 10.0)
@@ -2535,14 +2598,70 @@ func _stage() -> String:
 	return ["adult", "young", "pupa"][_ui_stage.selected] if _ui_stage else "adult"
 
 
-func _name_of(key: String) -> String:
+## The game's own trees and bushes (their meshes, their fruit), by key:
+## [its name here, its script].
+static func _game_trees() -> Dictionary:
+	return {"oak": ["oak", OakTree], "maple": ["maple", MapleTree], "walnut": ["walnut", WalnutTree], "tulip": ["tulip tree", TulipTree],
+		"sycamore": ["sycamore", SycamoreTree], "black_cherry": ["cherry", BlackCherryTree], "crabapple": ["crabapple", CrabappleTree],
+		"pawpaw": ["pawpaw", PawpawTree], "lodgepole": ["lodgepole pine", LodgepolePine], "cypress": ["bald cypress", BaldCypress],
+		"blueberry": ["blueberry bush", BlueberryBush], "raspberry": ["raspberry bush", RaspberryBush]}
+
+
+## What can be put down: CATALOGUE, and everything else that's in the game:
+## its trees and bushes (young: a sapling), and its items (laid on the
+## ground, as dropped: Drops).
+func _catalogue() -> Array:
+	var out: Array = []
 	for e: Array in CATALOGUE:
+		out.append(e)
+		if e[2] == "tobacco": # (after the plants: the trees and bushes)
+			var gt := _game_trees()
+			for id: String in gt:
+				var bush: bool = id in ["blueberry", "raspberry"]
+				out.append(["Trees and bushes", gt[id][0], "g_" + id, ["adult"] if bush else ["adult", "young"]])
+	for id: String in Items.KINDS:
+		out.append(["Items", Items.name_of(id), "item_" + id, ["adult"]])
+	return out
+
+
+func _name_of(key: String) -> String:
+	for e: Array in _catalogue():
 		if e[2] == key:
 			return e[1]
 	return key
 
 
+func _exit_tree() -> void:
+	Lepidoptera.perch_hook = Callable()
+
+
+## (A butterfly settled at, or off (on false), a flower's floret: that flower
+## eased still while it's on it, swaying again after: it can't sway with it.)
+func _on_perch(at: Vector3, on: bool) -> void:
+	for n: Node in _plants_near(at, 1.0, FLOWER_KINDS):
+		for f: Vector3 in n.get_meta("florets", []):
+			if f.distance_to(at) < 0.08:
+				n.set_meta("held", on)
+				return
+
+
+## (The flowers' sway eased toward theirs, or to still where one's held.)
+func _ease_sway(dt: float) -> void:
+	for n in _plants:
+		if not is_instance_valid(n) or float(n.get_meta("sway_k", 0.0)) <= 0.0:
+			continue
+		var want := 0.0 if n.get_meta("held", false) else float(n.get_meta("sway_k"))
+		var now := move_toward(float(n.get_meta("sway_now", want)), want, dt * float(n.get_meta("sway_k")) * 2.0)
+		if now == float(n.get_meta("sway_now", -1.0)):
+			continue
+		n.set_meta("sway_now", now)
+		for c in n.get_children():
+			if c is MeshInstance3D and (c as MeshInstance3D).material_override is ShaderMaterial:
+				((c as MeshInstance3D).material_override as ShaderMaterial).set_shader_parameter("sway_k", now)
+
+
 func _process(dt: float) -> void:
+	_ease_sway(dt)
 	# the camera, round its focus
 	var k := Input.get_vector("ui_left", "ui_right", "ui_up", "ui_down")
 	if k != Vector2.ZERO and not (get_viewport().gui_get_focus_owner() is LineEdit):
@@ -2608,7 +2727,7 @@ func _build_ui() -> void:
 	box.add_child(_ui_tree)
 	var root := _ui_tree.create_item()
 	var groups := {}
-	for e: Array in CATALOGUE:
+	for e: Array in _catalogue():
 		if not groups.has(e[0]):
 			var g := _ui_tree.create_item(root)
 			g.set_text(0, e[0])

@@ -149,7 +149,12 @@ func forage(heads: Array, nest := Vector3.INF) -> void:
 		if normal.y < 0.3: # (a head turned well over: on its top side)
 			normal = (normal + Vector3.UP).normalized()
 		_weave = 0.12
-		# down onto it (a bee lands on its flowers, heavily)
+		# down onto it (a bee lands on its flowers, heavily), swaying with
+		# it there (its share of the wind's sway: as the trigonalid's, the
+		# clump's sway * its height's share, given as one, squared)
+		var share := float(h[2]) if h.size() > 2 else 0.0
+		_sway_at = head
+		_sway_k = share * share
 		if not await _touch_down(id, head, normal, _flat(_away(head), normal), 0.09):
 			return
 		# working it: its tongue in, crawling about over it, now and then
@@ -174,6 +179,7 @@ func forage(heads: Array, nest := Vector3.INF) -> void:
 		_p.head_pitch = 0.0
 		_p.ant_down = 0.0
 		_p.ant_tap = 0.0
+		_sway_k = 0.0 # (off it: it eases out)
 		if not await _take_off(id):
 			return
 		_fly_target = head + normal * 0.05

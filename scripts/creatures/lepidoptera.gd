@@ -421,7 +421,15 @@ func _build_tongue() -> void:
 # ---- the motor ----------------------------------------------------------------
 
 ## Lands it on the point at, the surface there facing n (its parent's space).
+## (Told when it settles on something and when it's off again: at, its
+## parent's space; on. The creature demos hold a flower still under it
+## (theirs sway in the wind, and it can't sway with them).)
+static var perch_hook: Callable
+
+
 func land(at: Vector3, n: Vector3) -> void:
+	if perch_hook.is_valid():
+		perch_hook.call(at, true)
 	flying = false
 	_surface_p = at
 	_surface_n = n.normalized()
@@ -431,6 +439,8 @@ func land(at: Vector3, n: Vector3) -> void:
 ## Off again, a little up from where it was.
 func take_off() -> void:
 	if not flying:
+		if perch_hook.is_valid():
+			perch_hook.call(_surface_p, false)
 		flying = true
 		_vel = _surface_n * 0.3
 		_target = _pos + _surface_n * 0.05
