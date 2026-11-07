@@ -301,7 +301,7 @@ func _browse(dt: float) -> void:
 			_target = _pos
 			_chew = 1.0
 			_jaw_to = 0.12 * maxf(sin(_st * 7.0), 0.0)
-			if not is_instance_valid(_berry) or _berry_for > 2.5:
+			if not is_instance_valid(_berry) or _berry_for > 3.0:
 				_berry = _next_berry()
 				_berry_for = 0.0
 			_berry_for += dt
@@ -320,7 +320,7 @@ func _browse(dt: float) -> void:
 				if off.length() > 0.02:
 					_pos += off.limit_length(0.1 * dt)
 					_target = _pos
-				if m.distance_to(b) < 0.05: # (its lips on it: a copy of it taken in, the bush's own left hanging)
+				if m.distance_to(b) < 0.09: # (its lips on it: a copy of it taken in, the bush's own left hanging)
 					_take_berry(_berry)
 					_berry = null
 			if _st > 18.0:
