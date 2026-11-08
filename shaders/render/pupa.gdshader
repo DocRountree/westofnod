@@ -15,7 +15,7 @@ render_mode depth_prepass_alpha, cull_disabled;
 // ripe 0..1: going dark and clear, the wings inside showing through (the
 // monarch's orange and black). empty: split, left behind: pale, see-
 // through, a slit open where it came out.
-// dead 0..1 (the monarch's, parasitized: a trigonalid wasp in it, not a
+// dead 0..1 (parasitized: an ichneumon wasp in it, not a
 // butterfly): going dull, brown to black, its gold gone dim, no wings
 // showing; holed: the little round hole the wasp chewed out of it, on its
 // front (left hanging so, dead, dark, whole but for that).
@@ -99,6 +99,11 @@ void fragment() {
 		c = mix(c, vec3(0.06, 0.03, 0.02), sp);
 		// ripe: darker, the moth's olive and burgundy faintly through
 		c = mix(c, mix(vec3(0.08, 0.06, 0.03), vec3(0.18, 0.17, 0.07), step(v, 0.45)), ripe);
+		// dead (an ichneumon in it): dull, near black
+		c = mix(c, vec3(0.05, 0.035, 0.025), smoothstep(0.0, 1.0, dead));
+		rough = mix(rough, 0.6, dead);
+		if (holed && fr > 0.85 && length(vec2((1.0 - fr) * 4.0, (v - 0.22) * 26.0)) < 0.8)
+			discard; // (the wasp's way out, its front near the head)
 	}
 	if (empty) {
 		// left behind: pale, see-through; open along the front where it came out

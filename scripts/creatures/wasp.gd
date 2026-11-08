@@ -180,6 +180,8 @@ var _fans: Array[MeshInstance3D] = [] # L, R
 var _wing_mat: ShaderMaterial
 var _hind_mat: ShaderMaterial
 var _pal: Dictionary = {} # (its colours: _palette())
+var ant_seg := 1.2 ## mm: each of its flagellum's four drawn lengths
+var ant_curl := 0.12 ## rad: how much more each bends down than the last
 static var _tergites := {} # (the gaster's plates' meshes, shared)
 var _sphere: SphereMesh
 var _cyl: CylinderMesh
@@ -1257,10 +1259,10 @@ func _pose_antennae(dt: float) -> void:
 		var fy := yaw + 0.25
 		var fp: float = pitch - 0.9 - _a.ant_down
 		for k in 4:
-			var q := _over(p, p + _dir(fy, fp, side) * 1.2, 1.2)
+			var q := _over(p, p + _dir(fy, fp, side) * ant_seg, ant_seg)
 			_seg(segs[k + 1], p, q, 0.12 if k < 3 else 0.14)
 			p = q
-			fp -= 0.12 + 0.15 * gw
+			fp -= ant_curl + 0.15 * gw
 
 
 ## An antenna's next joint q (the head's own space, len on from p): if

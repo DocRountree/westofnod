@@ -25,12 +25,17 @@ extends Node3D
 ## Its origin: the monarch's, the stalk's top (hang it there); the
 ## clearwing's, the ground under its middle, its head toward -z.
 ##
-## One monarch chrysalis in three (parasitized: its caterpillar ate a
-## trigonalid wasp's eggs with a leaf, and its larva lived on the fly's
-## maggot in it) gives no butterfly: ripening, it dulls and darkens, dead,
-## brown to black, no wings showing through, and then a trigonalid wasp
-## (Trigonalid) chews a little round hole in its front and comes out of it,
-## rests on it a while, and flies off; the dead case left hanging, holed.
+## One butterfly or moth pupa in three (parasitized: an ichneumon wasp laid
+## her egg in its caterpillar, and her larva ate it from within; and
+## every one whose caterpillar was stung so, Larva.parasitized) gives no
+## butterfly or moth: ripening, it dulls and darkens, dead, brown to black,
+## no wings showing through, and then an ichneumon wasp (Ichneumon) chews a
+## little round hole in its front and comes out of it, rests on it a
+## while, and flies off; the dead case left, holed. And one paper wasp cell
+## in three gives a trigonalid wasp (Trigonalid), not a paper wasp: its
+## larva was the wasp grub's parasite (its egg eaten on a leaf by a
+## caterpillar, the caterpillar chewed up and fed to the grub), and it
+## comes out of the cell's cap in the paper wasp's place.
 ##
 ## And the rest (no shader of their own: plain, painted with parts):
 ## - lady: the lady beetle's, glued by its tail to where its larva stopped,
@@ -61,9 +66,12 @@ const MOTH_SHELL := [[0.0, 0.4, 0.4], [1.0, 2.6, 2.4], [3.0, 4.0, 3.7], [8.0, 4.
 		[19.0, 3.1, 2.8], [22.0, 2.0, 1.8], [24.0, 1.0, 0.9], [25.5, 0.25, 0.25]]
 
 var kind := "monarch"
-## (A monarch's: a trigonalid wasp in it, not a butterfly: one in
-## PARASITIZED_ONE_IN, chosen when it's made.)
+## A parasitoid in it, not its own adult (one in PARASITIZED_ONE_IN,
+## chosen when it's made; or its caterpillar's, Larva.parasitized):
+## parasitoid, the wasp that comes out ("ichneumon" from a butterfly's or a
+## moth's, "trigonalid" from a paper wasp's cell).
 var parasitized := false
+var parasitoid := ""
 const PARASITIZED_ONE_IN := 3
 var adult: Node3D ## once out (the others': their colony)
 var colony: Node ## (the lady's, the June bug's, the ants': the colony its adult joins)
@@ -82,7 +90,18 @@ var _after := Callable()
 
 func _init(k := "monarch") -> void:
 	kind = k
-	parasitized = kind == "monarch" and randf() < 1.0 / PARASITIZED_ONE_IN
+	if randf() < 1.0 / PARASITIZED_ONE_IN:
+		if kind in ["monarch", "hemaris"]:
+			parasitoid = "ichneumon"
+		elif kind == "wasp":
+			parasitoid = "trigonalid"
+	parasitized = parasitoid != ""
+
+
+## (Its caterpillar was stung by an ichneumon: one comes out of it.)
+func infest(by := "ichneumon") -> void:
+	parasitoid = by
+	parasitized = true
 
 
 func _ready() -> void:
@@ -358,8 +377,12 @@ func _split() -> void:
 
 
 ## (Parasitized: a hole chewed in its front, the case left dead and dark;
-## a trigonalid out of it, a while on it, then off.)
-const HOLE := Vector3(0.0, -13.9, 5.6) ## mm: where the wasp chews out (the case's front, at its widest)
+## its parasitoid out of it (an ichneumon; out of a paper wasp's cell, a
+## trigonalid, the cap chewed open), a while on it, then off.)
+const HOLE := Vector3(0.0, -13.9, 5.6) ## mm: where the wasp chews out (the monarch's case's front, at its widest)
+const HOLE_MOTH := Vector3(0.0, 4.0, -6.0) ## mm: (the clearwing's: its front, up out of its cocoon)
+const IchneumonScript := preload("res://scripts/creatures/ichneumon.gd")
+const TrigonalidScript := preload("res://scripts/creatures/trigonalid.gd")
 
 
 func _wasp_out(parent: Node3D) -> void:
@@ -367,14 +390,29 @@ func _wasp_out(parent: Node3D) -> void:
 		_mat.set_shader_parameter("holed", true)
 	if parent == null:
 		return
-	var w: Node3D = load("res://scripts/creatures/trigonalid.gd").new()
+	var w: Node3D = (TrigonalidScript if parasitoid == "trigonalid" else IchneumonScript).new()
 	w.set("male", randf() < 0.5)
 	parent.add_child(w)
 	var b := global_transform.basis
-	var front := (b * Vector3.BACK).normalized()
-	var hole := global_transform * (HOLE * MM)
+	var hole: Vector3
+	var front: Vector3
+	match kind:
+		"monarch":
+			front = (b * Vector3.BACK).normalized()
+			hole = global_transform * (HOLE * MM)
+		"wasp": # (up out of its cell, its cap chewed open)
+			_shell.visible = false
+			front = Vector3.UP
+			hole = global_position
+		_:
+			front = (b * Vector3.UP).normalized()
+			hole = global_transform * (HOLE_MOTH * MM)
 	w.call("place", parent.to_local(hole + front * 0.004))
-	w.call("land", parent.to_local(hole), front)
+	if kind == "wasp":
+		var a := randf() * TAU
+		w.call("land", parent.to_local(hole + Vector3(cos(a), 0.0, sin(a)) * 0.03 + Vector3.DOWN * 0.012), Vector3.UP)
+	else:
+		w.call("land", parent.to_local(hole), front)
 	adult = w
 	_done(w)
 	await get_tree().create_timer(4.0).timeout

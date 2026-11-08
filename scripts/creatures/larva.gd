@@ -67,6 +67,9 @@ signal action_finished(name: String, ok: bool)
 const PilotScript := preload("res://scripts/creatures/pilot.gd")
 
 var kind := "monarch"
+## A caterpillar stung by an ichneumon wasp, her egg in it: its pupa gives
+## an ichneumon, not a butterfly or a moth (Pupa.infest).
+var parasitized := false
 var height: Callable ## (x, z) -> the ground's y (none: level, where it was put)
 var _pilot: PilotScript
 var _pace := -1.0
@@ -823,6 +826,8 @@ func _pupate_clock(dt: float) -> void:
 ## cocoon, its head the way the caterpillar's was.)
 func _new_pupa() -> void:
 	var pupa: Node3D = load("res://scripts/creatures/pupa.gd").new(kind)
+	if parasitized:
+		pupa.call("infest", "ichneumon")
 	get_parent().add_child(pupa)
 	var ln := float(K.len) * MM * _g
 	match kind:

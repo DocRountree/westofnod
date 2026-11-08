@@ -12,13 +12,13 @@ extends "res://scripts/creatures/wasp.gd" # (by path: found whether or not the e
 ## It builds no nest, and catches nothing: the adults drink nectar. A female
 ## lays her eggs by the thousand, tiny, along the margins of leaves (one in
 ## each little slit she makes there): they hatch only if a caterpillar eats
-## them with the leaf, the larva then a parasite of whatever parasite is in
-## the caterpillar (a tachinid fly's maggot, say), coming out, grown, of
-## what's left of the caterpillar's pupa. Here, her eggs are just left (none
-## followed, none hatching, none kept); some milkweeds are seen with rows of
-## them on their leaves (one in ten, near: GroundCover's egg_share); and
-## one monarch chrysalis in three gives no butterfly but a trigonalid,
-## chewing its way out of it, dead (Pupa: parasitized).
+## them with the leaf; a paper wasp catches the caterpillar, chews it up
+## and feeds it to a grub in her nest, and the trigonalid's larva lives on
+## in the grub, a parasite, and comes out, grown, of its cell. Here, her
+## eggs are just left (none followed, none hatching, none kept); some
+## milkweeds are seen with rows of them on their leaves (one in ten, near:
+## GroundCover's egg_share); and one paper wasp cell in three gives no
+## paper wasp but a trigonalid, out through its cap (Pupa: parasitized).
 ##
 ## Its own (the paper wasp's others, but feed_on_insect, sting and
 ## lay_eggs, it has as theirs):

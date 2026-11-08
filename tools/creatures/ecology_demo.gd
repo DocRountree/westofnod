@@ -71,6 +71,7 @@ const SquirrelScript := preload("res://scripts/creatures/fox_squirrel.gd")
 const GreySqScript := preload("res://scripts/creatures/grey_squirrel.gd")
 const BeaverScript := preload("res://scripts/creatures/beaver.gd")
 const TrigScript := preload("res://scripts/creatures/trigonalid.gd")
+const IchScript := preload("res://scripts/creatures/ichneumon.gd")
 const MealScript := preload("res://scripts/creatures/meal.gd")
 const MoltScript := preload("res://scripts/creatures/molt.gd")
 const OpossumScript := preload("res://scripts/creatures/opossum.gd")
@@ -111,6 +112,7 @@ const CATALOGUE := [
 	["Insects", "paper wasp", "wasp", ["adult", "young"]],
 	["Insects", "common eastern bumble bee", "bee", ["adult"]],
 	["Insects", "trigonalid wasp", "trig", ["adult"]],
+	["Insects", "ichneumon wasp", "ichneumon", ["adult"]],
 	["Insects", "carpenter ant (queen)", "carpenter", ["adult", "young"]],
 	["Insects", "red harvester (queen)", "harvester", ["adult", "young"]],
 	["Insects", "June bugs (a pair)", "june", ["adult", "young"]],
@@ -734,8 +736,8 @@ func _spawn_animal(key: String, at: Vector3, stage: String, male: bool, young: b
 			else:
 				b.call("forage", _heads_near(at), nest.position)
 			return b
-		"trig":
-			var t: Node3D = TrigScript.new()
+		"trig", "ichneumon":
+			var t: Node3D = (IchScript if key == "ichneumon" else TrigScript).new()
 			t.set("male", male)
 			_org(t, at, false)
 			t.call("place", at + Vector3(0.0, 0.35, 0.0))
@@ -1737,6 +1739,22 @@ func _spider_prey(sp: Node, p: Vector3, near: Vector3, young: bool) -> Node3D:
 	return _insect_at(p + near * (0.04 if young else 0.15), sz)
 
 
+## The caterpillar (a monarch's or a clearwing's, going about, not yet
+## stung) nearest p; one put down there if there's none.
+func _caterpillar_near(p: Vector3) -> Node3D:
+	var best: Node3D = null
+	var bd := INF
+	for n in get_children():
+		if n.get_script() == LarvaScript and String(n.get("kind")) in ["monarch", "hemaris"] and not bool(n.get("parasitized")) and String(n.get("_mode")) != "pupate":
+			var d := (n.get("_pos") as Vector3).distance_to(p)
+			if d < bd:
+				bd = d
+				best = n
+	if best == null:
+		best = spawn("monarch", p + Vector3(0.15, 0.0, 0.1), "young", false) as Node3D
+	return best
+
+
 ## The darners' prey: trigonalid wasps flying over their pond.
 func _midges(q: Dictionary, n: int) -> Array:
 	var live: Array = (q.midges as Array).filter(func(m) -> bool: return is_instance_valid(m) and (m as Node).get_parent() == self)
@@ -2026,7 +2044,7 @@ func _do(c: Node, act_: String) -> void:
 					var ns: Node3D = BeeScript.nest()
 					ns.position = st + Vector3(0.3, 0.0, 0.3)
 					return ns).position)
-			elif sc == Wasp or sc == TrigScript:
+			elif sc == Wasp or sc == TrigScript or sc == IchScript:
 				c.call("seek_food", st, 0.5 if sc == Wasp else 0.35)
 			elif sc == MantisScript:
 				c.call("stalk", p, 0.15)
@@ -2064,6 +2082,10 @@ func _do(c: Node, act_: String) -> void:
 				var lv := _leaves_round(c, st)
 				var lf: Array = lv[randi() % lv.size()]
 				c.call("lay_on_leaf", _leaf_edge(lf[0]), Vector3.UP)
+			elif sc == IchScript: # (in the nearest caterpillar going about: one put down if none)
+				var cat: Node3D = _caterpillar_near(p)
+				if cat:
+					c.call("lay_in_caterpillar", cat)
 			elif sc == HopperScript or sc == BlueHopperScript:
 				c.call("lay", st + Vector3(0.05, 0.0, -0.08))
 			elif sc == MantisScript:
@@ -2106,7 +2128,7 @@ func _do(c: Node, act_: String) -> void:
 				c.call("groom")
 			elif sc == Wasp or sc == BeeScript:
 				c.call("land", p * Vector3(1.0, 0.0, 1.0) + near * 0.1)
-			elif sc == TrigScript:
+			elif sc == TrigScript or sc == IchScript:
 				var lv := _leaves_round(c, st)
 				c.call("land", (lv[randi() % lv.size()] as Array)[0], Vector3.UP)
 		"sleep":
@@ -2125,7 +2147,7 @@ func _do(c: Node, act_: String) -> void:
 				c.call("fly", st, 0.6)
 			elif sc == MothScript:
 				c.call("search", st, 0.5, _flat(_clumps_near(st)))
-			elif sc == Wasp or sc == TrigScript or sc == BeeScript:
+			elif sc == Wasp or sc == TrigScript or sc == IchScript or sc == BeeScript:
 				c.call("seek_food", st, 0.6 if sc == Wasp else 0.4)
 			elif sc == OpossumScript and not young: # (up a dead branch)
 				var sn: Node = _snag_near(p)
@@ -2471,7 +2493,7 @@ func _feed(c: Node, act_: String, young: bool, p: Vector3, st: Vector3, near: Ve
 	elif sc == MothScript:
 		if not young:
 			c.call("feed", _flat(_clumps_near(p)))
-	elif sc == TrigScript:
+	elif sc == TrigScript or sc == IchScript:
 		c.call("visit_flowers", _heads_near(p, 3.0, "fleabane"), 1.0)
 	elif sc == BeeScript:
 		c.call("forage", _heads_near(p), _kit(c, "nest", func() -> Node3D:
