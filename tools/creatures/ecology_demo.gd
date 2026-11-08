@@ -49,6 +49,7 @@ const DragonflyScript := preload("res://scripts/creatures/dragonfly.gd")
 const MantisScript := preload("res://scripts/creatures/mantis.gd")
 const MouseScript := preload("res://scripts/creatures/mouse.gd")
 const MolliesScript := preload("res://scripts/creatures/mollies.gd")
+const KrillScript := preload("res://scripts/creatures/krill.gd")
 const FishScript := preload("res://scripts/creatures/fish_school.gd")
 const HareScript := preload("res://scripts/creatures/hare.gd")
 const FoxScript := preload("res://scripts/creatures/red_fox.gd")
@@ -139,6 +140,7 @@ const CATALOGUE := [
 	["Crustaceans", "white shrimp (in the sea)", "white_shrimp", ["adult", "young"]],
 	["Crustaceans", "brown shrimp (in the sea)", "brown_shrimp", ["adult", "young"]],
 	["Crustaceans", "pink shrimp (in the sea)", "pink_shrimp", ["adult", "young"]],
+	["Crustaceans", "Antarctic krill (a swarm, in the sea)", "krill", ["adult"]],
 	["Fish", "sailfin mollies (a school)", "mollies", ["adult"]],
 	["Fish", "Chinook salmon, at sea (a school)", "chinook", ["adult"]],
 	["Fish", "Chinook salmon, spawning (a few)", "chinook_spawning", ["adult"]],
@@ -967,6 +969,17 @@ func _spawn_animal(key: String, at: Vector3, stage: String, male: bool, young: b
 			mol.setup(14, c0 + Vector3(0.0, POND - minf(0.12, dp * 0.5), 0.0), 0.08)
 			q.mollies = mol
 			return mol
+		"krill": # (a swarm, in the sea: its whole water theirs)
+			var q := _pond_for(at, "sea")
+			var kr := KrillScript.new()
+			var c0: Vector3 = q.c
+			var dp := float(q.deep)
+			kr.tank_min = c0 + Vector3(-float(q.hw) + 0.05, POND - dp + 0.02, -float(q.hd) + 0.05)
+			kr.tank_max = c0 + Vector3(float(q.hw) - 0.05, POND - 0.03, float(q.hd) - 0.05)
+			_org(kr, c0, false)
+			var at2 := Vector3(clampf(at.x, kr.tank_min.x + 0.3, kr.tank_max.x - 0.3), POND - dp * 0.5, clampf(at.z, kr.tank_min.z + 0.3, kr.tank_max.z - 0.3))
+			kr.setup(220, at2, 0.22)
+			return kr
 		"frog", "toad":
 			var q := _pond_for(at, "small_pond")
 			var fr: Node3D = (FrogScript if key == "frog" else ToadScript).new(young)
@@ -2144,6 +2157,26 @@ func _do(c: Node, act_: String) -> void:
 				for i in np:
 					c.call("rejoin", i)
 				c.call("swim_to", Vector3(randf_range(tmin.x, tmax.x), lerpf(tmin.y, tmax.y, 0.5), randf_range(tmin.z, tmax.z)))
+		return
+	if sc == KrillScript: # (the swarm: E / B feeding, X their escape from the selection's middle, F the swarm off elsewhere, W swarming again)
+		var nk: int = (c.get("pos") as PackedVector3Array).size()
+		var ps: PackedVector3Array = c.get("pos")
+		var mid := Vector3.ZERO
+		for k in nk:
+			mid += ps[k] / float(nk)
+		match act_:
+			"eat", "forage", "hunt":
+				for k in nk:
+					c.call("feed", k)
+			"alarm", "display":
+				c.call("scatter", mid + Vector3(randf_range(-0.05, 0.05), 0.0, randf_range(-0.05, 0.05)))
+			"fly":
+				var lo: Vector3 = c.get("tank_min")
+				var hi: Vector3 = c.get("tank_max")
+				c.call("swim_to", Vector3(randf_range(lo.x + 0.3, hi.x - 0.3), randf_range(lo.y + 0.15, hi.y - 0.1), randf_range(lo.z + 0.3, hi.z - 0.3)))
+			"wander":
+				for k in nk:
+					c.call("rejoin", k)
 		return
 	if sc == MolliesScript:
 		var np: int = (c.get("pos") as PackedVector3Array).size()
