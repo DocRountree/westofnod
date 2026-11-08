@@ -471,6 +471,11 @@ func _pose_legs() -> void:
 # --- what it does --------------------------------------------------------------
 
 func _begin(m: String) -> void:
+	if _mate_role != "": # (mating: given up, both of them; she's turned back up)
+		var was := _mate
+		_end_mate()
+		if is_instance_valid(was) and was.get("_mate_role") != "":
+			was.call("_end_mate")
 	if _mode == "burrowed" and m != "burrowed": # (out again)
 		visible = true
 		_lift = 0.0
@@ -600,6 +605,8 @@ func _route(dest: Vector3) -> Vector3:
 		return dest
 	var here_in := _in_pond(_pos)
 	var there_in := _in_pond(dest)
+	if not here_in and not there_in and not _on_ramp(_pos):
+		return _around(dest) # (land to land: round the pond, not across it)
 	if here_in == there_in or (_on_ramp(_pos) and _on_ramp(dest)):
 		return dest
 	var f: Vector3 = ramp[0]
@@ -609,6 +616,35 @@ func _route(dest: Vector3) -> Vector3:
 	if _on_ramp(_pos): # (on it: on up, or down)
 		return top if not there_in else bottom
 	return bottom if here_in else top
+
+
+## (On land, for dest on land: dest, if the way there doesn't cross its pond;
+## else the corner of the pond's banks that's the shorter way round.)
+func _around(dest: Vector3) -> Vector3:
+	var box := pond.grow(0.07)
+	var a := Vector2(_pos.x, _pos.z)
+	var b := Vector2(dest.x, dest.z)
+	if not _crosses(a, b, box):
+		return dest
+	var best := dest
+	var bd := INF
+	for c: Vector2 in [box.position, Vector2(box.end.x, box.position.y), box.end, Vector2(box.position.x, box.end.y)]:
+		if c.distance_to(a) < 0.02 or _crosses(a, c, box.grow(-0.01)):
+			continue
+		var d := a.distance_to(c) + c.distance_to(b)
+		if d < bd:
+			bd = d
+			best = Vector3(c.x, 0.0, c.y)
+	best.y = _pos.y
+	return best
+
+
+## (Whether the line a to b goes through box.)
+static func _crosses(a: Vector2, b: Vector2, box: Rect2) -> bool:
+	for k in 9:
+		if box.has_point(a.lerp(b, (k + 0.5) / 9.0)):
+			return true
+	return false
 
 
 func _walk(dt: float) -> void:
@@ -762,7 +798,8 @@ func _eat(dt: float) -> void:
 				_food = null
 				wander(_pos, 0.25)
 				return
-			if to.length() < reach * 1.2 and _speed < 0.01:
+			var level := absf(p.y - _pos.y) < 0.035 * maxf(size / ADULT, 0.4) or _swim_h > 0.002
+			if to.length() < reach * 1.2 and _speed < 0.01 and level:
 				_target = _pos
 				_turn_to = atan2(-to.x, -to.z)
 				_stage = 1
@@ -1165,6 +1202,12 @@ func _mating(dt: float) -> void:
 			_replant()
 		if her.get("_mate_role") != "male":
 			_end_mate()
+		return
+	if _mate_stage == "seek" and _mate_t > 40.0: # (can't get to her)
+		var was := _mate
+		_end_mate()
+		if is_instance_valid(was) and was.get("_mate_role") != "":
+			was.call("_end_mate")
 		return
 	var hp: Vector3 = her.get("_pos")
 	var hy: float = her.get("_yaw")
