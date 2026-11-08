@@ -485,6 +485,8 @@ func _begin(m: String) -> void:
 	_wait = 0.0
 	_pace = -1.0
 	_turn_to = INF
+	if m != "burrowed":
+		_lift = 0.0
 	if _body:
 		_replant()
 
@@ -679,6 +681,11 @@ func _place() -> void:
 func _think(dt: float) -> void:
 	_wait -= dt
 	_st += dt
+	# (no planted foot a drop from it (over a pond's wall): set under it again
+	# at once, never left stretched up or down to where it was)
+	for i in _feet.size():
+		if _pose_foot[i] == null and absf(_feet[i].y - _pos.y) > 0.03 * maxf(size / ADULT, 0.3) and i not in (tripod[_swinging] if _swinging >= 0 else []):
+			_feet[i] = _home(i)
 	# (swimming: up to what it's after, or back down to the bottom)
 	var was_up := _swim_h > 0.002
 	_swim_h = move_toward(_swim_h, _swim_want, dt * 0.06)
@@ -818,7 +825,7 @@ func _eat(dt: float) -> void:
 			_pitch = _bite
 			var off := Vector3(na.x - m.x, 0.0, na.z - m.z)
 			if off.length() > 0.0015:
-				_pos += off.limit_length(0.03 * dt)
+				_pos += off.limit_length(0.06 * dt)
 				_target = _pos
 			# (its small front legs on the bite, picking at it, if it's in their
 			# reach; else down on the ground before it)
@@ -931,8 +938,12 @@ func _flee(dt: float) -> void:
 			_st = 0.0
 			_centre = _pos
 	if _flip_v > 0.0:
-		_pos -= _forward() * _flip_v * dt
-		_pos.y = _ground(_pos.x, _pos.z)
+		var np := _pos - _forward() * _flip_v * dt
+		if height.is_valid() and absf(float(height.call(np.x, np.z)) - _pos.y) > 0.03: # (a drop behind it: stopped at its edge, not thrown over)
+			_flip_v = 0.0
+		else:
+			_pos = np
+			_pos.y = _ground(_pos.x, _pos.z)
 		_flip_v = maxf(_flip_v - dt * (2.2 if wet else 3.0), 0.0)
 
 
