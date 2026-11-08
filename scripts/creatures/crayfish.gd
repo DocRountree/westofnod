@@ -663,11 +663,19 @@ func _walk(dt: float) -> void:
 	_unstretch()
 
 
-## (No planted foot a drop from it: set under it again at once, never left
-## stretched up or down to where it was.)
+## (No planted foot a drop from it, nor out past its leg's reach: set under
+## it again at once, never left stretched to where it was.)
 func _unstretch() -> void:
+	var sc := MM * size
 	for i in _feet.size():
-		if _pose_foot[i] == null and absf(_feet[i].y - _pos.y) > 0.03 * maxf(size / ADULT, 0.3) and i not in (tripod[_swinging] if _swinging >= 0 else []):
+		if _pose_foot[i] != null or i in (tripod[_swinging] if _swinging >= 0 else []):
+			continue
+		var L: Dictionary = legs[i / 2]
+		var side := 1.0 if i % 2 == 1 else -1.0
+		var hip := _out(Vector3(float(L.hip.x) * side, float(L.hip.y), float(L.hip.z)))
+		var reach := (float(L.f) + float(L.t) + float(L.s)) * sc
+		# (a drop from it; or out past its leg's reach: shoved along, say)
+		if absf(_feet[i].y - _pos.y) > 0.03 * maxf(size / ADULT, 0.3) or hip.distance_to(_feet[i]) > reach * 1.02:
 			_feet[i] = _home(i)
 
 
