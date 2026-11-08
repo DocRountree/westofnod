@@ -1041,19 +1041,22 @@ func _eat_think(_dt: float) -> void:
 		return
 	_speed = 0.0
 	_face(d)
+	var keep := MealScript.kept(_food) # (a mushroom: bitten at, never used up)
 	if _stage == 0:
 		_stage = 1
 		_st = 0.0
-		MealScript.subdue(_food) # (a live one: caught in its jaws)
-		# (an insect, a snail: one bite, gone; a fruit, a weed bitten at)
-		var small := _food.has_method("act") and not MealScript.is_vertebrate(_food)
-		_meal = MealScript.of(_food, 1 if small else 3)
 		_bite_look = -0.5
 		_bite_neck = 1.2
+		_meal = null
+		if not keep:
+			MealScript.subdue(_food) # (a live one: caught in its jaws)
+			# (an insect, a snail: one bite, gone; a fruit, a weed bitten at)
+			var small := _food.has_method("act") and not MealScript.is_vertebrate(_food)
+			_meal = MealScript.of(_food, 1 if small else 3)
 	# (the food where it lies, still: its head brought down onto the next
 	# bite, its neck out to it, a step to it; bites taken there)
 	var mouth := _head.global_position
-	var na: Vector3 = _meal.call("next_at") if _meal else fp
+	var na: Vector3 = _meal.call("next_at") if _meal else (MealScript.bite_at(_food) if keep else fp)
 	_bite_look = clampf(_bite_look + clampf((na.y - mouth.y) * 40.0, -1.5, 1.5) * _dt, -1.8, 0.6)
 	var ahead := Vector3(-sin(_yaw), 0.0, -cos(_yaw))
 	var off := Vector3(na.x - mouth.x, 0.0, na.z - mouth.z)
@@ -1065,10 +1068,11 @@ func _eat_think(_dt: float) -> void:
 	_jaw_to = 0.45 * maxf(sin(_st * 5.0), 0.0)
 	if _meal and is_instance_valid(_food): # (bites torn off where its mouth's on them, gulped)
 		_meal.call("tear", clampf((_st - 0.3) / 2.6, 0.0, 1.0), mouth)
-	if _st > 3.0 and is_instance_valid(_food):
-		_food.queue_free()
+	if _st > (5.0 if keep else 3.0) and is_instance_valid(_food):
+		if not keep:
+			_food.queue_free()
 		_food = null
-	if _st > 3.8:
+	if _st > (5.8 if keep else 3.8):
 		wander(_pos, 0.3)
 
 

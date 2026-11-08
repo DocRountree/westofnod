@@ -1238,9 +1238,35 @@ func _spring_at(p: Vector3, angle: float) -> void:
 	_leap(at, angle)
 
 
-## (Its mouth: where what it eats goes in (the world's).)
+## (Its mouth: where what it eats goes in (the world's): at its lips, just
+## behind its muzzle's tip, as its head and jaw are built.)
 func _mouth() -> Vector3:
-	return _jaw.global_transform * Vector3(0.0, -4.0, float(S.mouth_z) * 0.3)
+	if is_nan(_tip_z):
+		_tip_z = _muzzle_tip()
+	return _jaw.global_transform * Vector3(0.0, 0.0, _tip_z * 0.92)
+
+
+var _tip_z := NAN # (its muzzle's tip, in its jaw's own space: _muzzle_tip)
+
+
+## How far forward of its jaw's hinge its muzzle reaches (its jaw's own
+## units, -z): the furthest of its head's and jaw's parts that way. (Its
+## make's mouth_z, its middle to its mouth, was taken for this before, and
+## put the mouth ahead of its muzzle: eating off the ground its snout
+## stopped short, over the food.)
+func _muzzle_tip() -> float:
+	var tip := 0.0
+	var inv := _jaw.global_transform.affine_inverse()
+	for n: Node3D in [_head, _jaw]:
+		if n == null:
+			continue
+		for ch in n.find_children("*", "MeshInstance3D", true, false):
+			var mi := ch as MeshInstance3D
+			if mi.mesh == null:
+				continue
+			var bb: AABB = (inv * mi.global_transform) * mi.get_aabb()
+			tip = minf(tip, bb.position.z)
+	return tip if tip < -1.0 else float(S.mouth_z) * 0.3
 
 
 ## Whether its prey is small enough to eat from its jaws (about a quarter of

@@ -86,6 +86,18 @@ static func of(f: Node3D, across := 5, bleeds := -1, ground_y := NAN) -> Node3D:
 	return m
 
 
+## Whether food is kept (meta "keep": a mushroom, as a bush's berries,
+## eaten at and never used up: no meal made of it, nothing torn off).
+static func kept(f: Node) -> bool:
+	return f != null and is_instance_valid(f) and f.has_meta("keep")
+
+
+## Where food kept is bitten at (the world's): its place, up by its meta
+## "bite_y" (m: a mushroom's cap).
+static func bite_at(f: Node3D) -> Vector3:
+	return f.global_position + Vector3(0.0, float(f.get_meta("bite_y", 0.0)), 0.0)
+
+
 ## A live animal caught (in jaws, forelegs, chelae, talons): killed, or
 ## stilled, limp, no longer moving itself (its hunter moves it from now on).
 static func subdue(n: Node) -> void:

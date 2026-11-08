@@ -502,10 +502,11 @@ func _eat_nut(dt: float) -> void:
 			_target = _pos
 			_sit_to = 0.0
 			_chew = 1.0
-			if _meal == null: # (gnawed open and eaten, bit by bit)
+			var keep := MealScript.kept(_food) # (a mushroom: nibbled at, never used up)
+			if _meal == null and not keep: # (gnawed open and eaten, bit by bit)
 				_meal = MealScript.of(_food, 1) # (a nut, a seed, an insect: one bite, gone)
 			var mouth := _head.global_transform * Vector3(0.0, -22.0, -82.0)
-			var na: Vector3 = _meal.call("next_at") if _meal else _food.global_position
+			var na: Vector3 = _meal.call("next_at") if _meal else (MealScript.bite_at(_food) if keep else _food.global_position)
 			_bite_look = clampf(_bite_look + clampf((na.y - mouth.y) * 30.0, -1.5, 1.5) * dt, -1.2, 0.3)
 			_look_to = Vector2(0.12 * sin(_st * 0.6), _bite_look)
 			var off := Vector3(na.x - mouth.x, 0.0, na.z - mouth.z)
@@ -514,8 +515,9 @@ func _eat_nut(dt: float) -> void:
 				_target = _pos
 			if _meal:
 				_meal.call("tear", 1.0, mouth)
-			if _st > 12.0 or (_meal and float(_meal.call("left")) <= 0.0 and _st > 3.5):
-				_food.queue_free()
+			if _st > 12.0 or (_meal and float(_meal.call("left")) <= 0.0 and _st > 3.5) or (keep and _st > 7.0):
+				if not keep:
+					_food.queue_free()
 				_food = null
 				_sit_to = 0.0
 				groom()

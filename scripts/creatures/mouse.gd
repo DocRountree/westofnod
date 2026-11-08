@@ -505,10 +505,11 @@ func _think(dt: float) -> void:
 					_target = _pos
 					_sit_to = 0.0
 					_chew = 1.0
-					if _meal == null:
+					var keep := MealScript.kept(_seed) # (a mushroom: nibbled at, never used up)
+					if _meal == null and not keep:
 						_meal = MealScript.of(_seed, 1) # (a seed, an insect: one bite, gone)
 					var m := _body.global_transform * (_head.transform * Vector3(0.0, -6.5, -19.5))
-					var na: Vector3 = _meal.call("next_at") if _meal else _seed.global_position
+					var na: Vector3 = _meal.call("next_at") if _meal else (MealScript.bite_at(_seed) if keep else _seed.global_position)
 					_bite_look = clampf(_bite_look + clampf((na.y - m.y) * 60.0, -1.5, 1.5) * dt, -1.2, 0.3)
 					_look_to = Vector2(0.12 * sin(_st * 0.9), _bite_look)
 					var off := Vector3(na.x - m.x, 0.0, na.z - m.z)
@@ -517,8 +518,9 @@ func _think(dt: float) -> void:
 						_target = _pos
 					if _meal:
 						_meal.call("tear", 1.0, m)
-					if _st > 9.0 or (_meal and float(_meal.call("left")) <= 0.0 and _st > 3.0):
-						_seed.queue_free()
+					if _st > 9.0 or (_meal and float(_meal.call("left")) <= 0.0 and _st > 3.0) or (keep and _st > 6.0):
+						if not keep:
+							_seed.queue_free()
 						_seed = null
 						groom()
 		"groom":

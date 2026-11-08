@@ -2737,8 +2737,14 @@ func _mushroom_meal(c: Node, young: bool, p: Vector3, near: Vector3) -> void:
 		var id: String = kinds[randi() % kinds.size()]
 		var d: float = {TurtleScript: 0.22, MouseScript: 0.08, SquirrelScript: 0.25, GreySqScript: 0.25, OpossumScript: 0.4, DeerScript: 0.75, MooseScript: 1.1}.get(sc, 0.9)
 		f = _mushroom(id, Vector3(p.x, 0.0, p.z) + near * d)
-	f.set_meta("hunted", c)
-	c.call("eat", f)
+	# (not used up, as a bush's berries aren't: bitten at where it grows, and
+	# left; the hunters' make (the deer, the moose, the bears, the opossum)
+	# their mouths brought down onto its cap, the rest nibbling at it)
+	f.set_meta("keep", true)
+	if c.has_method("eat_at"):
+		c.call("eat_at", MealScript.bite_at(f), 8.0)
+	else:
+		c.call("eat", f)
 
 
 ## A mushroom of id grown here (one of it: Fungus.held), upright; a chicken
@@ -2768,6 +2774,7 @@ func _mushroom(id: String, at: Vector3) -> Node3D:
 	add_child(root)
 	root.set_meta("item", id)
 	root.set_meta("fungus", id)
+	root.set_meta("bite_y", {"morel": 0.07, "fly_agaric": 0.15, "little_brown": 0.05, "chicken_of_the_woods": 0.31}.get(id, 0.05)) # (its cap: where it's bitten)
 	return root
 
 
@@ -2779,7 +2786,7 @@ func _fungus_near(p: Vector3, kinds: Array, r: float) -> Node3D:
 	var best: Node3D = null
 	var bd := r
 	for o in get_children():
-		if not o is Node3D or not o.has_meta("item") or not String(o.get_meta("item")) in kinds or o.has_meta("hunted"):
+		if not o is Node3D or not o.has_meta("item") or not String(o.get_meta("item")) in kinds:
 			continue
 		var d := Vector2((o as Node3D).position.x - p.x, (o as Node3D).position.z - p.z).length()
 		if d < bd:
