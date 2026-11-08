@@ -16,14 +16,22 @@ uniform vec3 albedo : source_color = vec3(0.5);
 uniform float roughness = 0.7;
 uniform float rim = 0.0;
 uniform float rim_tint = 0.6;
+// a lofted part's segments (Lepidoptera._loft_part): faint creases every
+// crease.y mm along it from crease.x (off: crease.y 0)
+uniform vec2 crease = vec2(0.0);
+varying vec3 o;
 
 void vertex() {
+	o = VERTEX;
 	if (sway_k > 0.0)
 		VERTEX += inverse(mat3(MODEL_MATRIX)) * wind_sway(sway_at + world_origin, TIME) / max(sway, 1e-3) * sway_k;
 }
 
 void fragment() {
-	ALBEDO = albedo;
+	vec3 c = albedo;
+	if (crease.y > 0.0 && o.z > crease.x)
+		c *= 1.0 - 0.35 * smoothstep(0.8, 0.97, fract((o.z - crease.x) / crease.y));
+	ALBEDO = c;
 	ROUGHNESS = roughness;
 	RIM = rim;
 	RIM_TINT = rim_tint;

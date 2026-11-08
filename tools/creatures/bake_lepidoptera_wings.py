@@ -1,11 +1,18 @@
 """Bakes the butterflies' and moths' wings (Lepidoptera, scripts/creatures/):
 
-- data/creatures/lepidoptera_wings.png: an RGBA atlas of 4 x 2 cells, 512 px
+- data/creatures/lepidoptera_wings.png: an RGBA atlas of 4 x 4 cells, 512 px
   each, a wing to a cell (the right one; the left is drawn mirrored):
     0 monarch forewing, above   1 the same, beneath
     2 monarch hindwing, above   3 the same, beneath
     4 hummingbird clearwing forewing (the same both sides: clear)
     5 its hindwing
+    6 swallowtail forewing, above   7 the same, beneath
+    8 swallowtail hindwing, above   9 the same, beneath
+    10 luna moth forewing, above   11 the same, beneath
+    12 luna moth hindwing, above   13 the same, beneath
+  A wing with tails (the swallowtail's, the luna's) is cut by its alpha:
+  its mesh is the outline's convex hull (fanned from its middle), its
+  true outline painted.
   Alpha is how opaque: 1 scaled, ~0.1 the clearwing's glassy cells, 0
   outside the wing (the colour there bled from the nearest wing, for the
   mipmaps).
@@ -38,7 +45,7 @@ ROOT = os.path.join(HERE, "..", "..")
 OUT_PNG = os.path.join(ROOT, "data", "creatures", "lepidoptera_wings.png")
 OUT_GD = os.path.join(ROOT, "scripts", "creatures", "lepidoptera_wings.gd")
 CELL = 512
-COLS, ROWS = 4, 2
+COLS, ROWS = 4, 4
 SS = 2  # supersampling
 PAD = 1.5  # mm round the outline, in the cell
 GROW = 0.5  # mm the mesh's outline is grown by
@@ -186,6 +193,12 @@ class Wing:
 def smooth(a, b, x):
     t = np.clip((x - a) / (b - a), 0, 1)
     return t * t * (3 - 2 * t)
+
+
+def mixa(col, other, k):
+    """mix, toward another image (its own colour at each pixel)."""
+    k = np.clip(k, 0, 1)[..., None]
+    return col * (1 - k) + other * k
 
 
 def mix(col, other, k):
@@ -364,6 +377,237 @@ def paint_hemaris(poly, spans, veins_fn, border_w, inner_w, base_r):
     return w, col, a
 
 
+
+# ---- the swallowtail (Papilio machaon) -------------------------------------------
+# after the Old World swallowtail (in North America too, in the north and the
+# west): above, pale creamy yellow, the forewing's base black dusted with
+# yellow scales, three black bars down from the costa, the veins black, a
+# broad black band (dusted yellow) along the outer margin, a row of yellow
+# spots in it, the edge black; the hindwing yellow, its veins black, a black
+# band along its scalloped margin, blue scales over its inner half, yellow
+# crescents in the scallops, a black tail edged yellow, by the body a red
+# eyespot ringed black with blue above it; beneath, the same, paler, the
+# black greyer, the hindwing's band edged orange.
+
+SW_YELLOW = c("f1e3a4")
+SW_YELLOW_UNDER = c("f4e9bd")
+SW_BLACK = c("17130f")
+SW_DUST = c("8a7f52")  # (the black dusted yellow)
+SW_BLUE = c("3c5fb8")
+SW_RED = c("c8261a")
+SW_ORANGE = c("d9862c")
+
+SW_FORE = [(0, -1.5), (8, -3.6), (18, -5.2), (28, -5.8), (36, -5.2), (41, -3.5), (42.6, -1.6), (41.4, 2), (39, 6.8),
+           (36, 11.8), (33, 16.2), (30.4, 19.2), (26.5, 20.2), (19, 17.6), (12, 13), (6, 8), (2, 4), (0, 1)]
+SWF_COSTA = (0, 6)
+SWF_OUTER = (6, 12)
+SWF_INNER = (12, 18)
+
+SW_HIND = [(0, -1), (10, -1.8), (20, -0.4), (27, 3), (31, 7.6), (32.2, 11), (30.4, 13.6), (31.2, 16.2), (29, 18.8),
+           (29.4, 21.3), (27, 23.6), (26.2, 26.4), (26.8, 32), (25.6, 37.8), (23.6, 40), (22, 38.4), (22.2, 32), (21.4, 27.4),
+           (19, 28.2), (16.8, 27.6), (14.4, 29.2), (11.8, 28.6), (9, 29.4), (6.8, 27.6), (6.2, 25), (5, 20), (3, 13), (1, 6), (0, 2)]
+SWH_COSTA = (0, 4)
+SWH_OUTER = (4, 24)  # (round the scallops, out along the tail and back, to the anal angle)
+SWH_INNER = (24, 29)
+
+
+def sw_fore_veins():
+    outer = run(SW_FORE, SWF_OUTER)
+    top, low = (17, -2.2), (15, 3.6)
+    cell = [[(1.2, -1.3), (9, -2.4), top], [(1.2, 0.8), (8, 2.6), low], [top, (16.6, 0.8), low]]
+    veins = [vein((1, -2.2), (22, -5.6), 0.02)]
+    veins += [vein(top, (30, -5.6), 0.02), vein(top, (36, -5.1), 0.03)]
+    veins += fan([top, (17, -1.4), (16.8, -0.4), (16.6, 0.8), (16, 2.4), low, (11, 3.2)], outer,
+                 [0.0, 0.14, 0.3, 0.46, 0.62, 0.78, 0.95], 0.04)
+    veins += [vein((1.2, 0.8), (24, 19.6), 0.04)]
+    return cell + veins
+
+
+def sw_hind_veins():
+    outer = run(SW_HIND, (3, 12))
+    top, low = (13.5, 5.2), (11.5, 12.5)
+    cell = [[(1, 0.4), (7, 2.6), top], [(1, 2.4), (7, 8.5), low], [top, (14.2, 8.8), low]]
+    veins = [vein((0.8, -0.3), (24, 1.8), 0.03)]
+    veins += fan([top, (13.9, 7.0), (14.2, 8.8), (13.2, 11), low], outer, [0.05, 0.25, 0.45, 0.64, 0.86], 0.05)
+    veins += [vein((24, 25), (24.2, 37.5), 0.0, 0.0)]  # (along the tail)
+    veins += [vein(low, (17.4, 27.6), 0.03), vein((8, 12), (11.8, 28.4), -0.03), vein((1, 3), (6.6, 26), -0.04)]
+    return cell + veins
+
+
+def paint_sw_fore(under):
+    w = Wing(SW_FORE)
+    lines = sw_fore_veins()
+    costa, outer, inner = run(SW_FORE, SWF_COSTA), run(SW_FORE, SWF_OUTER), run(SW_FORE, SWF_INNER)
+    r = np.hypot(w.X, w.Z)
+    black = SW_BLACK * (1.9 if under else 1.0)
+    col = np.zeros(w.X.shape + (3,), np.float32)
+    col[:] = SW_YELLOW_UNDER if under else SW_YELLOW
+    # the base: black dusted with yellow, out to about a third
+    dust = smooth(-0.4, 1.0, w.noise)
+    base = 1 - smooth(9, 13, r + 1.2 * w.noise)
+    col = mixa(col, mix(np.broadcast_to(black, col.shape).copy(), SW_DUST, dust * (0.7 if under else 0.45)), base * 0.97)
+    # three black bars down from the costa
+    for x0, wd, dn in [(10.5, 2.6, 4.0), (16.0, 2.4, 3.2), (23.5, 3.0, 1.2)]:
+        bar = (1 - smooth(wd * 0.5 - 0.15, wd * 0.5 + 0.15, np.abs(w.X - x0 - (w.Z + 5) * 0.12))) * (1 - smooth(dn - 0.3, dn + 0.3, w.Z))
+        col = mix(col, black, bar)
+    # the veins
+    dv = w.dist_all(lines)
+    col = mix(col, black, 1 - smooth(0.3, 0.45, dv))
+    # the costa black
+    col = mix(col, black, 1 - smooth(0.7, 0.95, w.dist(costa)))
+    # the outer band: black dusted yellow, from 2.5 to 9 mm in from the margin
+    do = w.dist(outer)
+    band = 1 - smooth(8.0, 8.8, do + 0.6 * w.noise)
+    col = mixa(col, mix(np.broadcast_to(black, col.shape).copy(), SW_DUST, dust * 0.5), band)
+    # its row of yellow spots between the veins, and the edge black
+    spots = 0
+    for q in dots_along(outer, 3.4, 2.4, lines, 0.6, 0.02):
+        spots = np.maximum(spots, w.disc(q, 1.05))
+    col = mix(col, SW_YELLOW_UNDER if under else SW_YELLOW, spots * (1 - smooth(4.0, 4.5, do)))
+    col = mix(col, black, 1 - smooth(0.7, 0.9, do))
+    return w, col, np.ones(w.X.shape, np.float32)
+
+
+def paint_sw_hind(under):
+    w = Wing(SW_HIND)
+    lines = sw_hind_veins()
+    costa, outer, inner = run(SW_HIND, SWH_COSTA), run(SW_HIND, SWH_OUTER), run(SW_HIND, SWH_INNER)
+    black = SW_BLACK * (1.9 if under else 1.0)
+    col = np.zeros(w.X.shape + (3,), np.float32)
+    col[:] = SW_YELLOW_UNDER if under else SW_YELLOW
+    dust = smooth(-0.4, 1.0, w.noise)
+    r = np.hypot(w.X, w.Z)
+    # the base and the inner (anal) fold: dark, haired
+    col = mixa(col, mix(np.broadcast_to(black, col.shape).copy(), SW_DUST, dust * 0.4), (1 - smooth(4, 7, r + w.noise)) * 0.9)
+    col = mixa(col, mix(np.broadcast_to(black, col.shape).copy(), SW_DUST, dust * 0.6), 1 - smooth(1.6, 2.6, w.dist(inner)))
+    # the veins, and a black dash closing the cell
+    dv = w.dist_all(lines)
+    col = mix(col, black, 1 - smooth(0.32, 0.48, dv))
+    col = mix(col, black, 1 - smooth(0.6, 0.9, w.dist([(13.5, 5.2), (14.2, 8.8), (11.5, 12.5)])))
+    # the band along the scalloped margin: black, blue scaled on its inner half
+    do = w.dist(outer)
+    band = 1 - smooth(7.0, 7.8, do + 0.5 * w.noise)
+    col = mix(col, black, band)
+    if under:
+        col = mix(col, SW_ORANGE, (1 - smooth(0.5, 1.2, np.abs(do - 6.9))) * band * 0.8)
+    blue = smooth(3.8, 4.8, do) * band * smooth(-0.6, 0.6, w.noise + 0.2)
+    col = mix(col, SW_BLUE * (1.25 if under else 1.0), blue * (0.6 if not under else 0.45))
+    # the yellow crescents in the scallops, and the edge
+    cres = 0
+    for q in dots_along(run(SW_HIND, (5, 11)), 3.0, 1.6, lines, 0.4, 0.05) + dots_along(run(SW_HIND, (18, 24)), 2.8, 1.5, lines, 0.4, 0.05):
+        cres = np.maximum(cres, w.disc(q, 1.0) * (1 - w.disc((q[0] - 0.0, q[1] - 0.6), 0.7)))
+    col = mix(col, SW_YELLOW_UNDER if under else SW_YELLOW, cres * band)
+    col = mix(col, black, 1 - smooth(0.5, 0.75, do))
+    # the tail: black, edged yellow
+    tail = smooth(25.5, 27.0, w.Z) * (1 - smooth(0.0, 0.6, (np.abs(w.X - 24.2 - (w.Z - 26) * 0.03) - 2.2)))
+    col = mix(col, black, tail * smooth(0.45, 0.7, do))
+    # the eyespot by the body: red, ringed black, blue above
+    eye_c = (8.6, 25.6)
+    d_eye = np.hypot(w.X - eye_c[0], (w.Z - eye_c[1]) * 1.15)
+    col = mix(col, black, 1 - smooth(2.9, 3.2, d_eye))
+    col = mix(col, SW_BLUE * 1.15, (1 - smooth(2.3, 2.6, d_eye)) * smooth(0.3, -0.6, w.Z - eye_c[1]))
+    col = mix(col, SW_RED, (1 - smooth(1.6, 1.9, np.hypot(w.X - eye_c[0], (w.Z - eye_c[1] - 0.6) * 1.15))))
+    return w, col, np.ones(w.X.shape, np.float32)
+
+
+# ---- the luna moth (Actias luna) -------------------------------------------------
+# pale green, a little yellower toward the margins, its veins faintly paler;
+# the forewing's costa a broad band of purplish maroon; an eyespot on each
+# wing at the end of its cell: an oval clear window, ringed yellow, black
+# and, on its outer side, maroon; the margins finely edged yellow and
+# pinkish; the hindwing drawn out into a long, curving tail. Beneath, paler,
+# the costa pinkish brown, the eyespots fainter.
+
+LUNA_GREEN = c("b5e08d")
+LUNA_GREEN_DEEP = c("8fd16a")
+LUNA_MARGIN = c("e5d76a")
+LUNA_PINK = c("b98c78")
+LUNA_MAROON = c("6c3341")
+LUNA_YELLOW = c("f0d64a")
+LUNA_WINDOW = c("e9efd8")
+LUNA_BASE = c("eef0e2")
+
+LUNA_FORE = [(0, -1.8), (9, -4.8), (20, -6.8), (32, -7.6), (43, -6.8), (50, -4.8), (54.5, -1.8), (55.5, 1.5), (52.5, 7.5),
+             (48.5, 14.5), (44.5, 21), (40.5, 26.2), (36, 28.4), (27, 25.5), (18, 19.5), (10, 12.5), (4, 6), (0, 1.5)]
+LF_COSTA = (0, 7)
+LF_OUTER = (7, 13)
+LF_INNER = (13, 18)
+
+LUNA_HIND = [(0, -1.2), (11, -2.4), (22, -1.0), (31, 3.2), (37, 9.5), (39.2, 16.5), (37.5, 23.5), (34.2, 29),
+             (31.8, 35), (30.6, 44), (30.8, 53), (32.2, 61), (34.6, 68), (35.4, 71.5), (32.8, 70.6), (29.2, 65),
+             (26.2, 57), (24.2, 47), (22, 39.6), (17.5, 35.4), (12, 31.6), (7, 26.5), (3.2, 18.5), (1, 9.5), (0, 3)]
+LH_COSTA = (0, 4)
+LH_OUTER = (4, 18)
+LH_INNER = (18, 25)
+
+
+def luna_fore_veins():
+    outer = run(LUNA_FORE, LF_OUTER)
+    top, low = (25, -3.0), (22, 6.0)
+    cell = [[(1.2, -1.5), (12, -3.0), top], [(1.2, 0.9), (11, 4.0), low], [top, (24.6, 1.5), low]]
+    veins = fan([top, (25, -2.0), (24.8, -0.4), (24.6, 1.5), (23.6, 4.0), low, (16, 5.0)], outer,
+                [0.0, 0.16, 0.32, 0.48, 0.64, 0.8, 0.96], 0.04)
+    veins += [vein(top, (44, -6.4), 0.02), vein((1.2, 0.9), (33, 27.2), 0.04)]
+    return cell + veins
+
+
+def luna_hind_veins():
+    outer = run(LUNA_HIND, (3, 13))
+    top, low = (17, 6.0), (15, 15)
+    cell = [[(1, 0.3), (9, 2.8), top], [(1, 2.4), (8, 10), low], [top, (18, 10.5), low]]
+    veins = fan([top, (17.6, 8.2), (18, 10.5), (17, 13), low], outer, [0.03, 0.18, 0.34, 0.5, 0.66], 0.05)
+    veins += [vein(low, (28.5, 45), 0.04, 0.0), vein((28.5, 45), (33.5, 69), -0.05)]  # (down the tail)
+    veins += [vein((6, 10), (18, 34), -0.03), vein((1, 3), (8, 26), -0.04)]
+    return cell + veins
+
+
+def luna_eye(w, at, rx, rz, tilt, under):
+    """An eyespot: an oval window (clear-ish), ringed yellow, black, and on
+    its outer side maroon; its weight on the pixels (window, yellow,
+    black, maroon)."""
+    ca, sa = math.cos(tilt), math.sin(tilt)
+    dx, dz = w.X - at[0], w.Z - at[1]
+    u = (dx * ca + dz * sa) / rx
+    v = (-dx * sa + dz * ca) / rz
+    d = np.hypot(u, v)
+    win = 1 - smooth(0.42, 0.52, d)
+    yel = 1 - smooth(0.66, 0.74, d)
+    blk = 1 - smooth(0.84, 0.92, d)
+    mar = (1 - smooth(1.0, 1.12, d)) * smooth(-0.2, 0.4, u)  # (on its outer side)
+    return win, yel, blk, mar
+
+
+def paint_luna(poly, spans, veins_fn, eye_at, eye_r, tilt, fore, under):
+    w = Wing(poly)
+    lines = veins_fn()
+    costa, outer, inner = (run(poly, s) for s in spans)
+    r = np.hypot(w.X, w.Z)
+    col = np.zeros(w.X.shape + (3,), np.float32)
+    col[:] = LUNA_GREEN * (1.06 if under else 1.0)
+    col = mix(col, LUNA_GREEN_DEEP, (1 - smooth(8, 26, r)) * (0.35 if under else 0.6))
+    # the veins, faintly paler
+    dv = w.dist_all(lines)
+    col = mix(col, LUNA_GREEN * 1.12, (1 - smooth(0.2, 0.4, dv)) * 0.6)
+    # the base: white fur
+    col = mix(col, LUNA_BASE, 1 - smooth(2.5, 5.5, r + w.noise * 0.6))
+    # the margin: yellow, and a fine pinkish edge
+    do = w.dist(outer)
+    col = mix(col, LUNA_MARGIN, (1 - smooth(1.0, 2.4, do)) * 0.8)
+    col = mix(col, LUNA_PINK, 1 - smooth(0.3, 0.55, do))
+    if fore:  # the costa: broad, maroon (pinkish brown beneath)
+        cw = 2.6 - 1.2 * smooth(30, 52, w.X)
+        col = mix(col, LUNA_PINK * 0.85 if under else LUNA_MAROON, 1 - smooth(cw - 0.25, cw + 0.25, w.dist(costa)))
+    # the eyespot
+    win, yel, blk, mar = luna_eye(w, eye_at, eye_r[0], eye_r[1], tilt, under)
+    k = 0.6 if under else 1.0
+    col = mix(col, LUNA_MAROON, mar * k)
+    col = mix(col, SW_BLACK, blk * k)
+    col = mix(col, LUNA_YELLOW, yel * k)
+    col = mix(col, LUNA_WINDOW, win * k)
+    a = np.ones(w.X.shape, np.float32) - win * 0.35  # (the window a little see-through)
+    return w, col, a
+
+
 # ---- the atlas -----------------------------------------------------------------
 
 def bleed_outside(rgb, cover):
@@ -384,6 +628,31 @@ def bleed_outside(rgb, cover):
     return filled / 255.0
 
 
+def hull(pts):
+    """The convex hull, walking as the outlines do (clockwise seen from
+    above: x right, z down)."""
+    p = sorted(set(pts))
+    def cross(o, a, b):
+        return (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0])
+    lo, hi = [], []
+    for q in p:
+        while len(lo) >= 2 and cross(lo[-2], lo[-1], q) <= 0:
+            lo.pop()
+        lo.append(q)
+    for q in reversed(p):
+        while len(hi) >= 2 and cross(hi[-2], hi[-1], q) <= 0:
+            hi.pop()
+        hi.append(q)
+    h = lo[:-1] + hi[:-1]
+    # (the outlines' way round: the fan's cross products positive)
+    mx = sum(q[0] for q in h) / len(h)
+    mz = sum(q[1] for q in h) / len(h)
+    a0, b0 = h[0], h[1]
+    if (a0[0] - mx) * (b0[1] - mz) - (a0[1] - mz) * (b0[0] - mx) < 0:
+        h.reverse()
+    return h
+
+
 def down(a):
     n = a.shape[0] // SS
     return a.reshape(n, SS, n, SS, *a.shape[2:]).mean(axis=(1, 3))
@@ -398,7 +667,16 @@ def main():
         (3, lambda: paint_monarch_hind(True), None, None),
         (4, lambda: paint_hemaris(HEMARIS_FORE, (HF_COSTA, HF_OUTER, HF_INNER), hemaris_fore_veins, 1.35, 0.7, 5.5), "hemaris_fore", None),
         (5, lambda: paint_hemaris(HEMARIS_HIND, (HH_COSTA, HH_OUTER, HH_INNER), hemaris_hind_veins, 1.1, 1.6, 3.2), "hemaris_hind", None),
+        (6, lambda: paint_sw_fore(False), "swallowtail_fore", 7),
+        (7, lambda: paint_sw_fore(True), None, None),
+        (8, lambda: paint_sw_hind(False), "swallowtail_hind", 9),
+        (9, lambda: paint_sw_hind(True), None, None),
+        (10, lambda: paint_luna(LUNA_FORE, (LF_COSTA, LF_OUTER, LF_INNER), luna_fore_veins, (25.5, 1.4), (4.4, 6.2), -0.35, True, False), "luna_fore", 11),
+        (11, lambda: paint_luna(LUNA_FORE, (LF_COSTA, LF_OUTER, LF_INNER), luna_fore_veins, (25.5, 1.4), (4.4, 6.2), -0.35, True, True), None, None),
+        (12, lambda: paint_luna(LUNA_HIND, (LH_COSTA, LH_OUTER, LH_INNER), luna_hind_veins, (18.6, 11.2), (5.2, 6.6), 0.2, False, False), "luna_hind", 13),
+        (13, lambda: paint_luna(LUNA_HIND, (LH_COSTA, LH_OUTER, LH_INNER), luna_hind_veins, (18.6, 11.2), (5.2, 6.6), 0.2, False, True), None, None),
     ]
+    HULL = {"swallowtail_fore", "swallowtail_hind", "luna_fore", "luna_hind"}  # (their meshes the outline's hull: the texture cuts the rest)
     wings = {}
     for cell, paint, name, under in jobs:
         w, col, a = paint()
@@ -413,10 +691,11 @@ def main():
         if name:
             # the mesh's outline, grown from its middle a little (the
             # texture's soft edge inside it); uv from mm
-            mx = sum(p[0] for p in w.poly) / len(w.poly)
-            mz = sum(p[1] for p in w.poly) / len(w.poly)
+            poly = hull(w.poly) if name in HULL else w.poly
+            mx = sum(p[0] for p in poly) / len(poly)
+            mz = sum(p[1] for p in poly) / len(poly)
             grown = []
-            for p in w.poly:
+            for p in poly:
                 d = math.hypot(p[0] - mx, p[1] - mz)
                 grown.append((p[0] + (p[0] - mx) / d * GROW, p[1] + (p[1] - mz) / d * GROW))
             # (a fan from the middle: each triangle must turn clockwise)

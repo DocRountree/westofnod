@@ -63,9 +63,8 @@ func _build() -> void:
 	var white := Color(0.92, 0.9, 0.86)
 	var eye := Color(0.13, 0.11, 0.09)
 	# the thorax: stout, furred black, spotted white on its sides and over
-	# its shoulders
-	_part(Vector3(0.0, 0.5, -3.0), Vector3(4.6, 4.4, 7.6), black, 0.85, null, 0.25)
-	_part(Vector3(0.0, -0.4, -2.6), Vector3(4.0, 3.2, 6.4), black, 0.85, null, 0.2) # (its chest, under)
+	# its shoulders (one smooth body, deeper beneath: the chest)
+	_loft_part([[-6.6, 0.0, 1.3, 1.2], [-5.8, 0.1, 2.0, 1.9], [-4.0, 0.15, 2.35, 2.35], [-1.8, 0.1, 2.3, 2.3], [0.0, -0.05, 1.85, 1.9], [0.8, -0.1, 1.2, 1.2]], black, 0.85, null, 0.25)
 	# the head: black, two big eyes, white dots round them and on the brow
 	_part(Vector3(0.0, 0.2, -7.6), Vector3(3.6, 3.3, 3.0), black, 0.75, null, 0.15)
 	for side: float in [-1.0, 1.0]:
@@ -84,18 +83,17 @@ func _build() -> void:
 		_part(Vector3(0.9 * side, 2.4, -5.9), Vector3(0.6, 0.45, 0.6), white, 0.6)
 		_part(Vector3(1.2 * side, -1.8, -4.0), Vector3(0.6, 0.45, 0.7), white, 0.6)
 		_part(Vector3(1.0 * side, -1.9, -1.4), Vector3(0.6, 0.45, 0.7), white, 0.6)
-	# the abdomen: slender, in segments tapering to its tip, black, a row
-	# of fine white dots low down each side
-	var segs := [[1.2, 3.3], [3.8, 3.4], [6.4, 3.3], [9.0, 3.1], [11.6, 2.8], [14.2, 2.4], [16.6, 1.9], [18.6, 1.3]]
-	for i in segs.size():
-		var z: float = segs[i][0]
-		var wd: float = segs[i][1]
-		var y := -0.3 - 0.0025 * z * z # (drooping a little toward its tip)
-		# (on the abdomen's joint: abdomen_at; it curls under to lay)
-		_part(Vector3(0.0, y + 0.3, z), Vector3(wd, wd * 0.95, 3.1), black, 0.8, _abdomen, 0.12)
-		if i < segs.size() - 1:
-			for side: float in [-1.0, 1.0]:
-				_part(Vector3(wd * 0.44 * side, y - wd * 0.18 + 0.3, z), Vector3(0.38, 0.38, 0.5), white, 0.6, _abdomen)
+	# the abdomen: slender, tapering to its tip, black, its segments' joints
+	# faint creases, a row of fine white dots low down each side (one
+	# smooth body on the abdomen's joint, abdomen_at: it curls under to lay)
+	_loft_part([[-0.6, 0.1, 1.4, 1.35], [1.0, 0.05, 1.68, 1.6], [4.5, -0.05, 1.7, 1.62], [9.0, -0.25, 1.55, 1.48], [13.5, -0.5, 1.25, 1.18], [17.0, -0.75, 0.85, 0.8], [19.0, -0.88, 0.45, 0.42], [19.8, -0.9, 0.1, 0.1]],
+			black, 0.8, _abdomen, 0.12, Vector2(1.2, 2.6))
+	for i in 7:
+		var z := 1.2 + 2.6 * i
+		var wd := 1.7 - 0.0028 * z * z * 1.5
+		var y := -0.05 - 0.0025 * z * z
+		for side: float in [-1.0, 1.0]:
+			_part(Vector3(wd * 0.88 * side, y - wd * 0.35, z), Vector3(0.38, 0.38, 0.5), white, 0.6, _abdomen)
 	# long slender antennae, gradually clubbed
 	_antennae(Vector3(0.6, 1.4, -8.8), 16.0, 1.0, black, 0.17, 0.25)
 	# its forelegs small and folded under the chest; the walking four long

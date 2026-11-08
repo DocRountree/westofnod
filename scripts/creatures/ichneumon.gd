@@ -143,9 +143,6 @@ func lay_in_caterpillar(c: Node3D) -> void:
 	if not is_instance_valid(c):
 		return
 	# the sting: the gaster swung under and forward, its tip on it, in
-	var was := String(c.get("_mode"))
-	var centre: Vector3 = c.get("_centre")
-	var radius := float(c.get("_radius"))
 	_p.curl = 1.25
 	_p.sting_out = 1.0
 	_p.ant_pitch = 0.5
@@ -157,18 +154,13 @@ func lay_in_caterpillar(c: Node3D) -> void:
 	if not await _wait(id, 0.2):
 		return
 	if is_instance_valid(c):
-		c.call("struggle", 1.1)
+		c.call("flinch", 1.1)
 	_p.pump = 0.9
 	if not await _wait(id, 1.4):
 		return
 	if is_instance_valid(c):
 		c.set("parasitized", true)
 		stung.append(c)
-		# (it goes on as it was)
-		if was == "eat":
-			c.call("eat")
-		else:
-			c.call("wander", centre if was == "wander" else c.get("_pos"), radius if was == "wander" else 0.08)
 	_jitter = 0.002
 	_max_speed = 0.7
 	_fly_target = near + Vector3.UP * 0.02

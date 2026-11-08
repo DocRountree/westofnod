@@ -193,6 +193,20 @@ func _part(at: Vector3, size: Vector3, color: Color, rough := 0.7, parent: Node3
 	return mi
 
 
+## A smooth part lofted through keys ([z, y, half width, half height],
+## mm: Hexapod's loft), coloured; its segments' joints faint creases every
+## crease.y mm from crease.x along z (none: 0).
+func _loft_part(keys: Array, color: Color, rough := 0.7, parent: Node3D = null, fur := 0.0, crease := Vector2.ZERO) -> MeshInstance3D:
+	var mi := MeshInstance3D.new()
+	mi.mesh = HEX_LOFT._loft(keys)
+	var m := _body_mat(color, rough, fur)
+	m.set_shader_parameter("crease", crease)
+	mi.material_override = m
+	(parent if parent else _body).add_child(mi)
+	return mi
+
+
+const HEX_LOFT := preload("res://scripts/creatures/hexapod.gd") # (its loft)
 static var _body_shader: Shader
 
 

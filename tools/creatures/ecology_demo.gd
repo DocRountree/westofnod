@@ -32,6 +32,8 @@ extends Node3D
 const Flowers := preload("res://tools/creatures/demo_flowers.gd")
 const MothScript := preload("res://scripts/creatures/hummingbird_moth.gd")
 const MonarchScript := preload("res://scripts/creatures/monarch.gd")
+const SwallowScript := preload("res://scripts/creatures/swallowtail.gd")
+const LunaScript := preload("res://scripts/creatures/luna_moth.gd")
 const HarvesterScript := preload("res://scripts/creatures/harvester_ants.gd")
 const JuneScript := preload("res://scripts/creatures/june_beetles.gd")
 const LadyScript := preload("res://scripts/creatures/lady_beetles.gd")
@@ -109,6 +111,8 @@ const CATALOGUE := [
 	["Features", "dead branch (leaning)", "snag", ["adult"]],
 	["Insects", "monarch", "monarch", ["adult", "young", "pupa"]],
 	["Insects", "hummingbird clearwing", "moth", ["adult", "young", "pupa"]],
+	["Insects", "Old World swallowtail", "swallowtail", ["adult", "young", "pupa"]],
+	["Insects", "luna moth", "luna", ["adult", "young", "pupa"]],
 	["Insects", "paper wasp", "wasp", ["adult", "young"]],
 	["Insects", "common eastern bumble bee", "bee", ["adult"]],
 	["Insects", "trigonalid wasp", "trig", ["adult"]],
@@ -661,9 +665,9 @@ func _spawn_animal(key: String, at: Vector3, stage: String, male: bool, young: b
 	match key:
 		"monarch":
 			if stage == "pupa":
-				var tw := _twig_near(at)
+				var tw := _twig_near(at) # (hanging under a tree's lowest branch)
 				var ch := PupaScript.new("monarch")
-				ch.position = (tw[2] as Vector3) + Vector3(-0.08, 0.0, 0.0)
+				ch.position = (tw[2] as Vector3).lerp(tw[3], randf() * 0.6)
 				return _org(ch, at, false)
 			if young: # (a caterpillar: on a milkweed leaf, if there's one by it; feeding)
 				var cat := LarvaScript.new("monarch")
@@ -684,6 +688,43 @@ func _spawn_animal(key: String, at: Vector3, stage: String, male: bool, young: b
 			m.place(at + Vector3(0.0, 0.5, 0.0))
 			m.fly(at, 0.4)
 			return m
+		"swallowtail", "luna":
+			if stage == "pupa": # (the swallowtail's girdled to a stem, here the ground; the luna's cocoon in the litter)
+				var sp := PupaScript.new(key)
+				sp.position = at
+				sp.rotation.y = randf() * TAU
+				if key == "luna": # (in the litter)
+					var perch := _moth_perch(at, sp.rotation.y)
+					sp.perch_at = perch[0]
+					sp.perch_normal = perch[1]
+				else: # (girdled to a tree's trunk, head up it, leaning out from it: its own +y out from the bark, -z up)
+					var tw := _twig_near(at)
+					var y: Vector3 = tw[4]
+					sp.position = (tw[1] as Vector3) - Vector3.UP * randf_range(0.05, 0.2)
+					sp.basis = Basis(y.cross(Vector3.DOWN), y, Vector3.DOWN)
+					sp.perch_at = (tw[1] as Vector3) + Vector3.UP * 0.02
+					sp.perch_normal = y
+					return _org(sp, sp.position, true)
+				return _org(sp, at, true)
+			if young: # (a caterpillar: the swallowtail's on a yampah, if there's one by it; feeding)
+				var cat := LarvaScript.new(key)
+				_org(cat, at, true)
+				var host := _plants_near(at, 1.5, ["yampah"]) if key == "swallowtail" else []
+				var leaves: Array = (host[0] as Node).get_meta("leaves", []) if not host.is_empty() else []
+				leaves = leaves.filter(func(l: Array) -> bool: return (l[0] as Vector3).y < 0.8)
+				if not leaves.is_empty():
+					var l: Array = leaves[randi() % leaves.size()]
+					cat.place((l[0] as Vector3) + (l[2] as Vector3) * 0.03 + (l[1] as Vector3) * 0.004, l[2])
+				else:
+					cat.place(at, Vector3.RIGHT.rotated(Vector3.UP, randf() * TAU))
+				cat.eat()
+				return cat
+			var b: Node3D = (SwallowScript if key == "swallowtail" else LunaScript).new()
+			b.set("male", male)
+			_org(b, at, false)
+			b.call("place", at + Vector3(0.0, 0.5, 0.0))
+			b.call("fly", at, 0.4)
+			return b
 		"moth":
 			if stage == "pupa":
 				var mp := PupaScript.new("hemaris")
@@ -1199,25 +1240,27 @@ func _empty_cells(comb: Node3D) -> Array:
 	return out
 
 
-## A twig on a post near p (a chrysalis's, a caterpillar's way up to it):
-## [the post's foot, its top, under the twig's middle].
+## Where a chrysalis hangs or is girdled, on the nearest of the game's trees
+## (a sapling planted by p if there's none): [the trunk's foot, on the side
+## toward its lowest branch; up the trunk below that branch; under the
+## branch a little way out; further out under it; the way out along it
+## (level)], world. (A monarch's hangs under the branch; a swallowtail's is
+## girdled to the trunk: Pupa.)
 func _twig_near(p: Vector3) -> Array:
-	for n in get_children():
-		if n.has_meta("twig") and (n as Node3D).position.distance_to(p) < 1.5:
-			return n.get_meta("twig")
-	var o := p + Vector3(0.25, 0.0, -0.2)
-	var holder := Node3D.new()
-	holder.position = o
-	add_child(holder)
-	holder.set_meta("prop", true)
-	var a := _box_at(o + Vector3(0.0, 0.32, 0.0), Vector3(0.3, 0.008, 0.008), Color(0.35, 0.27, 0.18))
-	var b := _box_at(o + Vector3(0.13, 0.16, 0.0), Vector3(0.008, 0.32, 0.008), Color(0.35, 0.27, 0.18))
-	a.reparent(holder)
-	b.reparent(holder)
-	var info := [o + Vector3(0.12, 0.0, 0.02), o + Vector3(0.12, 0.3, 0.02), o + Vector3(0.05, 0.316, 0.0), o]
-	holder.set_meta("twig", info)
-	return info
-
+	var tree := _tree_near(p, 6.0)
+	if tree == null:
+		tree = _plant_game("maple", p + Vector3(0.45, 0.0, -0.3), true)
+	var an := _web_anchors(tree, 0)
+	if an.is_empty():
+		tree = _plant_game("maple", p + Vector3(-0.45, 0.0, 0.35), true)
+		an = _web_anchors(tree, 0)
+	var pts: Array = an[0]
+	var under: Vector3 = pts[0]
+	var out: Vector3 = pts[1]
+	var tr: Vector3 = pts[2]
+	var dir := Vector3(under.x - tr.x, 0.0, under.z - tr.z)
+	dir = dir.normalized() if dir.length() > 1e-3 else Vector3.RIGHT
+	return [Vector3(tr.x, 0.0, tr.z), tr, under, out, dir]
 
 ## A stem by a clearwing's pupa, to climb out of the litter and hang from:
 ## [its point, the way it faces].
@@ -1745,7 +1788,7 @@ func _caterpillar_near(p: Vector3) -> Node3D:
 	var best: Node3D = null
 	var bd := INF
 	for n in get_children():
-		if n.get_script() == LarvaScript and String(n.get("kind")) in ["monarch", "hemaris"] and not bool(n.get("parasitized")) and String(n.get("_mode")) != "pupate":
+		if n.get_script() == LarvaScript and String(n.get("kind")) in ["monarch", "hemaris", "swallowtail", "luna"] and not bool(n.get("parasitized")) and String(n.get("_mode")) != "pupate":
 			var d := (n.get("_pos") as Vector3).distance_to(p)
 			if d < bd:
 				bd = d
@@ -1829,9 +1872,10 @@ func _mate(all: Array) -> void:
 
 
 ## Each grown caterpillar (and grub, and larva) of all pupating: the
-## monarch's to a twig on a post (down its milkweed if it's up on a leaf,
-## over to the post, up it and along under the twig, to hang and shed its
-## skin); the clearwing's into the litter by a stem; the lady beetle larva
+## monarch's to the nearest tree (down its milkweed if it's up on a leaf,
+## over to the trunk, up it and out under its lowest branch, to hang and
+## shed its skin); the swallowtail's up a tree's trunk, girdled there; the
+## clearwing's and the luna's into the litter by a stem; the lady beetle larva
 ## glued down a little way on; the grubs where they lie, each pupa's adult
 ## to its colony.
 func _pupate(all: Array) -> void:
@@ -1849,18 +1893,29 @@ func _pupate(all: Array) -> void:
 			elif kind in ["carpenter", "harvester"]:
 				col = _workers(kind, p)
 			c.call("pupate", at, [], func(pu: Node3D) -> void: pu.set("colony", col))
-		elif kind == "monarch":
+		elif kind == "monarch": # (to a tree, up its trunk, out under its lowest branch, to hang there)
 			var tw := _twig_near(p)
+			var y: Vector3 = tw[4]
 			var via := []
 			if p.y > 0.02: # (down the milkweed's stem)
 				via.append([Vector3(p.x, 0.0, p.z), Vector3.BACK])
-			via.append([tw[0], Vector3.UP]) # (to the post)
-			via.append([tw[1], Vector3.BACK]) # (up it)
-			via.append([(tw[2] as Vector3) + Vector3(0.06, -0.003, 0.0), Vector3.DOWN]) # (onto the twig's underside)
-			var at: Vector3 = (tw[2] as Vector3) + Vector3(-0.05 * float(_hung % 3), 0.0, 0.0)
+			via.append([tw[0], Vector3.UP]) # (to the trunk's foot)
+			via.append([tw[1], y]) # (up it)
+			via.append([(tw[2] as Vector3) - y * 0.03, Vector3.DOWN]) # (onto the branch's underside)
+			var at: Vector3 = (tw[2] as Vector3).lerp(tw[3], 0.25 * float(_hung % 3))
 			_hung += 1
 			c.call("pupate", at, via)
-		elif kind == "hemaris":
+		elif kind == "swallowtail": # (to a tree, up its trunk a way, and girdled there)
+			var tw := _twig_near(p)
+			var y: Vector3 = tw[4]
+			var via := []
+			if p.y > 0.02:
+				via.append([Vector3(p.x, 0.0, p.z), Vector3.BACK])
+			via.append([tw[0], Vector3.UP])
+			var at: Vector3 = (tw[1] as Vector3) - Vector3.UP * (0.08 + 0.06 * float(_hung % 3))
+			_hung += 1
+			c.call("pupate", at, via + [[at, y]])
+		elif kind in ["hemaris", "luna"]: # (in the litter, on the ground)
 			var turn := randf() * TAU
 			var at := p + Vector3(0.05, 0.0, 0.05)
 			var perch := _moth_perch(at, turn)
@@ -2035,7 +2090,7 @@ func _do(c: Node, act_: String) -> void:
 		return
 	match act_:
 		"wander":
-			if sc == MonarchScript:
+			if sc == MonarchScript or sc == SwallowScript or sc == LunaScript:
 				c.call("fly", st, 0.4)
 			elif sc == MothScript:
 				c.call("search", st, 0.4, _flat(_clumps_near(st)))
@@ -2075,6 +2130,14 @@ func _do(c: Node, act_: String) -> void:
 			elif sc == MothScript:
 				var lv := _leaves_round(c, st)
 				c.call("lay", lv.map(func(l): return l[0]), lv.map(func(l): return l[1]), Callable(c, "search").bind(st, 0.4, _flat(_clumps_near(st))))
+			elif sc == SwallowScript or sc == LunaScript: # (on leaves round it: the swallowtail's a yampah's, if there's one by it)
+				var lv := _leaves_round(c, st)
+				if sc == SwallowScript:
+					var host := _plants_near(st, 1.5, ["yampah"])
+					var hl: Array = (host[0] as Node).get_meta("leaves", []) if not host.is_empty() else []
+					if not hl.is_empty():
+						lv = hl.slice(0, 4).map(func(l: Array) -> Array: return [l[0], l[1]])
+				c.call("lay", lv.map(func(l): return l[0]), lv.map(func(l): return l[1]), Callable(c, "fly").bind(st, 0.4))
 			elif sc == Wasp:
 				var comb: Node3D = c.get_meta("comb") if c.has_meta("comb") else _comb_near(st)
 				c.call("lay_eggs", _empty_cells(comb).slice(0, 1), Vector3.UP, 0.0068)
@@ -2143,7 +2206,7 @@ func _do(c: Node, act_: String) -> void:
 			elif sc == IsopodScript:
 				c.call("roll", 8.0)
 		"fly":
-			if sc == MonarchScript:
+			if sc == MonarchScript or sc == SwallowScript or sc == LunaScript:
 				c.call("fly", st, 0.6)
 			elif sc == MothScript:
 				c.call("search", st, 0.5, _flat(_clumps_near(st)))
@@ -2162,6 +2225,10 @@ func _do(c: Node, act_: String) -> void:
 		"alarm":
 			if sc == SnakeScript:
 				c.call("coil")
+			elif sc == LarvaScript and String(c.get("kind")) == "swallowtail": # (its osmeterium out)
+				c.call("threat", 3.0)
+			elif sc == LarvaScript:
+				c.call("flinch", 1.0)
 			elif sc == IsopodScript:
 				c.call("roll", 5.0)
 			elif sc == BeaverScript:
@@ -2442,9 +2509,11 @@ func _feed(c: Node, act_: String, young: bool, p: Vector3, st: Vector3, near: Ve
 			return
 	if sc == LarvaScript:
 		c.call("eat")
-	elif sc == MonarchScript and not young:
+	elif (sc == MonarchScript or sc == SwallowScript) and not young:
 		var cl := _clumps_near(p)
 		c.call("feed", cl[randi() % cl.size()])
+	elif sc == LunaScript: # (it never eats: down to rest, its wings spread)
+		c.call("rest", p * Vector3(1.0, 0.0, 1.0) + near * 0.1, Vector3.UP)
 	elif sc == HopperScript or sc == BlueHopperScript: # (the grass: chewing it where it stands)
 		c.call("feed", Vector3(p.x, 0.0, p.z) + near * (0.03 if young else 0.12) + Vector3.UP * (0.001 if young else 0.002))
 	elif sc == MantisScript:

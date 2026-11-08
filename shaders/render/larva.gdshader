@@ -18,6 +18,11 @@ shader_type spatial;
 // pattern 3: a lady beetle larva's: blackish grey, bumpy, an orange patch
 //   on its sides on the segments of spot_mask
 // pattern 4: a grub's: creamy, a little see-through, finely creased
+// pattern 5: a swallowtail caterpillar's: green, a broad black band round
+//   each segment (band_a), a ring of orange spots in it (band_b)
+// pattern 6: a luna caterpillar's: lime green, paler creases between its
+//   segments, a pale line (line) low along each side, two pairs of small
+//   magenta warts (band_b) across each segment's back
 // The segments from tail_from on are `tail` (a June grub's dark rear).
 
 uniform int pattern = 0;
@@ -119,6 +124,33 @@ void fragment() {
 		c *= 0.8 + 0.3 * bumps;
 		if (spotted)
 			c = mix(c, band_b, smoothstep(0.75, 0.85, side) * step(-0.1, o.y));
+	} else if (pattern == 5) {
+		float z = o.z + 0.5;
+		float ang = atan(o.y, o.x); // (round the body)
+		float blk = smoothstep(0.24, 0.27, z) * (1.0 - smoothstep(0.6, 0.63, z));
+		c = mix(c, band_a, blk);
+		// six orange spots round the band (none beneath)
+		float k = floor((ang / 6.2832 + 0.5) * 8.0 + 0.5);
+		float ca = (k / 8.0 - 0.5) * 6.2832;
+		vec2 q = vec2(z - 0.43, (ang - ca) * 0.32);
+		float dot_ = (1.0 - smoothstep(0.075, 0.095, length(q))) * step(-0.25, o.y);
+		c = mix(c, band_b, dot_ * blk);
+		c *= mix(1.0, 0.85, 1.0 - smoothstep(-0.48, -0.3, o.y));
+	} else if (pattern == 6) {
+		float z = o.z + 0.5;
+		c *= 1.0 - 0.1 * (1.0 - smoothstep(0.0, 0.08, min(z, 1.0 - z))) ; // (the creases between segments)
+		c = mix(c, c * 1.18 + 0.05, smoothstep(0.35, -0.3, o.y) * 0.3); // (paler, more yellow, low down)
+		// the line low along each side
+		c = mix(c, line, smoothstep(0.012, 0.0, abs(o.y + 0.16) - 0.025) * step(0.8, side));
+		// the warts: two pairs across its back, magenta
+		float w = 0.0;
+		for (int i = 0; i < 2; i++) {
+			float x = i == 0 ? 0.12 : 0.3;
+			w = max(w, 1.0 - smoothstep(0.035, 0.05, length(vec2(abs(o.x) - x, z - 0.42))));
+		}
+		c = mix(c, band_b, w * step(0.15, o.y));
+		if (spiracles) // (small, pale, ringed brown, low on each side)
+			c = mix(c, vec3(0.45, 0.3, 0.15), (1.0 - smoothstep(0.03, 0.045, length(vec2(z - 0.25, (o.y + 0.05) * 1.3)))) * step(0.85, side));
 	} else if (pattern == 4) {
 		// creased across: each segment folded into annulets
 		c *= 1.0 - wrinkle * (0.5 + 0.5 * cos((o.z + 0.5) * 6.2832 * annulets));

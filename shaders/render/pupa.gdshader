@@ -79,6 +79,20 @@ void fragment() {
 		metal *= 1.0 - 0.7 * dead;
 		if (holed && fr > 0.9 && length(vec2((1.0 - fr) * 4.0, (v - 0.42) * 26.0)) < 0.7)
 			discard; // (the wasp's way out)
+	} else if (kind == 2) {
+		// the swallowtail's: green, a pale yellow line down each side and
+		// along the keel of its back, faintly mottled
+		c = mix(vec3(0.09, 0.17, 0.035), vec3(0.15, 0.24, 0.05), smoothstep(0.2, 0.8, v)); // (linear: a leaf green)
+		float lines = (1.0 - smoothstep(0.0, 0.025, abs(abs(u - 0.5) - 0.25))) + (1.0 - smoothstep(0.0, 0.03, abs(fr)));
+		c = mix(c, vec3(0.62, 0.55, 0.16), clamp(lines, 0.0, 1.0) * step(0.08, v) * 0.75);
+		rough = 0.45;
+		// ripe: dark, the black and yellow wings showing through
+		vec3 wing = mix(vec3(0.06, 0.05, 0.03), vec3(0.75, 0.66, 0.3), step(0.6, fract(v * 9.0 + u * 3.0)));
+		c = mix(c, mix(vec3(0.08, 0.07, 0.04), wing, step(v, 0.6) * step(0.6, fr)), ripe);
+		// dead (an ichneumon in it): brown, then near black
+		c = mix(c, mix(vec3(0.3, 0.22, 0.1), vec3(0.06, 0.045, 0.03), smoothstep(0.3, 1.0, dead)), smoothstep(0.0, 1.0, dead));
+		if (holed && fr > 0.85 && length(vec2((1.0 - fr) * 4.0, (v - 0.85) * 26.0)) < 0.8)
+			discard; // (the wasp's way out, near its head)
 	} else {
 		c = vec3(0.27, 0.14, 0.07);
 		// the abdomen's rings (the back half of it), darker in the joints
@@ -107,11 +121,11 @@ void fragment() {
 	}
 	if (empty) {
 		// left behind: pale, see-through; open along the front where it came out
-		c = mix(vec3(0.86, 0.85, 0.78), vec3(0.62, 0.52, 0.4), float(kind));
+		c = kind == 0 ? vec3(0.86, 0.85, 0.78) : (kind == 2 ? vec3(0.8, 0.78, 0.62) : vec3(0.62, 0.52, 0.4));
 		a = 0.45;
 		rough = 0.35;
 		metal = 0.0;
-		bool slit = kind == 0 ? (v > 0.5 && fr > 0.82) : (v < 0.3 && fr > 0.6);
+		bool slit = kind == 0 ? (v > 0.5 && fr > 0.82) : (kind == 2 ? (v > 0.7 && fr > 0.6) : (v < 0.3 && fr > 0.6));
 		if (slit)
 			discard;
 	}

@@ -15,6 +15,13 @@ extends Node3D
 ##   pale all over, a pale line along each side of its back (on along its
 ##   head), faint pale slants, reddish spiracles ringed pale; reddish true
 ##   legs; a horn at its tail, yellow at its base, blue-black above
+## - swallowtail: the Old World swallowtail's (Papilio machaon), plump, smooth,
+##   green, a broad black band round each segment carrying a ring of orange
+##   spots; its head green banded black; threatened (threat()), its
+##   osmeterium out: a forked orange horn everted from behind its head
+## - luna: the luna moth's, big, plump, lime green, faint pale creases
+##   between its segments, a pale yellow line low along each side, small
+##   magenta warts in a row across each segment's back; a brown head
 ## - lady: the lady beetle's larva ("alligator"), blackish, bumpy, tapering,
 ##   orange patches on its sides, six legs, quick
 ## - june: a June bug's white grub, C-curled on its side, a brown head, six
@@ -48,6 +55,14 @@ const KINDS := {
 			"head": Color(0.44, 0.6, 0.24), "head_lines": true, "eyes": true, "speed": 0.012, "horn": true,
 			"horn_colors": [Color(0.92, 0.74, 0.2), Color(0.1, 0.11, 0.22)], "true_leg": Color(0.55, 0.26, 0.14),
 			"legs": "caterpillar", "crease": 0.06, "bend": 0.12, "gloss": 0.15, "granules": true, "spiracles": true},
+	"swallowtail": {"style": "crawl", "n": 12, "len": 45.0, "w": 7.0, "shape": [0.62, 0.95, 1.05, 1.05, 0.95, 0.66],
+			"pattern": 5, "base": Color(0.5, 0.72, 0.36), "band_a": Color(0.03, 0.035, 0.03), "band_b": Color(0.98, 0.58, 0.08),
+			"head": Color(0.52, 0.68, 0.32), "head_band": true, "eyes": true, "speed": 0.011, "true_leg": Color(0.08, 0.08, 0.06),
+			"legs": "caterpillar", "crease": 0.08, "bend": 0.12, "gloss": 0.45, "osmeterium": true},
+	"luna": {"style": "crawl", "n": 12, "len": 62.0, "w": 10.0, "shape": [0.6, 0.92, 1.05, 1.08, 1.0, 0.72],
+			"pattern": 6, "base": Color(0.55, 0.78, 0.25), "line": Color(0.96, 0.92, 0.55), "band_b": Color(0.85, 0.15, 0.35),
+			"head": Color(0.62, 0.42, 0.18), "eyes": true, "speed": 0.01, "true_leg": Color(0.6, 0.35, 0.15),
+			"legs": "caterpillar", "crease": 0.11, "bend": 0.11, "gloss": 0.55, "spiracles": true},
 	"lady": {"style": "crawl", "n": 10, "len": 10.0, "w": 2.6, "shape": [0.8, 1.0, 0.95, 0.75, 0.5, 0.3],
 			"pattern": 3, "base": Color(0.14, 0.14, 0.16), "band_b": Color(0.95, 0.45, 0.08), "spots": [1, 4],
 			"head": Color(0.04, 0.04, 0.05), "eyes": true, "speed": 0.02, "legs": "six", "gloss": 0.3, "crease": 0.18, "bend": 0.22, "tubercles": true},
@@ -95,6 +110,8 @@ var _wait := 0.0
 var _t := 0.0
 var _legs: Array[Node3D] = []
 var _whips: Array[Node3D] = []
+var _osm: Node3D # (a swallowtail caterpillar's osmeterium)
+var _osm_k := 0.0
 var _feet: Array = [] # a caterpillar's: {i (its segment), side, true (a true leg, else a proleg), foot (where it's planted), planted, leg (its mesh)}
 var _lift: Array[float] = [] # each segment's lift by the wave now (m)
 
@@ -167,6 +184,27 @@ func struggle(secs := 3.0) -> void:
 
 
 var _struggle_for := 3.0
+var _resume := "" # (after a flinch or a threat: what it was doing)
+
+
+## Stung or startled: thrashing a while (as struggle), then on with what it
+## was doing (a wasp laying in it, an ichneumon: it goes on, eating).
+func flinch(secs := 1.0) -> void:
+	if _mode in ["pupate", "struggle", "limp"]:
+		return
+	_resume = _mode
+	struggle(secs)
+
+
+## (A swallowtail's caterpillar) threatened: its front reared up, its
+## osmeterium out, the forked orange horn behind its head, a while; then
+## drawn in and on with what it was doing.
+func threat(secs := 3.0) -> void:
+	if _mode in ["pupate", "struggle", "limp", "threat"]:
+		return
+	_resume = _mode
+	_mode = "threat"
+	_wait = secs
 
 
 ## Pupating (a caterpillar's: the monarch's, the clearwing's): along `via`
@@ -416,6 +454,22 @@ func _build() -> void:
 		tip.rotation = hn.rotation
 		tip.material_override = _flat(hc[1], 0.3)
 		_holders[n - 1].add_child(tip)
+	# a swallowtail caterpillar's osmeterium: a forked horn, soft, orange,
+	# everted from a slit behind its head (drawn in: hidden)
+	if K.get("osmeterium", false):
+		_osm = Node3D.new()
+		_osm.position = Vector3(0.0, _widths[1] * 0.85, -_seg * 0.45)
+		_holders[1].add_child(_osm)
+		var om := _flat(Color(0.98, 0.5, 0.06), 0.35)
+		for side: float in [-1.0, 1.0]:
+			var arm := MeshInstance3D.new()
+			arm.mesh = _cone
+			arm.scale = Vector3(1.1 * MM, 6.5 * MM, 1.1 * MM)
+			arm.position = Vector3(1.3 * MM * side, 3.0 * MM, -1.4 * MM)
+			arm.rotation = Vector3(-0.55, 0.0, -0.45 * side)
+			arm.material_override = om
+			_osm.add_child(arm)
+		_osm.visible = false
 	# legs
 	match K.get("legs", ""):
 		"caterpillar": # (three pairs of true legs behind the head, dark; four pairs of prolegs mid-body and a pair at the tail)
@@ -598,9 +652,23 @@ func _process(dt: float) -> void:
 		_pupate_clock(dt)
 	if _mode == "struggle":
 		_wait -= dt
-		if _wait <= 0.0: # (limp)
-			_mode = "limp"
-			set_process(false)
+		if _wait <= 0.0:
+			if _resume != "": # (a flinch: on as it was)
+				_mode = _resume
+				_resume = ""
+			else: # (limp)
+				_mode = "limp"
+				set_process(false)
+	if _mode == "threat":
+		_wait -= dt
+		if _wait <= 0.0:
+			_mode = _resume if _resume != "" else "rest"
+			_resume = ""
+	if _osm:
+		var out := 1.0 if _mode == "threat" else 0.0
+		_osm_k = move_toward(_osm_k, out, dt * 4.0)
+		_osm.visible = _osm_k > 0.02
+		_osm.scale = Vector3(1.0, maxf(_osm_k, 0.01), 1.0)
 	# eating: the head nodding to its food, the jaws working (a grub's at
 	# the roots it lies in, or what's brought it)
 	_head.rotation = Vector3(0.22 * sin(_t * 6.0) - 0.1, 0.12 * sin(_t * 3.0), 0.0) if _mode == "eat" else Vector3.ZERO
@@ -795,7 +863,7 @@ func _pupate_clock(dt: float) -> void:
 	var hang := kind == "monarch"
 	match _pp_stage:
 		1:
-			if _pp_t > SPIN_SECS * (1.0 if hang else (1.8 if kind == "hemaris" else 1.2)):
+			if _pp_t > SPIN_SECS * (1.0 if hang else (1.8 if kind in ["hemaris", "luna"] else 1.2)):
 				_pp_from.clear()
 				_pp_stage = 2 if hang else 4
 				_pp_t = 0.0
@@ -835,11 +903,19 @@ func _new_pupa() -> void:
 			pupa.position = _pp_at
 		"lady": # (glued by its tail)
 			pupa.position = _pp_at - _dir * ln * 0.8
-		"hemaris":
+		"hemaris", "luna", "swallowtail": # (in its cocoon; the swallowtail's girdled to where it stopped)
 			pupa.position = _pp_at - _dir * ln * 0.5
 		_: # (a grub's: where it lay, its middle)
 			pupa.position = _pp_at
 	pupa.rotation.y = atan2(_dir.x, _dir.z) if kind == "monarch" else atan2(-_dir.x, -_dir.z)
+	if kind == "swallowtail": # (girdled where it stopped: its own +y out from the surface; on a trunk or a stem, its head up it)
+		var y := _pp_n.normalized()
+		if absf(y.y) < 0.7: # (on a trunk or a stem: straight out from it)
+			y = Vector3(y.x, 0.0, y.z).normalized()
+		var z := Vector3.DOWN if absf(y.y) < 0.7 else -_dir
+		z = (z - y * z.dot(y)).normalized()
+		pupa.position = _pp_at
+		pupa.basis = Basis(y.cross(z), y, z)
 	_pp_pupa = pupa
 
 

@@ -37,7 +37,6 @@ extends Node3D
 
 signal action_finished(name: String, ok: bool)
 const PilotScript := preload("res://scripts/creatures/pilot.gd")
-const PersonalSpace := preload("res://scripts/creatures/personal_space.gd")
 
 const SPINE := 40
 const MIN_BEND := 2.5 ## its tightest curve's radius, in its thickness (its radius)...
@@ -451,7 +450,6 @@ func _process(dt: float) -> void:
 		return
 	_t += dt
 	_st += dt
-	_frame_dt = dt
 	size = move_toward(size, _g_to, _g_rate * dt)
 	if _pilot:
 		_pilot.tick(dt)
@@ -518,8 +516,8 @@ func _think(dt: float) -> void:
 		var slow := 1.0
 		var ahead := _pos + way * clear * 1.8
 		var bodies: Array = [[_pts, 6, clear]] # (its own body; and the other snakes' near it: their heads go round its body, its round theirs, so their bodies, following, never cross)
-		for o in PersonalSpace.all:
-			if o != self and is_instance_valid(o) and o.get_script() != null and o.has_method("_space_spines") and o.get("_pts") is Array and not PersonalSpace.touching(o):
+		for o in get_tree().get_nodes_in_group("snakes"):
+			if o != self and is_instance_valid(o) and o.get("_pts") is Array and not bool(o.call("_touch_ok")):
 				var op: Array = o.get("_pts")
 				if not op.is_empty() and (op[op.size() / 2] as Vector3).distance_to(_pos) < float(o.get("K").len) * float(o.get("size")) + clear * 3.0:
 					bodies.append([op, 0, clear * 0.5 + float(o.get("K").r) * float(o.get("size")) * 1.2])
@@ -541,9 +539,6 @@ func _think(dt: float) -> void:
 			_dir = _dir.rotated(Vector3.UP, clampf(steer * 3.0 * dt, -2.5 * dt, 2.5 * dt))
 			way = _dir.rotated(Vector3.UP, _wave_now * sin(_phase))
 		_pos += way * _speed * slow * dt
-	# (kept off the others moving or not: its head eased off them; its body,
-	# which can't be shifted, they keep off: PersonalSpace)
-	PersonalSpace.keep_apart(self)
 	ground_y = _ground(_pos.x, _pos.z)
 	_pos.y = ground_y
 	if _speed > 0.0005:
@@ -1164,81 +1159,10 @@ class Egg extends Node3D:
 
 
 func _enter_tree() -> void:
-	PersonalSpace.join(self)
+	add_to_group("snakes") # (no personal space: its capsules shook it; it steers round the others' bodies itself, _think)
 
 
-func _exit_tree() -> void:
-	PersonalSpace.leave(self)
-
-
-## (Its personal space: its whole length, in SPACE_SEGS capsules down its
-## spine from the head, as thick as it is, coiled or not; the head's the
-## only one it's moved by, its body behind following the head's way: the
-## others keep off that.)
-const SPACE_SEGS := 5
-const SPACE_PUSH := 0.8 ## of its thickness its head's put off another a frame, at most (its body bends smoothly after it, whatever: _update)
-const SPACE_EASE := 8.0 ## the share of an overlap a second its head's eased out of it (_space_push)
-var _frame_dt := 1.0 / 60.0
-var _wave_now := -1.0 # (the waves' swing now: _wave, eased narrower while steering)
-
-
-## (Its head put off another, its body following; and its way turned along
-## the other, not on into it again (no shoving back and forth).)
-## Eased: only a share of the overlap a frame (SPACE_EASE a second), so a
-## head between two others' bodies settles between them instead of being
-## thrown from one to the other and back every frame (its body, following
-## the head's path, shook with it).
-func _space_push(v: Vector2) -> void:
-	var most := float(K.r) * size * SPACE_PUSH
-	var k := clampf(_frame_dt * SPACE_EASE, 0.0, 1.0)
-	var w := v.limit_length(most) * k
-	_pos += Vector3(w.x, 0.0, w.y)
-	if w.length() > 1e-7:
-		var n := Vector3(w.x, 0.0, w.y).normalized()
-		var into := _dir.dot(-n)
-		if into > 0.0: # (heading into it: turned to slide along it)
-			var along := _dir + n * into
-			if along.length() > 1e-4:
-				_dir = _dir.slerp(along.normalized(), clampf(_frame_dt * 4.0, 0.0, 0.5)).normalized()
-
-
-func _space_spines() -> Array:
-	if _pts.size() < SPINE:
-		return [_space_spine()]
-	var out: Array = []
-	var step := (SPINE - 1) / float(SPACE_SEGS)
-	for i in SPACE_SEGS:
-		var a: Vector3 = _pts[roundi(i * step)]
-		var b: Vector3 = _pts[roundi((i + 1) * step)]
-		out.append([Vector2(a.x, a.z), Vector2(b.x, b.z)])
-	return out
-
-
-func _space_fixed(i: int) -> bool:
-	return i > 0
-
-
-## (One capsule, before its spine's laid out: from its head back along the
-## first third of it.)
-func _space_spine() -> Array:
-	var h := Vector2(_pos.x, _pos.z)
-	var back := h - Vector2(_dir.x, _dir.z).normalized() * float(K.len) * size * 0.3
-	if _trail.size() > 4:
-		var want := float(K.len) * size * 0.3
-		var acc := 0.0
-		for i in range(1, _trail.size()):
-			acc += _trail[i].distance_to(_trail[i - 1])
-			if acc >= want:
-				back = Vector2(_trail[i].x, _trail[i].z)
-				break
-	return [back, h]
-
-
-func _space_r() -> float:
-	return float(K.r) * size
-
-
+## (Whether it's left alone by the other snakes' steering: young, mating,
+## laying.)
 func _touch_ok() -> bool:
-	# (coiled, it keeps its room: a coiled rattler isn't walked over; after
-	# its prey or eating it, it touches only that: PersonalSpace)
 	return young or _mate_role != "" or _mode in ["lay", "birth", "hatch", "mate"]
