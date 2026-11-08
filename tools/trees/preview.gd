@@ -4,7 +4,7 @@ extends SceneTree
 ## crabapple, theirs: MapleTree, SycamoreTree, LodgepolePine, BaldCypress,
 ## PawpawTree, CrabappleTree; or walnut, WalnutTree; tulip, TulipTree; cherry,
 ## raspberry, blueberry: BlackCherryTree, RaspberryBush, BlueberryBush).
-## xvfb-run godot --path . --resolution 1600x900 --script res://tools/trees/preview.gd -- <out_dir> [maple | sycamore | lodgepole | cypress | pawpaw | crabapple | walnut | tulip] [lod] [side | pair | pair2 | close | bark | leaves | dead | snag | saplings]
+## xvfb-run godot --path . --resolution 1600x900 --script res://tools/trees/preview.gd -- <out_dir> [maple | sycamore | lodgepole | spruce | cypress | pawpaw | crabapple | walnut | tulip] [lod] [side | pair | pair2 | close | bark | leaves | dead | snag | saplings]
 
 var out := "user://"
 var _name := "oaks"
@@ -26,6 +26,9 @@ func _init() -> void:
 	elif args.has("lodgepole"):
 		S = LodgepolePine
 		species = "lodgepoles"
+	elif args.has("spruce"):
+		S = SpruceTree
+		species = "spruces"
 	elif args.has("cypress"):
 		S = BaldCypress
 		species = "cypresses"
@@ -76,9 +79,9 @@ func _init() -> void:
 	gm.albedo_color = Color(0.32, 0.4, 0.2)
 	ground.material_override = gm
 	root3.add_child(ground)
-	var at := [Vector3(-55, 0, 0), Vector3(-27.5, 0, 0), Vector3(0, 0, 0), Vector3(27.5, 0, 0), Vector3(48, 0, 12), Vector3(48, 0, -2), Vector3(62, 0, 0), Vector3(40, 0, 2), Vector3(54, 0, 6), Vector3(14, 0, 14), Vector3(20, 0, 16), Vector3(78, 0, -8), Vector3(92, 0, 6)]
+	var at := [Vector3(-55, 0, 0), Vector3(-27.5, 0, 0), Vector3(0, 0, 0), Vector3(27.5, 0, 0), Vector3(48, 0, 12), Vector3(48, 0, -2), Vector3(62, 0, 0), Vector3(40, 0, 2), Vector3(54, 0, 6), Vector3(14, 0, 14), Vector3(20, 0, 16), Vector3(78, 0, -8), Vector3(92, 0, 6), Vector3(106, 0, -4), Vector3(26, 0, 20)]
 	var spread := 1.25 if S == SycamoreTree else 1.0 # (the sycamores are bigger)
-	if S == LodgepolePine:
+	if S == LodgepolePine or S == SpruceTree:
 		spread = 0.6 # (slim)
 	elif S == PawpawTree or S == CrabappleTree:
 		spread = 0.35 # (small trees)

@@ -14,8 +14,14 @@ TreeBuilder reads them the same):
   brown to grey-brown, fine dark cracks between them. Alpha the height.
 - cypress_bark.png: tileable: fibrous, in long, narrow, stringy vertical
   strips, reddish brown to grey. Alpha the height.
+- spruce_needles.png: as the others: a spruce's spray, a shoot with side
+  shoots off it in two ranks (flattish, the way they grow out along a
+  branch), each densely clothed all round in short, stiff needles, 1.5-2.5
+  cm, dark blue-green, the newest at the tips a fresher, lighter green.
+- spruce_bark.png: tileable: thin, small, roundish scales, grey-brown with
+  a purplish cast, flaking. Alpha the height.
 
-python3 tools/trees/bake_conifer_textures.py
+python3 tools/trees/bake_conifer_textures.py [--spruce]  (--spruce: only the spruce's)
 """
 import math
 import os
@@ -119,6 +125,88 @@ def cypress_sprig(rgba, cover, ox, oy, size, ang0):
         t += rng.uniform(0.07, 0.11)
         k += 1
     cypress_spray(rgba, cover, end[0], end[1], a, 0.1 * size, size)
+
+
+# ---- spruce -------------------------------------------------------------------
+
+SPRUCE = [0.13, 0.23, 0.13]       # (dark, a little blue)
+SPRUCE_NEW = [0.26, 0.38, 0.15]   # (this year's growth, at the tips)
+
+
+def spruce_shoot(rgba, cover, p0, p1, size):
+    """A shoot p0 -> p1 clothed all round in short needles (seen side on: out
+    both sides and, foreshortened, across it), the last third fresher."""
+    dx, dy = p1[0] - p0[0], p1[1] - p0[1]
+    L = math.hypot(dx, dy)
+    a = math.atan2(dy, dx)
+    draw_line(rgba, cover, p0, p1, 0.0022 * size, 0.0012 * size, [0.4, 0.3, 0.2])
+    n = int(L / size / 0.0016)
+    for i in range(n):
+        t = i / max(n - 1, 1)
+        bx, by = p0[0] + dx * t, p0[1] + dy * t
+        new = t > 0.68
+        col = jitter(SPRUCE_NEW if new else SPRUCE, 0.1)
+        for _ in range(2):
+            spread = rng.uniform(0.5, 1.35)  # (out from the shoot, forward)
+            b = a + rng.choice([-1, 1]) * spread + rng.uniform(-0.15, 0.15)
+            fore = abs(math.cos(spread))  # (the across ones look shorter)
+            l = rng.uniform(0.015, 0.024) * size * (0.55 + 0.45 * (1 - fore * 0.5)) * (0.8 if t > 0.92 else 1.0)
+            e = (bx + math.cos(b) * l, by + math.sin(b) * l)
+            draw_line(rgba, cover, (bx, by), e, 0.0011 * size, 0.0005 * size, col)
+
+
+def spruce_sprig(rgba, cover, ox, oy, size, ang0):
+    L = rng.uniform(0.34, 0.4) * size
+    a = ang0 + rng.uniform(-0.06, 0.06)
+    end = (ox + math.cos(a) * L, oy + math.sin(a) * L)
+    shoots = [((ox, oy), end)]
+    t = rng.uniform(0.12, 0.2)
+    side = rng.choice([-1, 1])
+    while t < 0.85:
+        base = (ox + (end[0] - ox) * t, oy + (end[1] - oy) * t)
+        b = a + side * rng.uniform(0.6, 0.85)
+        l = rng.uniform(0.12, 0.17) * size * (1.0 - 0.55 * t)
+        e = (base[0] + math.cos(b) * l, base[1] + math.sin(b) * l)
+        shoots.append((base, e))
+        # (a second order on the longer ones)
+        if l > 0.1 * size and rng.random() < 0.6:
+            tb = rng.uniform(0.35, 0.6)
+            b2 = (base[0] + (e[0] - base[0]) * tb, base[1] + (e[1] - base[1]) * tb)
+            c = b + side * rng.uniform(0.6, 0.8) * rng.choice([-1, 1])
+            shoots.append((b2, (b2[0] + math.cos(c) * l * 0.4, b2[1] + math.sin(c) * l * 0.4)))
+        side = -side
+        t += rng.uniform(0.09, 0.14)
+    for s0, s1 in shoots:
+        spruce_shoot(rgba, cover, s0, s1, size)
+
+
+def spruce_clump(tile, cover, S, size):
+    for k in range(70):
+        r = math.sqrt(rng.uniform(0, 1)) * 0.34
+        a = rng.uniform(0, 2 * math.pi)
+        x, y = S * (0.5 + math.cos(a) * r), S * (0.5 + math.sin(a) * r)
+        b = rng.uniform(0, 2 * math.pi)
+        l = rng.uniform(0.1, 0.17) * size
+        spruce_shoot(tile, cover, (x, y), (x + math.cos(b) * l, y + math.sin(b) * l), size)
+
+
+def spruce_bark():
+    n = 512
+    edge, ids = cells(n, 30, 81)
+    plate = np.clip(edge / 0.16, 0, 1) ** 0.5
+    rnd = (np.sin(ids * 12.9898) * 43758.5453) % 1.0
+    fine = periodic_noise(n, 0.7, (1, 1.5), 82)
+    tone = band_noise(n, 3.0, 83)
+    h = plate * (0.7 + 0.3 * rnd) + 0.05 * fine
+    h = (h - h.min()) / (h.max() - h.min())
+    grey = np.array([0.4, 0.36, 0.35])
+    purple = np.array([0.38, 0.29, 0.28])
+    mix = np.clip(0.5 + 0.35 * tone + 0.3 * (rnd - 0.5), 0, 1)[..., None]
+    col = grey * (1 - mix) + purple * mix
+    col = col * (0.82 + 0.22 * plate[..., None]) * (1.0 + 0.06 * fine[..., None])
+    col = np.where((plate < 0.3)[..., None], np.array([0.13, 0.1, 0.09]) + col * 0.2, col)
+    out = np.concatenate([np.clip(col, 0, 1), h[..., None]], -1)
+    Image.fromarray((out * 255).astype(np.uint8), "RGBA").save(os.path.join(OUT, "spruce_bark.png"), optimize=True)
 
 
 # ---- atlases -----------------------------------------------------------------
@@ -232,8 +320,11 @@ def cypress_bark():
 
 if __name__ == "__main__":
     os.makedirs(OUT, exist_ok=True)
-    atlas("lodgepole_needles.png", pine_sprig, pine_clump)
-    atlas("cypress_needles.png", cypress_sprig, cypress_clump)
-    lodgepole_bark()
-    cypress_bark()
+    if "--spruce" not in sys.argv:
+        atlas("lodgepole_needles.png", pine_sprig, pine_clump)
+        atlas("cypress_needles.png", cypress_sprig, cypress_clump)
+        lodgepole_bark()
+        cypress_bark()
+    atlas("spruce_needles.png", spruce_sprig, spruce_clump)
+    spruce_bark()
     print("baked", OUT)

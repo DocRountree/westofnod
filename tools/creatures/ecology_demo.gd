@@ -2974,7 +2974,7 @@ func _stage() -> String:
 static func _game_trees() -> Dictionary:
 	return {"oak": ["oak", OakTree], "maple": ["maple", MapleTree], "walnut": ["walnut", WalnutTree], "tulip": ["tulip tree", TulipTree],
 		"sycamore": ["sycamore", SycamoreTree], "black_cherry": ["cherry", BlackCherryTree], "crabapple": ["crabapple", CrabappleTree],
-		"pawpaw": ["pawpaw", PawpawTree], "lodgepole": ["lodgepole pine", LodgepolePine], "cypress": ["bald cypress", BaldCypress],
+		"pawpaw": ["pawpaw", PawpawTree], "lodgepole": ["lodgepole pine", LodgepolePine], "spruce": ["spruce", SpruceTree], "cypress": ["bald cypress", BaldCypress],
 		"blueberry": ["blueberry bush", BlueberryBush], "raspberry": ["raspberry bush", RaspberryBush],
 		"prickly_pear": ["prickly pear", PricklyPear], "joshua_tree": ["Joshua tree", JoshuaTree], "san_pedro": ["San Pedro cactus", SanPedroCactus]}
 

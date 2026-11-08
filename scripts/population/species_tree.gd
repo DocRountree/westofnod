@@ -11,7 +11,7 @@ extends RefCounted
 ## Conifers (a variant with "whorls"): one leader to the top, the branches
 ## in whorls up it, each whorl's as long as the crown's profile there
 ## ("cone": widest at the bottom, to a point; "narrow": a slim spire, the
-## lodgepole's; "flat": wide almost to the top, then flat, an old bald
+## lodgepole's; "spire": a spruce's, straight-sided to a sharp point; "flat": wide almost to the top, then flat, an old bald
 ## cypress's), nearly level or drooping (limb_angle from the upright, over
 ## 90 down; the top whorls lifted by lift_top degrees), the crown's edge that profile rather than an ellipsoid. And
 ## "stubs": dead, snapped branch stubs up the bare bole below the crown
@@ -644,7 +644,7 @@ func _grow_conifer(P: Dictionary) -> TreeBuilder:
 		while at < stem.size() - 1 and tb.pos[stem[at]].y < y:
 			at += 1
 		var len: float = P.limb_len * _profile(P, f)
-		if len < seg[1] * 1.2:
+		if len < (0.15 if P.get("profile", "") == "spire" else seg[1] * 1.2): # (a spire's, short, to near its point)
 			continue
 		var n := per + rng.randi_range(-1, 1)
 		az += rng.randf_range(0.4, 1.2)
@@ -656,6 +656,14 @@ func _grow_conifer(P: Dictionary) -> TreeBuilder:
 			_branch(tb, P, stem[at], dir, len * rng.randf_range(0.8, 1.1), 1, dirs[at])
 	tb.add_branch(stem)
 	tb.compute_radii(P.trunk_r, tip_r)
+	# a spire's leader clothed in needles to its tip (its top whorls too
+	# short for branches of their own)
+	if P.get("profile", "") == "spire":
+		var from := lerpf(c[2], c[1], 0.7)
+		for i in range(1, stem.size()):
+			if tb.pos[stem[i]].y > from:
+				for k in 4:
+					tb.add_sprig(stem[i], _side(Vector3.UP, rng.randf() * TAU, rng.randf_range(0.35, 0.8)))
 	# the snapped stubs of the branches it's shed, up the bare bole
 	for k in P.get("stubs", 0):
 		var y := rng.randf_range(1.5, c[2] - 0.5)
@@ -694,6 +702,8 @@ func _profile(P: Dictionary, f: float) -> float:
 	match P.get("profile", "cone"):
 		"narrow":
 			return 0.25 + 0.75 * pow(1.0 - f, 0.8) if f < 0.97 else 0.0
+		"spire": # (a spruce's: straight-sided, a little fuller low down, to a sharp point)
+			return pow(1.0 - f, 1.35) if f < 0.985 else 0.0
 		"flat": # (wide nearly to the top, then cut off: a flat top)
 			return sqrt(maxf(1.0 - pow(f, 9.0), 0.0)) * (0.85 + 0.15 * (1.0 - f))
 	return pow(1.0 - f, 0.9)

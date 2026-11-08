@@ -11,6 +11,9 @@ extends Resource
 @export var density := {}
 ## Ground height range (m above sea level).
 @export var height_range := Vector2(0.5, 10000.0)
+## Thinning out over this many metres below the top of height_range, to none
+## at the top (0: as common up to it, then none).
+@export var thin_up := 0.0
 ## The steepest ground: the least surface normal y (1 flat, 0 a wall).
 @export_range(-1.0, 1.0) var min_normal_y := 0.7
 

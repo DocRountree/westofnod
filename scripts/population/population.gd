@@ -1148,6 +1148,10 @@ func _generate(key: Vector2i) -> void:
 					var top := kind.height_range.y
 					if keep >= dc * (1.0 - smoothstep(top * 0.5, top, world.base_height(x, z))):
 						continue
+				if kind.thin_up > 0.0:
+					var top := kind.height_range.y
+					if keep >= dc * (1.0 - smoothstep(top - kind.thin_up, top, world.base_height(x, z))):
+						continue
 				if kind.min_spacing > 0.0:
 					var crowded := false
 					for q in placed:
