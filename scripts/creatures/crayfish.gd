@@ -98,6 +98,7 @@ var _tail_now := TAIL_REST.duplicate()
 var _tail_rate := 4.0
 var _flips := 0
 var _flip_v := 0.0
+var _flip_up := 0.0 # (m/s: a flip in the water throws it up off the bottom too)
 var _bite := 0.0 # (its front's pitch, eating: its mouth to the next bite)
 var _swim_h := 0.0 # (m: swum up off the bottom, after food over it in the water)
 var _swim_want := 0.0
@@ -550,7 +551,7 @@ func threat(at: Vector3) -> void:
 func flee(from: Vector3) -> void:
 	_begin("flee")
 	_at = from
-	_flips = 3 + rng.randi() % 3
+	_flips = (4 + rng.randi() % 4) if _pos.y < water_y else (2 + rng.randi() % 2) # (in the water a run of them: away through it)
 
 
 func burrow(at: Vector3) -> void:
@@ -710,7 +711,13 @@ func _think(dt: float) -> void:
 	_st += dt
 	# (swimming: up to what it's after, or back down to the bottom)
 	var was_up := _swim_h > 0.002
-	_swim_h = move_toward(_swim_h, _swim_want, dt * 0.06)
+	if _flip_up != 0.0 or (_mode == "flee" and _flip_v > 0.02): # (thrown up by its flips: gliding, settling slowly)
+		_swim_h = maxf(_swim_h + _flip_up * dt, 0.0)
+		_flip_up = move_toward(_flip_up, 0.0, dt * 1.2)
+	else:
+		_swim_h = move_toward(_swim_h, _swim_want, dt * (0.12 if _swim_want > _swim_h else 0.05)) # (swims up briskly; sinks back gently)
+	if water_y < INF: # (never out of the top of the water)
+		_swim_h = minf(_swim_h, maxf(water_y - _pos.y - body_h * MM * size, 0.0))
 	_swim_want = 0.0
 	if _swim_h > 0.002:
 		for i in _pose_foot.size(): # (its legs tucked, paddling)
@@ -939,18 +946,20 @@ func _flee(dt: float) -> void:
 		_tail_ask = TAIL_FLIP if ph < 0.12 else TAIL_REST
 		_tail_rate = 40.0 if ph < 0.12 else 12.0
 		_fan = 1.0
-		if ph < dt: # (a flip: thrown back)
-			_flip_v = (0.55 if wet else 0.2) * (0.6 + 0.4 * size / ADULT)
+		if ph < dt: # (a flip: thrown back, and in the water up into it)
+			_flip_v = (0.9 if wet else 0.2) * (0.6 + 0.4 * size / ADULT)
+			if wet:
+				_flip_up = (0.22 if _flips > 1 else 0.08) * (0.6 + 0.4 * size / ADULT)
 			_flips -= 1
 		for i in _pose_foot.size(): # (its legs trailing forward)
 			var L: Dictionary = legs[i / 2]
 			var side := 1.0 if i % 2 == 1 else -1.0
 			var hp: Vector3 = L.hip
 			_pose_foot[i] = Vector3(hp.x * side * 1.4, hp.y - 2.0, hp.z - 14.0)
-		_lift = move_toward(_lift, 8.0 if wet else 2.0, dt * 40.0)
+		_lift = move_toward(_lift, 2.0 if wet else 2.0, dt * 40.0) # (in the water its height is its swim's)
 	else:
 		_lift = move_toward(_lift, 0.0, dt * 20.0)
-		if _st > 0.5 and _flip_v < 0.02:
+		if _st > 0.5 and _flip_v < 0.02 and _swim_h < 0.01: # (settled back on the bottom first)
 			_replant()
 			var to := Vector3(_at.x - _pos.x, 0.0, _at.z - _pos.z)
 			if to.length() > 0.01:
@@ -961,12 +970,20 @@ func _flee(dt: float) -> void:
 			_centre = _pos
 	if _flip_v > 0.0:
 		var np := _pos - _forward() * _flip_v * dt
-		if height.is_valid() and absf(float(height.call(np.x, np.z)) - _pos.y) > 0.03: # (a drop behind it: stopped at its edge, not thrown over)
+		var gy := float(height.call(np.x, np.z)) if height.is_valid() else _pos.y
+		# (on land a drop behind it stops it at its edge; in the water it's
+		# swimming: over the bottom whatever its slope, so long as it's still
+		# in the water)
+		var blocked := (gy > water_y - 0.01 or (pond.has_area() and not _in_pond(np))) if wet else absf(gy - _pos.y) > 0.03
+		if blocked:
 			_flip_v = 0.0
 		else:
+			var was := _pos.y
 			_pos = np
-			_pos.y = _ground(_pos.x, _pos.z)
-		_flip_v = maxf(_flip_v - dt * (2.2 if wet else 3.0), 0.0)
+			_pos.y = gy if wet else _ground(_pos.x, _pos.z)
+			if wet: # (the bottom falling away under it: its height over it kept)
+				_swim_h = maxf(_swim_h + (was - _pos.y), 0.0)
+		_flip_v = maxf(_flip_v - dt * (1.6 if wet else 3.0), 0.0)
 
 
 ## (A burrow at _at: dug; the chimney built up round its mouth, pellet by

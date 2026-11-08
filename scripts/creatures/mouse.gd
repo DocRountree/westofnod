@@ -605,6 +605,7 @@ func _pup() -> void:
 	p.call("grow", 0.5, 240.0)
 	p.set("_centre", _pos)
 	p.set("height", height)
+	p.set("sink_water", sink_water)
 	_litter.append(p)
 	pups.append(p)
 

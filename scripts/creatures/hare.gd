@@ -594,6 +594,7 @@ func _leveret() -> void:
 	var off := Basis(Vector3.UP, _yaw) * Vector3((60.0 + 25.0 * (k % 2)) * (1.0 if k % 2 == 0 else -1.0), 0.0, -40.0 + 35.0 * k) * MM * size
 	l.call("place", _pos + off, _yaw + rng.randf_range(-1.5, 1.5))
 	l.set("height", height)
+	l.set("sink_water", sink_water)
 	l.call("grow", 0.5, 300.0)
 	l.call("wander", _pos + off, 0.12)
 	leverets.append(l)
@@ -743,11 +744,17 @@ func _walk(dt: float) -> void:
 		_yaw += clampf(turn, -5.0 * dt, 5.0 * dt)
 		var pace := _pace if _pace > 0.0 else walk_speed * lerpf(0.35, 1.0, size)
 		want = minf(pace, d * 3.0) * clampf(1.0 - absf(turn) / 1.4, 0.0, 1.0)
-	_speed = move_toward(_speed, want, dt * (_accel if want > _speed else _accel * 2.0))
+	var under := sinking()
+	if under: # (sinking through the water: its legs no use, drifting down)
+		want = 0.0
+	_speed = move_toward(_speed, want, dt * (_accel if want > _speed else _accel * 2.0) * (3.0 if under else 1.0))
 	_pos += Vector3(-sin(_yaw), 0.0, -cos(_yaw)) * _speed * dt
 	PersonalSpace.keep_apart(self)
 	ground_y = _ground(_pos.x, _pos.z)
-	_pos.y = ground_y
+	if ground_y < sink_water - 0.005 and _pos.y > ground_y + 0.002:
+		_pos.y = maxf(_pos.y - SINK_RATE * dt, ground_y) # (down through the water to the floor)
+	else:
+		_pos.y = ground_y
 
 
 func _gait(dt: float) -> void:

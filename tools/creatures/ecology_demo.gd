@@ -995,6 +995,7 @@ func _spawn_animal(key: String, at: Vector3, stage: String, male: bool, young: b
 		"mouse":
 			var mo := MouseScript.new(young)
 			mo.male = male and not young
+			_sinks(mo)
 			_org(mo, at, true)
 			mo.place(at, randf() * TAU)
 			if young:
@@ -1004,6 +1005,7 @@ func _spawn_animal(key: String, at: Vector3, stage: String, male: bool, young: b
 		"hare":
 			var h := HareScript.new(young)
 			h.male = male and not young
+			_sinks(h)
 			_org(h, at, false)
 			h.place(at, randf() * TAU)
 			h.wander(at, 0.6)
@@ -1011,6 +1013,7 @@ func _spawn_animal(key: String, at: Vector3, stage: String, male: bool, young: b
 		"fox_squirrel", "grey_squirrel":
 			var q: Node3D = (SquirrelScript if key == "fox_squirrel" else GreySqScript).new()
 			q.set("male", male)
+			_sinks(q)
 			_org(q, at, false)
 			var tree: Node3D = _plant_near(at, ["g_oak"], 4.0, Vector3(0.6, 0.0, -0.6))
 			_drey_in(tree)
@@ -1110,6 +1113,13 @@ func _org(n: Node, at: Vector3, small: bool) -> Node:
 	if small:
 		_clear_grass(at, 0.3)
 	return n
+
+
+## (A land animal: the ground as it is here, ponds and all, and their
+## water, which it sinks in: Hexapod.sink_water.)
+func _sinks(n: Node) -> void:
+	n.set("height", _height)
+	n.set("sink_water", POND)
 
 
 ## (A water creature's pond: its water, its floor, its reeds.)

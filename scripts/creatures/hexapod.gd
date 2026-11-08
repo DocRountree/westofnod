@@ -51,6 +51,10 @@ var male := false ## (set before it's added: the species' build may differ: its 
 var dead := false
 var ground_y := 0.0
 var height: Callable ## (x, z) -> the ground's y (none: level, at ground_y)
+## A land animal's (a mouse's, a hare's, a squirrel's): the surface of the
+## water it may blunder into (INF: none). Where the ground is under it, it
+## doesn't walk on the water: it sinks, slowly, to the floor.
+var sink_water := INF
 var _pilot: PilotScript
 var _pace := -1.0 # (m/s, the pilot's: -1 its own)
 var rng := RandomNumberGenerator.new()
@@ -421,11 +425,25 @@ func _walk(dt: float) -> void:
 		_yaw += clampf(turn, -2.5 * dt, 2.5 * dt)
 		var pace := _pace if _pace > 0.0 else walk_speed * lerpf(0.35, 1.0, size)
 		want = minf(pace, d * 4.0) * clampf(1.0 - absf(turn) / 1.2, 0.0, 1.0)
-	_speed = move_toward(_speed, want, dt * 0.4)
+	var under := sinking()
+	if under: # (sinking: its legs no use, drifting down)
+		want = 0.0
+	_speed = move_toward(_speed, want, dt * (2.0 if under else 0.4))
 	_pos += Vector3(-sin(_yaw), 0.0, -cos(_yaw)) * _speed * dt
 	PersonalSpace.keep_apart(self)
 	ground_y = _ground(_pos.x, _pos.z)
-	_pos.y = ground_y
+	if ground_y < sink_water - 0.005 and _pos.y > ground_y + 0.002:
+		_pos.y = maxf(_pos.y - SINK_RATE * dt, ground_y) # (down through the water to the floor)
+	else:
+		_pos.y = ground_y
+
+
+const SINK_RATE := 0.12 ## m/s a land animal sinks through water (sink_water)
+
+
+## Whether it's sinking through water now (sink_water), not yet on the floor.
+func sinking() -> bool:
+	return sink_water < INF and _pos.y > _ground(_pos.x, _pos.z) + 0.002 and _ground(_pos.x, _pos.z) < sink_water - 0.005
 
 
 func _enter_tree() -> void:
