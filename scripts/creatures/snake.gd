@@ -451,6 +451,7 @@ func _process(dt: float) -> void:
 		return
 	_t += dt
 	_st += dt
+	_frame_dt = dt
 	size = move_toward(size, _g_to, _g_rate * dt)
 	if _pilot:
 		_pilot.tick(dt)
@@ -505,7 +506,9 @@ func _think(dt: float) -> void:
 			_dir = _dir.rotated(Vector3.UP, clampf(turn, -1.0 * dt, 1.0 * dt))
 		var wl := float(K.len) * size * 0.45 # (a wave's length along its path)
 		_phase += _speed * dt / wl * TAU
-		var way := _dir.rotated(Vector3.UP, _wave * sin(_phase))
+		if _wave_now < 0.0:
+			_wave_now = _wave
+		var way := _dir.rotated(Vector3.UP, _wave_now * sin(_phase))
 		# never through its own body: steering away from any of it ahead,
 		# slowing for it; its head kept clear of it whatever (the body
 		# follows the head's path: if the head never crosses it, nor does
@@ -531,9 +534,12 @@ func _think(dt: float) -> void:
 					var k := 1.0 - d / (cl * 1.8)
 					steer -= (side if side != 0.0 else 1.0) * k
 					slow = minf(slow, lerpf(1.0, 0.35, k))
+		# (its waves narrower while it steers round something: eased, not
+		# switched, or its head jumped sideways each time it began or left off)
+		_wave_now = move_toward(_wave_now, minf(_wave, 0.3) if steer != 0.0 else _wave, dt * 0.6)
 		if steer != 0.0:
 			_dir = _dir.rotated(Vector3.UP, clampf(steer * 3.0 * dt, -2.5 * dt, 2.5 * dt))
-			way = _dir.rotated(Vector3.UP, 0.3 * sin(_phase))
+			way = _dir.rotated(Vector3.UP, _wave_now * sin(_phase))
 		_pos += way * _speed * slow * dt
 	# (kept off the others moving or not: its head eased off them; its body,
 	# which can't be shifted, they keep off: PersonalSpace)
@@ -1171,21 +1177,29 @@ func _exit_tree() -> void:
 ## others keep off that.)
 const SPACE_SEGS := 5
 const SPACE_PUSH := 0.8 ## of its thickness its head's put off another a frame, at most (its body bends smoothly after it, whatever: _update)
+const SPACE_EASE := 8.0 ## the share of an overlap a second its head's eased out of it (_space_push)
+var _frame_dt := 1.0 / 60.0
+var _wave_now := -1.0 # (the waves' swing now: _wave, eased narrower while steering)
 
 
 ## (Its head put off another, its body following; and its way turned along
 ## the other, not on into it again (no shoving back and forth).)
+## Eased: only a share of the overlap a frame (SPACE_EASE a second), so a
+## head between two others' bodies settles between them instead of being
+## thrown from one to the other and back every frame (its body, following
+## the head's path, shook with it).
 func _space_push(v: Vector2) -> void:
 	var most := float(K.r) * size * SPACE_PUSH
-	var w := v.limit_length(most)
+	var k := clampf(_frame_dt * SPACE_EASE, 0.0, 1.0)
+	var w := v.limit_length(most) * k
 	_pos += Vector3(w.x, 0.0, w.y)
-	if w.length() > 1e-6:
+	if w.length() > 1e-7:
 		var n := Vector3(w.x, 0.0, w.y).normalized()
 		var into := _dir.dot(-n)
 		if into > 0.0: # (heading into it: turned to slide along it)
 			var along := _dir + n * into
 			if along.length() > 1e-4:
-				_dir = _dir.slerp(along.normalized(), 0.5).normalized()
+				_dir = _dir.slerp(along.normalized(), clampf(_frame_dt * 4.0, 0.0, 0.5)).normalized()
 
 
 func _space_spines() -> Array:
