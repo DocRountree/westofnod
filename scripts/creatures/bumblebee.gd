@@ -23,6 +23,12 @@ extends "res://scripts/creatures/wasp.gd" # (by path: found whether or not the e
 ##   ground), down into it, a while, out again unloaded, and back to the
 ##   flowers. Till another action
 ## - home(nest): back to its nest, in, a while, and out again
+## - mate(her): (a drone's, with a queen: Bumblebee.new(true), bigger, a
+##   third again a worker's size; never a worker, who doesn't mate) after
+##   her, onto her back, gripping her, the two of them down together onto
+##   the ground or a plant, joined a long while, his wings buzzing now and
+##   then; then off, both. A drone's face yellow, a tuft of it (Bombus
+##   impatiens's), its pile longer
 ## Steering (pilot.gd): act forage {heads, nest}, home {nest}, and the
 ## wasp's seek_food, feed_on_flower, land, take_off, mate, sting.
 
@@ -30,11 +36,45 @@ const FUR_SHELLS := 6
 const POLLEN := Color(0.95, 0.68, 0.22)
 
 var pollen := 0.0 ## (its loads: 0 none .. 1 full)
+var queen := false ## a queen (a new one, to mate and found a nest), not a worker: bigger
 var nest_at := Vector3.INF ## its nest's mouth (on the ground), if it has one
 var _shake := 0.0 # (buzzing a flower: its body shaking, its wings still)
 var _tongue: MeshInstance3D
 var _loads: Array[MeshInstance3D] = []
 var _fur_mats := {}
+
+
+func _init(queen_ := false) -> void:
+	queen = queen_
+	big = 1.33 if queen_ else 1.0
+	mate_secs = 40.0 # (bumble bees: a long while, joined)
+	super()
+
+
+## (A drone's face: a tuft of yellow pile on it.)
+func _ready() -> void:
+	super()
+	if male:
+		for c in _head.get_children():
+			if c is MeshInstance3D: # (its face's pile recoloured, shell by shell)
+				var face := c as MeshInstance3D
+				var yel := Color(0.92, 0.78, 0.3)
+				face.material_override = _fur(yel, 0, 0.14)
+				var k := 0
+				for sh in face.get_children():
+					k += 1
+					(sh as MeshInstance3D).material_override = _fur(yel, k, 0.14)
+				break
+
+
+## Only a drone and a queen (a worker doesn't mate).
+func mate(partner: Node3D, secs := -1.0) -> bool:
+	if partner == null or not partner.has_method("_mate_begin"):
+		return false
+	var her: Node3D = self if not male else partner
+	if not bool(her.get("queen")):
+		return false
+	return super(partner, secs)
 
 
 func _palette() -> Dictionary:

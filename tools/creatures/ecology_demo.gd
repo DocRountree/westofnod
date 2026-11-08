@@ -114,7 +114,7 @@ const CATALOGUE := [
 	["Insects", "Old World swallowtail", "swallowtail", ["adult", "young", "pupa"]],
 	["Insects", "luna moth", "luna", ["adult", "young", "pupa"]],
 	["Insects", "paper wasp", "wasp", ["adult", "young"]],
-	["Insects", "common eastern bumble bee", "bee", ["adult"]],
+	["Insects", "common eastern bumble bee", "bee", ["adult", "queen"]],
 	["Insects", "trigonalid wasp", "trig", ["adult"]],
 	["Insects", "ichneumon wasp", "ichneumon", ["adult"]],
 	["Insects", "carpenter ant (queen)", "carpenter", ["adult", "young"]],
@@ -763,8 +763,8 @@ func _spawn_animal(key: String, at: Vector3, stage: String, male: bool, young: b
 			w.set_meta("comb", comb)
 			w.land(at + Vector3(0.1, 0.0, 0.08))
 			return w
-		"bee":
-			var b: Node3D = BeeScript.new()
+		"bee": # (a worker, or a drone (male); queen: a new queen, to mate)
+			var b: Node3D = BeeScript.new(stage == "queen" and not male)
 			b.set("male", male)
 			_org(b, at, false)
 			var nest: Node3D = _kit(b, "nest", func() -> Node3D:
@@ -1861,7 +1861,7 @@ func _mate(all: Array) -> void:
 		var best: Node = null
 		for pool: Array in [all, _creatures()]:
 			for o in pool:
-				if o != c and is_instance_valid(o) and o.get_script() == c.get_script() and not _flag(o, "male") and not _young(o) and not _flag(o, "dead"):
+				if o != c and is_instance_valid(o) and o.get_script() == c.get_script() and not _flag(o, "male") and not _young(o) and not _flag(o, "dead") and (o.get_script() != BeeScript or _flag(o, "queen")):
 					if best == null or _where(o).distance_to(_where(c)) < _where(best).distance_to(_where(c)):
 						best = o
 			if best:

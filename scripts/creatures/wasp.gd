@@ -180,6 +180,7 @@ var _fans: Array[MeshInstance3D] = [] # L, R
 var _wing_mat: ShaderMaterial
 var _hind_mat: ShaderMaterial
 var _pal: Dictionary = {} # (its colours: _palette())
+var big := 1.0 ## its size, of the model's (a bumble bee queen's bigger: Bumblebee)
 var ant_seg := 1.2 ## mm: each of its flagellum's four drawn lengths
 var ant_curl := 0.12 ## rad: how much more each bends down than the last
 static var _tergites := {} # (the gaster's plates' meshes, shared)
@@ -301,7 +302,7 @@ func feed_on_flower(head: Vector3, normal := Vector3.UP, sway := 0.0) -> void:
 	_land_plane = true
 	while true:
 		# its thorax over the head, a little back: its own head over the middle
-		_fly_target = head + normal * (BODY_H + 0.8) * MM - _flat(face, normal) * 3.5 * MM
+		_fly_target = head + normal * (BODY_H + 0.8) * MM * big - _flat(face, normal) * 3.5 * MM * big
 		if not await _wait(id, rng.randf_range(2.0, 4.5)):
 			return
 		# round to another side of it, lifting a little as it goes
@@ -859,16 +860,17 @@ func _ride(dt: float) -> void:
 	var ht := her.global_transform
 	_ride_k = move_toward(_ride_k, 1.0, dt / 0.35)
 	var e := _ride_k * _ride_k * (3.0 - 2.0 * _ride_k)
-	var on := Transform3D(ht.basis * Basis(Vector3.RIGHT, -0.08), ht * (RIDE_AT * MM))
+	var hk := float(her.get("big")) # (her size: his place on her back hers)
+	var on := Transform3D(ht.basis * Basis(Vector3.RIGHT, -0.08), ht * (RIDE_AT * MM * hk))
 	global_transform = _ride_from.interpolate_with(on, e)
 	surface_n = ht.basis.y.normalized()
-	surface_p = ht * (Vector3(0.0, -0.6, 0.0) * MM)
+	surface_p = ht * (Vector3(0.0, -0.6, 0.0) * MM * hk)
 	_heading = -ht.basis.z
 	# (his feet: hers sides, front to back)
 	for i in 6:
 		var side := 1.0 if i % 2 == 1 else -1.0
 		var z := [-1.4, 0.2, 1.8][i / 2] as float
-		var f := ht * (Vector3(1.5 * side, -0.6, z) * MM)
+		var f := ht * (Vector3(1.5 * side, -0.6, z) * MM * hk)
 		_feet[i] = f
 		_feet_now[i] = (_feet_now[i] as Vector3).lerp(f, e)
 
@@ -1008,7 +1010,7 @@ func _touch_down(id: int, at: Vector3, normal: Vector3, face: Vector3, down := 0
 	if not await _wait(id, rng.randf_range(0.25, 0.6) if down < 0.2 else 0.05):
 		return false
 	_max_speed = down
-	var low := at + normal * (BODY_H + 0.3) * MM
+	var low := at + normal * (BODY_H + 0.3) * MM * big
 	_fly_target = low
 	if not await _until(id, func() -> bool: return _pos.distance_to(low) < 0.0008, 4.0):
 		return false
@@ -1153,7 +1155,7 @@ func _gait(dt: float) -> void:
 		var u := minf(_swing_t, 1.0)
 		var ahead := _heading * _speed * STEP_TIME * 1.5
 		for i in TRIPOD[_swinging]:
-			_feet_now[i] = _swing_from[i].lerp(homes[i] + ahead, smoothstep(0.0, 1.0, u)) + surface_n * sin(PI * u) * 0.9 * MM
+			_feet_now[i] = _swing_from[i].lerp(homes[i] + ahead, smoothstep(0.0, 1.0, u)) + surface_n * sin(PI * u) * 0.9 * MM * big
 		if u >= 1.0:
 			for i in TRIPOD[_swinging]:
 				_feet[i] = homes[i] + ahead
@@ -1175,7 +1177,7 @@ func _homes() -> Array[Vector3]:
 		var L: Dictionary = LEGS[i / 2]
 		var side := 1.0 if i % 2 == 1 else -1.0
 		var h: Vector2 = L.home
-		out.append(_pos + (b.x * h.x * side * spread + b.z * h.y) * MM)
+		out.append(_pos + (b.x * h.x * side * spread + b.z * h.y) * MM * big)
 	return out
 
 
@@ -1193,7 +1195,7 @@ func _place(dt: float) -> void:
 		o = _pos + j * 0.5 * _jitter
 	else:
 		b = _frame(surface_n, _flat(_heading, surface_n)) * Basis(Vector3.RIGHT, 0.12 + _a.lift_pitch)
-		o = _pos + surface_n * (BODY_H + 1.2 * _a.rise - 0.45 * _a.crouch) * MM
+		o = _pos + surface_n * (BODY_H + 1.2 * _a.rise - 0.45 * _a.crouch) * MM * big
 		o = global_position.lerp(o, 1.0 - exp(-25.0 * dt)) if global_position.distance_to(o) < 0.01 else o
 	var q := global_basis.get_rotation_quaternion().slerp(b.get_rotation_quaternion(), 1.0 - exp(-14.0 * dt))
 	global_transform = Transform3D(Basis(q), o)
@@ -1309,7 +1311,7 @@ func _pose_legs() -> void:
 	var reach := 0.0
 	var homes: Array[Vector3] = []
 	if flying and _land_plane:
-		var hgt := (_pos - surface_p).dot(surface_n) / MM - BODY_H
+		var hgt := (_pos - surface_p).dot(surface_n) / (MM * big) - BODY_H
 		reach = clampf(1.0 - hgt / 10.0, 0.0, 1.0)
 		var save := _pos
 		_pos = _pos - surface_n * (_pos - surface_p).dot(surface_n)
@@ -1518,7 +1520,7 @@ func _build() -> void:
 	_cyl.radial_segments = 6
 	_cyl.rings = 1
 	_body = Node3D.new()
-	_body.scale = Vector3.ONE * MM
+	_body.scale = Vector3.ONE * MM * big
 	add_child(_body)
 	_pal = _palette()
 	var BODY: Color = _pal.body
