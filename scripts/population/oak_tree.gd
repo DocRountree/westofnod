@@ -398,13 +398,21 @@ static func refresh_view() -> void:
 			var r = mats[key].get_shader_parameter("lod_range")
 			if not r is Vector3:
 				continue # (the moss's sporophytes: no levels)
-			if r.x >= LOD[LOD.size() - 1] - 1.0: # (the last level's: the cards)
+			if mats[key].has_meta("view_base"): # (a plant's far card, its own reach: PlantMesh.levels)
+				r.y = preload("res://scripts/population/plant_mesh.gd").reach(mats[key].get_meta("view_base"), r.x)
+				mats[key].set_shader_parameter("lod_range", r)
+			elif r.x >= LOD[LOD.size() - 1] - 1.0: # (the last level's: the cards)
 				r.y = view()
 				mats[key].set_shader_parameter("lod_range", r)
 
 
 ## Off: every level drawn wherever it is (e.g. to look at one level alone).
+## (And so the levels' materials made after: lod_fade_on.)
+static var lod_fade_on := true
+
+
 static func set_lod_fade(on: bool) -> void:
+	lod_fade_on = on
 	for mats in [_bark_mats, _leaf_mats]:
 		for key in mats:
 			var r = mats[key].get_shader_parameter("lod_range")

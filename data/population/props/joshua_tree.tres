@@ -12,7 +12,6 @@ shadow_distance = 40.0
 scale_range = Vector2(0.85, 1.15)
 sink = 0.03
 radius = 0.35
-view_distance = 400.0
 density = {
 "mesa": 0.35
 }

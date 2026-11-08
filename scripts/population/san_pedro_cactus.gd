@@ -35,18 +35,34 @@ const SPINE_TIP := Color(0.32, 0.22, 0.12)
 static var _cache := {}
 
 
+## Its levels of detail (Population; PlantMesh.levels): where each simpler
+## one takes over (m), the last its far card, out to VIEW (m).
+const LOD := [20.0, 60.0, 110.0]
+const VIEW := 250.0
+
+
 static func build(variant := 0) -> Mesh:
-	return build_lods(variant)[0]
+	return _levels(variant)[0]
 
 
-## Its levels of detail: whole; no spines, fewer areoles; the far one
-## (fewer sides, no areoles).
+## Its simpler levels (after the whole one, build()): no spines, fewer areoles; the far one
+## (fewer sides, no areoles); then its far card.
 static func build_lods(variant := 0) -> Array[Mesh]:
+	return _levels(variant)[1]
+
+
+## Population: its levels' distances and its reach, every variant's.
+static func variant_props(_variant: int) -> Dictionary:
+	return {"lod_distances": PackedFloat32Array(LOD), "view_distance": VIEW}
+
+
+static func _levels(variant: int) -> Array:
+	variant = posmod(variant, VARIANTS.size())
 	if not _cache.has(variant):
-		var lods: Array[Mesh] = []
+		var raw := []
 		for lod in 3:
-			lods.append(_make(VARIANTS[variant], lod))
-		_cache[variant] = lods
+			raw.append(_make(VARIANTS[variant], lod))
+		_cache[variant] = PM.levels(raw, LOD, VIEW, "san_pedro", variant)
 	return _cache[variant]
 
 

@@ -208,3 +208,59 @@ static func painted(rough := 0.7, sheen := 0.0, cull := true) -> StandardMateria
 static func noise(p: Vector3, f := 1.0) -> float:
 	var q := p * f
 	return fposmod(sin(q.x * 12.9898 + q.y * 78.233 + q.z * 37.719) * 43758.5453, 1.0) * 2.0 - 1.0
+
+
+# ---- levels of detail ---------------------------------------------------------
+
+static var _lod_mats := {} # [rough, rim, cull, begin, end] -> ShaderMaterial
+
+
+## A plant's levels as Population draws them: raw its three meshes (whole,
+## simpler, simplest); lod the distances (m) where the next takes over
+## (lod[0], lod[1]) and where its far card does (lod[2]), the card out to
+## view (m, its PropKind's: brought to the player's tree distance as
+## Population brings it). Each mesh drawn over its span only, stippled into
+## the next (plant_painted.gdshaderinc); the card a photograph of the
+## simplest, eight ways round (OakTree._impostor, ImpostorBaker), as a
+## tree's. [the whole one (PropKind.mesh), [the rest] (PropKind.lods)]
+static func levels(raw: Array, lod: Array, view: float, species: String, variant: int) -> Array:
+	var whole := _lodded(raw[0], 0.0, lod[0])
+	var lods: Array[Mesh] = [_lodded(raw[1], lod[0], lod[1]), _lodded(raw[2], lod[1], lod[2])]
+	var card := OakTree._impostor(variant, raw[2], species) # (photographed from the plain one: no levels)
+	var m := card.surface_get_material(0) as ShaderMaterial
+	m.set_meta("view_base", view)
+	m.set_shader_parameter("lod_range", Vector3(lod[2], reach(view, lod[2]), _fade()))
+	lods.append(card)
+	return [whole, lods]
+
+
+## How far its far cards reach (m): as Population's view_distance for it.
+static func reach(view: float, last: float) -> float:
+	return maxf(view * OakTree.view() / OakTree.VIEW, last + 20.0)
+
+
+static func _fade() -> float:
+	return Population.LOD_FADE if OakTree.lod_fade_on else 0.0
+
+
+## A copy of mesh, its materials (painted()) made the level's: drawn from
+## begin to end (m) only.
+static func _lodded(mesh: ArrayMesh, begin: float, end: float) -> ArrayMesh:
+	var out := ArrayMesh.new()
+	for i in mesh.get_surface_count():
+		out.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, mesh.surface_get_arrays(i))
+		var src := mesh.surface_get_material(i) as StandardMaterial3D
+		var rough := src.roughness if src else 0.7
+		var rim := src.rim if src and src.rim_enabled else 0.0
+		var cull := src == null or src.cull_mode != BaseMaterial3D.CULL_DISABLED
+		var key := [rough, rim, cull, begin, end]
+		if not _lod_mats.has(key):
+			var m := ShaderMaterial.new()
+			m.shader = load("res://shaders/render/plant_painted.gdshader" if cull else "res://shaders/render/plant_painted_two_sided.gdshader")
+			m.set_shader_parameter("roughness_v", rough)
+			m.set_shader_parameter("rim_v", rim)
+			m.set_shader_parameter("lod_range", Vector3(begin, end, _fade()))
+			_lod_mats[key] = m
+			OakTree._leaf_mats[["plant"] + key] = m # (its fade turned off with the trees': OakTree.set_lod_fade)
+		out.surface_set_material(i, _lod_mats[key])
+	return out

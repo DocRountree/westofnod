@@ -17,6 +17,7 @@ func _init() -> void:
 	if args.size() > 0:
 		out = args[0]
 	var lod := 1 if args.has("lod1") else (2 if args.has("lod2") else 0)
+	OakTree.set_lod_fade(false) # (each level drawn wherever it stands)
 	var rows := []
 	if args.has("joshua"):
 		rows = [[JOSHUA, 9.0]]
@@ -63,7 +64,7 @@ func _init() -> void:
 		var n: int = S.VARIANTS.size()
 		for v in n:
 			var mi := MeshInstance3D.new()
-			mi.mesh = S.build_lods(v)[lod]
+			mi.mesh = S.build(v) if lod == 0 else S.build_lods(v)[lod - 1]
 			mi.position = Vector3((v - (n - 1) * 0.5) * gap, 0.0, z)
 			root3.add_child(mi)
 		widest = maxf(widest, gap * n)
