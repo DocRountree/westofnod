@@ -2951,7 +2951,9 @@ func _unhandled_input(e: InputEvent) -> void:
 		return
 	if e is InputEventMouseMotion:
 		var mm := e as InputEventMouseMotion
-		if mm.button_mask & MOUSE_BUTTON_MASK_RIGHT:
+		if mm.button_mask & MOUSE_BUTTON_MASK_LEFT and _left_down != Vector2.INF and mm.position.distance_to(_left_down) > 6.0:
+			_left_dragged = true # (a left drag turns the view too; a click without one picks or puts down)
+		if mm.button_mask & MOUSE_BUTTON_MASK_RIGHT or (mm.button_mask & MOUSE_BUTTON_MASK_LEFT and _left_dragged):
 			_yaw -= mm.relative.x * 0.008
 			_pitch = clampf(_pitch - mm.relative.y * 0.008, -1.45, 0.2)
 		elif mm.button_mask & MOUSE_BUTTON_MASK_MIDDLE:
@@ -2969,20 +2971,31 @@ func _unhandled_input(e: InputEvent) -> void:
 			MOUSE_BUTTON_RIGHT:
 				_right_down = mb.position
 			MOUSE_BUTTON_LEFT:
-				var g := _ground_at(mb.position)
-				if _placing != "":
-					if g != Vector3.INF:
-						var n := spawn(_placing, g, _stage(), _ui_male.button_pressed)
-						_status = ("put down: %s" % _name_of(_placing)) if n else ("nothing put down (%s)" % _name_of(_placing))
-						_say()
-				else:
-					_pick(mb.position, mb.shift_pressed)
+				_left_down = mb.position
+				_left_dragged = false
+		return
+	if e is InputEventMouseButton and not e.pressed and (e as InputEventMouseButton).button_index == MOUSE_BUTTON_LEFT:
+		var mb := e as InputEventMouseButton
+		var dragged := _left_dragged or _left_down == Vector2.INF
+		_left_down = Vector2.INF
+		_left_dragged = false
+		if not dragged:
+			var g := _ground_at(mb.position)
+			if _placing != "":
+				if g != Vector3.INF:
+					var n := spawn(_placing, g, _stage(), _ui_male.button_pressed)
+					_status = ("put down: %s" % _name_of(_placing)) if n else ("nothing put down (%s)" % _name_of(_placing))
+					_say()
+			else:
+				_pick(mb.position, mb.shift_pressed)
 	elif e is InputEventMouseButton and not e.pressed and (e as InputEventMouseButton).button_index == MOUSE_BUTTON_RIGHT:
 		if _placing != "" and (e as InputEventMouseButton).position.distance_to(_right_down) < 4.0:
 			_stop_placing()
 
 
 var _right_down := Vector2.ZERO
+var _left_down := Vector2.INF # (where the left button went down over the view; INF: not)
+var _left_dragged := false
 
 
 ## The ground under a point on the screen (or INF).
@@ -3155,6 +3168,10 @@ func _sway_of(at: Vector3) -> float:
 func _process(dt: float) -> void:
 	# the camera, round its focus
 	var k := Input.get_vector("ui_left", "ui_right", "ui_up", "ui_down")
+	if k != Vector2.ZERO and Input.is_key_pressed(KEY_SHIFT): # (Shift + arrows: turning the view round, tilting it)
+		_yaw -= k.x * 1.6 * dt
+		_pitch = clampf(_pitch + k.y * 1.0 * dt, -1.45, 0.2)
+		k = Vector2.ZERO
 	if k != Vector2.ZERO and not (get_viewport().gui_get_focus_owner() is LineEdit):
 		var right := Vector3(cos(_yaw), 0.0, -sin(_yaw))
 		var fwd := Vector3(-sin(_yaw), 0.0, -cos(_yaw))
@@ -3284,7 +3301,7 @@ func _say() -> void:
 		return
 	var sel := _selected.filter(func(n) -> bool: return is_instance_valid(n))
 	var who := "everything here (%d)" % _creatures().size() if sel.is_empty() else ", ".join(sel.slice(0, 4).map(func(n: Node) -> String: return _label_of(n))) + (" ..." if sel.size() > 4 else "")
-	_ui_info.text = "Keys act on: %s     %s\n1 lay / birth   2 hatch / moult / decay on   3 pupate   E eat   H hunt   U an unusual meal   R a mushroom   K mate   G groom   Z sleep\nF fly / hop / climb   X alarm   D display / call   V play   N nurse   B forage / home   S spin   M mark   A sit   W own ways\nclick: select (Shift: add)   Del: delete   C: centre   right drag: turn   middle drag / arrows: move   wheel: zoom   Space: slow" % [who, _status]
+	_ui_info.text = "Keys act on: %s     %s\n1 lay / birth   2 hatch / moult / decay on   3 pupate   E eat   H hunt   U an unusual meal   R a mushroom   K mate   G groom   Z sleep\nF fly / hop / climb   X alarm   D display / call   V play   N nurse   B forage / home   S spin   M mark   A sit   W own ways\nclick: select (Shift: add)   Del: delete   C: centre   left or right drag, Shift + arrows: turn   middle drag / arrows: move   wheel: zoom   Space: slow" % [who, _status]
 
 
 func _label_of(n: Node) -> String:

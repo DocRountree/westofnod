@@ -381,7 +381,7 @@ static func _texture(path: String) -> Texture2D:
 static func _lod_span(m: ShaderMaterial, level: int) -> void:
 	var begin: float = 0.0 if level == 0 else LOD[level - 1]
 	var end: float = view() if level == LOD.size() else LOD[level]
-	m.set_shader_parameter("lod_range", Vector3(begin, end, Population.LOD_FADE))
+	m.set_shader_parameter("lod_range", Vector3(begin, end, Population.LOD_FADE if lod_fade_on else 0.0)) # (off: drawn wherever it stands, set_lod_fade)
 
 
 ## The far cards' reach, m: VIEW, or the player's own (Settings: the tree
