@@ -83,6 +83,8 @@ const CarcassScript := preload("res://scripts/creatures/carcass.gd")
 const CrayScript := preload("res://scripts/creatures/crayfish.gd")
 const RedCrayScript := preload("res://scripts/creatures/red_swamp_crayfish.gd")
 const VirileCrayScript := preload("res://scripts/creatures/virile_crayfish.gd")
+const ShrimpScript := preload("res://scripts/creatures/shrimp.gd")
+const SHRIMP := {"white_shrimp": preload("res://scripts/creatures/white_shrimp.gd"), "brown_shrimp": preload("res://scripts/creatures/brown_shrimp.gd"), "pink_shrimp": preload("res://scripts/creatures/pink_shrimp.gd")}
 
 const PersonalSpace := preload("res://scripts/creatures/personal_space.gd")
 const HALF := 12.0 ## m: the plain's half width (it's square)
@@ -134,6 +136,9 @@ const CATALOGUE := [
 	["Spiders and kin", "pill bug", "pillbug", ["adult", "young"]],
 	["Crustaceans", "red swamp crayfish", "red_crayfish", ["adult", "young"]],
 	["Crustaceans", "virile crayfish", "virile_crayfish", ["adult", "young"]],
+	["Crustaceans", "white shrimp (in the sea)", "white_shrimp", ["adult", "young"]],
+	["Crustaceans", "brown shrimp (in the sea)", "brown_shrimp", ["adult", "young"]],
+	["Crustaceans", "pink shrimp (in the sea)", "pink_shrimp", ["adult", "young"]],
 	["Fish", "sailfin mollies (a school)", "mollies", ["adult"]],
 	["Fish", "Chinook salmon, at sea (a school)", "chinook", ["adult"]],
 	["Fish", "Chinook salmon, spawning (a few)", "chinook_spawning", ["adult"]],
@@ -891,6 +896,21 @@ func _spawn_animal(key: String, at: Vector3, stage: String, male: bool, young: b
 			cr.call("place", inside, randf() * TAU)
 			cr.call("wander", inside, 0.2)
 			return cr
+		"white_shrimp", "brown_shrimp", "pink_shrimp": # (in the sea: on its floor, clear of its walls)
+			var sq := _pond_for(at, "sea")
+			var sh: Node3D = (SHRIMP[key] as Script).new(young)
+			sh.set("male", male and not young)
+			sh.set("water_y", POND)
+			sh.set("height", _height)
+			var sc0: Vector3 = sq.c
+			var inn := Vector3(clampf(at.x, sc0.x - float(sq.hw) + 0.25, sc0.x + float(sq.hw) - 0.25), 0.0, clampf(at.z, sc0.z - float(sq.hd) + 0.25, sc0.z + float(sq.hd) - 0.25))
+			inn.y = _height(inn.x, inn.z)
+			_org(sh, inn, false)
+			sh.set_meta("pond", sc0)
+			sh.set("pond", Rect2(sc0.x - float(sq.hw), sc0.z - float(sq.hd), float(sq.hw) * 2.0, float(sq.hd) * 2.0))
+			sh.call("place", inn, randf() * TAU)
+			sh.call("wander", inn, 0.6)
+			return sh
 		"scorpion":
 			var s := ScorpionScript.new(young) if young else ScorpionScript.new()
 			s.male = male and not young
@@ -2551,9 +2571,17 @@ func _crayfish_do(c: Node, act_: String, young: bool, p: Vector3) -> void:
 		"alarm":
 			c.call("flee", p + fwd * 0.2)
 		"display":
-			c.call("threat", p + fwd * 0.2)
+			if c is ShrimpScript: # (no threat display: off, swimming)
+				c.call("flee", p + fwd * 0.2)
+			else:
+				c.call("threat", p + fwd * 0.2)
 		"forage":
 			c.call("forage", p, 0.2)
+		"fly", "sleep", "sit" when c is ShrimpScript: # (buried in the sand where it is; F: off swimming)
+			if act_ == "fly":
+				c.call("wander", p, 0.8)
+			else:
+				c.call("burrow", p)
 		"fly", "sleep", "sit": # (a burrow on the bank, by the water: up its sloping bank, to one side)
 			var at := p + near * 0.15
 			if not q.is_empty() and q.has("ramp"):
