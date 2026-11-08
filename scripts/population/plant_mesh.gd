@@ -53,11 +53,15 @@ static func _carry(prev_right: Vector3, dir: Vector3) -> Vector3:
 ## depth: a share of the radius the grooves go in, sharp: the crests'
 ## breadth (0.3 broad .. 1 pointed)}; colour: Callable (point index, the
 ## angle round, how deep in a groove 0..1) -> Color; capped: its end
-## rounded shut (dome: how far back the rounding starts, m).
-static func tube(st: SurfaceTool, pts: Array, radii: Array, sides: int, colour: Callable, ribs := {}, dome := 0.0) -> void:
+## rounded shut (dome: how far back the rounding starts, m). uv: each
+## vertex's UV (x: the way round, in ribs (a crest at each whole number), or
+## turns with none; y: m along) and UV2 (its radius there, m; the ribs); for
+## a shader to paint by (SanPedroCactus's skin). Its rings ([its sides + 1
+## vertices: [point, normal, colour, ...]]) and how far along each is (m).
+static func tube(st: SurfaceTool, pts: Array, radii: Array, sides: int, colour: Callable, ribs := {}, dome := 0.0, uv := false) -> Array:
 	var n := pts.size()
 	if n < 2:
-		return
+		return [[], []]
 	var rn := int(ribs.get("n", 0))
 	var depth := float(ribs.get("depth", 0.0))
 	var sharp := float(ribs.get("sharp", 0.5))
@@ -90,7 +94,7 @@ static func tube(st: SurfaceTool, pts: Array, radii: Array, sides: int, colour: 
 			if rn > 0: # (the normal tipped across the rib's slope)
 				var dg := float(rn) * 0.5 * sin(a * rn * 0.5) * signf(cos(a * rn * 0.5)) * depth * 2.0
 				nrm = (off - (right * -sin(a) + up * cos(a)) * dg).normalized()
-			ring.append([p + off * r, nrm, colour.call(i, a, groove)])
+			ring.append([p + off * r, nrm, colour.call(i, a, groove), Vector2(float(k) / sides * maxi(rn, 1), along[i]), Vector2(R, maxi(rn, 1))])
 		rings.append(ring)
 	for i in n - 1:
 		var A: Array = rings[i]
@@ -100,8 +104,29 @@ static func tube(st: SurfaceTool, pts: Array, radii: Array, sides: int, colour: 
 			var a1: Array = A[k + 1]
 			var b0: Array = B[k]
 			var b1: Array = B[k + 1]
-			_tri(st, a0[0], b0[0], b1[0], a0[1], b0[1], b1[1], a0[2], b0[2], b1[2])
-			_tri(st, a0[0], b1[0], a1[0], a0[1], b1[1], a1[1], a0[2], b1[2], a1[2])
+			if uv:
+				_tri_uv(st, a0, b0, b1)
+				_tri_uv(st, a0, b1, a1)
+			else:
+				_tri(st, a0[0], b0[0], b1[0], a0[1], b0[1], b1[1], a0[2], b0[2], b1[2])
+				_tri(st, a0[0], b1[0], a1[0], a0[1], b1[1], a1[1], a0[2], b1[2], a1[2])
+	return [rings, along]
+
+
+## (_tri, each vertex [point, normal, colour, uv, uv2])
+static func _tri_uv(st: SurfaceTool, a: Array, b: Array, c: Array) -> void:
+	if (b[0] - a[0]).cross(c[0] - a[0]).dot(a[1] + b[1] + c[1]) > 0.0:
+		var t := b
+		b = c
+		c = t
+	if not st.has_meta("used"):
+		st.set_meta("used", true)
+	for v: Array in [a, b, c]:
+		st.set_color(v[2])
+		st.set_normal(v[1])
+		st.set_uv(v[3])
+		st.set_uv2(v[4])
+		st.add_vertex(v[0])
 
 
 ## A blade (a leaf, a spine) from base along dir, length long, width wide
@@ -249,7 +274,17 @@ static func _lodded(mesh: ArrayMesh, begin: float, end: float) -> ArrayMesh:
 	var out := ArrayMesh.new()
 	for i in mesh.get_surface_count():
 		out.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, mesh.surface_get_arrays(i))
-		var src := mesh.surface_get_material(i) as StandardMaterial3D
+		var own := mesh.surface_get_material(i)
+		if own is ShaderMaterial: # (its own shader, with lod_fade.gdshaderinc: a copy given the span)
+			var okey := [own.get_instance_id(), begin, end]
+			if not _lod_mats.has(okey):
+				var c := (own as ShaderMaterial).duplicate() as ShaderMaterial
+				c.set_shader_parameter("lod_range", Vector3(begin, end, _fade()))
+				_lod_mats[okey] = c
+				OakTree._leaf_mats[["plant"] + okey] = c
+			out.surface_set_material(i, _lod_mats[okey])
+			continue
+		var src := own as StandardMaterial3D
 		var rough := src.roughness if src else 0.7
 		var rim := src.rim if src and src.rim_enabled else 0.0
 		var cull := src == null or src.cull_mode != BaseMaterial3D.CULL_DISABLED

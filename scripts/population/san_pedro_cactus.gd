@@ -15,6 +15,10 @@ extends RefCounted
 ## tips domed, paler, new; the oldest stems corky grey brown at their foot;
 ## the flowers huge, white, funnel shaped, on long dark hairy tubes from
 ## near the tips (at night).
+##
+## Its areoles are painted on its skin (san_pedro_skin.gdshader), not built:
+## thousands of mm-sized cushions; up close (its nearest level) real spines
+## out of them, a sliver each.
 
 const PM := preload("res://scripts/population/plant_mesh.gd") # (by path: found whether or not the editor has seen the class yet)
 
@@ -33,6 +37,22 @@ const SPINE := Color(0.6, 0.46, 0.25)
 const SPINE_TIP := Color(0.32, 0.22, 0.12)
 
 static var _cache := {}
+static var _skins := {}
+const GAP := 0.03 ## m between areoles up a rib
+
+
+## Its skin's material (san_pedro_skin.gdshader), for a level: the spines
+## painted on but on the nearest (its real ones there).
+static func _skin(lod: int) -> ShaderMaterial:
+	if not _skins.has(lod):
+		var m := ShaderMaterial.new()
+		m.shader = load("res://shaders/render/san_pedro_skin.gdshader")
+		m.set_shader_parameter("gap", GAP)
+		m.set_shader_parameter("felt_color", Vector3(FELT.r, FELT.g, FELT.b))
+		m.set_shader_parameter("spine_color", Vector3(SPINE.r, SPINE.g, SPINE.b) * 0.75)
+		m.set_shader_parameter("painted_spines", 0.0 if lod == 0 else 1.0)
+		_skins[lod] = m
+	return _skins[lod]
 
 
 ## Its levels of detail (Population; PlantMesh.levels): where each simpler
@@ -45,8 +65,8 @@ static func build(variant := 0) -> Mesh:
 	return _levels(variant)[0]
 
 
-## Its simpler levels (after the whole one, build()): no spines, fewer areoles; the far one
-## (fewer sides, no areoles); then its far card.
+## Its simpler levels (after the whole one, build()): its spines painted
+## on, fewer rings and sides; the far one fewer still; then its far card.
 static func build_lods(variant := 0) -> Array[Mesh]:
 	return _levels(variant)[1]
 
@@ -70,7 +90,7 @@ static func _make(V: Dictionary, lod: int) -> Mesh:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = int(V.seed)
 	var skin := PM.begin()
-	var bits := PM.begin()
+	var spines := PM.begin()
 	var flowers := PM.begin()
 	var n: int = V.stems
 	var H: float = V.height
@@ -98,44 +118,51 @@ static func _make(V: Dictionary, lod: int) -> Mesh:
 			radii.append(r * squeeze * (1.08 if i == 0 else 1.0))
 			dir = dir.lerp(Vector3.UP, 0.05).normalized()
 			p += dir * step
-		var sides: int = [ribs * 6, ribs * 4, ribs * 2][lod]
-		var count_f := float(count)
+		# its skin: a ring every few steps (it's a smooth column), more where
+		# a year's pinch is and at its domed tip; the areoles painted on
+		# (san_pedro_skin.gdshader)
+		var sides: int = [ribs * 4, ribs * 3, ribs * 2][lod]
+		var every: int = [2, 3, 5][lod]
+		var tp := []
+		var tr := []
+		for i in pts.size():
+			var keep := i % every == 0 or i >= pts.size() - 3 or (lod < 2 and float(radii[i]) < r * 0.975)
+			if keep:
+				tp.append(pts[i])
+				tr.append(radii[i])
 		var paint := func(i: int, _ang: float, g: float) -> Color:
-			var up := float(i) / count_f
+			var up := float(i) / maxf(tp.size() - 1, 1)
 			var c := SKIN.lerp(NEW, smoothstep(0.88, 1.0, up)) # (the new growth at its tip)
 			c = c.lerp(CORK, 1.0 - smoothstep(0.0, 0.36 / maxf(h, 0.1), up)) # (its corky foot)
 			return c * (1.0 - 0.28 * g)
-		PM.tube(skin, pts, radii, sides, paint, {"n": ribs, "depth": 0.13, "sharp": 0.45}, 0.07)
-		# the areoles along each rib's crest, felted, their few spines
-		if lod < 2:
-			var gap := 0.03 if lod == 0 else 0.06
-			var right := Vector3.ZERO
-			var walked := 0.0
-			var next := gap * 0.5
-			for i in range(1, pts.size()):
-				var q0: Vector3 = pts[i - 1]
-				var q1: Vector3 = pts[i]
-				var d := (q1 - q0).normalized()
-				right = PM._carry(right if i > 1 else Vector3.ZERO, d)
-				var upv := d.cross(right).normalized()
-				walked += step
-				if walked < next:
-					continue
-				next += gap
-				var R: float = radii[i]
-				var left := h - walked
-				if left < 0.07:
-					R *= sqrt(maxf(1.0 - pow(1.0 - left / 0.07, 2.0), 0.0))
+		var made: Array = PM.tube(skin, tp, tr, sides, paint, {"n": ribs, "depth": 0.13, "sharp": 0.45}, 0.07, true)
+		# up close, real spines out of the painted areoles (a sliver each,
+		# both faces), along each rib's crest (the tube's crest vertices)
+		var srng := RandomNumberGenerator.new()
+		srng.seed = rng.randi() # (drawn at every level: the next stems the same)
+		if lod == 0:
+			var rings: Array = made[0]
+			var along: Array = made[1]
+			var per := sides / ribs
+			var z := GAP * 0.5
+			var i := 0
+			while z < float(along[along.size() - 1]) - 0.02:
+				while i < along.size() - 2 and float(along[i + 1]) < z:
+					i += 1
+				var f := clampf((z - float(along[i])) / maxf(float(along[i + 1]) - float(along[i]), 1e-4), 0.0, 1.0)
 				for k in ribs:
-					var ang := TAU * float(k) / ribs # (on the crest)
-					var o := right * cos(ang) + upv * sin(ang)
-					var at := q1 + o * R
-					PM.blob(bits, at, Basis(o * 0.003, d * 0.005, o.cross(d) * 0.004), FELT, 5, 3)
-					if lod == 0:
-						var sp := rng.randi_range(0, 4)
-						for m in sp:
-							var sd := (o + d * rng.randf_range(-0.6, 0.6) + o.cross(d) * rng.randf_range(-0.7, 0.7)).normalized()
-							PM.spine(bits, at, sd, rng.randf_range(0.006, 0.018), 0.0006, SPINE, SPINE_TIP)
+					var c0: Array = rings[i][k * per]
+					var c1: Array = rings[i + 1][k * per]
+					var at: Vector3 = (c0[0] as Vector3).lerp(c1[0], f)
+					var o: Vector3 = (c0[1] as Vector3).lerp(c1[1], f).normalized()
+					var d: Vector3 = ((c1[0] as Vector3) - (c0[0] as Vector3)).normalized()
+					var side := o.cross(d)
+					for m in srng.randi_range(0, 3):
+						var sd := (o + d * srng.randf_range(-0.6, 0.6) + side * srng.randf_range(-0.7, 0.7)).normalized()
+						var flat := sd.cross(side if absf(sd.dot(side)) < 0.9 else d).normalized()
+						var tip := at + sd * srng.randf_range(0.006, 0.018)
+						PM._tri(spines, at - flat * 0.0007, at + flat * 0.0007, tip, side, side, side, SPINE, SPINE, SPINE_TIP)
+				z += GAP
 		tips.append([pts[pts.size() - 1], dir, r])
 	# flowers, near the tips: on long dark tubes, the white funnel opening
 	var nf := int(V.get("flowers", 0))
@@ -159,7 +186,7 @@ static func _make(V: Dictionary, lod: int) -> Mesh:
 			var col := Color(0.97, 0.97, 0.94) if ring == 0 else Color(0.88, 0.9, 0.8)
 			PM.blade(flowers, mouth, pd, way, 0.075, 0.035, 0.003, col, col, false)
 		PM.blob(flowers, mouth + way * 0.01, Basis().scaled(Vector3.ONE * 0.012), Color(0.92, 0.88, 0.55), 6, 4)
-	var parts := [[skin, PM.painted(0.48, 0.25)], [bits, PM.painted(0.85)]]
+	var parts := [[skin, _skin(lod)], [spines, PM.painted(0.85, 0.0, false)]]
 	if nf > 0:
 		parts.append([flowers, PM.painted(0.6, 0.1, false)])
 	return PM.finish(parts)
