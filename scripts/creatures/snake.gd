@@ -18,8 +18,9 @@ extends Node3D
 ## - coil(): coiled up at rest, the head raised a little on the coil
 ## - eat(prey): to it; the rattler coils, rattles, strikes and lets go,
 ##   waits, then swallows it; the milk snake strikes and holds, throws its
-##   coils round it, constricts, then swallows: the jaws gaping, walking
-##   over it head first, the meal a bulge going down the body
+##   coils round it, constricts, then swallows it whole: its lower jaw
+##   unhinged, dropped and spread, gaping wide, walking over it head first
+##   (no bulge after: it's gone); then its jaw hinged back, a yawn or two
 ## - lay(n): the milk snake loosely coiled, laying n eggs by its tail
 ##   (leathery, white: Egg), later hatching (Egg.hatch: a slit, the young's
 ##   head out, waiting, then out and away); the rattler gives birth (no
@@ -75,7 +76,6 @@ var _speed := 0.0
 var _prey: Node3D
 var _swallow_from := Vector3.ZERO # (its head, swallowing: from, to, over its prey)
 var _swallow_to := Vector3.ZERO
-var _meal: Node3D # (its prey, swallowed whole: Meal, each part gone as the jaws come over it)
 const MealScript := preload("res://scripts/creatures/meal.gd")
 var _coil_k := 0.0 # 0 as it goes .. 1 coiled
 var _coil_at := Vector3.ZERO
@@ -83,6 +83,9 @@ var _coil_r0 := 0.0 # the coil's innermost radius (m)
 var _strike_k := 0.0
 var _strike_at := Vector3.ZERO
 var _gape := 0.0
+var _unhinge := 0.0 # (its lower jaw unhinged, swallowing: dropped away from its skull, its two halves spread)
+var _jaw_rest := Vector3.ZERO
+var _jaw_drop := 0.0 # (how far it drops, unhinged: its head's height's share)
 var _rattle := 0.0
 var _bulge_s := -100.0
 var _bulge_r := 0.0
@@ -98,6 +101,7 @@ var _mate_stage := 0 # his: 0 to her tail, 1 up along her back, 2 joined, 3 unwi
 var _mate_i := 0 # (the point of hers he's making for)
 var _twine := 0.0 # 0..1 his tail round hers
 var _wave := 0.55 # rad: how wide its waves swing
+var _wave_now := -1.0 # (the waves' swing now: _wave, eased narrower while steering)
 var _was_mode := "wander"
 
 var _skin: MeshInstance3D
@@ -172,7 +176,6 @@ func coil() -> void:
 func eat(prey: Node3D) -> void:
 	_mode = "eat"
 	_prey = prey
-	_meal = null
 	_stage = 0
 	_st = 0.0
 
@@ -319,6 +322,8 @@ func _build_head() -> void:
 	# the lower jaw: hinged at the back of the head, under it
 	_jaw = Node3D.new()
 	_jaw.position = Vector3(0.0, -H * 0.55, -0.22 * L)
+	_jaw_rest = _jaw.position
+	_jaw_drop = H * 0.55
 	_head.add_child(_jaw)
 	var jm := MeshInstance3D.new()
 	jm.mesh = _sphere()
@@ -817,7 +822,15 @@ func _keep_clear(clear: float) -> void:
 ## Eating: to it, the strike, (the milk snake's coils round it), then
 ## swallowing it head first, the bulge going down. Whether it's going on.
 func _eat(dt: float) -> bool:
+	if _stage == 6: # (swallowed: its jaw hinged back)
+		_gape = maxf(0.0, 0.7 * sin(_st * 2.4)) * clampf(1.0 - _st / 3.2, 0.0, 1.0)
+		_unhinge = move_toward(_unhinge, 0.0, dt * 0.5)
+		if _st > 4.0:
+			_unhinge = 0.0
+			wander(_pos, 0.6)
+		return false
 	if not is_instance_valid(_prey):
+		_unhinge = 0.0
 		wander(_pos, 0.6)
 		return false
 	var p := _prey.position
@@ -882,17 +895,15 @@ func _eat(dt: float) -> bool:
 				return true
 			_stage = 7
 			_st = 0.0
-		7: # swallowing: the jaws gaping, walking on over it where it lies (it not moved), head first
-			var into := clampf(_st / 7.0, 0.0, 1.0)
-			_gape = 0.85 - 0.15 * sin(_st * 4.0)
-			if _meal == null:
-				_meal = MealScript.of(_prey, 6, 0)
-				if _meal:
-					_meal.set("swallow", true)
+		7: # swallowing: its jaw unhinged, gaping wide, walking on over it where it lies (it not moved), head first; whole
+			var into := clampf(_st / 6.0, 0.0, 1.0)
+			_unhinge = move_toward(_unhinge, 1.0, dt * 2.5)
+			_gape = 1.1 - 0.12 * sin(_st * 4.0)
+			if _st <= dt * 1.5 or _swallow_from == _swallow_to:
 				var along := Vector3(p.x - _pos.x, 0.0, p.z - _pos.z)
 				along = along.normalized() if along.length() > 1e-4 else _dir
 				_swallow_from = _pos
-				_swallow_to = Vector3(p.x, _pos.y, p.z) + along * (float(_meal.call("span")) * 0.55 if _meal else 0.05)
+				_swallow_to = Vector3(p.x, _pos.y, p.z) + along * _prey_span() * 0.6
 			# (its head creeping on over it, its jaws walked over it, a side at a time)
 			var was := _pos
 			_pos = _swallow_from.lerp(_swallow_to, smoothstep(0.0, 1.0, into))
@@ -901,23 +912,31 @@ func _eat(dt: float) -> bool:
 				_dir = Vector3(_pos.x - was.x, 0.0, _pos.z - was.z).normalized()
 			_speed = 0.0
 			_target = _pos
-			if _meal:
-				var par := get_parent() as Node3D
-				_meal.call("tear", into, par.global_transform * _pts[0] if par else _pts[0])
-			if into >= 1.0:
+			# (gone whole, its jaws over it past its middle: no pieces, no bulge)
+			if into >= 0.6 and is_instance_valid(_prey):
 				_prey.queue_free()
 				_prey = null
-				_gape = 0.0
-				_bulge_s = 1.0
-				_bulge_r = 0.7
+			if into >= 1.0:
+				_swallow_from = _swallow_to
 				_stage = 6
 				_st = 0.0
-		6: # the bulge going down
-			_bulge_s = lerpf(1.0, SPINE * 0.45, clampf(_st / 10.0, 0.0, 1.0))
-			if _st > 10.0:
-				_bulge_r = move_toward(_bulge_r, 0.35, dt * 0.2)
-				wander(_pos, 0.6)
 	return false
+
+
+## (Its prey's length, m: its meshes' bounds along the ground.)
+func _prey_span() -> float:
+	if not is_instance_valid(_prey):
+		return 0.05
+	var box := AABB()
+	var first := true
+	for m in _prey.find_children("*", "MeshInstance3D", true, false):
+		var mi := m as MeshInstance3D
+		if mi.mesh == null:
+			continue
+		var b := mi.global_transform * mi.mesh.get_aabb()
+		box = b if first else box.merge(b)
+		first = false
+	return maxf(box.size.x, box.size.z) if not first else 0.05
 
 
 ## An egg (the milk snake's) or a young in its sac (the rattler's), out
@@ -1043,6 +1062,9 @@ func _update(_dt: float) -> void:
 	# the head on the neck (its back at the first point), the jaw, the tongue
 	_head.transform = Transform3D(frames[0] * Basis.from_scale(Vector3.ONE * size), _pts[0] - o)
 	_jaw.rotation.x = _gape * 0.9
+	# unhinged: dropped down and back from the skull, its halves spread wide
+	_jaw.position = _jaw_rest + Vector3(0.0, -_jaw_drop * _unhinge, _jaw_drop * 0.35 * _unhinge)
+	_jaw.scale = Vector3(1.0 + 0.55 * _unhinge, 1.0, 1.0 + 0.15 * _unhinge)
 	var flick := fmod(_t, 2.6)
 	var out := 0.0
 	if flick < 0.9 and _gape < 0.1:
