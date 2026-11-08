@@ -185,7 +185,7 @@ const KEYS := {
 	KEY_1: "lay", KEY_2: "hatch", KEY_3: "pupae", KEY_E: "eat", KEY_H: "hunt", KEY_K: "mate",
 	KEY_G: "groom", KEY_Z: "sleep", KEY_F: "fly", KEY_X: "alarm", KEY_D: "display", KEY_V: "play",
 	KEY_N: "nurse", KEY_B: "forage", KEY_S: "spin", KEY_M: "mark", KEY_A: "sit", KEY_W: "wander",
-	KEY_U: "unusual",
+	KEY_U: "unusual", KEY_R: "mushroom",
 }
 
 var cam: Camera3D
@@ -1991,6 +1991,10 @@ func _do(c: Node, act_: String) -> void:
 	if c is CrayScript: # (its own: in its pond)
 		_crayfish_do(c, act_, young, p)
 		return
+	# a mushroom: R, or E with one it eats grown or laid by it
+	if act_ == "mushroom" or (act_ == "eat" and _fungus_near(p, MUSHROOM_EATERS.get(sc, []), 1.5) != null):
+		_mushroom_meal(c, young, p, near)
+		return
 	if act_ == "hatch":
 		if sc == PupaScript:
 			c.call("eclose", func(ad: Node3D) -> void:
@@ -2699,6 +2703,91 @@ func _feed(c: Node, act_: String, young: bool, p: Vector3, st: Vector3, near: Ve
 		c.call("hunt", _prey(c, diet, 1.4))
 
 
+## Who eats which mushrooms (Fungus): the box turtle all but the chicken of
+## the woods (fly agarics too: it isn't harmed by them), the squirrels
+## morels, fly agarics (they eat them, and dry them) and chicken of the
+## woods, the deer and moose fly agarics, morels and (deer) chicken of the
+## woods, the deer mouse little brown caps and morels, the opossum and the
+## bears morels and chicken of the woods. (No insect here eats them: the
+## little brown caps' psilocybin keeps the insects off theirs.)
+const MUSHROOM_EATERS := {
+	TurtleScript: ["morel", "fly_agaric", "little_brown"],
+	SquirrelScript: ["morel", "fly_agaric", "chicken_of_the_woods"],
+	GreySqScript: ["morel", "fly_agaric", "chicken_of_the_woods"],
+	DeerScript: ["fly_agaric", "morel", "chicken_of_the_woods"],
+	MooseScript: ["fly_agaric", "morel"],
+	MouseScript: ["little_brown", "morel"],
+	OpossumScript: ["morel", "chicken_of_the_woods"],
+	BlackBearScript: ["chicken_of_the_woods", "morel"],
+	BrownBearScript: ["chicken_of_the_woods", "morel"],
+}
+
+
+## R: a mushroom eaten, one of those it eats (MUSHROOM_EATERS): one grown or
+## laid near it, else one put down before it (the chicken of the woods on a
+## stump), and eaten as its own food is (bitten at where it stands, or
+## (a squirrel, a mouse) held in its forepaws).
+func _mushroom_meal(c: Node, young: bool, p: Vector3, near: Vector3) -> void:
+	var sc: Script = c.get_script()
+	var kinds: Array = MUSHROOM_EATERS.get(sc, [])
+	if kinds.is_empty() or (young and sc != TurtleScript):
+		return
+	var f := _fungus_near(p, kinds, 3.0)
+	if f == null:
+		var id: String = kinds[randi() % kinds.size()]
+		var d: float = {TurtleScript: 0.22, MouseScript: 0.08, SquirrelScript: 0.25, GreySqScript: 0.25, OpossumScript: 0.4, DeerScript: 0.75, MooseScript: 1.1}.get(sc, 0.9)
+		f = _mushroom(id, Vector3(p.x, 0.0, p.z) + near * d)
+	f.set_meta("hunted", c)
+	c.call("eat", f)
+
+
+## A mushroom of id grown here (one of it: Fungus.held), upright; a chicken
+## of the woods on the side of a stump, a shelf.
+func _mushroom(id: String, at: Vector3) -> Node3D:
+	var root := Node3D.new()
+	root.name = "fungus_" + id
+	var mi := MeshInstance3D.new()
+	mi.mesh = Fungus.held(id)
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF # (as in the game: no shadows)
+	root.add_child(mi)
+	if id == "chicken_of_the_woods":
+		var stump := MeshInstance3D.new()
+		var cm := CylinderMesh.new()
+		cm.top_radius = 0.16
+		cm.bottom_radius = 0.2
+		cm.height = 0.45
+		stump.mesh = cm
+		var bm := StandardMaterial3D.new()
+		bm.albedo_color = Color(0.36, 0.29, 0.21)
+		bm.roughness = 0.95
+		stump.material_override = bm
+		stump.position = at + Vector3(0.0, 0.225, -0.17)
+		add_child(stump)
+		mi.position = Vector3(0.0, 0.3, 0.0)
+	root.position = at
+	add_child(root)
+	root.set_meta("item", id)
+	root.set_meta("fungus", id)
+	return root
+
+
+## The nearest mushroom (grown here, _mushroom; or laid: its item) of the
+## kinds within r of p, not already being eaten.
+func _fungus_near(p: Vector3, kinds: Array, r: float) -> Node3D:
+	if kinds.is_empty():
+		return null
+	var best: Node3D = null
+	var bd := r
+	for o in get_children():
+		if not o is Node3D or not o.has_meta("item") or not String(o.get_meta("item")) in kinds or o.has_meta("hunted"):
+			continue
+		var d := Vector2((o as Node3D).position.x - p.x, (o as Node3D).position.z - p.z).length()
+		if d < bd:
+			bd = d
+			best = o
+	return best
+
+
 ## The nearest carcass (fresh or rotting, not yet anyone's) within r of p.
 func _carrion_near(p: Vector3, r: float) -> Node3D:
 	var best: Node3D = null
@@ -3188,7 +3277,7 @@ func _say() -> void:
 		return
 	var sel := _selected.filter(func(n) -> bool: return is_instance_valid(n))
 	var who := "everything here (%d)" % _creatures().size() if sel.is_empty() else ", ".join(sel.slice(0, 4).map(func(n: Node) -> String: return _label_of(n))) + (" ..." if sel.size() > 4 else "")
-	_ui_info.text = "Keys act on: %s     %s\n1 lay / birth   2 hatch / moult / decay on   3 pupate   E eat   H hunt   U an unusual meal   K mate   G groom   Z sleep\nF fly / hop / climb   X alarm   D display / call   V play   N nurse   B forage / home   S spin   M mark   A sit   W own ways\nclick: select (Shift: add)   Del: delete   C: centre   right drag: turn   middle drag / arrows: move   wheel: zoom   Space: slow" % [who, _status]
+	_ui_info.text = "Keys act on: %s     %s\n1 lay / birth   2 hatch / moult / decay on   3 pupate   E eat   H hunt   U an unusual meal   R a mushroom   K mate   G groom   Z sleep\nF fly / hop / climb   X alarm   D display / call   V play   N nurse   B forage / home   S spin   M mark   A sit   W own ways\nclick: select (Shift: add)   Del: delete   C: centre   right drag: turn   middle drag / arrows: move   wheel: zoom   Space: slow" % [who, _status]
 
 
 func _label_of(n: Node) -> String:

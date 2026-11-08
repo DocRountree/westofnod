@@ -9,6 +9,7 @@ id = &"fly_agaric"
 mesh_script = ExtResource("2")
 variants = 5
 shadow_distance = 12.0
+shadows = false
 scale_range = Vector2(0.85, 1.15)
 density = {
 "forest": 2.0
