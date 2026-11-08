@@ -31,7 +31,7 @@ extends Node3D
 
 const POOL_SECS := 90.0 ## s: blood on the ground, before it's soaked in
 const INSTANCE_PARAMS := ["shell", "fur_obj", "fur_dens", "bars", "tree_at"]
-const BLEEDS := ["mouse", "squirrel", "hare", "deer", "moose", "bison", "beaver", "canid", "coyote", "wolf", "fox", "bobcat",
+const BLEEDS := ["fish", "mouse", "squirrel", "hare", "deer", "moose", "bison", "beaver", "canid", "coyote", "wolf", "fox", "bobcat",
 		"bear", "ursid", "carnivore", "anole", "frog", "toad", "snake", "turtle"] # (not the fish: no blood on them)
 
 var food: Node3D

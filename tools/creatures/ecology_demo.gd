@@ -1733,6 +1733,19 @@ func _drey_in(tree: Node3D) -> void:
 	tree.set_meta("drey", place)
 
 
+## A school of salmon or trout (not mollies) whose pond is within r of p.
+func _fish_school_near(p: Vector3, r: float) -> Node3D:
+	var best: Node3D = null
+	var bd := r
+	for n in get_children():
+		if n.get_script() == FishScript and n.has_meta("pond"):
+			var d := Vector2((n.get_meta("pond") as Vector3).x - p.x, (n.get_meta("pond") as Vector3).z - p.z).length()
+			if d < bd:
+				bd = d
+				best = n
+	return best
+
+
 ## The fishing spider's catch: a molly of its pond's school, up near the
 ## surface by it; then its rush and its lunge.
 func _spider_fish(sp: Node3D) -> void:
@@ -2207,7 +2220,14 @@ func _do(c: Node, act_: String) -> void:
 			elif sc == IsopodScript:
 				c.call("roll", 8.0)
 		"fly":
-			if sc == MonarchScript or sc == SwallowScript or sc == LunaScript:
+			if sc == BlackBearScript and not young: # (F: up the nearest tree, a black bear's)
+				var tree := _tree_near(p, 8.0)
+				if tree == null:
+					tree = _plant_game("oak", p + Vector3(0.8, 0.0, 0.6), false)
+				var gt: Array = tree.get_meta("game_tree")
+				var r: float = (_game_trees()[gt[0]][1] as Script).call("trunk_radius_at", gt[1], 0.5)
+				c.call("climb", tree.position, r, 1.8)
+			elif sc == MonarchScript or sc == SwallowScript or sc == LunaScript:
 				c.call("fly", st, 0.6)
 			elif sc == MothScript:
 				c.call("search", st, 0.5, _flat(_clumps_near(st)))
@@ -2506,6 +2526,30 @@ func _crayfish_do(c: Node, act_: String, young: bool, p: Vector3) -> void:
 ## out for it.
 func _feed(c: Node, act_: String, young: bool, p: Vector3, st: Vector3, near: Vector3) -> void:
 	var sc: Script = c.get_script()
+	if act_ == "hunt" and not young and sc in [BlackBearScript, BrownBearScript]: # (H, by a pond with fish in it: fishing)
+		var fs := _fish_school_near(p, 9.0) # (its pond's middle: the pond a few metres across)
+		if fs:
+			var q := _pond_near(fs.get_meta("pond"), 0.1)
+			if not q.is_empty():
+				var c0: Vector3 = q.c
+				var hw := float(q.hw)
+				var hd := float(q.hd)
+				# (the edge nearest it, and the way out over the water from there)
+				var ex := clampf(p.x, c0.x - hw, c0.x + hw)
+				var ez := clampf(p.z, c0.z - hd, c0.z + hd)
+				var dx := minf(absf(p.x - (c0.x - hw)), absf(p.x - (c0.x + hw)))
+				var dz := minf(absf(p.z - (c0.z - hd)), absf(p.z - (c0.z + hd)))
+				var edge: Vector3
+				var into: Vector3
+				if dx < dz or absf(p.z - c0.z) <= hd and absf(p.x - c0.x) > hw:
+					edge = Vector3(c0.x - hw if p.x < c0.x else c0.x + hw, 0.0, ez)
+					into = Vector3(1.0 if p.x < c0.x else -1.0, 0.0, 0.0)
+				else:
+					edge = Vector3(ex, 0.0, c0.z - hd if p.z < c0.z else c0.z + hd)
+					into = Vector3(0.0, 0.0, 1.0 if p.z < c0.z else -1.0)
+				edge.y = POND
+				c.call("fish", fs, edge, into)
+				return
 	if act_ == "eat" and not young and sc in [WolfScript, CoyoteScript, FoxScript, BobcatScript, BlackBearScript, BrownBearScript, OpossumScript]:
 		var carrion := _carrion_near(p, 8.0) # (a carcass, fresh or rotting: scavenged)
 		if carrion:

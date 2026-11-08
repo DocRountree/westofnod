@@ -16,6 +16,16 @@ extends "res://scripts/creatures/carnivore.gd" # (by path: found whether or not 
 ## - rub(at): its back to a tree (at: its trunk), up on its hind legs
 ##   against it, rubbing up and down (its mark)
 ## - hunt(prey): its rush at it, a swipe, pinned; eaten
+## - fish(school, edge, into): to the water's edge (edge), facing out over
+##   it (into: the way), still, head low, watching; a fish nearer; up and
+##   down, a plunge, its forepaws and its head into the water: the fish in
+##   its jaws (FishSchool.take); turned away and carried off up the bank,
+##   laid down and eaten there (the hunters' own: torn up, piece by piece)
+## - climb(tree, r, height): (a black bear's: S.climbs) to the trunk (its
+##   foot at tree, r its radius), up on its hind legs against it, hugging
+##   it, its forepaws and hind feet gripping the bark by turns, up it
+##   height; a look about, still; down again backwards, rump first, its
+##   claws gripping; off
 ## - birth(n, den) in its den (Ursid.den(): a hollow under a root mound):
 ##   the cubs born tiny, near naked, blind; nursed; growing; following her;
 ##   playing (up on their hind legs together, boxing, tumbling over)
@@ -202,8 +212,56 @@ func rub(at: Vector3) -> void:
 	_st = 0.0
 
 
+## Fishing: see the class.
+func fish(school_: Node3D, edge: Vector3, into: Vector3) -> void:
+	if not is_instance_valid(school_):
+		return
+	_mode = "fish"
+	_school = school_
+	_edge = edge
+	_into = Vector3(into.x, 0.0, into.z).normalized()
+	_stage = 0
+	_st = 0.0
+
+
+## (A black bear's) up a tree: see the class.
+func climb(tree: Vector3, r := 0.2, height := 2.0) -> void:
+	if not bool(S.get("climbs", false)):
+		return
+	_mode = "climb"
+	_tree = tree
+	_tree_r = r
+	_climb_top = height
+	_stage = 0
+	_st = 0.0
+
+
+var _school: Node3D
+var _edge := Vector3.ZERO
+var _into := Vector3.FORWARD
+var _fish_i := -1
+var _tree := Vector3.ZERO
+var _tree_r := 0.2
+var _climb_top := 2.0
+var _climb_h := 0.0 # (m up the trunk)
+var _climb_k := 0.0 # (0 on the ground .. 1 upright against the trunk, hugging it)
+var _climb_ph := 0.0 # (its limbs' stepping, up or down)
+
+
 func _think(dt: float) -> void:
+	if _mode != "climb" and (_climb_k > 0.0 or _climb_h > 0.0): # (off the trunk, whatever it's doing now)
+		_climb_h = move_toward(_climb_h, 0.0, dt * 0.6)
+		if _climb_h <= 0.0:
+			_climb_k = move_toward(_climb_k, 0.0, dt * 1.5)
 	match _mode:
+		"fish":
+			_common(dt)
+			_fish(dt)
+			return
+		"climb":
+			_common(dt)
+			_climb(dt)
+			return
 		"forage":
 			_common(dt)
 			_forage(dt)
@@ -231,6 +289,111 @@ func _think(dt: float) -> void:
 			return
 	_stand_to = 0.0 if _mode not in ["play"] else _stand_to
 	super(dt)
+
+
+## (Fishing: see fish().)
+func _fish(dt: float) -> void:
+	if not is_instance_valid(_school):
+		wander(_home_spot(), _radius)
+		return
+	var stand_at := _edge - _into * 0.28 * size / 0.5
+	match _stage:
+		0: # (to the edge, facing out over the water)
+			_target = Vector3(stand_at.x, _pos.y, stand_at.z)
+			if Vector2(_pos.x - stand_at.x, _pos.z - stand_at.z).length() < 0.15 and _speed < 0.05:
+				_target = _pos
+				_turn_to = atan2(-_into.x, -_into.z)
+				_stage = 1
+				_st = 0.0
+		1: # (still, head low, watching the water; a fish nearer)
+			_target = _pos
+			_neck_to = Vector2(-0.55, 0.0)
+			_look_to = Vector2(0.25 * sin(_st * 0.6), -0.35)
+			_ears_to = 1.0
+			if _fish_i < 0 or _st < dt * 1.5:
+				var under := _edge + _into * 0.35 * size / 0.5
+				under.y = _edge.y - 0.12
+				_fish_i = int(_school.call("nearest", under))
+				if _fish_i >= 0:
+					_school.call("hold", _fish_i, _school.to_local(get_parent().to_global(under)))
+			if _st > 4.5:
+				_stage = 2
+				_st = 0.0
+		2: # (up, then down: a plunge, its forepaws and head into the water)
+			_target = _pos
+			_stand_to = 0.6 if _st < 0.45 else 0.0
+			_neck_to = Vector2(0.2 if _st < 0.45 else -1.25, 0.0)
+			_look_to = Vector2(0.0, -0.6)
+			_jaw_to = 0.6 if _st > 0.45 else 0.0
+			if _st > 0.95 and _fish_i >= 0:
+				var f: Node3D = _school.call("take", _fish_i)
+				_fish_i = -1
+				if f:
+					_prey = f
+					_prey_s = f.global_basis.get_scale()
+					_held = true
+				_stage = 3
+				_st = 0.0
+			elif _st > 1.6:
+				_stage = 1 # (missed: watching again)
+				_st = 0.0
+				_fish_i = -1
+		3: # (turned from the water, the fish in its jaws: off up the bank, to eat it: the hunters' way)
+			_target = _pos
+			_jaw_to = 0.25
+			_turn_to = atan2(_into.x, _into.z)
+			if _st > 1.0 and is_instance_valid(_prey):
+				_mode = "hunt"
+				_stage = 5
+				_st = 1.0 # (its carrying's end its own: up the bank)
+				_carry_to = _pos - _into * 1.3 * size / 0.5
+
+
+## (Climbing: see climb().)
+func _climb(dt: float) -> void:
+	var to := _tree - _pos
+	to.y = 0.0
+	var at := _tree - to.normalized() * (_tree_r + 0.16 * size / 0.5)
+	match _stage:
+		0: # (to the trunk, facing it)
+			_target = Vector3(at.x, _pos.y, at.z)
+			if Vector2(_pos.x - at.x, _pos.z - at.z).length() < 0.12 and _speed < 0.05:
+				_target = _pos
+				_turn_to = atan2(-to.x, -to.z)
+				_stage = 1
+				_st = 0.0
+		1: # (up on its hind legs against it, then up it; drawn in close, hugging it)
+			_stand_to = 1.0
+			_climb_k = move_toward(_climb_k, 1.0, dt * 1.2)
+			var hug := _tree - to.normalized() * maxf(_tree_r - 0.12 * size / 0.5, 0.0)
+			_pos = Vector3(lerpf(at.x, hug.x, _climb_k), _pos.y, lerpf(at.z, hug.z, _climb_k))
+			_target = _pos
+			if _climb_k >= 1.0:
+				_climb_h = move_toward(_climb_h, _climb_top, dt * 0.35)
+				_climb_ph += dt * 4.0
+				if _climb_h >= _climb_top:
+					_stage = 2
+					_st = 0.0
+		2: # (up there: looking about, still, gripping)
+			_target = _pos
+			_look_to = Vector2(0.7 * sin(_st * 0.5), 0.2)
+			_neck_to = Vector2(0.3, 0.0)
+			_sniff = 1.0
+			if _st > 6.0:
+				_stage = 3
+				_st = 0.0
+		3: # (down, backwards, rump first)
+			_target = _pos
+			_climb_h = move_toward(_climb_h, 0.0, dt * 0.28)
+			_climb_ph -= dt * 3.2
+			if _climb_h <= 0.0:
+				_climb_k = move_toward(_climb_k, 0.0, dt * 1.5)
+				var hug := _tree - to.normalized() * maxf(_tree_r - 0.12 * size / 0.5, 0.0)
+				_pos = Vector3(lerpf(at.x, hug.x, _climb_k), _pos.y, lerpf(at.z, hug.z, _climb_k))
+				_target = _pos
+				_stand_to = 0.0
+				if _climb_k <= 0.0 and _stand < 0.05:
+					wander(_home_spot(), _radius)
 
 
 func _common(dt: float) -> void:
@@ -386,14 +549,16 @@ func _pose(dt: float) -> void:
 		return
 	var k := _stand * _stand * (3.0 - 2.0 * _stand)
 	var rubbing := _mode == "rub" and _stage == 1
+	var ck := _climb_k * _climb_k * (3.0 - 2.0 * _climb_k)
 	var hip_y := float((legs[1] as Dictionary).hip.y)
 	var hip_z := float((legs[1] as Dictionary).hip.z)
-	var up_pitch := 1.3 * k
+	var up_pitch := 1.3 * k + 0.25 * ck # (climbing: upright against the trunk)
 	# (the origin raised so the hips stay where the hind legs hold them)
 	var leg_h := (float(S.hind.a) + float(S.hind.b)) * 0.85
 	var hip_drop := -(hip_y * cos(up_pitch) - hip_z * sin(up_pitch)) # (how far under the origin the hips go)
 	_pitch = up_pitch
 	_lift = lerpf(_lift, (leg_h + hip_drop) - body_h + (sin(_t * 1.6) * 40.0 if rubbing else 0.0), k)
+	_lift += _climb_h / (MM * size) * ck # (up the trunk)
 	_roll = 0.06 * sin(_t * 0.8) * k if rubbing else _roll
 	var to_world := transform * _body.transform
 	var inv := to_world.affine_inverse()
@@ -403,6 +568,17 @@ func _pose(dt: float) -> void:
 		var side := 1.0 if i % 2 == 1 else -1.0
 		var hp: Vector3 = L.hip
 		var hw := to_world * Vector3(hp.x * side, hp.y, hp.z)
+		if ck > 0.05: # (climbing: each paw gripping the bark, round the trunk's sides, stepping up (or down) by turns)
+			var out := Vector3(_pos.x - _tree.x, 0.0, _pos.z - _tree.z)
+			out = out.normalized() if out.length() > 1e-4 else Vector3.BACK
+			var across := out.cross(Vector3.UP).normalized() * side
+			var step := 0.09 * size / 0.5 * sin(_climb_ph + (0.0 if i < 2 else PI) + (PI * 0.5 if side > 0.0 else 0.0))
+			var bark := _tree + out * _tree_r * 0.75 + across * _tree_r * 0.8
+			bark.y = hw.y + (0.12 * size / 0.5 if i < 2 else 0.0) + step
+			var held: Vector3 = inv * bark
+			var free: Vector3 = _pose_foot[i] if _pose_foot[i] != null else held
+			_pose_foot[i] = free.lerp(held, ck)
+			continue
 		if i >= 2: # (the hind feet flat under its hips, toes forward)
 			var f := hw + fwd * float(L.s) * 0.6 * MM * size # (mm, its own: to the world's metres)
 			f.y = _ground(f.x, f.z)
@@ -488,7 +664,9 @@ func _mount() -> Dictionary:
 
 func _p_behaviours() -> PackedStringArray:
 	var b := super()
-	b.append_array(PackedStringArray(["forage", "browse", "stand", "rub"]))
+	b.append_array(PackedStringArray(["forage", "browse", "stand", "rub", "fish"]))
+	if bool(S.get("climbs", false)):
+		b.append("climb")
 	return b
 
 
@@ -505,13 +683,21 @@ func _p_act(name: String, args: Dictionary) -> bool:
 			stand(float(args.get("seconds", 5.0)))
 		"rub":
 			rub(args.get("at", _pos + _p_heading()))
+		"fish":
+			if args.get("school") == null:
+				return false
+			fish(args.school, args.get("edge", _pos), args.get("into", _p_heading()))
+		"climb":
+			if not bool(S.get("climbs", false)):
+				return false
+			climb(args.get("tree", _pos + _p_heading()), float(args.get("r", 0.2)), float(args.get("height", 2.0)))
 		_:
 			return super(name, args)
 	return true
 
 
 func _p_act_done(name: String) -> bool:
-	if name in ["forage", "browse", "stand", "rub"]:
+	if name in ["forage", "browse", "stand", "rub", "fish", "climb"]:
 		return _mode != name
 	return super(name)
 

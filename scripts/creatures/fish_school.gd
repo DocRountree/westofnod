@@ -46,6 +46,7 @@ const RISE := 2
 const FEED := 3
 const PILOT := 4
 const STILL := 5
+const TAKEN := 6 ## (caught: out of the school, take())
 
 ## each kind's: its species (the shader's), its speeds (m/s), the distances
 ## it keeps (m), how stiff its body (a tuna's beat all in its tail), its
@@ -236,6 +237,8 @@ func _process(dt: float) -> void:
 
 
 func _steer(i: int, dt: float, grid: Dictionary) -> void:
+	if task[i] == TAKEN:
+		return
 	var p := pos[i]
 	var v := vel[i]
 	task_t[i] -= dt
@@ -350,6 +353,8 @@ func _steer(i: int, dt: float, grid: Dictionary) -> void:
 
 
 func _place(i: int, dt: float) -> void:
+	if task[i] == TAKEN:
+		return
 	var v := vel[i]
 	var h := heading[i]
 	var want := h
@@ -644,6 +649,39 @@ static func _seg(a: Vector3, b: Vector3, r: float) -> Transform3D:
 	var y := d.normalized()
 	var x := y.cross(Vector3.FORWARD if absf(y.z) < 0.9 else Vector3.RIGHT).normalized()
 	return Transform3D(Basis(x * 2.0 * r, d, x.cross(y) * 2.0 * r), (a + b) * 0.5)
+
+
+## Fish i taken out of the school (caught: a bear's): a fish of its own,
+## in the school's parent, where it was (its mesh, its colours); gone from
+## the school. (A fish: it bleeds, eaten: Meal, by its name.)
+func take(i: int) -> Node3D:
+	var mi := MeshInstance3D.new()
+	mi.name = "fish"
+	mi.mesh = multimesh.mesh
+	mi.material_override = material_override
+	var parent := get_parent() as Node3D
+	parent.add_child(mi)
+	mi.global_transform = global_transform * multimesh.get_instance_transform(i)
+	task[i] = TAKEN
+	multimesh.set_instance_transform(i, Transform3D(Basis.from_scale(Vector3.ONE * 1e-4), pos[i]))
+	pos[i] = tank_min - Vector3.ONE * 500.0 # (out of the others' way)
+	vel[i] = Vector3.ZERO
+	return mi
+
+
+## The fish nearest p (its parent's space; not taken), or -1.
+func nearest(p: Vector3) -> int:
+	var lp := to_local(get_parent().to_global(p)) if is_inside_tree() else p
+	var best := -1
+	var bd := INF
+	for i in pos.size():
+		if task[i] == TAKEN:
+			continue
+		var d := pos[i].distance_to(lp)
+		if d < bd:
+			bd = d
+			best = i
+	return best
 
 
 # --- steering (pilot.gd) ----------------------------------------------------------
