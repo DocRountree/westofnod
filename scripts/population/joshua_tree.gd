@@ -4,8 +4,9 @@ extends RefCounted
 ## (PlantMesh), life size, four variants: an old tree (about 7 m, its trunk
 ## forking and forking again into a broad, open, angular crown), a younger
 ## one (a few branches), a young one (a single stem, its dead leaves a skirt
-## down it to the ground) and one in flower. Not in the game yet:
-## tools/plants/preview.gd draws them.
+## down it to the ground) and one in flower. In the mesa country, not up on
+## the plateau: data/population/props/joshua_tree.tres; the sandbox's trees and
+## bushes (tools/creatures/ecology_demo.gd).
 ##
 ## What makes it read as a Joshua tree: a thick trunk, its bark grey and
 ## corky, plated, low down; above, every branch shaggy with its own dead

@@ -2,8 +2,9 @@ class_name SanPedroCactus
 extends RefCounted
 ## The San Pedro cactus (Echinopsis pachanoi), built whole (PlantMesh), life
 ## size, four variants: a big clump (seven stems, to about 3.5 m), a
-## smaller one (four), a young single stem, and a clump in flower. Not in
-## the game yet: tools/plants/preview.gd draws them.
+## smaller one (four), a young single stem, and a clump in flower. In the mesa country, not up on the
+## plateau: data/population/props/san_pedro.tres; the sandbox's trees and bushes
+## (tools/creatures/ecology_demo.gd).
 ##
 ## What makes it read as San Pedro: columns rising from the base, the outer
 ## ones leaning out and curving up, each a hand across, smooth, frosted blue

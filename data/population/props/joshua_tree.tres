@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="PropKind" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/population/prop_kind.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/population/joshua_tree.gd" id="2"]
+
+[resource]
+script = ExtResource("1")
+id = &"joshua_tree"
+mesh_script = ExtResource("2")
+variants = 4
+shadow_distance = 40.0
+scale_range = Vector2(0.85, 1.15)
+sink = 0.03
+radius = 0.35
+view_distance = 400.0
+density = {
+"mesa": 0.35
+}
+strict = true
+never_in = ["plateau"]
+height_range = Vector2(2, 1150)
+min_normal_y = 0.85

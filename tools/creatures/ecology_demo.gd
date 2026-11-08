@@ -552,6 +552,8 @@ func _plant_game(id: String, at: Vector3, young: bool) -> Node3D:
 	var v := 1 if id == "oak" else 0 # (the oak's straight, slim one: a squirrel's)
 	if id == "prickly_pear": # (the fruiting one, its tunas to pick; young: the small one)
 		v = 1 if young else 2
+	elif id in ["joshua_tree", "san_pedro"]: # (young: the single young stem)
+		v = 2 if young else 0
 	elif young and not bush:
 		v = 8 if id == "black_cherry" else 9 # (its sapling)
 	var holder := Node3D.new()
@@ -1280,7 +1282,7 @@ func _tree_near(p: Vector3, r: float) -> Node3D:
 	for n in _plants:
 		if is_instance_valid(n) and (n as Node).has_meta("game_tree"):
 			var gt: Array = (n as Node).get_meta("game_tree")
-			if String(gt[0]) in ["blueberry", "raspberry", "prickly_pear"]:
+			if String(gt[0]) in ["blueberry", "raspberry", "prickly_pear", "joshua_tree", "san_pedro"]:
 				continue
 			var d := Vector2((n as Node3D).position.x - p.x, (n as Node3D).position.z - p.z).length()
 			if d < bd:
@@ -2832,7 +2834,7 @@ static func _game_trees() -> Dictionary:
 		"sycamore": ["sycamore", SycamoreTree], "black_cherry": ["cherry", BlackCherryTree], "crabapple": ["crabapple", CrabappleTree],
 		"pawpaw": ["pawpaw", PawpawTree], "lodgepole": ["lodgepole pine", LodgepolePine], "cypress": ["bald cypress", BaldCypress],
 		"blueberry": ["blueberry bush", BlueberryBush], "raspberry": ["raspberry bush", RaspberryBush],
-		"prickly_pear": ["prickly pear", PricklyPear]}
+		"prickly_pear": ["prickly pear", PricklyPear], "joshua_tree": ["Joshua tree", JoshuaTree], "san_pedro": ["San Pedro cactus", SanPedroCactus]}
 
 
 ## What can be put down: CATALOGUE, and everything else that's in the game:
