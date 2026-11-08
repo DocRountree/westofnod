@@ -47,6 +47,7 @@ const DragonflyScript := preload("res://scripts/creatures/dragonfly.gd")
 const MantisScript := preload("res://scripts/creatures/mantis.gd")
 const MouseScript := preload("res://scripts/creatures/mouse.gd")
 const MolliesScript := preload("res://scripts/creatures/mollies.gd")
+const FishScript := preload("res://scripts/creatures/fish_school.gd")
 const HareScript := preload("res://scripts/creatures/hare.gd")
 const FoxScript := preload("res://scripts/creatures/red_fox.gd")
 const BobcatScript := preload("res://scripts/creatures/bobcat.gd")
@@ -127,6 +128,11 @@ const CATALOGUE := [
 	["Crustaceans", "red swamp crayfish", "red_crayfish", ["adult", "young"]],
 	["Crustaceans", "virile crayfish", "virile_crayfish", ["adult", "young"]],
 	["Fish", "sailfin mollies (a school)", "mollies", ["adult"]],
+	["Fish", "Chinook salmon, at sea (a school)", "chinook", ["adult"]],
+	["Fish", "Chinook salmon, spawning (a few)", "chinook_spawning", ["adult"]],
+	["Fish", "rainbow trout, in a stream (a few)", "rainbow", ["adult"]],
+	["Fish", "steelhead, in a stream (a few)", "steelhead", ["adult"]],
+	["Fish", "Atlantic bluefin tuna (a school)", "bluefin", ["adult"]],
 	["Amphibians and reptiles", "northern leopard frog", "frog", ["adult", "young"]],
 	["Amphibians and reptiles", "American toad", "toad", ["adult", "young"]],
 	["Amphibians and reptiles", "green anole", "anole", ["adult", "young"]],
@@ -162,7 +168,7 @@ const CATALOGUE := [
 ## Ponds by their size: [half width, half depth, deep] (m).
 const PONDS := {
 	"puddle": [0.32, 0.24, 0.05], "small_pond": [0.5, 0.4, 0.2], "pond": [1.2, 0.9, 0.45],
-	"large_pond": [1.6, 1.0, 0.45], "sea": [3.2, 2.4, 1.1], "darner": [0.6, 0.45, 0.09], "fishing": [0.42, 0.36, 0.3],
+	"large_pond": [1.6, 1.0, 0.45], "sea": [3.2, 2.4, 1.1], "salmon": [3.0, 2.0, 1.4], "trout": [2.2, 0.7, 0.55], "ocean": [10.0, 6.0, 3.5], "darner": [0.6, 0.45, 0.09], "fishing": [0.42, 0.36, 0.3],
 	"beaver": [1.5, 2.0, 0.3],
 }
 
@@ -342,7 +348,7 @@ func _dig_pond(c: Vector3, hw: float, hd: float, deep: float, kind := "") -> Dic
 	nodes.append(_box_at(c + Vector3(0.0, -deep, 0.0), Vector3(hw * 2.0, 0.02, hd * 2.0), mud))
 	# (its banks: steep all round but one, a sloping bank of mud on its +x side,
 	# to walk in and out by: p.ramp, its foot and its top, rw its half width)
-	var ramp := kind not in ["sea", "puddle"] and deep >= 0.08
+	var ramp := kind not in ["sea", "puddle", "ocean"] and deep >= 0.08
 	var rw := hd * 0.45
 	var rl := deep * 2.2
 	for sgn: float in [-1.0, 1.0]:
@@ -403,7 +409,7 @@ func _dig_pond(c: Vector3, hw: float, hd: float, deep: float, kind := "") -> Dic
 	mi.position = Vector3(c.x, POND, c.z)
 	add_child(mi)
 	nodes.append(mi)
-	if kind != "sea" and deep >= 0.08: # (reeds: their tips perches, their stems to lay in and climb out on)
+	if kind not in ["sea", "ocean"] and deep >= 0.08: # (reeds: their tips perches, their stems to lay in and climb out on)
 		for k in clampi(int(hw * hd * 30.0), 4, 9):
 			var a := float(k) / 7.0 * TAU + randf_range(-0.3, 0.3)
 			var foot := c + Vector3(cos(a) * hw * randf_range(0.3, 0.8), -deep, sin(a) * hd * randf_range(0.3, 0.8))
@@ -852,6 +858,29 @@ func _spawn_animal(key: String, at: Vector3, stage: String, male: bool, young: b
 				pb.grow(0.5, 60.0)
 			pb.wander(at, 0.1)
 			return pb
+		"chinook", "chinook_spawning", "rainbow", "steelhead", "bluefin": # (each in its own water, dug by it: a deep pool; a stream, flowing; the open sea)
+			var fk: String = {"chinook": "chinook", "chinook_spawning": "chinook", "rainbow": "rainbow", "steelhead": "rainbow", "bluefin": "bluefin"}[key]
+			var fv: String = {"chinook": "ocean", "chinook_spawning": "spawning", "rainbow": "", "steelhead": "steelhead", "bluefin": ""}[key]
+			var water: String = {"chinook": "salmon", "rainbow": "trout", "bluefin": "ocean"}[fk]
+			var fq := _pond_near(at, 0.2)
+			if fq.is_empty() or String(fq.kind) != water:
+				var d: Array = PONDS[water]
+				var dc := at + Vector3(float(d[0]) + 0.3, 0.0, 0.0)
+				dc.x = clampf(dc.x, -HALF + float(d[0]) + 0.2, HALF - float(d[0]) - 0.2) # (all of it on the plain)
+				dc.z = clampf(dc.z, -HALF + float(d[1]) + 0.2, HALF - float(d[1]) - 0.2)
+				fq = _dig_pond(dc, d[0], d[1], d[2], water)
+			var fs: Node3D = FishScript.new(fk, fv)
+			var fc: Vector3 = fq.c
+			var fd := float(fq.deep)
+			fs.set("tank_min", fc + Vector3(-float(fq.hw) + 0.1, POND - fd + 0.02, -float(fq.hd) + 0.1))
+			fs.set("tank_max", fc + Vector3(float(fq.hw) - 0.1, POND - 0.03, float(fq.hd) - 0.1))
+			if water == "trout": # (a stream: its water flowing, the trout holding facing up it)
+				fs.set("current", Vector3(0.3, 0.0, 0.0))
+			_org(fs, fc, false)
+			var n: int = {"chinook": 8 if fv == "ocean" else 4, "rainbow": 5, "bluefin": 10}[fk]
+			fs.call("setup", n, fc + Vector3(0.0, POND - fd * 0.5, 0.0), minf(float(fq.hw), float(fq.hd)) * 0.4)
+			fs.set_meta("pond", fc)
+			return fs
 		"mollies":
 			var q := _pond_near(at, 0.2)
 			if q.is_empty():
@@ -1940,6 +1969,29 @@ func _do(c: Node, act_: String) -> void:
 						(c as Beetles).fly(i, Vector3.ZERO, 0.3, 0.25)
 				"wander":
 					col.wander(i, Vector3.ZERO, 0.06)
+		return
+	if sc == FishScript: # (E/H: the salmon and trout rise, the tuna feed on bait; X scattered; W/B wandering about their water; F/Z: the trout hold)
+		var np: int = (c.get("pos") as PackedVector3Array).size()
+		var fc: Vector3 = c.get_meta("pond", p)
+		var tmin: Vector3 = c.get("tank_min")
+		var tmax: Vector3 = c.get("tank_max")
+		match act_:
+			"eat", "hunt":
+				if String(c.get("kind")) == "bluefin":
+					c.call("feed", (tmin + tmax) * 0.5 + Vector3(randf_range(-2.0, 2.0), 0.0, randf_range(-1.5, 1.5)))
+				else:
+					for i in np:
+						if randf() < 0.5:
+							c.call("rise", i)
+			"alarm":
+				c.call("scatter", (tmin + tmax) * 0.5)
+			"fly", "sleep", "sit":
+				for i in np:
+					c.call("hold", i)
+			_:
+				for i in np:
+					c.call("rejoin", i)
+				c.call("swim_to", Vector3(randf_range(tmin.x, tmax.x), lerpf(tmin.y, tmax.y, 0.5), randf_range(tmin.z, tmax.z)))
 		return
 	if sc == MolliesScript:
 		var np: int = (c.get("pos") as PackedVector3Array).size()
