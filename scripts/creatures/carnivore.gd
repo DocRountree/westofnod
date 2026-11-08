@@ -30,7 +30,9 @@ extends "res://scripts/creatures/hexapod.gd" # (by path: found whether or not th
 ## - groom(): sitting, licking a forepaw, washing its face, licking its
 ##   flank
 ## - sit(seconds), sleep(seconds): lying down, curled, its nose under its
-##   tail, its sides rising and falling; then up, a stretch
+##   tail, its sides rising and falling; then up, a stretch (a species with
+##   a home to sleep in, _sleep_home(): a bear's den, a beaver's lodge, to
+##   it and in, out of sight, the while; then out, a stretch)
 ## - mark(): its scent left (the fox squatting, the bobcat scraping)
 ## - birth(n, den): (a female's) in her den (Den: its species'), lying on her
 ##   side, the young born one by one, licked; nursing them; nurse(): back,
@@ -792,6 +794,18 @@ func sleep(secs := 20.0) -> void:
 	_mode = "sleep"
 	_st = 0.0
 	_wait = secs
+	_stage = 0 if is_instance_valid(_sleep_home()) else 2
+
+
+## Where it sleeps, if anywhere but where it is: its species' (a bear's
+## den, a beaver's lodge); null: curled up where it is.
+func _sleep_home() -> Node3D:
+	return null
+
+
+## (Its home's way in, world: where it goes in to sleep, and comes out.)
+func _home_door(h: Node3D) -> Vector3:
+	return h.global_position
 
 
 func mark() -> void:
@@ -912,6 +926,26 @@ func _think(dt: float) -> void:
 			if _wait <= 0.0:
 				_sit_to = 0.0
 				wander(_home_spot(), _radius)
+		"sleep" when _stage < 2: # (to its home's way in; in, out of sight, asleep; out again)
+			var home := _sleep_home()
+			if not is_instance_valid(home):
+				_stage = 2
+				return
+			var door := _home_door(home)
+			match _stage:
+				0:
+					_target = Vector3(door.x, _pos.y, door.z)
+					_wait = maxf(_wait, 2.0)
+					if Vector2(_pos.x - door.x, _pos.z - door.z).length() < 0.25 * size + 0.1:
+						_stage = 1
+						_st = 0.0
+						visible = false
+				1:
+					_target = _pos
+					if _wait <= 0.0:
+						visible = true
+						_stretch = 1.0
+						wander(_home_spot(), _radius)
 		"sleep":
 			_target = _pos
 			_lie_to = 1.0

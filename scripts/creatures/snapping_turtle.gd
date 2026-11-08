@@ -140,6 +140,9 @@ func _wander_think(dt: float) -> void:
 
 func _think(dt: float) -> void:
 	match _mode:
+		"sleep": # (in the water: down on the mud of the bottom)
+			if _in_water(_pos):
+				_depth_to = maxf(water_y - floor_y, 0.0)
 		"bask": # (ambush: still on the bottom, half sunk in the mud, its mouth a little open)
 			_speed = 0.0
 			_depth_to = maxf(water_y - floor_y, 0.0)

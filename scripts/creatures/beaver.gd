@@ -171,6 +171,18 @@ static func stick_of(len_ := 0.7) -> Node3D:
 ## Its lodge: a dome of sticks and mud, 2 m across, 0.8 m high over the
 ## water (its floor's way in under the water): its origin at its middle at
 ## the water's foot.
+## (It sleeps in its lodge, if it has one: in by its way in under the
+## water, out of sight.)
+func _sleep_home() -> Node3D:
+	return lodge
+
+
+func _home_door(h: Node3D) -> Vector3:
+	var out := Vector3(_pos.x - h.global_position.x, 0.0, _pos.z - h.global_position.z)
+	out = out.normalized() if out.length() > 1e-3 else Vector3.FORWARD
+	return h.global_position + out * 1.05
+
+
 static func lodge_of() -> Node3D:
 	var root := Node3D.new()
 	var mud := StandardMaterial3D.new()

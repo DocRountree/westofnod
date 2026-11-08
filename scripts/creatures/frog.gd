@@ -75,6 +75,7 @@ var _radius := 0.3
 var _target := Vector3.ZERO
 var _airborne := false
 var _crouch := 0.0
+var _doze := 0.0 # (asleep: its eyes drawn in)
 var _kick := 0.0 # (a hop's or a stroke's leg thrust, 0 .. 1)
 var _sac := 0.0 # (a male's vocal sacs, 0 .. 1)
 var _throat := 0.0
@@ -729,6 +730,14 @@ func croak() -> void:
 	_go_mode("call")
 
 
+## Asleep where it sits, secs: flattened low, its eyes drawn down into its
+## head and filmed over, its throat barely moving (in the water: afloat,
+## only its eyes and snout out, as it rests there).
+func sleep(secs := 30.0) -> void:
+	_go_mode("sleep")
+	_wait = secs
+
+
 func flee(from: Vector3) -> void:
 	_go_mode("flee")
 	_target = from
@@ -866,6 +875,10 @@ func _think(dt: float) -> void:
 		"swim":
 			if _pos.distance_to(Vector3(_target.x, _pos.y, _target.z)) < 0.02:
 				float_up()
+		"sleep":
+			_throat = 0.5 + 0.5 * sin(_t * 2.0)
+			if _wait <= 0.0:
+				wander(_pos, 0.25)
 		"float":
 			_throat = 0.5 + 0.5 * sin(_t * 7.0)
 			if _st > 10.0:
@@ -1099,7 +1112,8 @@ func _pose(dt: float) -> void:
 			_tail[k].rotation.y = sin(_t * 12.0 - k * 0.9) * 0.35 * spd * (0.4 + k * 0.12)
 	if not _frog.visible:
 		return
-	_crouch = move_toward(_crouch, 1.0 if _airborne else (0.6 if _mode == "float" or _mode == "call" else 0.0), dt * 6.0)
+	_crouch = move_toward(_crouch, 1.0 if _airborne else (0.6 if _mode in ["float", "call", "sleep"] else 0.0), dt * 6.0)
+	_doze = move_toward(_doze, 1.0 if _mode == "sleep" and _st > 1.0 else 0.0, dt * 1.5)
 	var ext := _kick if _airborne else 0.0 # (its hind legs thrown out straight)
 	_kick = move_toward(_kick, 0.0, dt * 2.0)
 	var lk := _leg_k()
@@ -1172,7 +1186,8 @@ func _pose(dt: float) -> void:
 	_body.rotation.x = lerpf(0.25, -0.1, _crouch) * (0.0 if wet else 1.0) # (sat up on its forelegs, or flat in the water)
 	_throat_mi.scale = Vector3(22.0, 6.0 + 2.5 * _throat, 18.0)
 	for e in _eyes:
-		e.position.y = _eye_y() - 4.0 * _gulp # (pulled down to push its prey down)
+		e.position.y = _eye_y() - 4.0 * _gulp - 3.5 * _doze # (pulled down to push its prey down; asleep, drawn in)
+		e.scale = Vector3(1.0, 1.0 - 0.4 * _doze, 1.0)
 	for k in _sacs.size():
 		_sacs[k].visible = _sac > 0.02
 		_sacs[k].scale = (Vector3(14.0, 11.0, 14.0) * lerpf(0.3, 1.9, _sac)) if _single_sac() else (Vector3(8.0, 8.0, 9.0) * lerpf(0.3, 1.25, _sac))
@@ -1256,7 +1271,7 @@ func _p_reach() -> float:
 func _p_behaviours() -> PackedStringArray:
 	if young and dev < 1.0:
 		return PackedStringArray(["metamorphose"])
-	var b := PackedStringArray(["wander", "hop", "swim", "hunt", "flee"])
+	var b := PackedStringArray(["wander", "hop", "swim", "hunt", "flee", "sleep"])
 	if male:
 		b.append_array(PackedStringArray(["call", "mate"]))
 	else:
@@ -1281,6 +1296,8 @@ func _p_act(name: String, args: Dictionary) -> bool:
 			croak()
 		"flee":
 			flee(args.get("from", _pos + Vector3.FORWARD))
+		"sleep":
+			sleep(float(args.get("seconds", 30.0)))
 		"mate":
 			return mate(args.get("partner"), float(args.get("seconds", 14.0)))
 		"lay":
@@ -1302,6 +1319,8 @@ func _p_act_done(name: String) -> bool:
 			return _role == ""
 		"lay":
 			return _mode != "lay"
+		"sleep":
+			return _mode != "sleep"
 		"metamorphose":
 			return dev >= 1.0
 	return false

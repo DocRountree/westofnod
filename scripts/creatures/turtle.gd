@@ -719,6 +719,9 @@ func _build() -> void:
 		_part(Vector3(at.x * side, at.y, at.z), Vector3.ONE * r * 2.0, em, _head) # (its eye)
 		_part(Vector3((at.x + r * 0.55) * side, at.y + 0.2, at.z - 0.2), Vector3(r * 0.9, r * 0.9, r * 0.9), _mat(Color(0.02, 0.02, 0.02), 0.1), _head) # (its pupil)
 		_part(Vector3(at.x * side * 0.97, at.y + r * 0.55, at.z + 0.3), Vector3(r * 2.3, r * 0.8, r * 2.3), _skin, _head) # (its lid)
+		var shut := _part(Vector3(at.x * side * 1.02, at.y, at.z), Vector3.ONE * r * 2.15, _skin, _head) # (shut, asleep)
+		shut.visible = false
+		_shut.append(shut)
 	# the legs: stumpy, scaled, clawed
 	var claw := _mat(Color(0.3, 0.27, 0.2), 0.45)
 	for fore: bool in [true, false]:
@@ -776,6 +779,14 @@ func withdraw() -> void:
 	_go_mode("hide")
 
 
+## Asleep where it is, secs: its head half drawn in, its legs tucked
+## part way, its eyes shut (a sea turtle's resting where it is in the
+## water, its flippers still).
+func sleep(secs := 30.0) -> void:
+	_go_mode("sleep")
+	_wait = secs
+
+
 func eat(food: Node3D) -> void:
 	if food == null:
 		return
@@ -788,6 +799,9 @@ func nest() -> void:
 	if male or young or bank == Vector3.INF:
 		return
 	_go_mode("nest")
+
+
+var _shut: Array[MeshInstance3D] = [] # (its eyelids, shut: asleep)
 
 
 func _go_mode(m: String) -> void:
@@ -868,6 +882,8 @@ func _process(dt: float) -> void:
 
 
 func _think(dt: float) -> void:
+	for l in _shut: # (its eyes shut, asleep a while)
+		l.visible = _mode == "sleep" and _st > 1.5
 	match _mode:
 		"wander":
 			_wander_think(dt)
@@ -887,6 +903,12 @@ func _think(dt: float) -> void:
 			_dive_think(dt)
 		"hide":
 			_hide_think(dt)
+		"sleep":
+			_speed = 0.0
+			_neck_to = 0.35
+			_limbs_to = 0.45
+			if _wait <= 0.0:
+				wander(_pos, 0.4)
 		"eat":
 			_eat_think(dt)
 		"courted": # (a female: still, her head half in)
@@ -1314,7 +1336,7 @@ func _p_reach() -> float:
 
 
 func _p_behaviours() -> PackedStringArray:
-	var b := PackedStringArray(["wander", "bask", "dive", "hide", "eat"])
+	var b := PackedStringArray(["wander", "bask", "dive", "hide", "sleep", "eat"])
 	if not young:
 		b.append("mate" if male else "nest")
 	return b
@@ -1331,6 +1353,8 @@ func _p_act(name: String, args: Dictionary) -> bool:
 			dive()
 		"hide":
 			withdraw()
+		"sleep":
+			sleep(float(args.get("seconds", 30.0)))
 		"eat":
 			if args.get("food") == null:
 				return false
@@ -1350,7 +1374,7 @@ func _p_act_done(name: String) -> bool:
 	match name:
 		"bask":
 			return _mode == "bask" and _stage == 1
-		"dive", "hide":
+		"dive", "hide", "sleep":
 			return _mode == "wander"
 		"eat":
 			return _mode != "eat"

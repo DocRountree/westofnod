@@ -21,6 +21,9 @@ extends "res://scripts/creatures/hexapod.gd" # (by path: found whether or not th
 ##   its haunches, turning it in its forepaws at its mouth, nibbling (the
 ##   seed going); then down again
 ## - groom(): sitting up, washing its face with its forepaws
+## - sleep(secs): into its nest (home_nest, if it has one; else where it
+##   is), curled up tight, its head tucked round to its flank, its tail
+##   round it, its eyes shut, its sides rising and falling
 ## - birth(n, nest) (a female's; nest: Mouse.nest(), or none: where she
 ##   is): into her nest, settled, and n pups born one after another, each
 ##   licked clean; then she nurses them, lying over them (pups)
@@ -39,6 +42,7 @@ const TAIL_SEG := 5.6 # mm
 var young := false
 var pups: Array[Node3D] = [] ## her young, born
 var home_nest: Node3D ## her nest (Mouse.nest()), if she has one
+var _asleep := 0.0 # (0 awake .. 1 asleep: its eyes shut)
 var _mode := "idle"
 var _centre := Vector3.ZERO
 var _radius := 0.2
@@ -415,6 +419,14 @@ func eat(s: Node3D) -> void:
 	_st = 0.0
 
 
+## Into its nest (or where it is), curled up asleep, secs.
+func sleep(secs := 20.0) -> void:
+	_mode = "sleep"
+	_stage = 0
+	_st = 0.0
+	_wait = secs
+
+
 func groom() -> void:
 	_mode = "groom"
 	_st = 0.0
@@ -519,14 +531,31 @@ func _think(dt: float) -> void:
 				wander(_pos, 0.15)
 		"birth":
 			_birth(dt)
+		"sleep":
+			_sit_to = 0.0
+			if _stage == 0: # (to its nest's middle, or where it is)
+				var at := home_nest.position if is_instance_valid(home_nest) else _pos
+				_target = at
+				if _pos.distance_to(at) < 0.012 and _speed < 0.01:
+					_stage = 1
+					_st = 0.0
+					_wait = maxf(_wait, 4.0)
+			else: # (curled tight, its head round to its flank, asleep)
+				_target = _pos
+				_sniff = 0.0
+				_crouch = move_toward(_crouch, 1.0, dt * 1.5)
+				_look_to = Vector2(1.1, -0.55)
+				if _wait <= 0.0:
+					wander(_pos, 0.15)
 		"nurse":
 			_target = _pos
 			_sit_to = 0.0
 			_crouch = move_toward(_crouch, 1.0, dt)
 			_look_to = Vector2(0.4 * sin(_st * 0.3), -0.3)
 			_lick = 0.5 * maxf(sin(_st * 0.7), 0.0)
-	if _mode not in ["nurse", "birth"]:
+	if _mode not in ["nurse", "birth", "sleep"]:
 		_crouch = move_toward(_crouch, 0.0, dt * 2.0)
+	_asleep = move_toward(_asleep, 1.0 if _mode == "sleep" and _stage == 1 and _st > 1.0 else 0.0, dt * 1.5)
 
 
 ## Giving birth: into her nest, settled, the pups out one by one, each
@@ -660,6 +689,16 @@ func _after_mate() -> void:
 
 func _pose(dt: float) -> void:
 	_grow_fur()
+	if _asleep > 0.5 and not young: # (its eyes shut: the lids over them)
+		for l in _lids:
+			l.visible = true
+		for e in _eyes:
+			e.visible = false
+	elif not young:
+		for l in _lids:
+			l.visible = false
+		for e in _eyes:
+			e.visible = true
 	_sit = move_toward(_sit, _sit_to, dt * 3.0)
 	var s := _sit * _sit * (3.0 - 2.0 * _sit)
 	# up on its haunches: nose up, the body lifted so the rump stays down
@@ -681,7 +720,8 @@ func _pose(dt: float) -> void:
 		e.rotation = Vector3(-0.15 + 0.1 * sin(_t * 0.7 + side), side * (0.25 + 0.15 * sin(_t * 0.9 + side * 2.0)), side * 0.35)
 	# her belly swelling with young
 	var g := _gravid
-	_torso.scale = Vector3(1.0 + 0.22 * g, 1.0 + 0.12 * g, 1.0 + 0.05 * g)
+	var br := 0.04 * _asleep * sin(_t * 3.0) # (asleep: its sides rising and falling)
+	_torso.scale = Vector3(1.0 + 0.22 * g + br, 1.0 + 0.12 * g + br, 1.0 + 0.05 * g)
 	# the tail: down off the rump to the ground and trailing behind, swaying
 	# (held off the ground at its root, sitting up: its root kept level)
 	var sway := 0.4 if _speed > 0.01 else 0.12
@@ -760,7 +800,7 @@ func _pose_legs() -> void:
 func _p_behaviours() -> PackedStringArray:
 	if young:
 		return PackedStringArray(["eat"]) if size >= 0.25 else PackedStringArray()
-	return PackedStringArray(["eat", "groom", "mate"]) if male else PackedStringArray(["eat", "groom", "birth", "mate"])
+	return PackedStringArray(["eat", "groom", "sleep", "mate"]) if male else PackedStringArray(["eat", "groom", "sleep", "birth", "mate"])
 
 
 func _p_act(name: String, args: Dictionary) -> bool:
@@ -772,6 +812,8 @@ func _p_act(name: String, args: Dictionary) -> bool:
 			eat(s)
 		"groom":
 			groom()
+		"sleep":
+			sleep(float(args.get("seconds", 20.0)))
 		"birth":
 			if male or young:
 				return false
@@ -783,7 +825,7 @@ func _p_act(name: String, args: Dictionary) -> bool:
 
 func _p_act_done(name: String) -> bool:
 	match name:
-		"eat", "birth", "groom":
+		"eat", "birth", "groom", "sleep":
 			return _mode != name
 	return false
 

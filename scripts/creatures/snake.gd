@@ -83,6 +83,7 @@ var _coil_r0 := 0.0 # the coil's innermost radius (m)
 var _strike_k := 0.0
 var _strike_at := Vector3.ZERO
 var _gape := 0.0
+var _doze := 0.0 # (asleep: its head down on its coils, no tongue)
 var _unhinge := 0.0 # (its lower jaw unhinged, swallowing: dropped away from its skull, its two halves spread)
 var _jaw_rest := Vector3.ZERO
 var _jaw_drop := 0.0 # (how far it drops, unhinged: its head's height's share)
@@ -171,6 +172,17 @@ func coil() -> void:
 	_mode = "coil"
 	_coil_at = _pts[SPINE / 2] if _pts.size() > SPINE / 2 else _pos
 	_coil_r0 = float(K.r) * size * 2.2
+
+
+## Asleep: coiled flat where it is, its head laid down on its coils (not
+## raised to look out), still, no flick of its tongue (it has no lids: its
+## eyes stay open), secs; then off.
+func sleep(secs := 30.0) -> void:
+	_mode = "sleep"
+	_coil_at = _pts[SPINE / 2] if _pts.size() >= SPINE else _pos
+	_coil_r0 = float(K.r) * size * 2.2
+	_wait = secs
+	_st = 0.0
 
 
 func eat(prey: Node3D) -> void:
@@ -464,6 +476,7 @@ func _process(dt: float) -> void:
 
 func _think(dt: float) -> void:
 	var go := false
+	_doze = move_toward(_doze, 1.0 if _mode == "sleep" and _coil_k > 0.7 else 0.0, dt * 0.6)
 	match _mode:
 		"peek": # (its head out of its egg, tasting the air; then on out)
 			_peek -= dt
@@ -481,6 +494,11 @@ func _think(dt: float) -> void:
 			go = _pos.distance_to(_target) > 0.03 * size
 		"coil":
 			_coil_k = move_toward(_coil_k, 1.0, dt * 0.6)
+		"sleep":
+			_coil_k = move_toward(_coil_k, 1.0, dt * 0.5)
+			_wait -= dt
+			if _wait <= 0.0:
+				wander(_pos, 0.6)
 		"piloted": # (going where it's sent)
 			_coil_k = move_toward(_coil_k, 0.0, dt * 0.8)
 			go = _pos.distance_to(_target) > 0.02 * size
@@ -775,8 +793,8 @@ func _p_reach() -> float:
 ## the rattler's, born).
 func _p_behaviours() -> PackedStringArray:
 	if young:
-		return PackedStringArray(["eat", "coil"])
-	return PackedStringArray(["eat", "coil", "mate"]) if male else PackedStringArray(["eat", "coil", "lay", "mate"])
+		return PackedStringArray(["eat", "coil", "sleep"])
+	return PackedStringArray(["eat", "coil", "sleep", "mate"]) if male else PackedStringArray(["eat", "coil", "sleep", "lay", "mate"])
 
 
 func _p_act(name: String, args: Dictionary) -> bool:
@@ -788,6 +806,8 @@ func _p_act(name: String, args: Dictionary) -> bool:
 			eat(prey)
 		"coil":
 			coil()
+		"sleep":
+			sleep(float(args.get("seconds", 30.0)))
 		"lay":
 			lay(int(args.get("n", 6)))
 		_:
@@ -797,7 +817,7 @@ func _p_act(name: String, args: Dictionary) -> bool:
 
 func _p_act_done(name: String) -> bool:
 	match name:
-		"eat", "lay":
+		"eat", "lay", "sleep":
 			return _mode != name
 	return false
 
@@ -1013,8 +1033,8 @@ func _update(_dt: float) -> void:
 			var r := a0 + b * th
 			var c := _coil_at + Vector3(cos(-th), 0.0, sin(-th)) * r
 			var y := _ground(c.x, c.z) + R * _profile(float(i) / (SPINE - 1)) * 0.85 + (R * 1.6 if i < raised * 2 else 0.0)
-			if i < raised: # (the neck in an S, the head up, looking out)
-				y += R * 2.5 * (1.0 - float(i) / raised) + R
+			if i < raised: # (the neck in an S, the head up, looking out; asleep, laid down on its coils)
+				y += (R * 2.5 * (1.0 - float(i) / raised) + R) * (1.0 - _doze)
 			var coiled := Vector3(c.x, y, c.z)
 			_pts[i] = _pts[i].lerp(coiled, _coil_k)
 	# the strike: the front third reaching straight out to its mark, arched
@@ -1067,7 +1087,7 @@ func _update(_dt: float) -> void:
 	_jaw.scale = Vector3(1.0 + 0.55 * _unhinge, 1.0, 1.0 + 0.15 * _unhinge)
 	var flick := fmod(_t, 2.6)
 	var out := 0.0
-	if flick < 0.9 and _gape < 0.1:
+	if flick < 0.9 and _gape < 0.1 and _doze < 0.5:
 		out = absf(sin(flick / 0.9 * PI * 3.0))
 	_tongue.scale = Vector3(1.0, 1.0, maxf(out, 0.01))
 	_tongue.visible = out > 0.02

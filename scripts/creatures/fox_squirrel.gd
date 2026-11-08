@@ -30,7 +30,9 @@ extends "res://scripts/creatures/hare.gd" # (by path: found whether or not the e
 ##   one): the hare's, its own way
 ## - birth(n): (a female's) up into her drey (FoxSquirrel.drey(), at
 ##   `drey`), her kits born there; nurse(): back up to them
-## - mate(her): the hare's chase, round and round; on her, briefly
+## - sleep(secs): up its tree and into its drey, out of sight, a while;
+##   then out and down (with no drey: resting where it is, as the hare)
+## - mate(her): the hare's chase, round and round (no boxing); on her, briefly
 ## Steering (pilot.gd): act eat {food}, cache {nut, at}, climb {tree, top},
 ## flick, groom, alert, freeze {seconds}, flee {from}, birth {n}, nurse,
 ## mate {partner}.
@@ -65,6 +67,7 @@ var _visit := "" # (up to its drey to give birth, or nurse)
 
 
 func _init(young_ := false) -> void:
+	boxes = false
 	super(young_)
 	size = 0.055 if young_ else 0.3
 	_g_to = size
@@ -448,6 +451,11 @@ func _think(dt: float) -> void:
 			_common(dt)
 			_drey_visit(dt)
 			return
+		"sleep":
+			if drey != Vector3.INF and tree_at != Vector3.INF:
+				_common(dt)
+				_drey_visit(dt)
+				return
 	_flick = move_toward(_flick, 0.0, dt)
 	super(dt)
 
@@ -621,6 +629,13 @@ func _climb_up(dt: float) -> void:
 				_st = 0.0
 		2: # (up there, looking about; or at her drey)
 			_target = _pos
+			if _visit == "sleep": # (in its drey, out of sight, asleep; then out, and down)
+				visible = _st < 1.2 or _st > _sleep_secs
+				if _st > _sleep_secs + 1.5:
+					visible = true
+					_visit = ""
+					_st = 5.0
+				return
 			if _visit != "":
 				_look_to = Vector2(0.0, -0.4)
 				_lick = 1.0
@@ -661,6 +676,14 @@ func _drey_visit(_dt: float) -> void:
 		return
 	_visit = _mode
 	climb(tree_at, drey.y - tree_at.y - 0.12)
+
+
+var _sleep_secs := 20.0
+
+
+func sleep(secs := 20.0) -> void:
+	_sleep_secs = secs
+	super(secs)
 
 
 ## (Its kind's grown size.)

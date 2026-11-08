@@ -1012,8 +1012,7 @@ func _spawn_animal(key: String, at: Vector3, stage: String, male: bool, young: b
 			_drey_in(tree)
 			q.set("tree_at", tree.position)
 			q.set("tree_r", OakTree.trunk_radius_at(int((tree.get_meta("game_tree") as Array)[1]), 1.0))
-			if not male:
-				q.set("drey", tree.position + (tree.get_meta("drey") as Vector3))
+			q.set("drey", tree.position + (tree.get_meta("drey") as Vector3)) # (its home: to sleep in; a female's to bear her kits in)
 			q.call("place", at, randf() * TAU)
 			q.call("wander", at, 0.8)
 			return q
@@ -2195,7 +2194,7 @@ func _do(c: Node, act_: String) -> void:
 				var lv := _leaves_round(c, st)
 				c.call("land", (lv[randi() % lv.size()] as Array)[0], Vector3.UP)
 		"sleep":
-			if sc == OpossumScript and not young:
+			if sc in [OpossumScript, BlackBearScript, BrownBearScript] and not young: # (a bear in its den, out of sight)
 				_den_of(c, st)
 			if c.has_method("sleep"):
 				c.call("sleep", 20.0)
@@ -2392,6 +2391,8 @@ func _frog_do(c: Node, act_: String, young: bool, p: Vector3) -> void:
 			else:
 				var a := randf() * TAU
 				c.call("hop", p + Vector3(cos(a), 0.0, sin(a)) * 0.2)
+		"sleep", "sit":
+			c.call("sleep", 30.0)
 		"display":
 			if _flag(c, "male") and not young:
 				c.call("croak")
@@ -2435,7 +2436,9 @@ func _turtle_do(c: Node, act_: String, young: bool, p: Vector3) -> void:
 		"lay":
 			if not young and not _flag(c, "male"):
 				c.call("nest")
-		"sleep", "sit":
+		"sleep":
+			c.call("sleep", 30.0)
+		"sit":
 			c.call("bask")
 		"fly":
 			c.call("dive")

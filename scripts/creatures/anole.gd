@@ -49,6 +49,8 @@ const HIND := {"hip": Vector3(5.0, -1.5, PELVIS), "f": 13.0, "t": 12.0, "s": 8.0
 var young := false
 var eggs: Array[Node3D] = [] ## the eggs it's laid (in its parent)
 var _mode := "idle"
+var _shut: Array[MeshInstance3D] = [] # (its eyelids, shut: asleep)
+var _doze := 0.0 # (asleep: pressed flat to its perch)
 var _centre := Vector3.ZERO
 var _radius := 0.2
 var _wait := 0.0
@@ -161,6 +163,9 @@ func _build() -> void:
 	for side: float in [-1.0, 1.0]:
 		_part(Vector3(3.5 * side, 1.9, -8.3), Vector3(2.6, 2.6, 3.0), turret, _head)
 		_part(Vector3(4.55 * side, 2.0, -8.3), Vector3(0.9, 1.5, 1.5), eye, _head)
+		var lid := _part(Vector3(4.6 * side, 2.0, -8.3), Vector3(1.05, 1.7, 1.7), turret, _head) # (its lids shut, asleep)
+		lid.visible = false
+		_shut.append(lid)
 		_part(Vector3(4.4 * side, 0.2, -1.2), Vector3(0.5, 1.4, 1.1), _mat(Color(0.08, 0.07, 0.05), 0.6), _head) # (the ear opening)
 		_part(Vector3(0.9 * side, 0.9, -16.0), Vector3(0.4, 0.4, 0.4), _mat(Color(0.05, 0.05, 0.04), 0.6), _head)
 	# a male's dewlap: a fan of pink skin folded under his throat
@@ -242,6 +247,15 @@ func hunt(prey: Node3D) -> void:
 	_st = 0.0
 
 
+## Asleep where it is, secs: pressed flat along its perch, its head down,
+## its eyes shut, gone pale (as anoles do asleep).
+func sleep(secs := 30.0) -> void:
+	_mode = "sleep"
+	_st = 0.0
+	_wait = secs
+	_target = _pos
+
+
 func display() -> void:
 	_mode = "display"
 	_st = 0.0
@@ -295,6 +309,14 @@ func _think(dt: float) -> void:
 			_hunt(dt)
 		"lay":
 			_lay(dt)
+		"sleep":
+			_target = _pos
+			_look_to = Vector2(0.0, -0.15)
+			if _wait <= 0.0:
+				wander(_pos if _centre == Vector3.ZERO else _centre, _radius)
+	_doze = move_toward(_doze, 1.0 if _mode == "sleep" and _st > 1.0 else 0.0, dt * 1.2)
+	for l in _shut:
+		l.visible = _doze > 0.5
 
 
 ## Bobbing: three bobs and a pause, push-ups with them; a male's dewlap
@@ -517,7 +539,9 @@ func _walk(dt: float) -> void:
 func _pose(dt: float) -> void:
 	# its colour: green, active; brown, still a long while
 	_still = _still + dt if _speed < 0.005 and _mode != "display" else 0.0
-	if _still > 20.0:
+	if _mode == "sleep":
+		_brown_to = -0.25 # (asleep: pale green)
+	elif _still > 20.0:
 		_brown_to = 0.8
 	elif _speed > 0.02 or _mode in ["display", "hunt"] or _mate_role != "":
 		_brown_to = 0.0
@@ -528,7 +552,7 @@ func _pose(dt: float) -> void:
 	var pu := _push * maxf(sin(_t * 9.0), 0.0)
 	if not (_mate_role == "male" and _mate_stage in ["mount", "joined", "part"]):
 		_pitch = 0.18 * pu
-		_lift = 2.5 * pu
+		_lift = 2.5 * pu - 1.6 * _doze # (asleep: pressed flat to its perch)
 	# the trunk's swing with its stride; turning, the body curved
 	var yd := wrapf(_yaw - _last_yaw, -PI, PI)
 	_last_yaw = _yaw
@@ -746,8 +770,8 @@ func _pose_legs() -> void:
 ## hunt {prey}, display {seconds}, lay {at} (a female's), mate {partner}.
 func _p_behaviours() -> PackedStringArray:
 	if young:
-		return PackedStringArray(["hunt"])
-	return PackedStringArray(["hunt", "display", "mate"]) if male else PackedStringArray(["hunt", "display", "lay", "mate"])
+		return PackedStringArray(["hunt", "sleep"])
+	return PackedStringArray(["hunt", "display", "sleep", "mate"]) if male else PackedStringArray(["hunt", "display", "sleep", "lay", "mate"])
 
 
 func _p_act(name: String, args: Dictionary) -> bool:
@@ -759,6 +783,8 @@ func _p_act(name: String, args: Dictionary) -> bool:
 			hunt(prey)
 		"display":
 			display()
+		"sleep":
+			sleep(float(args.get("seconds", 30.0)))
 		"lay":
 			if young or male:
 				return false
@@ -770,7 +796,7 @@ func _p_act(name: String, args: Dictionary) -> bool:
 
 func _p_act_done(name: String) -> bool:
 	match name:
-		"hunt", "lay", "display":
+		"hunt", "lay", "display", "sleep":
 			return _mode != name
 	return false
 

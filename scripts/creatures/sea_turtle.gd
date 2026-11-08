@@ -208,6 +208,10 @@ func _wander_think(dt: float) -> void:
 
 func _think(dt: float) -> void:
 	match _mode:
+		"sleep": # (asleep on the bottom, wedged still, its eyes shut; it can't draw its head in)
+			_depth_to = _deepest()
+			super(dt)
+			_neck_to = 0.6
 		"bask": # (resting on the bottom, still, its flippers along its sides)
 			_speed = 0.0
 			_depth_to = _deepest()

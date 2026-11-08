@@ -28,10 +28,16 @@ extends "res://scripts/creatures/hexapod.gd" # (by path: found whether or not th
 ## - birth(n): (a female's) settled in a form, the leverets born one by one,
 ##   each licked; she nurses them, standing over them, then leaves them
 ##   (nurse(): back to them, and nursing again)
+## - sleep(secs): resting in its form (a scrape it lies pressed into),
+##   crouched, its ears laid flat along its back, its eyes shut, its sides
+##   rising and falling; now and then an ear twitching up a moment
 ## - mate(her): he chases her (she leaping up now and then, running on in
-##   a ring); then on her from behind, briefly; off; she leaps away
+##   a ring); she turns on him and rears up, boxing him with her forepaws,
+##   he up too, boxing back, a flurry; on in the ring; then he on her from
+##   behind, briefly; off; she leaps away
 ## Steering (pilot.gd): act eat {food}, groom, alert, thump, freeze
-## {seconds}, flee {from}, birth {n} (a female's), nurse, mate {partner}.
+## {seconds}, flee {from}, sleep {seconds}, birth {n} (a female's), nurse,
+## mate {partner}.
 
 const FORE := {"hip": Vector3(28.0, -30.0, -95.0), "f": 62.0, "t": 72.0, "s": 34.0, "home": Vector2(30.0, -112.0), "dangle": Vector3(26.0, -60.0, -150.0), "pole": Vector3(0.1, 0.0, 1.0), "r": 9.0, "femur_r": 1.9}
 const HIND := {"hip": Vector3(42.0, -8.0, 100.0), "f": 92.0, "t": 98.0, "s": 118.0, "home": Vector2(46.0, 18.0), "dangle": Vector3(40.0, -50.0, 190.0), "pole": Vector3(0.2, 0.1, -1.0), "r": 12.0, "femur_r": 2.4}
@@ -54,6 +60,11 @@ var _food_s := Vector3.ONE
 var _flee_from := Vector3.ZERO
 var _born_left := 0
 var _form := Vector3.ZERO
+var boxes := true ## (its courtship: she rears and boxes him; a squirrel's not)
+var _box := 0.0 # (up, boxing: 0 .. 1)
+var _box_t := 0.0 # (the courtship's time till the next bout)
+var _sleep := 0.0 # (asleep: 0 .. 1, its eyes shut)
+var _shut: Array[MeshInstance3D] = [] # (its eyelids, drawn over its eyes asleep)
 # the pose
 var _hop := 0.0 # the hop's phase (0..1)
 var _hopping := false
@@ -131,6 +142,9 @@ func _build() -> void:
 		_part(Vector3((ex - 4.5) * side, 16.0, -42.0), Vector3(13.0, 23.0, 25.0), ring, _head)
 		_part(Vector3(10.0 * side, -8.0, -82.0), Vector3(20.0, 18.0, 22.0), head_fur, _head) # (its whisker pads)
 		_part(Vector3(28.0 * side, 16.0, -42.0), Vector3(19.0, 22.0, 23.0), head_fur, _head) # (its lids round it)
+		var lid := _part(Vector3((ex + 0.6) * side, 16.0, -42.0), Vector3(15.6, 19.6, 21.6), head_fur, _head) # (shut, asleep)
+		lid.visible = false
+		_shut.append(lid)
 	_nose = Node3D.new()
 	_nose.position = Vector3(0.0, -8.0, -94.0)
 	_head.add_child(_nose)
@@ -376,6 +390,13 @@ func freeze(secs := 6.0) -> void:
 	_wait = secs
 
 
+## Resting in its form, asleep, secs.
+func sleep(secs := 20.0) -> void:
+	_mode = "sleep"
+	_st = 0.0
+	_wait = secs
+
+
 func flee(from: Vector3) -> void:
 	_mode = "flee"
 	_flee_from = from
@@ -479,7 +500,16 @@ func _think(dt: float) -> void:
 			_birth(dt)
 		"nurse":
 			_nurse(dt)
-	if _mode != "freeze":
+		"sleep": # (pressed into its form, its ears flat along its back, its eyes shut)
+			_target = _pos
+			_sit_to = 0.0
+			_ears_to = -1.0 if fmod(_st, 7.0) > 0.5 else -0.3 # (an ear up a moment, now and then)
+			_crouch = move_toward(_crouch, 0.8, dt * 1.5)
+			_look_to = Vector2(0.0, -0.15)
+			if _wait <= 0.0:
+				wander(_pos if _centre == Vector3.ZERO else _centre, _radius)
+	_sleep = move_toward(_sleep, 1.0 if _mode == "sleep" and _st > 1.0 else 0.0, dt * 1.5)
+	if _mode not in ["freeze", "sleep"]:
 		_crouch = move_toward(_crouch, 0.0, dt * 2.0)
 
 
@@ -637,7 +667,18 @@ func _mating(dt: float) -> void:
 	super(dt)
 	_sit_to = 0.0
 	if _mate == null or not is_instance_valid(_mate):
+		_box = 0.0
 		return
+	# a bout of boxing: she turns on him, up on her hind legs; he up too
+	var boxing: bool = boxes and (_mate_stage == "court" or _mate.get("_mate_stage") == "court")
+	if boxing and _box_on():
+		_box = move_toward(_box, 1.0, dt * 5.0)
+		var at: Vector3 = _mate.get("_pos")
+		_target = _pos
+		_pace = -1.0
+		_turn_to = atan2(-(at.x - _pos.x), -(at.z - _pos.z))
+		return
+	_box = move_toward(_box, 0.0, dt * 4.0)
 	if _mate_role == "male" and _mate_stage == "court": # (after her)
 		var ending := _mate_t > _court_secs() - 2.0 # (the chase's end: she slows, he closes on her, right up behind)
 		var to: Vector3 = _mate.call("_out", Vector3(0.0, -body_h, 200.0 if ending else 380.0))
@@ -664,9 +705,17 @@ func _mating(dt: float) -> void:
 		_pace = -1.0
 
 
+## (Whether the pair are boxing now: a bout of 1.6 s every 3.4, after the
+## chase's first second, before its last two; his clock hers.)
+func _box_on() -> bool:
+	var t: float = _mate_t if _mate_role == "male" else float(_mate.get("_mate_t"))
+	return t > 1.5 and t < _court_secs() - 2.2 and fmod(t - 1.5, 3.4) < 1.6
+
+
 func _after_mate() -> void:
 	_pace = -1.0
 	_ring_set = false
+	_box = 0.0
 	if male:
 		groom()
 	else:
@@ -791,6 +840,18 @@ func _pose(dt: float) -> void:
 				_pose_foot[i] = Vector3(side * 22.0, -60.0, -120.0) # (held before its chest)
 			elif _mode != "nurse" or _stage != 1:
 				_pose_foot[i] = null
+	# asleep: its eyes shut, its sides rising and falling
+	for l in _shut:
+		l.visible = _sleep > 0.5
+	_lift += 3.0 * _sleep * sin(_t * 1.8)
+	# up, boxing: on its hind legs, its forepaws striking out at him in turn
+	if _box > 0.05 and not _hopping:
+		_pitch = 0.95 * _box
+		_lift = 85.0 * _box
+		for i: int in [0, 1]:
+			var side := 1.0 if i % 2 == 1 else -1.0
+			var ph := _t * 13.0 + (PI if side > 0.0 else 0.0)
+			_pose_foot[i] = Vector3(side * 26.0, -30.0 + 25.0 * sin(ph), -130.0 - 70.0 * maxf(sin(ph), 0.0))
 	# the head: looking, nibbling, kept level as it sits up
 	_look = _look.lerp(_look_to, 1.0 - exp(-6.0 * dt))
 	var lick := 0.3 * _lick * maxf(sin(_t * 5.0), 0.0)
@@ -868,7 +929,7 @@ func _pose_legs() -> void:
 ## eat {food}, groom, alert, thump, freeze {seconds}, flee {from}, birth {n}
 ## (a female's), nurse (a female's), mate {partner}.
 func _p_behaviours() -> PackedStringArray:
-	var b := PackedStringArray(["eat", "groom", "alert", "thump", "freeze", "flee"])
+	var b := PackedStringArray(["eat", "groom", "alert", "thump", "freeze", "flee", "sleep"])
 	if not young:
 		b.append("mate")
 		if not male:
@@ -891,6 +952,8 @@ func _p_act(name: String, args: Dictionary) -> bool:
 			thump()
 		"freeze":
 			freeze(float(args.get("seconds", 6.0)))
+		"sleep":
+			sleep(float(args.get("seconds", 20.0)))
 		"flee":
 			flee(args.get("from", _pos + _p_heading()))
 		"birth":
@@ -908,13 +971,13 @@ func _p_act(name: String, args: Dictionary) -> bool:
 
 func _p_act_done(name: String) -> bool:
 	match name:
-		"eat", "groom", "alert", "thump", "freeze", "flee", "birth", "nurse":
+		"eat", "groom", "alert", "thump", "freeze", "flee", "sleep", "birth", "nurse":
 			return _mode != name
 	return false
 
 
 func _p_act_secs(name: String) -> float:
-	return 6.0 if name == "freeze" else -1.0
+	return 6.0 if name == "freeze" else (20.0 if name == "sleep" else -1.0)
 
 
 func _p_speed() -> float:

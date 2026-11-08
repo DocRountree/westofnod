@@ -122,6 +122,15 @@ static func berry_bush() -> Node3D:
 
 ## A bear's den: a hollow dug under a mound, roots over its mouth (-z). Its
 ## origin on the ground at its middle.
+## (It sleeps in its den, if it has one: in at its mouth, out of sight.)
+func _sleep_home() -> Node3D:
+	return home_den
+
+
+func _home_door(h: Node3D) -> Vector3:
+	return h.global_transform * Vector3(0.0, 0.0, -1.15) # (its mouth: Ursid.den's, at its scale's 1)
+
+
 static func den(scale_ := 1.0) -> Node3D:
 	var root := Node3D.new()
 	var s := SphereMesh.new()
