@@ -39,7 +39,8 @@ extends "res://scripts/creatures/hexapod.gd" # (by path: found whether or not th
 ## female's), mate {partner}.
 
 const STRAW := Color(0.8, 0.64, 0.33)
-const SEGS := [4.6, 5.0, 5.3, 5.6, 6.2] # mm, the tail's segments (the fifth the longest)
+const SEGS_BASE_Z := 18.6 ## mm: where the tail leaves the body (behind its middle)
+const SEGS := [6.2, 6.75, 7.15, 7.55, 8.35] # mm, the tail's segments (the fifth the longest): long, a bark scorpion's (with the telson half again its body: enough to arch over its back and strike before its face)
 const TAIL_REST := [[-0.08, 0.55], [-0.04, 0.62], [-0.04, 0.62], [-0.06, 0.58], [-0.25, 0.45], [-0.6, 0.2]] # (coiled round to its side on the ground: [arch, round] each joint, the last the telson's)
 const TAIL_WALK := [[-0.55, 0.05], [-0.55, 0.0], [-0.5, 0.0], [-0.5, 0.0], [-0.45, 0.0], [-0.7, 0.0]] # (up in an arch over its back)
 const TAIL_STING := [[-0.75, 0.0], [-0.7, 0.0], [-0.7, 0.0], [-0.65, 0.0], [-0.3, 0.0], [-0.2, 0.0]] # (over and forward, the sting out ahead)
@@ -91,6 +92,8 @@ var _vesicle: MeshInstance3D
 var _venom: MeshInstance3D
 # the sting: its strike's time (-1: none), where it strikes (its parent's space)
 var _sting_t := -1.0
+var _stung := 0 # (a hunt's stings so far)
+var _prey_box := AABB() # (its prey's bounds, its own frame)
 var _sting_at := Vector3.ZERO
 var _mats: Array = [] # [material, its colour grown]
 
@@ -185,7 +188,7 @@ func _build() -> void:
 	var prev: Node3D = _body
 	for k in SEGS.size():
 		var n := Node3D.new()
-		n.position = Vector3(0.0, 0.3, 18.6) if k == 0 else Vector3(0.0, 0.0, SEGS[k - 1])
+		n.position = Vector3(0.0, 0.3, SEGS_BASE_Z) if k == 0 else Vector3(0.0, 0.0, SEGS[k - 1])
 		prev.add_child(n)
 		var l: float = SEGS[k]
 		var w := 1.95 - 0.07 * k
@@ -361,8 +364,24 @@ func _think(dt: float) -> void:
 			match _stage:
 				0:
 					_target = _pos
-					_turn_to = atan2(-to.x, -to.z)
-					if _st > 0.6 and _turn_to == INF:
+					# (turned to face it: asked again only while it isn't, so
+					# the turn can finish)
+					var want := atan2(-to.x, -to.z)
+					var facing := to.length() < 1e-4 or absf(wrapf(want - _yaw, -PI, PI)) < 0.15
+					if not facing:
+						_turn_to = want
+					# then up to it: its mark just before its face, where the
+					# sting, over its back, comes down (STRIKE_AHEAD)
+					var ahead := STRIKE_AHEAD * size
+					var close := to.length() < ahead * 1.3
+					if facing and not close:
+						_turn_to = INF
+						_target = _dance_at - to.normalized() * ahead
+						_pace = walk_speed * 0.6
+					if _st > 0.6 and ((facing and close) or _st > 6.0):
+						_turn_to = INF
+						_pace = -1.0
+						_target = _pos
 						_stage = 1
 						_st = 0.0
 				1: # (the threat: up on its legs, its chelae raised and open)
@@ -403,8 +422,13 @@ func striking() -> bool:
 	return _sting_t >= 0.0
 
 
+## m (at size 1) before its middle a mark it strikes at is best: just
+## before its face, where its sting comes down over its back (_tail_arch's
+## reach); it closes to that first.
+const STRIKE_AHEAD := 0.011
 const COCK := [[-0.9, 0.0], [-0.85, 0.0], [-0.75, 0.0], [-0.55, 0.0], [-0.35, 0.0], [-1.0, 0.0]] # (cocked: up, drawn back, the sting poised over its back)
 var _strike_k := [] # (the tail's joints as the strike asks)
+var _arches := [] # (this strike's arches: over its mark, and driven in)
 var _strike_rate := 6.0
 
 
@@ -423,11 +447,18 @@ func _strike_pose(dt: float) -> bool:
 	if t < 0.55: # (cocked: up and back, the chelae raised before it)
 		_strike_k = COCK
 		_strike_rate = 8.0
+		_arches = []
 	elif t < 0.7: # (whipped forward, over: to just short of it)
-		_strike_k = _tail_ik(mark + Vector3(0.0, 2.5, 0.0))
+		if _arches.is_empty(): # (its arches, worked out once: over it, and in)
+			_arches = [_tail_arch(mark + Vector3(0.0, 2.5, 0.0)), _tail_arch(mark + Vector3(0.0, -0.4, 0.0))]
+		_strike_k = _arches[0]
 		_strike_rate = 45.0
 	elif t < 1.5: # (driven in, held, pumping; a drop at its tip)
-		_strike_k = _tail_ik(mark + Vector3(0.0, -0.4 + 0.3 * sin(t * 30.0), 0.0))
+		if _arches.is_empty():
+			_arches = [_tail_arch(mark + Vector3(0.0, 2.5, 0.0)), _tail_arch(mark + Vector3(0.0, -0.4, 0.0))]
+		var k: Array = (_arches[1] as Array).duplicate(true)
+		k[5] = [float(k[5][0]) - 0.06 * sin(t * 30.0), 0.0] # (the bulb pumping: the sting working in and out)
+		_strike_k = k
 		_strike_rate = 30.0
 		if _vesicle:
 			var pump := 1.0 + 0.12 * sin(t * 25.0)
@@ -444,12 +475,13 @@ func _strike_pose(dt: float) -> bool:
 	return true
 
 
-## The tail's joints bending it so its sting reaches `mark` (the body's
-## mm): the plane of it turned toward it at its root, then each joint bent
-## in that plane, tip to root, over and over, toward it (cyclic coordinate
-## descent), each within what its joint allows.
-func _tail_ik(mark: Vector3) -> Array:
-	var base := Vector3(0.0, 0.3, 18.6)
+## A strike's tail (the body's mm): an arch up over its back and down
+## before its face onto `mark`, never through its body: its first segment
+## up, the next two bent alike, the last two alike, the telson its own,
+## the best of a coarse search refined (bent joint by joint toward it, it
+## lay flat along the back). The plane of it turned toward the mark.
+func _tail_arch(mark: Vector3) -> Array:
+	var base := Vector3(0.0, 0.3, SEGS_BASE_Z)
 	var rel := mark - base
 	var phi := atan2(-rel.x, -rel.z) if Vector2(rel.x, rel.z).length() > 1e-3 else 0.0
 	var u := Vector3(sin(phi), 0.0, cos(phi))
@@ -457,33 +489,87 @@ func _tail_ik(mark: Vector3) -> Array:
 	var lens: Array[float] = []
 	for k in SEGS.size():
 		lens.append(float(SEGS[k]))
-	var tip := Vector2(5.75, -3.0) # (the sting's tip, in the telson's own)
+	var tip := Vector2(5.75, -3.0)
 	lens.append(tip.length())
 	var off := atan2(tip.y, tip.x)
-	var th: Array[float] = []
-	for j in 6:
-		th.append(-float((_tail_k[j] as Array)[0]))
-	var lo := [-0.3, -0.3, -0.3, -0.3, -0.3, -0.4]
-	var hi := [1.35, 1.35, 1.3, 1.3, 1.3, 1.4]
-	for it in 12:
-		for j in range(5, -1, -1):
-			# (where each joint is, and the tip, as it's bent now)
-			var p := Vector2.ZERO
-			var a := 0.0
-			var pj := Vector2.ZERO
-			for k in 6:
-				if k == j:
-					pj = p
-				a += th[k]
-				var dir := a + (off if k == 5 else 0.0)
-				p += Vector2(cos(dir), sin(dir)) * lens[k]
-			var cur := atan2(p.y - pj.y, p.x - pj.x)
-			var want := atan2(tgt.y - pj.y, tgt.x - pj.x)
-			th[j] = clampf(th[j] + wrapf(want - cur, -PI, PI), float(lo[j]), float(hi[j]))
+	var cost := func(q: Array) -> float:
+		var th := [q[0], q[1], q[1], q[2], q[2], q[3]]
+		var p := Vector2.ZERO
+		var a := 0.0
+		var worst := 0.0
+		for k in 6:
+			a += float(th[k])
+			var dir := a + (off if k == 5 else 0.0)
+			var nxt := p + Vector2(cos(dir), sin(dir)) * lens[k]
+			if k < 5: # (the segments, their joints and middles, clear of the body)
+				for f: float in [0.5, 1.0]:
+					var w := p.lerp(nxt, f)
+					var z := base.z + w.x * u.z # (along the body)
+					var y := base.y + w.y
+					worst = maxf(worst, _back_at(z) + 1.0 - y)
+			p = nxt
+		return p.distance_to(tgt) + 3.0 * worst
+	var best := [1.4, 0.8, 0.3, 1.0]
+	var best_c: float = cost.call(best)
+	for i in 8:
+		for j in 7:
+			for j2 in 7:
+				for k in 6:
+					var q := [0.5 + 1.2 * i / 7.0, 1.65 * j / 6.0, 1.65 * j2 / 6.0, -0.4 + 1.9 * k / 5.0]
+					var c: float = cost.call(q)
+					if c < best_c:
+						best_c = c
+						best = q
+	var lo := [0.3, 0.0, 0.0, -0.4]
+	var hi := [1.75, 1.7, 1.7, 1.5]
+	var step := 0.12
+	for it in 30: # (refined: each way a step, the step halving when none helps)
+		var better := false
+		for d in 4:
+			for sgn: float in [-1.0, 1.0]:
+				var q := best.duplicate()
+				q[d] = clampf(float(q[d]) + sgn * step, float(lo[d]), float(hi[d]))
+				var c: float = cost.call(q)
+				if c < best_c:
+					best_c = c
+					best = q
+					better = true
+		if not better:
+			step *= 0.5
+			if step < 0.004:
+				break
+	var th := [best[0], best[1], best[1], best[2], best[2], best[3]]
 	var out := []
 	for j in 6:
-		out.append([-th[j], phi if j == 0 else 0.0])
+		out.append([-float(th[j]), phi if j == 0 else 0.0])
 	return out
+
+
+## The top of its body (mm up, the body's own) at z along it (none beyond
+## it): the carapace low before, rising; the mesosoma's back.
+static func _back_at(z: float) -> float:
+	if z < -9.5 or z > 19.5:
+		return -99.0
+	if z < -2.0:
+		return 1.4 + (z + 9.5) / 7.5 * 1.2
+	return 3.1
+
+
+## A node's bounds in its own frame: its meshes' boxes together.
+static func _box_of(n: Node3D) -> AABB:
+	var inv := n.global_transform.affine_inverse()
+	var box := AABB()
+	var first := true
+	for m in n.find_children("*", "MeshInstance3D", true, false):
+		var mi := m as MeshInstance3D
+		if mi.mesh == null or not mi.is_visible_in_tree():
+			continue
+		var b := (inv * mi.global_transform) * mi.mesh.get_aabb()
+		box = b if first else box.merge(b)
+		first = false
+	if first:
+		box = AABB(-Vector3.ONE * 0.005, Vector3.ONE * 0.01)
+	return box
 
 
 func _hunt(dt: float) -> void:
@@ -517,15 +603,45 @@ func _hunt(dt: float) -> void:
 			if _st > 0.25:
 				_held = false # (gripped where it lies, not lifted)
 				MealScript.subdue(_prey) # (a live insect: still in its chelae)
+				_stung = 0
+				_prey_box = AABB()
 				_stage = 3
 				_st = 0.0
 		3: # stung, again (drawn in toward it, the tail over, driven into it in its chelae)
 			_palp_ask = [PALP_HOLD, PALP_HOLD]
 			_palp_rate = 4.0
 			_grip = 1.0
-			if not striking() and (_st < 0.1 or (_st > 2.0 and _st < 2.2)):
-				strike(_prey.global_position)
-			if _st > 4.2 and not striking():
+			# (up to it first, its mouth over it, the prey where it lies: then
+			# the sting comes down over its back into it)
+			var mouth := Vector3.ZERO
+			for c in _chel:
+				mouth += (c as Node3D).global_position
+			mouth /= maxf(_chel.size(), 1)
+			# (its mouth to the prey's near side, not into it: where a line
+			# from it to the prey's middle leaves the prey's box)
+			if _prey_box == AABB():
+				_prey_box = _box_of(_prey)
+			var pt := _prey.global_transform
+			var mid := pt * _prey_box.get_center()
+			var way := Vector3(_pos.x - mid.x, 0.0, _pos.z - mid.z).normalized()
+			# (out along it in the prey's own frame, its box's half widths
+			# trimmed: its legs and feelers stick out of its body)
+			var lw := (pt.basis.inverse() * way)
+			var half := _prey_box.size * 0.5 * 0.8
+			var edge_l := minf(half.x / maxf(absf(lw.x), 1e-4), half.z / maxf(absf(lw.z), 1e-4))
+			var edge_d := (pt.basis * (lw * edge_l)).length()
+			var near := mid + way * edge_d
+			var top := (pt * _prey_box.end).y
+			var gp := Vector3(near.x, top - 0.003 * size, near.z) - way * 0.003 * size # (the sting: into its back, just in from the near side)
+			var off := Vector3(near.x + way.x * 0.001 * size - mouth.x, 0.0, near.z + way.z * 0.001 * size - mouth.z)
+			var there := off.length() < 0.002 * size
+			if not there and _st < 1.5:
+				_pos += off.limit_length(0.015 * size * dt)
+				_target = _pos
+			if not striking() and ((_st > 0.4 and _st < 1.6 and (there or _st > 1.5) and _stung == 0) or (_st > 3.2 and _stung == 1)):
+				_stung += 1
+				strike(gp)
+			if _st > 5.0 and not striking():
 				_stage = 4
 				_st = 0.0
 		4: # held to its mouth, the chelicerae tearing at it
