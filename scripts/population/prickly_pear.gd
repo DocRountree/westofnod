@@ -2,8 +2,8 @@ class_name PricklyPear
 extends RefCounted
 ## A prickly pear (Engelmann's, Opuntia engelmannii), built whole
 ## (PlantMesh), life size, four variants: a big sprawling clump (about a
-## metre high, two across), a small one, one fruiting, one in flower. On the
-## prairie (data/population/props/prickly_pear.tres); its fruit (the tunas,
+## metre high, two across), a small one, one fruiting, one in flower. In the mesa
+## country, not up on the plateau (data/population/props/prickly_pear.tres); its fruit (the tunas,
 ## the item "prickly_pear") hung on the rims of its top pads where it bears
 ## them (fruit_spots: Foraging draws and picks them, as a tree's).
 ##

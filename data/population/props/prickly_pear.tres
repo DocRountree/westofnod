@@ -14,7 +14,9 @@ sink = 0.02
 radius = 0.0
 view_distance = 120.0
 density = {
-"prairie": 0.8
+"mesa": 0.8
 }
+strict = true
+never_in = ["plateau"]
 height_range = Vector2(2, 1150)
 min_normal_y = 0.85
