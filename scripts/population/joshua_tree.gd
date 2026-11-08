@@ -1,10 +1,13 @@
 class_name JoshuaTree
 extends RefCounted
 ## The Joshua tree (Yucca brevifolia), the Mojave's tree-yucca, built whole
-## (PlantMesh), life size, four variants: an old tree (about 7 m, its trunk
+## (PlantMesh), life size, ten variants: an old tree (about 7 m, its trunk
 ## forking and forking again into a broad, open, angular crown), a younger
 ## one (a few branches), a young one (a single stem, its dead leaves a skirt
-## down it to the ground) and one in flower. In the mesa country, not up on
+## down it to the ground), one in flower; a tall old one (its crown high on a
+## long trunk), a tall lanky one forked once, a short squat one branching
+## from low down, a short one with three arms, an old many-forked one, a
+## tall single stem. In the mesa country, not up on
 ## the plateau: data/population/props/joshua_tree.tres; the sandbox's trees and
 ## bushes (tools/creatures/ecology_demo.gd).
 ##
@@ -24,6 +27,14 @@ const VARIANTS := [
 	{"height": 1.3, "trunk_r": 0.16, "depth": 2, "fork": 0.85, "len": 0.95, "seed": 717},
 	{"height": 1.5, "trunk_r": 0.1, "depth": 0, "fork": 0.0, "len": 0.0, "seed": 733, "skirt": true},
 	{"height": 1.4, "trunk_r": 0.17, "depth": 3, "fork": 0.85, "len": 1.0, "seed": 751, "flowers": 0.6},
+	# (more: tall and short, few forks and many; "ways": how many ways each
+	# fork goes, at least and at most)
+	{"height": 4.2, "trunk_r": 0.3, "depth": 3, "fork": 0.9, "len": 1.9, "seed": 769, "ways": [2, 3]}, # (a tall old one, a high crown on a long trunk)
+	{"height": 3.4, "trunk_r": 0.22, "depth": 1, "fork": 0.0, "len": 1.9, "seed": 787, "ways": [2, 2], "spread": [0.8, 1.05]}, # (tall, lanky: forked just once, two arms up)
+	{"height": 0.7, "trunk_r": 0.2, "depth": 4, "fork": 0.95, "len": 0.85, "seed": 797, "ways": [2, 4], "spread": [0.6, 1.0]}, # (short and squat: branching from low down, dense, round)
+	{"height": 1.1, "trunk_r": 0.14, "depth": 1, "fork": 0.0, "len": 1.0, "seed": 811, "ways": [3, 3], "spread": [0.85, 1.15]}, # (short: one fork, three short arms)
+	{"height": 2.6, "trunk_r": 0.27, "depth": 5, "fork": 0.85, "len": 1.25, "seed": 829, "ways": [2, 3]}, # (an old one forked and forked again: a broad, many branched crown)
+	{"height": 2.0, "trunk_r": 0.12, "depth": 0, "fork": 0.0, "len": 0.0, "seed": 853, "skirt": true}, # (a tall single stem, not yet branched, its skirt to the ground)
 ]
 
 const LEAF := Color(0.4, 0.5, 0.34)
@@ -78,7 +89,7 @@ static func _make(V: Dictionary, lod: int) -> Mesh:
 	if int(V.depth) == 0:
 		tips.append([top, dir])
 	else:
-		_branch(wood, rng, top, dir, float(V.len), r0 * 0.78, int(V.depth), float(V.fork), sides, tips, stems)
+		_branch(wood, rng, top, dir, float(V.len), r0 * 0.78, int(V.depth), float(V.fork), sides, tips, stems, V.get("ways", [2, 3]), V.get("spread", [0.45, 0.85]))
 	# the dead leaves hanging down every branch (and a young one's skirt
 	# down its stem to the ground)
 	if lod < 2:
@@ -103,12 +114,12 @@ static func _make(V: Dictionary, lod: int) -> Mesh:
 ## A branch from p along dir (len, radius r), crooked; forking `depth`
 ## more times (each two or three ways, up and out), else a rosette at its
 ## end; dead leaves hanging down it.
-static func _branch(st: SurfaceTool, rng: RandomNumberGenerator, p: Vector3, dir: Vector3, length: float, r: float, depth: int, fork: float, sides: int, tips: Array, stems: Array) -> void:
-	var n := rng.randi_range(2, 3) if depth > 0 else 0
+static func _branch(st: SurfaceTool, rng: RandomNumberGenerator, p: Vector3, dir: Vector3, length: float, r: float, depth: int, fork: float, sides: int, tips: Array, stems: Array, ways: Array = [2, 3], spread_: Array = [0.45, 0.85]) -> void:
+	var n := rng.randi_range(int(ways[0]), int(ways[1])) if depth > 0 else 0
 	var axis := dir.cross(Vector3.RIGHT if absf(dir.x) < 0.9 else Vector3.FORWARD).normalized()
 	var turn := rng.randf() * TAU
 	for c in n:
-		var spread := rng.randf_range(0.45, 0.85)
+		var spread := rng.randf_range(float(spread_[0]), float(spread_[1])) # (how far out from the way it was going: rad)
 		var a := turn + TAU * float(c) / n + rng.randf_range(-0.4, 0.4)
 		var d := dir.rotated(axis.rotated(dir, a), spread)
 		d = (d + Vector3.UP * 0.35).normalized() # (angling up)
@@ -127,7 +138,7 @@ static func _branch(st: SurfaceTool, rng: RandomNumberGenerator, p: Vector3, dir
 			return THATCH * (0.82 + 0.14 * PM.noise(Vector3(floorf(a2 * 4.0), float(i), float(depth)))))
 		var end: Vector3 = pts[pts.size() - 1]
 		if depth > 1 and rng.randf() < fork:
-			_branch(st, rng, end, d, length * 0.72, r * 0.72, depth - 1, fork, maxi(sides - 1, 5), tips, stems)
+			_branch(st, rng, end, d, length * 0.72, r * 0.72, depth - 1, fork, maxi(sides - 1, 5), tips, stems, ways, spread_)
 		else:
 			tips.append([end, d])
 		stems.append(pts)

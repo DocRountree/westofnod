@@ -552,7 +552,9 @@ func _plant_game(id: String, at: Vector3, young: bool) -> Node3D:
 	var v := 1 if id == "oak" else 0 # (the oak's straight, slim one: a squirrel's)
 	if id == "prickly_pear": # (the fruiting one, its tunas to pick; young: the small one)
 		v = 1 if young else 2
-	elif id in ["joshua_tree", "san_pedro"]: # (young: the single young stem)
+	elif id == "joshua_tree": # (any of its grown ones, tall or short, few branches or many; young: a single stem)
+		v = ([2, 9] if young else [0, 1, 3, 4, 5, 6, 7, 8])[randi() % (2 if young else 8)]
+	elif id == "san_pedro": # (young: the single young stem)
 		v = 2 if young else 0
 	elif young and not bush:
 		v = 8 if id == "black_cherry" else 9 # (its sapling)
