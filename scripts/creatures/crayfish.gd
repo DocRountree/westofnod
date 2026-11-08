@@ -651,9 +651,24 @@ static func _crosses(a: Vector2, b: Vector2, box: Rect2) -> bool:
 
 func _walk(dt: float) -> void:
 	var dest := _target
+	var was := _pos
 	_target = _route(dest)
 	super(dt)
 	_target = dest
+	# (a pond's steep wall: not walked over, up or down; in and out by its
+	# sloping bank only)
+	if height.is_valid() and absf(float(height.call(_pos.x, _pos.z)) - was.y) > 0.03 * maxf(size / ADULT, 0.3):
+		_pos = was
+		_speed = 0.0
+	_unstretch()
+
+
+## (No planted foot a drop from it: set under it again at once, never left
+## stretched up or down to where it was.)
+func _unstretch() -> void:
+	for i in _feet.size():
+		if _pose_foot[i] == null and absf(_feet[i].y - _pos.y) > 0.03 * maxf(size / ADULT, 0.3) and i not in (tripod[_swinging] if _swinging >= 0 else []):
+			_feet[i] = _home(i)
 
 
 func _touch_ok() -> bool:
@@ -681,11 +696,6 @@ func _place() -> void:
 func _think(dt: float) -> void:
 	_wait -= dt
 	_st += dt
-	# (no planted foot a drop from it (over a pond's wall): set under it again
-	# at once, never left stretched up or down to where it was)
-	for i in _feet.size():
-		if _pose_foot[i] == null and absf(_feet[i].y - _pos.y) > 0.03 * maxf(size / ADULT, 0.3) and i not in (tripod[_swinging] if _swinging >= 0 else []):
-			_feet[i] = _home(i)
 	# (swimming: up to what it's after, or back down to the bottom)
 	var was_up := _swim_h > 0.002
 	_swim_h = move_toward(_swim_h, _swim_want, dt * 0.06)
