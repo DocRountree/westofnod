@@ -33,5 +33,14 @@
    "island",
    "coast"
   ]
+ },
+ "eroded": {
+  "droplets_per_cell": 1.5,
+  "seed": 7,
+  "from_m": 120.0
+ },
+ "mesas_lowered": {
+  "from_m": 120.0,
+  "scale": 0.3
  }
 }

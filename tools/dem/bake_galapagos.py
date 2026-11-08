@@ -357,6 +357,10 @@ def main():
     h = transplant(h, cell, land, rng).astype(np.float32)
     print("mesas...")
     h = mesas(h, cell, domain).astype(np.float32)
+    print("erosion...")
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    import erode
+    h = erode.erode(h, cell).astype(np.float32)
     print("swamps...")
     h = flatten_swamps(h, cell, domain, land).astype(np.float32)
     print("sea floor...")
@@ -432,6 +436,16 @@ def main():
     # the biomes, from the new heights (tools/map/bake_biomes.py; it adds itself to world.json)
     import subprocess
     subprocess.run([sys.executable, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "map", "bake_biomes.py")], check=True)
+    # then the mesas brought down (lower_mesas.py: after the biomes, which
+    # know the plateau by its height), and both steps recorded
+    import lower_mesas
+    h = lower_mesas.lower_mesas(h)
+    with gzip.open(os.path.join(out_dir, "heights.f16.gz"), "wb", compresslevel=6) as f:
+        f.write(h.astype("<f2").tobytes())
+    meta = json.load(open(os.path.join(out_dir, "world.json")))
+    meta["eroded"] = {"droplets_per_cell": erode.DROPS_PER_CELL, "seed": erode.SEED, "from_m": erode.LOW}
+    meta["mesas_lowered"] = {"from_m": lower_mesas.LOW, "scale": lower_mesas.SCALE}
+    json.dump(meta, open(os.path.join(out_dir, "world.json"), "w"), indent=1)
 
 
 if __name__ == "__main__":

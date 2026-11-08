@@ -39,6 +39,7 @@ struct Shared {
 	float clumps;
 	float clump_blur;
 	float strata;
+	float cav;   // m: how far the ground lies below the land round it (~150 m about): + in gullies and hollows, - on ridges and spurs
 };
 
 // Clumps of something (scrub, pinyon, puddles) covering `cover` of the ground.
@@ -98,10 +99,45 @@ float taiga_needles(Shared s) {
 	return smoothstep(0.24, 0.44, mottle);
 }
 
+// The mountains (tundra, taiga, volcano, mountains): where the trees give
+// out (m), and the snowline (m). Rock comes through on their slopes from
+// ~35 degrees up (not only on near-cliffs), and on their ridges, and in
+// patches all over above the treeline; snow lies above the snowline where
+// it can (on the flatter ground, deepest in the gullies, which carry it
+// down below the line in streaks; blown off the ridges and the steepest
+// rock, which it only lines in ledges).
+const float TAIGA_TREELINE = 1200.0; // (lodgepole.tres: none above 1350 m)
+float alpine_treeline(int b) {
+	return b == 5 ? TAIGA_TREELINE : b == 8 ? 700.0 : b == 7 ? 500.0 : b == 4 ? 150.0 : 1e6;
+}
+float alpine_snowline(int b) {
+	return b == 5 ? 1250.0 : b == 8 ? 900.0 : b == 7 ? 750.0 : b == 4 ? 190.0 : 1e6;
+}
+
+// How much of the ground is snow (0..1); rock: how much is bare rock
+// (before the snow), as worked out for the mountains.
+float alpine_snow(int b, Shared s, float rock) {
+	float line = alpine_snowline(b) + (s.patches - 0.5) * 240.0 + (s.n35 - 0.5) * 80.0;
+	// (the gullies hold it lower down: avalanche tongues, filled couloirs)
+	line -= clamp(s.cav, 0.0, 40.0) * 4.0;
+	float above = smoothstep(line - 120.0, line + 120.0, s.h);
+	if (above <= 0.0)
+		return 0.0;
+	float hold = smoothstep(0.42, 0.78, s.n.y) + clamp(s.cav / 20.0, 0.0, 1.0) * 0.6 - clamp(-s.cav / 25.0, 0.0, 1.0) * 0.35;
+	// (the steep rock holds it only in ledges: bands across the face)
+	float ledges = smoothstep(0.55, 0.75, s.strata * 0.6 + s.fine3 * 0.4);
+	hold = mix(hold, max(hold, ledges * 0.8), rock * smoothstep(0.75, 0.5, s.n.y));
+	float v = above * (hold + 0.25) + (s.fine3 - 0.5) * 0.18 + (s.n9 - 0.5) * 0.22;
+	return smoothstep(0.42, 0.58, v);
+}
+
 // A biome's ground colour, roughness, how bare (rock) it is here, and how
 // much of it is leaf litter (the forest's brown patches: terrain.gdshader
-// lays the fallen leaves' texture over them).
-vec3 biome_ground(int b, Shared s, out float rough, out float rocky, out float litter) {
+// lays the fallen leaves' texture over them); face: how much of it is the
+// rock itself (not snow: terrain.gdshader lays the rock's texture over
+// that), snow: how much is snow. (rocky: rock or snow, bare of anything
+// that grows.)
+vec3 biome_ground_face(int b, Shared s, out float rough, out float rocky, out float litter, out float face, out float snow) {
 	litter = 0.0;
 	float steep = smoothstep(0.5, 0.32, s.n.y);       // near-cliffs go bare
 	vec3 ground;
@@ -148,10 +184,7 @@ vec3 biome_ground(int b, Shared s, out float rough, out float rocky, out float l
 	} else if (b == 4) {     // tundra: grey-green moss and lichen, snow higher up
 		ground = mix(vec3(0.40, 0.42, 0.33), vec3(0.52, 0.50, 0.40), s.patches);
 		ground = mix(ground, vec3(0.55, 0.42, 0.30), clump(s, 0.1) * 0.5);  // rust lichen
-		float snow = smoothstep(80.0, 260.0, s.h + (s.patches - 0.5) * 120.0) * smoothstep(0.55, 0.8, s.n.y);
-		ground = mix(ground, vec3(0.92, 0.94, 0.97), snow);
 		rock = vec3(0.36, 0.36, 0.37) * (0.85 + 0.3 * s.n9);
-		rough = mix(0.95, 0.6, snow);
 	} else if (b == 5) {     // taiga: needle duff and moss, grey rock
 		// rusty brown fallen needles in mottles (terrain.gdshader lays the
 		// needles' texture over them: litter, as the forest's leaves),
@@ -164,24 +197,28 @@ vec3 biome_ground(int b, Shared s, out float rough, out float rocky, out float l
 		ground = mix(ground, vec3(0.30, 0.29, 0.24), clump(s, 0.12));  // rocky openings
 		litter *= 1.0 - clump(s, 0.12);
 		rock = vec3(0.32, 0.32, 0.31) * (0.85 + 0.3 * s.n9);
-		float snow = smoothstep(1100.0, 1500.0, s.h + (s.patches - 0.5) * 200.0) * smoothstep(0.5, 0.75, s.n.y);
-		ground = mix(ground, vec3(0.9, 0.92, 0.95), snow);
+		// up toward the treeline the trees thin out and their needles with
+		// them: above it, alpine turf and heath
+		float bare_up = smoothstep(TAIGA_TREELINE - 300.0, TAIGA_TREELINE, s.h + (s.patches - 0.5) * 160.0);
+		litter *= 1.0 - bare_up;
+		vec3 turf = mix(vec3(0.33, 0.34, 0.2), vec3(0.42, 0.4, 0.26), s.n35);
+		turf = mix(turf, vec3(0.3, 0.2, 0.14), smoothstep(0.6, 0.8, s.fine3) * 0.5); // (heath: bilberry, heather)
+		ground = mix(ground, turf, bare_up);
 	} else if (b == 6) {     // plateau: scrubby tan caprock, red banded walls, red talus
 		ground = mix(vec3(0.60, 0.50, 0.34), vec3(0.68, 0.56, 0.38), s.patches);
 		ground = mix(ground, vec3(0.15, 0.21, 0.11), clump(s, 0.35));  // pinyon and juniper
 		float talus = smoothstep(0.93, 0.8, s.n.y);
 		ground = mix(ground, vec3(0.58, 0.32, 0.19) * (0.85 + 0.3 * s.fine3), talus);
 		rock = sandstone(s);
-		steep = smoothstep(0.7, 0.45, s.n.y);
+		steep = smoothstep(0.8, 0.6, s.n.y); // (the walls: since the mesas were brought down, tools/dem/lower_mesas.py, ~55 degrees at the map's scale)
 	} else if (b == 7) {     // volcano: black basalt and ash, rust oxides
 		ground = mix(vec3(0.07, 0.07, 0.07), vec3(0.20, 0.19, 0.18), s.patches);
 		ground = mix(ground, vec3(0.38, 0.15, 0.08), smoothstep(0.6, 0.8, s.n35) * 0.7);
 		rock = mix(vec3(0.06, 0.06, 0.06), vec3(0.16, 0.14, 0.13), s.n9);
-		float snow = smoothstep(250.0, 500.0, s.h) * smoothstep(0.6, 0.85, s.n.y);
-		ground = mix(ground, vec3(0.9, 0.92, 0.95), snow);
 		rough = 0.85;
-	} else if (b == 8) {     // mountains: grey
-		ground = mix(vec3(0.36, 0.35, 0.30), vec3(0.44, 0.42, 0.36), s.patches);
+	} else if (b == 8) {     // mountains: grey-green alpine turf, grey rock
+		ground = mix(vec3(0.34, 0.35, 0.25), vec3(0.42, 0.41, 0.31), s.patches);
+		rock = vec3(0.38, 0.37, 0.35) * (0.85 + 0.3 * s.n9);
 	} else if (b == 9) {     // island: bright tropical green
 		ground = mix(vec3(0.24, 0.42, 0.13), vec3(0.34, 0.52, 0.18), s.patches);
 		ground = mix(ground, vec3(0.16, 0.30, 0.09), clump(s, 0.25));
@@ -200,9 +237,43 @@ vec3 biome_ground(int b, Shared s, out float rough, out float rocky, out float l
 	}
 	ground *= 0.9 + 0.2 * s.fine3;
 	ground = mix(ground, vec3(0.36, 0.27, 0.19), smoothstep(0.75, 0.55, s.n.y) * 0.35); // soil on banks
-	rocky = steep;
+	snow = 0.0;
+	float tl = alpine_treeline(b);
+	if (tl < 1e5) {
+		// the mountains: rock from ~35 degrees up on the high ground, on the
+		// ridges and spurs, and in patches above the treeline
+		float high = smoothstep(200.0, 600.0, s.h) * (b == 4 ? 0.0 : 1.0) + (b == 4 ? 1.0 : 0.0);
+		float above = smoothstep(tl - 100.0, tl + 250.0, s.h + (s.patches - 0.5) * 200.0);
+		// outcrops: in patches (most of a steep slope still grassed or
+		// wooded below the treeline; more of it bare above)
+		float edge = (s.n9 - 0.5) * 0.24 + (s.fine3 - 0.5) * 0.08 + (s.n35 - 0.5) * 0.1;
+		float slope_rock = smoothstep(0.72, 0.6, s.n.y + edge + 0.06 * (1.0 - above));
+		float ridge = smoothstep(12.0, 40.0, -s.cav + (s.n35 - 0.5) * 16.0) * smoothstep(0.85, 0.74, s.n.y + edge * 0.5);
+		float scree = above * smoothstep(0.58, 0.72, s.patches * 0.4 + s.n35 * 0.35 + (1.0 - s.n.y) * 1.0 + s.fine3 * 0.15);
+		steep = max(steep, max(max(slope_rock, ridge * 0.85), scree) * high);
+		// darker streaks down the faces where the water runs
+		rock *= mix(1.0, 0.75, smoothstep(0.55, 0.8, s.n35) * smoothstep(0.85, 0.6, s.n.y));
+		// the folds of the mountain: darker down in the gullies, lighter
+		// on the spurs (the light they let in), so their shape reads from
+		// afar
+		ground *= mix(1.0, clamp(1.0 - s.cav * 0.01, 0.62, 1.15), high);
+		rock *= mix(1.0, clamp(1.0 - s.cav * 0.012, 0.55, 1.2), high);
+		snow = alpine_snow(b, s, steep);
+	}
+	face = steep * (1.0 - snow);
+	rocky = max(face, snow);
 	rough = mix(rough, 0.82, steep);
-	return mix(ground, rock, steep);
+	vec3 col = mix(ground, rock, steep);
+	// snow: white, a little bluer down in the hollows (lit by the sky more
+	// than the sun)
+	vec3 snow_c = mix(vec3(0.9, 0.92, 0.95), vec3(0.8, 0.85, 0.93), clamp(s.cav / 25.0, 0.0, 1.0));
+	rough = mix(rough, 0.55, snow);
+	return mix(col, snow_c, snow);
+}
+
+vec3 biome_ground(int b, Shared s, out float rough, out float rocky, out float litter) {
+	float face, snow;
+	return biome_ground_face(b, s, rough, rocky, litter, face, snow);
 }
 
 
@@ -224,6 +295,7 @@ Shared ground_shared(vec2 p, float h, vec3 n, vec4 m, float fp) {
 	float clump_detail = 1.0 - smoothstep(1.5, 5.0, fp);
 	sh.clumps = mix(0.5, vnoise(p / 4.0) * 0.7 + vnoise(p / 1.7) * 0.3, clump_detail);
 	sh.clump_blur = clump_detail;
+	sh.cav = height_m(p, 2) - h;
 	sh.strata = 0.5 + 0.5 * sin(h * 0.42 + (vnoise(p / 300.0) - 0.5) * 6.0) * (0.6 + 0.4 * vnoise(vec2(h * 0.3, p.x / 400.0)));
 	return sh;
 }
