@@ -26,7 +26,7 @@ extends "res://scripts/creatures/crayfish.gd" # (by path: found whether or not t
 
 const SEG := [11.0, 10.0, 10.0, 10.0, 11.0, 14.0] ## mm: its abdomen's segments
 const SWIM_PACE := 0.17 ## m/s swimming
-const TAIL_SHRIMP := [0.0, 0.1, 0.2, 0.24, 0.22, 0.12] ## its abdomen at rest: humped, bent down from its third segment
+const TAIL_SHRIMP := [0.0, 0.06, 0.12, 0.12, 0.06, -0.12] ## its abdomen at rest: humped, bent down from its third segment
 
 var _swimming := false
 var _swim_to := 0.0 # (m: how high off the bottom it's swimming)
@@ -77,7 +77,7 @@ func _build() -> void:
 	for k in 8:
 		var f := float(k) / 7.0
 		var at := Vector3(0.0, lerpf(9.4, 8.6, f) + 0.6, lerpf(-36.0, -55.0, f))
-		_stick(at, at + Vector3(0.0, 0.9, 0.5), 0.26, shell)
+		_stick(at, at + Vector3(0.0, 0.5, 0.4), 0.2, shell)
 	_stick(Vector3(0.0, 11.0, -30.0), Vector3(0.0, 11.6, -4.0), 0.5, shell)
 	if S.get("grooves", false):
 		for side: float in [-1.0, 1.0]:
@@ -95,14 +95,17 @@ func _build() -> void:
 		root.position = Vector3(4.2 * side, 1.0, -50.0)
 		_body.add_child(root)
 		var at := Vector3.ZERO
-		var dir := Vector3(0.35 * side, 0.3, -1.0).normalized()
-		var n := 40
+		var dir := Vector3(0.9 * side, 0.1, -0.55).normalized()
+		var n: int = int(S.get("ant_n", 34))
 		for k in n:
-			var nx := at + dir * 8.0
-			_stick(at, nx, lerpf(0.42, 0.1, float(k) / (n - 1)), ant, root)
+			var nx := at + dir * 7.0
+			_stick(at, nx, lerpf(0.36, 0.08, float(k) / (n - 1)), ant, root)
 			at = nx
-			# (out forward, then curving out and round, back past its body)
-			dir = dir.rotated(Vector3.UP, (-0.09 if k < 22 else -0.03) * side).rotated(Vector3.RIGHT, -0.012)
+			# (out to the side, curving round and back along its body, the
+			# whip trailing behind it, drooping a little)
+			var turn := -0.13 if k < 9 else (-0.035 if k < 16 else -0.008)
+			dir = dir.rotated(Vector3.UP, turn * side)
+			dir = (dir + Vector3(0.0, -0.012 if k > 6 else 0.0, 0.0)).normalized()
 		root.set_meta("side", side)
 		_antennae.append(root)
 		# the antennules: short, forked
@@ -148,6 +151,9 @@ func _build() -> void:
 			var a0 := lerpf(-1.4, 1.4, e / 4.0)
 			var a1 := lerpf(-1.4, 1.4, (e + 1) / 4.0)
 			_stick(Vector3(hw * sin(a0), u1 + hh * cos(a0), l + 0.5), Vector3(hw * sin(a1), u1 + hh * cos(a1), l + 0.5), 0.18, dark, sn)
+		for s2: float in [-1.0, 1.0]: # (the pleura: the side plates, hanging down over the swimmerets)
+			var pl := _part(Vector3(hw * 0.82 * s2, u1 - hh * 0.62, l * 0.5), Vector3(1.0, hh * 0.85, l * 1.08), tail, sn)
+			pl.rotation = Vector3(0.0, 0.0, 0.12 * s2)
 		if S.get("spot", false) and k == 3: # (the pink's dark spot, on its side)
 			for s2: float in [-1.0, 1.0]:
 				_part(Vector3(hw * 0.92 * s2, u1 - 1.0, l * 0.1), Vector3(1.0, 4.0, 4.5), dark, sn)
@@ -158,9 +164,10 @@ func _build() -> void:
 				var sw := Node3D.new()
 				sw.position = Vector3(hw * 0.4 * s2, u1 - hh * 0.8, l * 0.5)
 				sn.add_child(sw)
-				_stick(Vector3.ZERO, Vector3(0.8 * s2, -6.0, 1.0), 0.5, pale, sw)
-				for r: float in [-1.0, 1.0]: # (its two branches, fringed)
-					_stick(Vector3(0.8 * s2, -6.0, 1.0), Vector3((0.8 + 1.0 * r) * s2, -12.0, 3.0), 0.3, pale, sw)
+				# (short, angled forward under the pleura: their two flat branches)
+				_stick(Vector3.ZERO, Vector3(0.3 * s2, -3.0, -1.2), 0.3, pale, sw)
+				for r: float in [-1.0, 1.0]:
+					_stick(Vector3(0.3 * s2, -3.0, -1.2), Vector3((0.3 + 0.5 * r) * s2, -6.5, -3.2), 0.22, pale, sw)
 				_swimmerets.append(sw)
 		_tail.append(sn)
 		parent = sn
@@ -173,8 +180,8 @@ func _build() -> void:
 			var u := Node3D.new()
 			u.position = Vector3((1.5 + 1.8 * k) * side, -0.4 - 0.3 * k, 0.5)
 			tel.add_child(u)
-			_part(Vector3(0.0, 0.0, 8.0), Vector3(4.8, 0.9, 16.0 - k * 1.5), fan, u)
-			_part(Vector3(0.0, 0.05, 15.0 - k), Vector3(4.2, 0.95, 3.0), fan_edge, u)
+			_part(Vector3(1.0 * side, 0.0, 10.0), Vector3(6.5, 0.9, 20.0 - k * 2.0), fan, u)
+			_part(Vector3(1.2 * side, 0.05, 18.0 - k * 1.5), Vector3(5.2, 0.95, 4.0), fan_edge, u)
 			u.set_meta("side", side)
 			u.set_meta("k", k)
 			_uropods.append(u)
@@ -241,6 +248,12 @@ func _think(dt: float) -> void:
 	super(dt)
 	if _tail_ask == TAIL_REST:
 		_tail_ask = TAIL_SHRIMP
+	if _swim_h > 0.002: # (swimming: its legs folded forward under it, together)
+		for i in _pose_foot.size():
+			var L: Dictionary = legs[i / 2]
+			var side := 1.0 if i % 2 == 1 else -1.0
+			var hp: Vector3 = L.hip
+			_pose_foot[i] = Vector3(hp.x * side * 0.9, hp.y - 5.0, hp.z - 12.0)
 	match _mode:
 		"bury":
 			_bury(dt)
@@ -366,6 +379,10 @@ func _process(dt: float) -> void:
 
 func _pose(dt: float) -> void:
 	super(dt)
+	for u in _uropods: # (its tail fan spread wide, as a shrimp's is)
+		var side: float = u.get_meta("side")
+		var k: int = u.get_meta("k")
+		u.rotation = Vector3(0.0, side * (0.12 + 0.3 * k) * (0.6 + 0.6 * _fan), 0.0) # (+: its tip out to its own side)
 	if _mode == "bury" and _stage == 0: # (its swimmerets working the sand away)
 		for k in _swimmerets.size():
 			_swimmerets[k].rotation.x = 0.5 * sin(_t * 14.0 + k)
