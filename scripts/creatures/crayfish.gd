@@ -798,7 +798,7 @@ func _eat(dt: float) -> void:
 				_food = null
 				wander(_pos, 0.25)
 				return
-			var level := absf(p.y - _pos.y) < 0.035 * maxf(size / ADULT, 0.4) or _swim_h > 0.002
+			var level := absf(p.y - _out(MOUTH).y) < 0.02 * maxf(size / ADULT, 0.4) # (its mouth at its height: walked to it, or swum up)
 			if to.length() < reach * 1.2 and _speed < 0.01 and level:
 				_target = _pos
 				_turn_to = atan2(-to.x, -to.z)
