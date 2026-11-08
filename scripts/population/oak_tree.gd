@@ -852,6 +852,7 @@ static func _climb_lines(variant: int) -> Array[PackedFloat32Array]:
 ## broken, sunken middle; the roots flaring into buttresses.
 static func grow_stump(P: Dictionary) -> TreeBuilder:
 	var tb := TreeBuilder.new()
+	tb.sways = false
 	tb.rng.seed = P.seed
 	tb.flare = 0.5
 	tb.bark_tint = Color(0.92, 0.9, 0.86)
@@ -871,6 +872,7 @@ static func grow_stump(P: Dictionary) -> TreeBuilder:
 ## ends, with the snapped stubs of a few limbs; the bark greyer and greener.
 static func grow_log(P: Dictionary) -> TreeBuilder:
 	var tb := TreeBuilder.new()
+	tb.sways = false # (dead wood lying: still, its stubs too)
 	var rng := tb.rng
 	rng.seed = P.seed
 	tb.flare = 0.0

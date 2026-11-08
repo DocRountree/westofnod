@@ -54,7 +54,12 @@ var grounded := false ## Standing on the ground (see _move).
 var sink := 0.0 ## How deep the feet are in the mud (swamps).
 ## Crouching (Shift held, on foot): lower, slower. 0 standing .. 1 down.
 var crouch := 0.0
-const CROUCH_SPEED := 0.45 ## of the walking speed
+const CROUCH_SPEED := 0.3 ## of the walking speed
+## Crouched, you don't walk off things (a log, a stump, a ledge, ground too
+## steep to stand on): not where the ground this far ahead (m) is lower
+## than your feet by more than CROUCH_EDGE (m), or steep and lower.
+const CROUCH_PROBE := 0.25
+const CROUCH_EDGE := 0.5
 const CROUCH_EYE := 1.05 ## m: the eye's height crouched (standing: 1.62)
 var _last_space := -100000 # ms of the last Space press, for double-tap
 var frozen := true
@@ -329,6 +334,8 @@ func _mud(p: Vector3) -> float:
 ## swimming only keep you above it. (The physics collider is for the camera.)
 func _move(delta: float, in_water: bool) -> void:
 	var p := position + velocity * delta
+	if crouch > 0.5 and grounded and not flying and not in_water:
+		p = _edge_guard(p, delta)
 	if population and not flying:
 		# round the trunks and boulders; logs too high to step onto (measured
 		# from the mud's surface when wading: you step up out of it)
@@ -384,6 +391,45 @@ func _move(delta: float, in_water: bool) -> void:
 		else:
 			grounded = false
 	position = p
+
+
+## Crouched: the step to p, or as much of it as keeps you on what you stand
+## on (along x alone, or z alone: sliding along an edge), or none.
+func _edge_guard(p: Vector3, delta: float) -> Vector3:
+	if _safe(p):
+		return p
+	var px := Vector3(p.x, p.y, position.z)
+	if absf(velocity.x) > 0.01 and _safe(px):
+		velocity.z = 0.0
+		return px
+	var pz := Vector3(position.x, p.y, p.z)
+	if absf(velocity.z) > 0.01 and _safe(pz):
+		velocity.x = 0.0
+		return pz
+	velocity.x = 0.0
+	velocity.z = 0.0
+	return Vector3(position.x, position.y + velocity.y * delta, position.z)
+
+
+## Whether stepping to p keeps you on something to stand on (_edge_guard).
+func _safe(p: Vector3) -> bool:
+	var way := Vector2(p.x - position.x, p.z - position.z)
+	if way.length() < 1e-5:
+		return true
+	way = way.normalized()
+	var q := Vector3(p.x + way.x * CROUCH_PROBE, p.y, p.z + way.y * CROUCH_PROBE)
+	var feet := position.y
+	for at: Vector3 in [p, q]:
+		var sf := world.surface_at(at.x, at.z)
+		var g := sf.x - sink
+		var steep := sf.z < cos(floor_max_angle)
+		var deck := population.deck_at(at, feet + sink + Population.STEP_UP) if population else -INF
+		if deck > g:
+			g = deck
+			steep = false
+		if g < feet - CROUCH_EDGE or (steep and g < feet - 0.05):
+			return false
+	return true
 
 
 ## Climbing: hands and feet on the rock, moving over its surface. W (or

@@ -424,6 +424,7 @@ func _builder() -> TreeBuilder:
 ## A stump, snapped off 0.75-1.1 m up, the roots flaring.
 func grow_stump(P: Dictionary) -> TreeBuilder:
 	var tb := _builder()
+	tb.sways = false
 	tb.rng.seed = P.seed
 	tb.flare = P.get("flare", 0.5)
 	tb.bark_tint = bark_tint * Color(0.92, 0.9, 0.86)
@@ -443,6 +444,7 @@ func grow_stump(P: Dictionary) -> TreeBuilder:
 ## stubs of a few limbs; the bark greyer and greener.
 func grow_log(P: Dictionary) -> TreeBuilder:
 	var tb := _builder()
+	tb.sways = false # (dead wood lying: still, its stubs too)
 	var rng := tb.rng
 	rng.seed = P.seed
 	tb.flare = 0.0
