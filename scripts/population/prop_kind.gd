@@ -35,6 +35,22 @@ extends SpawnRule
 ## flared base): on a slope it sinks as much more as the ground falls away
 ## over that, so its downhill side doesn't stand on air.
 @export var foot := 0.0
+## Where it grows: "" on the ground; "wood" on fallen logs and stumps (any
+## tree's) and the lower trunks of living oaks, its back to the wood (+z out
+## from it), where a biome it grows in (density > 0 there) has them
+## (Population: the fungi's chicken of the woods).
+@export var grows_on := ""
+## (grows_on "wood") The chance it's on each one (a log, by its length).
+@export var per_site := 0.0
+## Only this near (m) a standing tree's foot (0: anywhere it fits).
+@export var near_trees := 0.0
+## Picked (Foraging: Population.pickable_at) as this item ("": not picked),
+## so many of it; the view passing within pick_r (m) of pick_at (its own
+## point, at scale 1).
+@export var item := ""
+@export var pick_count := 1
+@export var pick_at := Vector3.ZERO
+@export var pick_r := 0.1
 ## Radius (m, at scale 1) the player and actors can't walk into; 0 walks through.
 @export var radius := 0.0
 ## What can be stood on (a fallen log's trunk, a stump): round segments, 8

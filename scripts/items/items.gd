@@ -2,7 +2,8 @@ class_name Items
 ## What can be carried: each kind of item, by id. The axe fells trees
 ## (Felling); the rest, for now, are only things to carry (/give in the chat;
 ## the pawpaw, crabapple, walnut and acorn picked from their trees, the flowers
-## and cattails where they grow: Foraging).
+## and cattails where they grow, the fungi on the ground and on the wood:
+## Foraging).
 ##
 ## Each: name, stack (how many fit in one slot or hand), and how it looks held
 ## (a primitive: shape, size in m, colour).
@@ -35,6 +36,11 @@ const KINDS := {
 	# a pot to catch sap in (Tapping: under a maple's notch), and full
 	"clay_pot": {"name": "Pot", "stack": 4, "shape": "pot", "size": Vector3(0.15, 0.15, 0.15), "color": Color(0.66, 0.38, 0.24)},
 	"pot_of_sap": {"name": "Pot of sap", "stack": 1, "shape": "pot", "size": Vector3(0.15, 0.15, 0.15), "color": Color(0.66, 0.38, 0.24), "full": Color(0.78, 0.6, 0.3)},
+	# fungi (Fungus: picked whole where they grow, Foraging; held, one of them)
+	"morel": {"name": "Morel", "stack": 16, "shape": "fungus", "size": Vector3(0.04, 0.1, 0.04), "color": Color(0.7, 0.58, 0.38)},
+	"fly_agaric": {"name": "Fly agaric", "stack": 8, "shape": "fungus", "size": Vector3(0.14, 0.18, 0.14), "color": Color(0.8, 0.1, 0.04)},
+	"little_brown": {"name": "Browncap", "stack": 32, "shape": "fungus", "size": Vector3(0.025, 0.06, 0.025), "color": Color(0.44, 0.3, 0.17)},
+	"chicken_of_the_woods": {"name": "Chicken of the woods", "stack": 4, "shape": "fungus", "size": Vector3(0.14, 0.04, 0.1), "color": Color(0.95, 0.5, 0.08)},
 	"cattail": {"name": "Cattail", "stack": 16, "shape": "cattail", "size": Vector3(0.024, 0.75, 0.16), "color": Color(0.36, 0.22, 0.12)},
 }
 
@@ -75,6 +81,14 @@ static func model(id: String) -> Node3D:
 		return _nettle(k)
 	if k.shape == "pot":
 		return _pot(k)
+	if k.shape == "fungus": # (one of them, as it grew: Fungus)
+		var fm := MeshInstance3D.new()
+		fm.mesh = Fungus.held(id)
+		fm.position.y = -k.size.y * 0.4
+		fm.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		var holder := Node3D.new()
+		holder.add_child(fm)
+		return holder
 	var mesh: PrimitiveMesh
 	match k.shape:
 		"cylinder":

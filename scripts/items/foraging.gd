@@ -1,6 +1,7 @@
 class_name Foraging
 extends Node
-## Fruit on the trees, and picking it; and the flowers and cattails
+## Fruit on the trees, and picking it; the fungi (Fungus: picked whole,
+## a clump at a time, growing again FUNGI_REGROW days on); and the flowers and cattails
 ## (GroundCover.pick_near), picked the same way, a clump a click, gone till
 ## the next day (GroundCover.set_gone). Each grown fruiting tree (a pawpaw:
 ## Population.fruit_trees_near) bears a few fruit of its own (none on some),
@@ -17,6 +18,7 @@ const MOST := 6 ## fruit a tree bears, at most
 const SHOW := 45.0 ## m: the fruit drawn on the trees this near
 const RESHOW := 3.0 ## m you move before the trees near are looked at again
 const PLANT_REACH := 2.6 ## m along the view a flower or cattail is picked from
+const FUNGI_REGROW := 3 ## days till a fungus picked grows again where it was
 
 var main: Node
 var _taken := {} # tree uid -> {"day": the day, "mask": which of its spots were picked that day (bits)}; or from older saves {"day", "n": how many, the last ones}
@@ -26,6 +28,8 @@ var _shown_day := -1
 var _dirty := true
 var _plants := {} # item id -> the cells (GroundCover: that item's layer's) picked today
 var _plants_day := -1
+var _fungi_day := -1
+var _fungi := {} # prop uid -> the day it was picked (a fungus: Population.pickable_at; gone till FUNGI_REGROW days on)
 
 
 ## How many fruit a tree bears (a day), by its own hash: 0..most (its
@@ -113,12 +117,17 @@ func _unhandled_input(event: InputEvent) -> void:
 	var inv: Inventory = main.inventory
 	var eye := Origin.map(p.camera.global_position)
 	var fwd := -p.camera.global_basis.z
-	# a fruit looked at, else a flower or a cattail
+	# a fruit looked at, else a fungus, else a flower or a cattail
 	var fruit := fruit_at(eye, fwd)
 	var plant := {}
+	var fungus := {}
 	var id := ""
+	if fruit.is_empty():
+		fungus = main.population.pickable_at(eye, fwd, PICK_REACH)
 	if not fruit.is_empty():
 		id = fruit.fruit
+	elif not fungus.is_empty():
+		id = fungus.item
 	elif main.ground_cover:
 		plant = main.ground_cover.pick_near(eye, fwd, PLANT_REACH)
 		if plant.is_empty():
@@ -137,6 +146,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		var spots: int = kind.mesh_script.fruit_spots(tree.variant).size()
 		_taken[tree.uid] = {"day": main.clock.day, "mask": _picked(tree.uid, spots, most_of(tree.fruit)) | (1 << int(fruit.spot))}
 		_dirty = true
+	elif not fungus.is_empty(): # (the whole of it, every one in the clump; gone till it grows again)
+		main.population.remove_prop(int(fungus.uid))
+		_fungi[int(fungus.uid)] = main.clock.day
 	else:
 		var cells: Array = _plants.get(id, [])
 		cells.append(plant.cell)
@@ -144,9 +156,13 @@ func _unhandled_input(event: InputEvent) -> void:
 		_plants_day = main.clock.day
 		main.ground_cover.set_gone(_plants)
 	var held: Dictionary = inv.get_at(hand)
-	inv.set_at(hand, {"id": id, "count": int(held.get("count", 0)) + 1})
+	var n := int(fungus.get("count", 1))
+	inv.set_at(hand, {"id": id, "count": mini(int(held.get("count", 0)) + n, Items.stack_of(id))})
 	var nm := Items.name_of(id).to_lower()
-	main.chat.say("Picked %s %s." % ["an" if nm.left(1) in ["a", "e", "i", "o", "u"] else "a", nm], Color(0.8, 1.0, 0.75))
+	if n > 1:
+		main.chat.say("Picked %d %s." % [n, nm + ("" if nm.ends_with("s") or nm == "chicken of the woods" else "s")], Color(0.8, 1.0, 0.75))
+	else:
+		main.chat.say("Picked %s %s." % ["an" if nm.left(1) in ["a", "e", "i", "o", "u"] else "a", nm], Color(0.8, 1.0, 0.75))
 
 
 ## Whether a hand holding `held` can take one more of id.
@@ -164,6 +180,17 @@ func _process(_delta: float) -> void:
 		if main.ground_cover:
 			main.ground_cover.set_gone(_plants)
 	_plants_day = main.clock.day
+	# the fungi picked grow again where they were, a few days on
+	if not _fungi.is_empty() and main.clock.day != _fungi_day:
+		_fungi_day = main.clock.day
+		var back := []
+		for uid in _fungi:
+			if main.clock.day - int(_fungi[uid]) >= FUNGI_REGROW:
+				back.append(uid)
+		if not back.is_empty():
+			for uid in back:
+				_fungi.erase(uid)
+			main.population.restore_props(back)
 	if not _dirty and at.distance_to(_shown_at) < RESHOW and main.clock.day == _shown_day:
 		return
 	_dirty = false
@@ -279,15 +306,22 @@ func to_dict() -> Dictionary:
 		for c: Vector2i in _plants[id]:
 			a.append_array([c.x, c.y])
 		out["p:" + id] = a
+	# the fungi picked: "f:<uid>" -> the day
+	for uid in _fungi:
+		out["f:%d" % uid] = _fungi[uid]
 	return out
 
 
 func from_dict(d: Dictionary) -> void:
 	_taken.clear()
 	_plants.clear()
+	_fungi.clear()
+	_fungi_day = -1
 	for k in d:
 		var v = d[k]
-		if String(k).begins_with("p:"):
+		if String(k).begins_with("f:"):
+			_fungi[int(String(k).substr(2))] = int(v)
+		elif String(k).begins_with("p:"):
 			if v is Array and v.size() >= 1 and main and int(v[0]) == main.clock.day:
 				var cells := []
 				for i in range(1, v.size() - 1, 2):

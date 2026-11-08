@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="PropKind" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/population/prop_kind.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/population/morel.gd" id="2"]
+
+[resource]
+script = ExtResource("1")
+id = &"morel"
+mesh_script = ExtResource("2")
+variants = 4
+shadow_distance = 12.0
+scale_range = Vector2(0.85, 1.15)
+density = {
+"forest": 28.0
+}
+near_trees = 4.5
+height_range = Vector2(1, 1100)
+min_normal_y = 0.8

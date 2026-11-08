@@ -23,7 +23,7 @@ const SettingsScript := preload("res://scripts/settings.gd") # (by path: found w
 const CHUNK := 64.0
 const PROP_DIR := "res://data/population/props/"
 const FIRST_KINDS := ["oak", "pawpaw"] ## Placed first, in this order (as before the other trees came: see _ready)
-const LATE_KINDS := ["black_cherry", "raspberry", "blueberry"] ## Placed last, in this order (come later: the others' places and uids kept as they were)
+const LATE_KINDS := ["black_cherry", "raspberry", "blueberry", "spruce", "morel", "fly_agaric", "little_brown", "chicken_of_the_woods"] ## Placed last, in this order (come later: the others' places and uids kept as they were; the fungi after every tree, which they grow by and on)
 const ACTOR_DIR := "res://data/population/actors/"
 const APPLY_PER_FRAME := 2 ## Generated chunks added to the scene per frame, at most (playing).
 var apply_per_frame := APPLY_PER_FRAME ## (more while the world loads, behind its screen)
@@ -180,6 +180,7 @@ func _variants(k: PropKind) -> Array[PropKind]:
 			for b in like:
 				d[b] = float(k.density.get(like[b], 0.0)) * group_share
 			kv.density = d
+			kv.per_site = k.per_site * share
 			for key in vp[v]:
 				if not key in ["weight", "density_like", "like_group"] and key in kv:
 					kv.set(key, vp[v][key])
@@ -1103,13 +1104,18 @@ func _generate(key: Vector2i) -> void:
 	var obstacles := PackedFloat32Array()
 	var walk := PackedFloat32Array()
 	var trunks: Array[PackedFloat32Array] = []
+	var feet := PackedVector4Array() # (the standing trees placed: x, y, z of each foot, its scale; for what grows near them)
+	var oaks := [] # (the living oaks: [foot, scale, variant, its mesh_script]; for what grows on them)
 	for k in props.size():
 		var kind := props[k]
 		var xf := PackedFloat32Array()
 		var uids := PackedInt64Array()
 		var peak := kind.peak_clumped()
 		var placed := PackedVector2Array() # (for min_spacing)
-		if peak > 0.0 and kind.mesh:
+		var standing: bool = kind.mesh_script != null and kind.mesh_script.has_method("choppable") and kind.mesh_script.choppable(int(kind.get_meta("variant", 0)))
+		if kind.grows_on == "wood":
+			_on_wood(kind, k, key, base, walk, oaks, xf, uids)
+		elif peak > 0.0 and kind.mesh:
 			var rng := RandomNumberGenerator.new()
 			rng.seed = _seed(key, k)
 			var n := _count(rng, peak * area_ha)
@@ -1164,6 +1170,15 @@ func _generate(key: Vector2i) -> void:
 				var nrm := world.normal_at(x, z)
 				if not kind.fits(h, nrm):
 					continue
+				if kind.near_trees > 0.0:
+					var by := false
+					for f in feet:
+						var dd := Vector2(f.x - x, f.z - z).length()
+						if dd < kind.near_trees and dd > 0.5 * f.w:
+							by = true
+							break
+					if not by:
+						continue
 				var b := Basis(Vector3.UP, turn)
 				if kind.align_to_ground > 0.0:
 					var up := Vector3.UP.slerp(nrm, kind.align_to_ground)
@@ -1180,6 +1195,10 @@ func _generate(key: Vector2i) -> void:
 					obstacles.append_array([x, z, kind.radius * s])
 				_add_walk(walk, kind, xf, xf.size() / 12 - 1, Vector3(base.x, 0.0, base.y))
 				_add_trunk(trunks, kind, xf, xf.size() / 12 - 1, Vector3(base.x, 0.0, base.y))
+				if standing:
+					feet.append(Vector4(x, h, z, s))
+					if String(kind.id).begins_with("oak"):
+						oaks.append([Vector3(x, h, z), s, int(kind.get_meta("variant", 0)), kind.mesh_script])
 		ch.xforms.append(xf)
 		ch.uids.append(uids)
 	ch.obstacles = obstacles
@@ -1213,6 +1232,124 @@ func _generate(key: Vector2i) -> void:
 	_lock.lock()
 	_done.append(ch)
 	_lock.unlock()
+
+
+## A kind that grows on wood (PropKind.grows_on "wood": chicken of the
+## woods) placed on the chunk's fallen logs and stumps (walk: their
+## segments so far) and the lower trunks of its living oaks: each by chance
+## (per_site; a log's by its length), where a biome it grows in has it; its
+## back to the wood, out from it level.
+func _on_wood(kind: PropKind, k: int, key: Vector2i, base: Vector2, walk: PackedFloat32Array, oaks: Array, xf: PackedFloat32Array, uids: PackedInt64Array) -> void:
+	if kind.per_site <= 0.0 or kind.mesh == null:
+		return
+	var rng := RandomNumberGenerator.new()
+	rng.seed = _seed(key, k)
+	var sites := [] # [point on the axis (a stump's foot), its radius, the wood's way (a log's axis; up for a stump or trunk), chance, top (a stump's)]
+	for j in range(0, walk.size(), 8):
+		if walk[j + 6] < 0.0:
+			continue # (a living tree's limb, up in the air)
+		var a := Vector3(walk[j], walk[j + 1], walk[j + 2])
+		var e := Vector3(walk[j + 3], walk[j + 4], walk[j + 5])
+		if _is_post(walk, j):
+			sites.append(["stump", a, walk[j + 6], e.y, kind.per_site])
+		else:
+			sites.append(["log", a, e, walk[j + 6], walk[j + 7], kind.per_site * clampf(a.distance_to(e) / 3.0, 0.25, 1.5)])
+	for o: Array in oaks:
+		sites.append(["oak", o[0], o[1], o[2], o[3], kind.per_site])
+	var i := 0
+	for site: Array in sites:
+		# (every draw made first, so a rejection doesn't shift the rest)
+		var roll := rng.randf()
+		var r1 := rng.randf()
+		var r2 := rng.randf()
+		var r3 := rng.randf()
+		var s := rng.randf_range(kind.scale_range.x, kind.scale_range.y)
+		i += 1
+		if roll >= float(site[site.size() - 1]):
+			continue
+		var at: Vector3
+		var out: Vector3
+		match site[0]:
+			"stump":
+				var foot: Vector3 = site[1]
+				var a := r1 * TAU
+				out = Vector3(cos(a), 0.0, sin(a))
+				at = Vector3(foot.x, lerpf(foot.y + 0.1, float(site[3]) - 0.06, r2), foot.z) + out * float(site[2])
+			"log":
+				var a: Vector3 = site[1]
+				var e: Vector3 = site[2]
+				var p := a.lerp(e, 0.1 + 0.8 * r1)
+				var r := lerpf(float(site[3]), float(site[4]), 0.1 + 0.8 * r1)
+				var side := (e - a).cross(Vector3.UP).normalized() * (1.0 if r2 < 0.5 else -1.0)
+				var up := r3 * 0.6 # (up its side a little)
+				out = side
+				at = p + (side * cos(up) + Vector3.UP * sin(up)) * r
+			_: # (an oak's trunk, low on it)
+				var foot: Vector3 = site[1]
+				var ts: float = site[2]
+				var a := r1 * TAU
+				var hh := (0.3 + 1.2 * r2) # (m up it)
+				var r: float = (site[4] as Script).trunk_radius_at(int(site[3]), hh / ts) * ts
+				out = Vector3(cos(a), 0.0, sin(a))
+				at = foot + Vector3(0.0, hh, 0.0) + out * r * 0.97
+		var bi := world.biome_blend_at(at.x, at.z, fposmod(sin(at.x * 12.9898 + at.z * 78.233) * 43758.5453, 1.0))
+		if kind.density_in(bi) <= 0.0 or at.y < kind.height_range.x or at.y > kind.height_range.y:
+			continue
+		var bz := out.normalized()
+		var bx := Vector3.UP.cross(bz).normalized()
+		var b := Basis(bx * s, Vector3.UP * s, bz * s)
+		var o := at - Vector3(base.x, 0.0, base.y)
+		xf.append_array([b.x.x, b.y.x, b.z.x, o.x, b.x.y, b.y.y, b.z.y, o.y, b.x.z, b.y.z, b.z.z, o.z])
+		uids.append(_uid(key, k, i))
+
+
+## The picked thing (a kind with an item: the fungi) the view from eye (on
+## the map) along fwd passes nearest within reach (m): {uid, item, count,
+## position} or {} for none.
+func pickable_at(eye: Vector3, fwd: Vector3, reach: float) -> Dictionary:
+	var best := {}
+	var best_t := INF
+	var c := _key(eye)
+	for dz in range(-1, 2):
+		for dx in range(-1, 2):
+			var ch: _Chunk = _chunks.get(c + Vector2i(dx, dz))
+			if ch == null:
+				continue
+			var base := Vector3(ch.key.x * CHUNK, 0.0, ch.key.y * CHUNK)
+			for k in ch.xforms.size():
+				var kind := props[k]
+				if kind.item == "":
+					continue
+				var xf: PackedFloat32Array = ch.xforms[k]
+				var uids: PackedInt64Array = ch.uids[k]
+				for i in uids.size():
+					var j := i * 12
+					var o := base + Vector3(xf[j + 3], xf[j + 7], xf[j + 11])
+					if o.distance_to(eye) > reach + 1.0 or _removed.has(uids[i]):
+						continue
+					var b := Basis(Vector3(xf[j], xf[j + 4], xf[j + 8]), Vector3(xf[j + 1], xf[j + 5], xf[j + 9]), Vector3(xf[j + 2], xf[j + 6], xf[j + 10]))
+					var at := o + b * kind.pick_at
+					var r := kind.pick_r * b.x.length()
+					var t := (at - eye).dot(fwd)
+					if t < 0.0 or t > reach + r or t >= best_t:
+						continue
+					if (eye + fwd * t).distance_to(at) <= r:
+						best_t = t
+						best = {"uid": uids[i], "item": kind.item, "count": kind.pick_count, "position": at}
+	return best
+
+
+## Puts back props taken (remove_prop: picked fungi grown again): their
+## chunks made again.
+func restore_props(uid_list: Array) -> void:
+	var keys := {}
+	for uid in uid_list:
+		_removed.erase(int(uid))
+		keys[_uid_key(int(uid))] = true
+	for key in keys:
+		if _chunks.has(key):
+			_unload(key)
+	_retarget(_focus)
 
 
 ## How many of something with mean count `mean` (the fraction by chance).
