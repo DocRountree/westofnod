@@ -1780,6 +1780,27 @@ func _fish_school_near(p: Vector3, r: float) -> Node3D:
 	return best
 
 
+## A dead molly (one of the pond's school: a school put in if there's
+## none) lying on its side on the bottom at at: carrion, for a shrimp.
+func _dead_molly(q: Dictionary, at: Vector3) -> Node3D:
+	if q.is_empty():
+		return null
+	if not is_instance_valid(q.mollies):
+		spawn("mollies", q.c)
+	var mol: Node3D = q.mollies
+	if not is_instance_valid(mol):
+		return null
+	var i: int = mol.call("nearest", at)
+	if i < 0:
+		return null
+	var fsize: float = (mol.get("size") as PackedFloat32Array)[i]
+	var fish: Node3D = mol.call("take", i)
+	var sc := Vector3.ONE * fsize * (mol as Node3D).global_transform.basis.get_scale().x # (its own size, as the school draws it: just put in, it hasn't been yet)
+	fish.global_transform = Transform3D(Basis(Vector3.UP, randf() * TAU) * Basis(Vector3.BACK, PI * 0.5) * Basis.from_scale(sc), at + Vector3(0.0, 0.006, 0.0)) # (on its side)
+	fish.set_meta("dead", true)
+	return fish
+
+
 ## The fishing spider's catch: a molly of its pond's school, up near the
 ## surface by it; then its rush and its lunge.
 func _spider_fish(sp: Node3D) -> void:
@@ -2562,6 +2583,17 @@ func _crayfish_do(c: Node, act_: String, young: bool, p: Vector3) -> void:
 				v = Vector3(p.x, p.y, p.z)
 		return v
 	match act_:
+		"eat", "hunt", "forage" when c is ShrimpScript:
+			# (a shrimp's: E carrion, a dead molly on the bottom; H, B picking
+			# over the bottom, sifting the sand for what lives in it, the
+			# detritus and the algae on it)
+			if act_ == "eat":
+				var at: Vector3 = inside.call(p + (fwd * 0.6 + near * 0.4).normalized() * 0.1)
+				var fish := _dead_molly(q, at)
+				if fish:
+					c.call("eat", fish)
+					return
+			c.call("forage", p, 0.25)
 		"eat": # (carrion: a dead deer mouse on the bottom)
 			var at: Vector3 = inside.call(p + (fwd * 0.6 + near * 0.4).normalized() * 0.12)
 			c.call("eat", _real_prey("dead_mouse", at))

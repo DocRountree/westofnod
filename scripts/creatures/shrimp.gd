@@ -377,6 +377,104 @@ func _process(dt: float) -> void:
 			_cloud = null
 
 
+## Their mating, a penaeid's (not the crayfish's): he follows her from
+## behind; she lifts off the bottom, swimming; he swims in under her and
+## turns over onto his back, belly to belly with her, his legs clasping
+## her, both swimming slowly together, a while; then he lets go, turns back
+## up, and both sink back to the bottom.
+const CLASP := 17.0 ## mm: his middle below hers, belly to belly (his turned over)
+
+
+func _mating(dt: float) -> void:
+	_mate_t += dt
+	if _mate == null or not is_instance_valid(_mate):
+		_end_mate()
+		return
+	var her: Node3D = _mate
+	var up := 0.07 * maxf(size / ADULT, 0.3)
+	if _mate_role == "female":
+		_target = _pos
+		var lifted := _mate_stage in ["under", "hold"]
+		_swim_h = move_toward(_swim_h, up if lifted else 0.0, dt * 0.08)
+		if water_y < INF:
+			_swim_h = minf(_swim_h, maxf(water_y - _pos.y - body_h * MM * size, 0.0))
+		_roll = lerpf(_roll, 0.0, 1.0 - exp(-3.0 * dt))
+		_tail_ask = TAIL_SHRIMP
+		if _swim_h > 0.002:
+			for i in _pose_foot.size(): # (her legs folded forward under her)
+				var L: Dictionary = legs[i / 2]
+				var side := 1.0 if i % 2 == 1 else -1.0
+				var hp: Vector3 = L.hip
+				_pose_foot[i] = Vector3(hp.x * side * 0.9, hp.y - 5.0, hp.z - 12.0)
+		elif _pose_foot[0] != null:
+			_replant()
+		if her.get("_mate_role") != "male":
+			_end_mate()
+		return
+	if _mate_stage == "seek" and _mate_t > 40.0: # (can't get to her)
+		var was := _mate
+		_end_mate()
+		if is_instance_valid(was) and was.get("_mate_role") != "":
+			was.call("_end_mate")
+		return
+	var hp: Vector3 = her.get("_pos")
+	var hy: float = her.get("_yaw")
+	var hf := Vector3(-sin(hy), 0.0, -cos(hy))
+	var her_h: float = her.get("_swim_h")
+	match _mate_stage:
+		"seek": # (up behind her, following)
+			var spot := hp - hf * 0.05 * size / ADULT
+			_target = spot
+			if Vector2(spot.x - _pos.x, spot.z - _pos.z).length() < 0.015:
+				_target = _pos
+				_mate_stage = "under"
+				_mate_t = 0.0
+		"under", "hold": # (in under her, turned over, belly to belly, clasping her)
+			_turn_to = INF
+			_yaw = lerp_angle(_yaw, hy, 1.0 - exp(-4.0 * dt))
+			var k := 1.0 - exp(-(3.0 if _mate_stage == "under" else 8.0) * dt)
+			_pos.x = lerpf(_pos.x, hp.x, k)
+			_pos.z = lerpf(_pos.z, hp.z, k)
+			_target = _pos
+			_roll = lerpf(_roll, PI, 1.0 - exp(-3.0 * dt))
+			# (his middle CLASP below hers: the floor under each the same)
+			var her_mid: float = hp.y + her_h + float(her.get("body_h")) * MM * float(her.get("size"))
+			var my_mid := her_mid - CLASP * MM * size
+			_swim_h = move_toward(_swim_h, maxf(her_h, 0.0), dt * 0.1)
+			_lift = move_toward(_lift, (my_mid - _pos.y - _swim_h) / (MM * size) - body_h, dt * 30.0)
+			for i in _pose_foot.size(): # (his legs up round her, clasping)
+				var L: Dictionary = legs[i / 2]
+				var side := 1.0 if i % 2 == 1 else -1.0
+				var hpp: Vector3 = L.hip
+				_pose_foot[i] = Vector3(hpp.x * side * 1.3, hpp.y - 9.0, hpp.z - 2.0)
+			_fan = 1.0
+			if _mate_stage == "under" and _mate_t > 3.0:
+				_mate_stage = "hold"
+				_mate_t = 0.0
+			elif _mate_stage == "hold" and _mate_t > mate_secs * 0.6:
+				_mate_stage = "release"
+				_mate_t = 0.0
+		"release": # (let go; turned back up; both down again)
+			_roll = lerpf(_roll, 0.0, 1.0 - exp(-3.0 * dt))
+			_lift = move_toward(_lift, 0.0, dt * 20.0)
+			_swim_h = move_toward(_swim_h, 0.0, dt * 0.06)
+			_target = _pos - _forward() * 0.06
+			if _mate_t > 2.5:
+				var was := _mate
+				_mate_stage = "done"
+				_roll = 0.0
+				_end_mate()
+				if is_instance_valid(was) and was.get("_mate_role") != "":
+					was.call("_end_mate")
+				wander(_pos, 0.4)
+				return
+		"done":
+			_end_mate()
+			wander(_pos, 0.4)
+	if is_instance_valid(her) and her.get("_mate_role") == "female":
+		her.set("_mate_stage", _mate_stage if _mate_stage != "seek" else "wait")
+
+
 func _pose(dt: float) -> void:
 	super(dt)
 	for u in _uropods: # (its tail fan spread wide, as a shrimp's is)
