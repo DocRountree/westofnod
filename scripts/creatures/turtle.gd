@@ -448,6 +448,17 @@ uniform float bright = 1.0;
 uniform bool plastron = false;
 uniform float seed = 0.0;
 uniform vec2 cen[13];
+// (a painted turtle's: a pale band beside each seam, a fine net of pale
+// lines over its scutes, its marginals barred and edged red (and red
+// beneath), its plastron's dark figure down its middle and out along its
+// seams; all off for the others)
+uniform vec3 edge_c : source_color = vec3(0.5);
+uniform float edge_w = 0.0;
+uniform vec3 net_c : source_color = vec3(0.5);
+uniform float net = 0.0;
+uniform vec3 marg_c : source_color = vec3(0.7, 0.2, 0.1);
+uniform float marg = 0.0;
+uniform float fig = 0.0;
 varying vec3 o;
 varying vec3 on;
 float h2(vec2 p) { return fract(sin(dot(p + seed, vec2(12.9898, 78.233))) * 43758.5453); }
@@ -464,14 +475,24 @@ void fragment() {
 		float sm = (1.0 - smoothstep(0.0, 0.12, sz - 0.38)) * 0.0 + (1.0 - smoothstep(0.06, 0.16, 0.5 - sz)) + (1.0 - smoothstep(1.0, 2.5, mid));
 		sm = clamp(sm, 0.0, 1.0) * (0.55 + 0.45 * vn(o.xz * 0.15));
 		c = mix(plast, smudge, sm * 0.8) * (0.9 + 0.2 * vn(o.xz * 0.4));
+		if (fig > 0.0) { // (its figure: dark, down its middle, fingers out along its seams)
+			float dm = abs(o.x) / hw;
+			float f1 = 1.0 - smoothstep(0.24, 0.32, dm + 0.1 * (vn(o.xz * 0.12) - 0.5) - 0.06 * sin(o.z * 0.06));
+			float f2 = (1.0 - smoothstep(0.04, 0.1, 0.5 - sz)) * (1.0 - smoothstep(0.45, 0.75, dm + 0.15 * vn(o.xz * 0.2)));
+			float fg = clamp(max(f1, f2) * (0.75 + 0.25 * vn(o.xz * 0.5)), 0.0, 1.0);
+			c = mix(plast * (0.9 + 0.2 * vn(o.xz * 0.3)), smudge, fg * fig);
+			c = mix(c, net_c, (1.0 - smoothstep(0.0, 0.05, abs(fg - 0.5))) * fig * 0.6); // (its edge pale-lined)
+		}
 		ALBEDO = c * bright;
 		ROUGHNESS = 0.6;
-	} else if (on.y < -0.3 && o.y < rim * 0.6) { // (beneath: the body's skin)
-		ALBEDO = under;
+	} else if (on.y < -0.3 && o.y < rim * 0.6) { // (beneath: the body's skin; a painted's marginals red beneath, blotched)
+		ALBEDO = mix(under, marg_c * (1.0 - 0.7 * smoothstep(0.62, 0.75, vn(o.xz * 0.15))), marg * smoothstep(0.78, 0.86, length(vec2(o.x / hw, o.z / hl)))); // (the marginals' undersides only)
 		ROUGHNESS = 0.8;
 	} else {
 	float rr = length(q);
 	float s = 0.0;
+	float sd = 1.0; // (how far from the nearest seam)
+	float red = 0.0; // (a painted's marginals' red)
 	vec2 rel;
 	float ang = atan(q.x, -q.y);
 	if (rr > 0.84 || o.y < rim + 1.0) { // (the marginals: a ring round its rim)
@@ -479,6 +500,8 @@ void fragment() {
 		float f = fract(cell);
 		s = 1.0 - smoothstep(0.0, seam_w * 2.0, min(f, 1.0 - f));
 		s = max(s, 1.0 - smoothstep(0.0, 0.025, abs(rr - 0.84)) * step(rim + 1.0, o.y));
+		sd = min(f, 1.0 - f) * 0.26;
+		red = max(1.0 - smoothstep(0.035, 0.07, abs(f - 0.5) + 0.02 * vn(q * 30.0)), 1.0 - smoothstep(rim * 0.3, rim * 0.5, o.y)); // (a thin bar down each, and its lower edge)
 		float ca = (floor(cell) + 0.5 - 0.5) / 24.0 * 6.2832;
 		rel = (q - vec2(sin(ca), -cos(ca)) * 1.0) * vec2(1.0, 1.0);
 	} else { // (the vertebrals and costals: whichever centre's nearest)
@@ -491,6 +514,7 @@ void fragment() {
 			if (d < d1) { d2 = d1; d1 = d; best = cc; } else if (d < d2) { d2 = d; }
 		}
 		s = 1.0 - smoothstep(0.0, seam_w, d2 - d1);
+		sd = d2 - d1;
 		vec2 are = best + (abs(best.x) > 0.1 ? vec2(-sign(best.x) * 0.12, 0.1) : vec2(0.0, 0.1)); // (its growth centre: behind, toward the middle)
 		rel = q - are;
 	}
@@ -513,6 +537,14 @@ void fragment() {
 	c *= 1.0 - 0.12 * (1.0 - smoothstep(0.1, 0.25, ring));
 	// (algae, in patches)
 	c = mix(c, vec3(0.17, 0.19, 0.1) * (0.8 + 0.4 * vn(q * 30.0)), algae * smoothstep(0.5, 0.8, vn(q * 7.0 + 7.0)));
+	if (net > 0.0) { // (a fine net of pale lines, wandering)
+		float n1 = abs(vn(q * 17.0 + 3.0) - 0.5);
+		float n2 = abs(vn(q * 31.0 - 7.0) - 0.5);
+		float nl = max(1.0 - smoothstep(0.012, 0.035, n1), (1.0 - smoothstep(0.01, 0.025, n2)) * 0.6);
+		c = mix(c, net_c, nl * net);
+	}
+	c = mix(c, edge_c, (1.0 - smoothstep(edge_w * 0.6, edge_w, sd)) * step(0.001, edge_w) * 0.9); // (the pale band either side of its seams)
+	c = mix(c, marg_c, red * marg);
 	c = mix(c, seam, s * 0.9);
 	ALBEDO = c;
 	ROUGHNESS = 0.68;
@@ -543,6 +575,11 @@ uniform float mosaic = 0.0; // (its scales outlined pale: a sea turtle's)
 uniform float cell = 3.2; // (how big they are)
 uniform float seam_w = 0.06; // (how wide the pale between them)
 uniform vec3 edge : source_color = vec3(0.82, 0.74, 0.52);
+// (a painted turtle's: stripes down each part, along it, yellow, some red)
+uniform float stripes = 0.0; // (how many round a part; 0 none)
+uniform vec3 stripe_c : source_color = vec3(0.9, 0.8, 0.25);
+uniform vec3 stripe_red : source_color = vec3(0.8, 0.2, 0.1);
+uniform float red_share = 0.0;
 uniform mat4 turtle_inv;
 uniform sampler2D scale_tex : filter_linear_mipmap_anisotropic, repeat_enable; // (R into each scale from its seam, G its tone, B its dome)
 varying vec3 bp; // (the part's own mm)
@@ -581,6 +618,13 @@ void fragment() {
 		sp = max(sp, 1.0 - smoothstep(0.85, 1.0, d + 0.25 * (vn(p * 1.2) - 0.5)));
 	}
 	c = mix(c, spot, sp);
+	if (stripes > 0.0) { // (round the part's own length, its z)
+		float u = (atan(bp.x, bp.y) / 6.2832 + 0.5) * stripes + 0.15 * (vn(vec3(0.0, 0.0, bp.z * 0.03) + 4.0) - 0.5);
+		float idx = floor(u);
+		float w = 0.17 + 0.12 * h3(vec3(idx, 3.1, 0.7));
+		float st = 1.0 - smoothstep(w, w + 0.07, abs(fract(u) - 0.5));
+		c = mix(c, h3(vec3(idx, 9.3, 1.1)) < red_share ? stripe_red : stripe_c, st);
+	}
 	if (mosaic > 0.0) { // (big polygonal scales, dark, each outlined pale)
 		vec4 sc = scales(p, w3, cell);
 		float into = sc.r * 0.6; // (in from its seam, scale units)
@@ -630,6 +674,14 @@ func _build() -> void:
 	shell.set_shader_parameter("bright", bright)
 	shell.set_shader_parameter("seed", rng.randf() * 50.0)
 	shell.set_shader_parameter("cen", _scute_centres())
+	if C.has("edge_c"): # (a painted turtle's)
+		shell.set_shader_parameter("edge_c", (C.edge_c as Color) * bright)
+		shell.set_shader_parameter("edge_w", float(C.edge_w))
+		shell.set_shader_parameter("net_c", (C.net_c as Color) * bright)
+		shell.set_shader_parameter("net", float(C.net))
+		shell.set_shader_parameter("marg_c", C.marg_c)
+		shell.set_shader_parameter("marg", float(C.marg))
+		shell.set_shader_parameter("fig", float(C.fig))
 	var sp := P.duplicate()
 	if young: # (a hatchling's shell flatter, rounder)
 		sp.ht = float(P.ht) * 0.75
@@ -687,6 +739,11 @@ func _build() -> void:
 	_skin.set_shader_parameter("mosaic", float(C.get("mosaic", 0.0)))
 	if C.has("edge"):
 		_skin.set_shader_parameter("edge", C.edge)
+	if C.has("stripes"):
+		_skin.set_shader_parameter("stripes", float(C.stripes))
+		_skin.set_shader_parameter("stripe_c", (C.stripe_c as Color) * bright)
+		_skin.set_shader_parameter("stripe_red", C.stripe_red)
+		_skin.set_shader_parameter("red_share", float(C.red_share))
 	# the neck and head
 	var N: Dictionary = S.neck
 	_neck_mi = _limb(_skin, _shell_n, 0.1)
@@ -1193,7 +1250,7 @@ func _pose(dt: float) -> void:
 	_jaw_n.rotation.x = _jaw
 	# the plastron's lobes: shut against the carapace as it draws in
 	var shut := clampf(1.0 - _limbs * 1.4, 0.0, 1.0) * clampf(1.0 - _neck * 2.5, 0.0, 1.0)
-	if _front_lobe:
+	if _front_lobe and not bool((S.plastron as Dictionary).get("rigid", false)): # (a painted's doesn't hinge)
 		_front_lobe.rotation.x = 0.36 * shut
 		_rear_lobe.rotation.x = -0.27 * shut
 	# its legs

@@ -68,6 +68,7 @@ const FrogScript := preload("res://scripts/creatures/frog.gd")
 const ToadScript := preload("res://scripts/creatures/american_toad.gd")
 const TurtleScript := preload("res://scripts/creatures/turtle.gd")
 const SnapScript := preload("res://scripts/creatures/snapping_turtle.gd")
+const PaintedScript := preload("res://scripts/creatures/painted_turtle.gd")
 const SeaScript := preload("res://scripts/creatures/sea_turtle.gd")
 const SquirrelScript := preload("res://scripts/creatures/fox_squirrel.gd")
 const GreySqScript := preload("res://scripts/creatures/grey_squirrel.gd")
@@ -146,6 +147,7 @@ const CATALOGUE := [
 	["Amphibians and reptiles", "eastern milk snake", "milk", ["adult", "young"]],
 	["Amphibians and reptiles", "eastern box turtle", "box_turtle", ["adult", "young"]],
 	["Amphibians and reptiles", "common snapping turtle", "snapper", ["adult", "young"]],
+	["Amphibians and reptiles", "western painted turtle", "painted", ["adult", "young"]],
 	["Amphibians and reptiles", "green sea turtle", "sea_turtle", ["adult", "young"]],
 	["Mammals", "deer mouse", "mouse", ["adult", "young"]],
 	["Mammals", "snowshoe hare", "hare", ["adult", "young"]],
@@ -959,9 +961,9 @@ func _spawn_animal(key: String, at: Vector3, stage: String, male: bool, young: b
 				fr.call("place", bank, randf() * TAU)
 				fr.call("wander", bank, 0.12)
 			return fr
-		"box_turtle", "snapper", "sea_turtle":
-			var sc: Script = TurtleScript if key == "box_turtle" else (SnapScript if key == "snapper" else SeaScript)
-			var q := _pond_for(at, "puddle" if key == "box_turtle" else ("pond" if key == "snapper" else "sea"))
+		"box_turtle", "snapper", "sea_turtle", "painted":
+			var sc: Script = TurtleScript if key == "box_turtle" else (SnapScript if key == "snapper" else (PaintedScript if key == "painted" else SeaScript))
+			var q := _pond_for(at, "puddle" if key == "box_turtle" else ("pond" if key == "snapper" or key == "painted" else "sea"))
 			var t: Node3D = sc.new(young)
 			t.set("male", male and not young)
 			_water_set(t, q)
@@ -970,6 +972,8 @@ func _spawn_animal(key: String, at: Vector3, stage: String, male: bool, young: b
 			t.set("bank", bank)
 			if key == "box_turtle":
 				t.set("basks", [at + Vector3(0.4, 0.0, -0.3), at + Vector3(0.3, 0.0, 0.4)])
+			if key == "painted": # (a log to bask on, from the bank down into the water)
+				t.set("basks", _basking_log(q, at))
 			_org(t, at, false)
 			t.call("place", _bank_of(q, at) if key != "sea_turtle" or not young else bank, randf() * TAU)
 			t.call("wander", q.c, 0.6 if key != "sea_turtle" else 1.5)
@@ -2032,7 +2036,7 @@ func _do(c: Node, act_: String) -> void:
 	if sc == FrogScript or sc == ToadScript:
 		_frog_do(c, act_, young, p)
 		return
-	if sc == TurtleScript or sc == SnapScript or sc == SeaScript:
+	if sc == TurtleScript or sc == SnapScript or sc == SeaScript or sc == PaintedScript:
 		_turtle_do(c, act_, young, p)
 		return
 	if c is Beetles or c is AntColony:
@@ -2429,10 +2433,44 @@ func _frog_do(c: Node, act_: String, young: bool, p: Vector3) -> void:
 				c.call("wander", p, 0.2)
 
 
+## A fallen log lying from a pond's bank (nearest p) down into its water,
+## for its painted turtles to bask on (one to a pond; the next asked for
+## has the same): spots along its top to bask at.
+func _basking_log(q: Dictionary, p: Vector3) -> Array:
+	var c: Vector3 = q.c
+	if not q.has("log"):
+		var bank := _bank_of(q, p)
+		var into := (Vector3(c.x - bank.x, 0.0, c.z - bank.z)).normalized()
+		var a := bank - into * 0.15
+		var b := bank + into * 0.85
+		a.y = 0.04
+		b.y = POND - 0.03
+		var lg := MeshInstance3D.new()
+		var cm := CylinderMesh.new()
+		cm.top_radius = 0.055
+		cm.bottom_radius = 0.065
+		cm.height = a.distance_to(b)
+		cm.radial_segments = 12
+		lg.mesh = cm
+		var m := StandardMaterial3D.new()
+		m.albedo_color = Color(0.42, 0.38, 0.32) # (weathered grey, the bark gone)
+		m.roughness = 0.95
+		lg.material_override = m
+		var d := (b - a).normalized()
+		var x := d.cross(Vector3.UP).normalized()
+		lg.transform = Transform3D(Basis(x, d, x.cross(d)), (a + b) * 0.5)
+		add_child(lg)
+		var spots := []
+		for f: float in [0.35, 0.55, 0.75]:
+			spots.append(a.lerp(b, f) + Vector3(0.0, 0.058, 0.0))
+		q["log"] = spots
+	return q["log"]
+
+
 ## (A turtle.)
 func _turtle_do(c: Node, act_: String, young: bool, p: Vector3) -> void:
 	var sc: Script = c.get_script()
-	var snap := sc == SnapScript or sc == SeaScript
+	var snap := sc == SnapScript or sc == SeaScript or sc == PaintedScript
 	var pond: Array = c.get("pond")
 	var a := randf() * TAU
 	match act_:
