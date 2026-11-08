@@ -418,7 +418,7 @@ static func set_lod_fade(on: bool) -> void:
 			var r = mats[key].get_shader_parameter("lod_range")
 			if not r is Vector3:
 				continue # (the moss's sporophytes: no levels)
-			r.z = Population.LOD_FADE if on else 0.0
+			r.z = float(mats[key].get_meta("lod_fade", Population.LOD_FADE)) if on else 0.0 # (a kind's own band: the fungi's narrow)
 			mats[key].set_shader_parameter("lod_range", r)
 
 

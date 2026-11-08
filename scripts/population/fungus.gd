@@ -26,7 +26,12 @@ class_name Fungus
 ##   back to the wood, +z out from it).
 
 const PM := preload("res://scripts/population/plant_mesh.gd")
-const LOD := [6.0, 16.0, 30.0]
+const LOD := [8.0, 18.0, 32.0]
+## Their levels' hand-over (m either side of a switch: small things, a narrow
+## band, not the trees' Population.LOD_FADE), measured from LOD_MID (m) up
+## them, not a tree's middle.
+const FADE := 1.5
+const LOD_MID := 0.05
 const VIEW := 45.0
 const SIDES := [18, 10, 6] ## round a stem or cap, by level
 const SPECIES := {
@@ -47,7 +52,27 @@ static func levels(species: String, variant: int) -> Array:
 		var raw := []
 		for lod in 3:
 			raw.append(_make(species, variant, lod))
-		_cache[key] = PM.levels(raw, LOD, VIEW, species, variant)
+		var lv: Array = PM.levels(raw, LOD, VIEW, species, variant)
+		# (their own copies of the levels' materials: measured from near
+		# their foot, handed over in a narrow band; kept with the trees'
+		# for the fade being turned off and on, OakTree.set_lod_fade)
+		var meshes: Array = [lv[0]] + lv[1]
+		for li in meshes.size():
+			var mesh: Mesh = meshes[li]
+			for si in mesh.get_surface_count():
+				var m := mesh.surface_get_material(si) as ShaderMaterial
+				if m == null:
+					continue
+				var c := m.duplicate() as ShaderMaterial
+				c.set_shader_parameter("lod_mid_height", LOD_MID)
+				c.set_meta("lod_fade", FADE)
+				var r = c.get_shader_parameter("lod_range")
+				if r is Vector3:
+					r.z = FADE if OakTree.lod_fade_on else 0.0
+					c.set_shader_parameter("lod_range", r)
+				mesh.surface_set_material(si, c)
+				OakTree._leaf_mats[["fungus", species, variant, li, si]] = c
+		_cache[key] = lv
 	return _cache[key]
 
 
