@@ -675,7 +675,7 @@ func _unstretch() -> void:
 		var hip := _out(Vector3(float(L.hip.x) * side, float(L.hip.y), float(L.hip.z)))
 		var reach := (float(L.f) + float(L.t) + float(L.s)) * sc
 		# (a drop from it; or out past its leg's reach: shoved along, say)
-		var swinging := _swinging >= 0 and i in tripod[_swinging]
+		var swinging: bool = _swinging >= 0 and i in tripod[_swinging]
 		var lift := sin(PI * clampf(_swing_t / step_time, 0.0, 1.0)) * stride * 0.35 * sc if swinging else 0.0
 		if absf(_feet[i].y - lift - _pos.y) > 0.03 * maxf(size / ADULT, 0.3) or hip.distance_to(_feet[i]) > reach * 1.02:
 			_feet[i] = _home(i)
