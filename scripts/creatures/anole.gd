@@ -51,6 +51,8 @@ var eggs: Array[Node3D] = [] ## the eggs it's laid (in its parent)
 var _mode := "idle"
 var _shut: Array[MeshInstance3D] = [] # (its eyelids, shut: asleep)
 var _doze := 0.0 # (asleep: pressed flat to its perch)
+var _shed := 0.0 # (shedding: its old skin's patches, 0 none .. 1 all loose)
+var _peeled := 0.0 # (and how much of them pulled off and eaten)
 var _centre := Vector3.ZERO
 var _radius := 0.2
 var _wait := 0.0
@@ -247,6 +249,17 @@ func hunt(prey: Node3D) -> void:
 	_st = 0.0
 
 
+## Shedding: its old skin loosening in pale, papery patches over its body;
+## then it twists round to them, pulling them off with its mouth, a bit
+## at a time, and eating them (anoles eat their shed skin), till it's clean
+## and bright again.
+func shed() -> void:
+	_mode = "shed"
+	_stage = 0
+	_st = 0.0
+	_target = _pos
+
+
 ## Asleep where it is, secs: pressed flat along its perch, its head down,
 ## its eyes shut, gone pale (as anoles do asleep).
 func sleep(secs := 30.0) -> void:
@@ -309,6 +322,27 @@ func _think(dt: float) -> void:
 			_hunt(dt)
 		"lay":
 			_lay(dt)
+		"shed":
+			_target = _pos
+			match _stage:
+				0: # (its old skin loosening, pale patches over it)
+					_shed = move_toward(_shed, 1.0, dt * 0.35)
+					if _shed >= 1.0 and _st > 3.5:
+						_stage = 1
+						_st = 0.0
+				1: # (round to its flank, a side at a time; a patch pulled off, chewed, swallowed)
+					var k := int(_st / 1.6)
+					var ph := fmod(_st, 1.6)
+					var side := 1.0 if k % 2 == 0 else -1.0
+					_look_to = Vector2(1.05 * side, -0.35)
+					if ph > 0.7 and ph < 0.8 and _lunge < 0.1:
+						_lunge = 2.0 # (a tug, mm)
+						_peeled = minf(_peeled + 0.11, 1.0)
+					_chew = 1.0 if ph > 0.85 else _chew
+					if _peeled >= 1.0:
+						_shed = 0.0
+						_peeled = 0.0
+						wander(_pos if _centre == Vector3.ZERO else _centre, _radius)
 		"sleep":
 			_target = _pos
 			_look_to = Vector2(0.0, -0.15)
@@ -547,6 +581,8 @@ func _pose(dt: float) -> void:
 		_brown_to = 0.0
 	_brown = move_toward(_brown, _brown_to, dt * 0.08)
 	_skin_mat.set_shader_parameter("brown", _brown)
+	_skin_mat.set_shader_parameter("shed", _shed)
+	_skin_mat.set_shader_parameter("peeled", _peeled)
 	_paint.set_shader_parameter("brown", _brown)
 	# push-ups: the front up and down on straightened forelegs
 	var pu := _push * maxf(sin(_t * 9.0), 0.0)
@@ -770,8 +806,8 @@ func _pose_legs() -> void:
 ## hunt {prey}, display {seconds}, lay {at} (a female's), mate {partner}.
 func _p_behaviours() -> PackedStringArray:
 	if young:
-		return PackedStringArray(["hunt", "sleep"])
-	return PackedStringArray(["hunt", "display", "sleep", "mate"]) if male else PackedStringArray(["hunt", "display", "sleep", "lay", "mate"])
+		return PackedStringArray(["hunt", "sleep", "shed"])
+	return PackedStringArray(["hunt", "display", "sleep", "shed", "mate"]) if male else PackedStringArray(["hunt", "display", "sleep", "shed", "lay", "mate"])
 
 
 func _p_act(name: String, args: Dictionary) -> bool:
@@ -785,6 +821,8 @@ func _p_act(name: String, args: Dictionary) -> bool:
 			display()
 		"sleep":
 			sleep(float(args.get("seconds", 30.0)))
+		"shed":
+			shed()
 		"lay":
 			if young or male:
 				return false
@@ -796,7 +834,7 @@ func _p_act(name: String, args: Dictionary) -> bool:
 
 func _p_act_done(name: String) -> bool:
 	match name:
-		"hunt", "lay", "display", "sleep":
+		"hunt", "lay", "display", "sleep", "shed":
 			return _mode != name
 	return false
 

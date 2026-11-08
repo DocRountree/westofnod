@@ -84,6 +84,10 @@ var _strike_k := 0.0
 var _strike_at := Vector3.ZERO
 var _gape := 0.0
 var _doze := 0.0 # (asleep: its head down on its coils, no tongue)
+var _dull := 0.0 # (before it sheds: its skin dull, its eyes clouded)
+var _rub := 0.0 # (its snout rubbed along the ground, shedding)
+var _shed_to := Vector3.ZERO
+var _clouds: Array[MeshInstance3D] = [] # (its eyes' caps, clouded milky blue before it sheds)
 var _unhinge := 0.0 # (its lower jaw unhinged, swallowing: dropped away from its skull, its two halves spread)
 var _jaw_rest := Vector3.ZERO
 var _jaw_drop := 0.0 # (how far it drops, unhinged: its head's height's share)
@@ -182,6 +186,18 @@ func sleep(secs := 30.0) -> void:
 	_coil_at = _pts[SPINE / 2] if _pts.size() >= SPINE else _pos
 	_coil_r0 = float(K.r) * size * 2.2
 	_wait = secs
+	_st = 0.0
+
+
+## Shedding its skin: first, a while, its skin dull and bluish, its eyes
+## clouded milky blue (the old skin loosening over them); then its snout
+## rubbed along the ground, side to side, to loosen it at its lips; then
+## it crawls on out of it, forward, the old skin left lying where it was,
+## inside out, pale and papery and see-through (Snake.Shed), fading after a
+## while; it bright and fresh.
+func shed() -> void:
+	_mode = "shed"
+	_stage = 0
 	_st = 0.0
 
 
@@ -353,6 +369,16 @@ func _build_head() -> void:
 		e.position = Vector3(W * 0.72 * side, H * 0.45, -0.66 * L)
 		e.material_override = _plain(Color(0.55, 0.42, 0.18) if kind == "rattler" else Color(0.06, 0.05, 0.05), 0.15)
 		_head.add_child(e)
+		var cl := MeshInstance3D.new() # (its eye's cap, the old skin over it, clouded before it sheds)
+		cl.mesh = _sphere()
+		cl.scale = Vector3.ONE * er * 2.25
+		cl.position = e.position + Vector3(er * 0.12 * side, 0.0, 0.0)
+		var cm := _plain(Color(0.62, 0.72, 0.85, 0.0), 0.3)
+		cm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		cl.material_override = cm
+		cl.visible = false
+		_head.add_child(cl)
+		_clouds.append(cl)
 		if kind == "rattler":
 			var pupil := MeshInstance3D.new()
 			pupil.mesh = _sphere()
@@ -494,6 +520,8 @@ func _think(dt: float) -> void:
 			go = _pos.distance_to(_target) > 0.03 * size
 		"coil":
 			_coil_k = move_toward(_coil_k, 1.0, dt * 0.6)
+		"shed":
+			go = _shed_think(dt)
 		"sleep":
 			_coil_k = move_toward(_coil_k, 1.0, dt * 0.5)
 			_wait -= dt
@@ -793,8 +821,8 @@ func _p_reach() -> float:
 ## the rattler's, born).
 func _p_behaviours() -> PackedStringArray:
 	if young:
-		return PackedStringArray(["eat", "coil", "sleep"])
-	return PackedStringArray(["eat", "coil", "sleep", "mate"]) if male else PackedStringArray(["eat", "coil", "sleep", "lay", "mate"])
+		return PackedStringArray(["eat", "coil", "sleep", "shed"])
+	return PackedStringArray(["eat", "coil", "sleep", "shed", "mate"]) if male else PackedStringArray(["eat", "coil", "sleep", "shed", "lay", "mate"])
 
 
 func _p_act(name: String, args: Dictionary) -> bool:
@@ -808,6 +836,8 @@ func _p_act(name: String, args: Dictionary) -> bool:
 			coil()
 		"sleep":
 			sleep(float(args.get("seconds", 30.0)))
+		"shed":
+			shed()
 		"lay":
 			lay(int(args.get("n", 6)))
 		_:
@@ -817,7 +847,7 @@ func _p_act(name: String, args: Dictionary) -> bool:
 
 func _p_act_done(name: String) -> bool:
 	match name:
-		"eat", "lay", "sleep":
+		"eat", "lay", "sleep", "shed":
 			return _mode != name
 	return false
 
@@ -941,6 +971,66 @@ func _eat(dt: float) -> bool:
 				_stage = 6
 				_st = 0.0
 	return false
+
+
+## (Shedding: see shed().) Whether it's going on (crawling out).
+func _shed_think(dt: float) -> bool:
+	_coil_k = move_toward(_coil_k, 0.0, dt * 0.8)
+	match _stage:
+		0: # (dulled, its eyes clouded: lying low, still, a while)
+			_dull = move_toward(_dull, 1.0, dt * 0.25)
+			_target = _pos
+			if _st > 8.0:
+				_stage = 1
+				_st = 0.0
+		1: # (its snout rubbed along the ground, side to side)
+			_target = _pos
+			_rub = 1.0
+			if _st > 3.0:
+				_rub = 0.0
+				# the old skin, left where it lies: a copy of its body as it is
+				var parent := get_parent() as Node3D
+				if parent:
+					var sk := Shed.new(_skin.mesh, _mat, size * 1.05)
+					parent.add_child(sk)
+					sk.transform = transform
+				_dull = 0.0
+				_shed_to = _pos + _dir * float(K.len) * size * 1.1
+				_stage = 2
+				_st = 0.0
+		2: # (out of it, forward, a length of itself)
+			_target = _shed_to
+			if _pos.distance_to(_shed_to) < 0.04 * size or _st > 30.0:
+				wander(_pos, 0.6)
+				return false
+			return true
+	return false
+
+
+## A snake's cast skin: its body's skin as it was when it crawled out, left
+## lying there (its tube, its spine frozen), pale, papery, see-through
+## (snake_shed.gdshader); fading away after a while.
+class Shed extends MeshInstance3D:
+	var _t := 0.0
+	var _m: ShaderMaterial
+	const LAST := 90.0
+
+	func _init(tube: Mesh, from: ShaderMaterial, sz: float) -> void:
+		mesh = tube
+		_m = ShaderMaterial.new()
+		_m.shader = preload("res://shaders/render/snake_shed.gdshader")
+		for k in ["sp", "sx", "sy", "count", "species", "young", "girths"]:
+			_m.set_shader_parameter(k, from.get_shader_parameter(k))
+		_m.set_shader_parameter("size", sz)
+		material_override = _m
+		cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		custom_aabb = AABB(Vector3(-200, -200, -200), Vector3(400, 400, 400))
+
+	func _process(dt: float) -> void:
+		_t += dt
+		_m.set_shader_parameter("fade", clampf((LAST - _t) / 20.0, 0.0, 1.0))
+		if _t > LAST:
+			queue_free()
 
 
 ## (Its prey's length, m: its meshes' bounds along the ground.)
@@ -1077,10 +1167,16 @@ func _update(_dt: float) -> void:
 	_mat.set_shader_parameter("sx", sx)
 	_mat.set_shader_parameter("sy", sy)
 	_mat.set_shader_parameter("size", size)
+	_mat.set_shader_parameter("dull", _dull)
+	for cl in _clouds:
+		cl.visible = _dull > 0.02
+		(cl.material_override as StandardMaterial3D).albedo_color.a = 0.85 * _dull
 	_mat.set_shader_parameter("bulge_s", _bulge_s)
 	_mat.set_shader_parameter("bulge_r", _bulge_r)
 	# the head on the neck (its back at the first point), the jaw, the tongue
 	_head.transform = Transform3D(frames[0] * Basis.from_scale(Vector3.ONE * size), _pts[0] - o)
+	if _rub > 0.0: # (its snout down to the ground, rubbed side to side)
+		_head.transform = Transform3D(_head.transform.basis * Basis(Vector3.UP, 0.35 * sin(_t * 7.0)) * Basis(Vector3.RIGHT, 0.25), _head.transform.origin + Vector3.DOWN * float(K.r) * size * 0.3)
 	_jaw.rotation.x = _gape * 0.9
 	# unhinged: dropped down and back from the skull, its halves spread wide
 	_jaw.position = _jaw_rest + Vector3(0.0, -_jaw_drop * _unhinge, _jaw_drop * 0.35 * _unhinge)

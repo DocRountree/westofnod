@@ -15,7 +15,7 @@ extends Node3D
 ##   ground; the wheel: nearer, further; C: to the selection.
 ##
 ## THE KEYS act on the selection (none selected: on everything): 1 lay eggs /
-## give birth, 2 hatch / come out / moult, 3 pupate, E eat, H hunt, U an
+## give birth, 2 hatch / come out / moult / shed, 3 pupate, E eat, H hunt, U an
 ## unusual meal, K mate (each male with the nearest female of his kind),
 ## G groom, Z sleep / rest, F fly / hop / climb, X alarm (flee, roll up,
 ## coil, sting, play dead), D display / call, V the young play, N nurse, B
@@ -1986,6 +1986,8 @@ func _do(c: Node, act_: String) -> void:
 					ad.call("search", at, 0.4, _flat(_clumps_near(at))))
 		elif c.has_method("hatch") and not (c is AntColony):
 			c.call("hatch")
+		elif sc == SnakeScript or sc == AnoleScript: # (shedding its skin)
+			c.call("shed")
 		elif sc == SpiderScript:
 			for sac in c.get("sacs"):
 				if is_instance_valid(sac):

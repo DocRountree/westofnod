@@ -19,11 +19,19 @@ uniform bool skinned = false;
 uniform float brown = 0.0;
 uniform bool young = false;
 uniform float belly_y = -0.35; // (where the white begins: the normal's y)
+// shedding (Anole.shed): its old skin loosened in pale, papery patches
+// (shed: how much of it), pulled off and eaten bit by bit (peeled: how
+// much of that gone); on the body's own surface (its rest place: r_b),
+// so they ride on it as it moves
+uniform float shed = 0.0;
+uniform float peeled = 0.0;
 
 varying vec3 n_b;
 varying vec3 p_b;
+varying vec3 r_b;
 
 void vertex() {
+	r_b = VERTEX;
 	if (skinned) {
 		float s = VERTEX.z;
 		int i0 = clamp(int(floor(s)), 0, count - 2);
@@ -45,6 +53,15 @@ void vertex() {
 }
 
 float h21(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+float h31(vec3 p) { return fract(sin(dot(p, vec3(127.1, 311.7, 74.7))) * 43758.5453); }
+// (smooth value noise, 0..1)
+float vn3(vec3 p) {
+	vec3 i = floor(p);
+	vec3 f = fract(p);
+	f = f * f * (3.0 - 2.0 * f);
+	return mix(mix(mix(h31(i), h31(i + vec3(1, 0, 0)), f.x), mix(h31(i + vec3(0, 1, 0)), h31(i + vec3(1, 1, 0)), f.x), f.y),
+			mix(mix(h31(i + vec3(0, 0, 1)), h31(i + vec3(1, 0, 1)), f.x), mix(h31(i + vec3(0, 1, 1)), h31(i + vec3(1, 1, 1)), f.x), f.y), f.z);
+}
 
 void fragment() {
 	float ny = normalize(n_b).y;
@@ -60,7 +77,21 @@ void fragment() {
 	vec2 fr = fract(g) - 0.5;
 	float bump = 1.0 - smoothstep(0.25, 0.5, length(fr));
 	c *= 0.9 + 0.12 * h21(cell) + 0.05 * bump;
+	float rough = 0.42 - 0.1 * bump;
+	if (shed > 0.0) {
+		// patches: two scales of noise on its rest surface, those under
+		// shed's share loose; peeled's share of them (another noise's) gone
+		vec3 q = vec3(r_b.x * 0.16, r_b.y * 0.16, r_b.z * 0.55);
+		float n = vn3(q) * 0.65 + vn3(q * 2.3 + 7.1) * 0.35;
+		float gone = vn3(q * 1.7 + 13.0);
+		float cut = shed * 0.47;
+		float patch_ = (1.0 - smoothstep(cut - 0.03, cut + 0.01, n)) * step(peeled * 1.05, gone);
+		float rim = patch_ * (1.0 - smoothstep(0.0, 0.03, abs(n - cut))); // (its lifted edge, a little dark)
+		c = mix(c, vec3(0.84, 0.86, 0.78), patch_ * 0.7);
+		c *= 1.0 - 0.3 * rim;
+		rough = mix(rough, 0.85, patch_);
+	}
 	ALBEDO = c;
-	ROUGHNESS = 0.42 - 0.1 * bump;
+	ROUGHNESS = rough;
 	SPECULAR = 0.5;
 }
