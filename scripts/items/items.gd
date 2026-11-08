@@ -17,6 +17,7 @@ const KINDS := {
 	"pawpaw": {"name": "Pawpaw", "stack": 1, "shape": "pawpaw", "size": Vector3(0.055, 0.11, 0.05), "color": Color(0.55, 0.62, 0.24)},
 	"crabapple": {"name": "Crabapple", "stack": 32, "shape": "crabapple", "size": Vector3(0.026, 0.024, 0.026), "color": Color(0.72, 0.16, 0.1)},
 	"black_cherry": {"name": "Cherry", "stack": 64, "shape": "cherry", "size": Vector3(0.01, 0.01, 0.01), "color": Color(0.14, 0.03, 0.06), "bears": 20}, # (BlackCherryTree: up in its crown, in drooping clusters)
+	"prickly_pear": {"name": "Prickly pear", "stack": 16, "shape": "prickly_pear", "size": Vector3(0.036, 0.054, 0.036), "color": Color(0.5, 0.08, 0.26), "bears": 10}, # (PricklyPear: its tunas on the rims of its top pads)
 	"raspberry": {"name": "Raspberry", "stack": 64, "shape": "raspberry", "size": Vector3(0.016, 0.017, 0.016), "color": Color(0.74, 0.08, 0.16), "bears": 18}, # (RaspberryBush)
 	"blueberry": {"name": "Blueberry", "stack": 64, "shape": "blueberry", "size": Vector3(0.011, 0.01, 0.011), "color": Color(0.27, 0.32, 0.52), "bears": 22}, # (BlueberryBush: dusky under its bloom)
 	"walnut": {"name": "Walnut", "stack": 5, "shape": "walnut", "size": Vector3(0.046, 0.044, 0.046), "color": Color(0.43, 0.5, 0.18)}, # (in its green husk, as picked)
@@ -64,7 +65,7 @@ static func model(id: String) -> Node3D:
 		return _axe()
 	if id == "stick":
 		return _stick()
-	if k.shape in ["pawpaw", "crabapple", "walnut", "acorn", "cherry", "raspberry", "blueberry"]:
+	if k.shape in ["pawpaw", "crabapple", "walnut", "acorn", "cherry", "raspberry", "blueberry", "prickly_pear"]:
 		return _fruit(k)
 	if k.shape == "flower":
 		return _flower(k)
@@ -405,6 +406,20 @@ static func _fruit(k: Dictionary) -> Node3D:
 			(dr.material_override as StandardMaterial3D).roughness = 0.35
 			dr.position = dir * (k.size as Vector3) * 0.47
 			root.add_child(dr)
+		return root
+	if k.shape == "prickly_pear": # (a tuna: egg shaped, wine red, its areoles dotted over it, each a tuft of fine brown glochids; its top a flat cupped scar)
+		(body.material_override as StandardMaterial3D).roughness = 0.55
+		for i in 18:
+			var y := lerpf(-0.8, 0.75, fposmod(i * 0.618, 1.0))
+			var a := i * 2.4
+			var dir := Vector3(cos(a) * sqrt(1.0 - y * y), y, sin(a) * sqrt(1.0 - y * y))
+			var ar := _part(SphereMesh.new(), Vector3.ONE * 0.003, Color(0.32, 0.22, 0.12))
+			(ar.material_override as StandardMaterial3D).roughness = 0.95
+			ar.position = dir * (k.size as Vector3) * 0.5
+			root.add_child(ar)
+		var scar := _part(CylinderMesh.new(), Vector3(0.016, 0.004, 0.016), (k.color as Color).darkened(0.35))
+		scar.position.y = (k.size as Vector3).y * 0.48
+		root.add_child(scar)
 		return root
 	if k.shape == "blueberry": # (dusky under its bloom; the little crown at its tip)
 		(body.material_override as StandardMaterial3D).roughness = 0.85

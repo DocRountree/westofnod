@@ -2,8 +2,10 @@ class_name PricklyPear
 extends RefCounted
 ## A prickly pear (Engelmann's, Opuntia engelmannii), built whole
 ## (PlantMesh), life size, four variants: a big sprawling clump (about a
-## metre high, two across), a small one, one fruiting, one in flower. Not in
-## the game yet: tools/plants/preview.gd draws them.
+## metre high, two across), a small one, one fruiting, one in flower. On the
+## prairie (data/population/props/prickly_pear.tres); its fruit (the tunas,
+## the item "prickly_pear") hung on the rims of its top pads where it bears
+## them (fruit_spots: Foraging draws and picks them, as a tree's).
 ##
 ## What makes it read as a prickly pear: flat, round-ended pads (each a
 ## stem: obovate, a hand and a half long, two fingers thick at the middle,
@@ -34,6 +36,19 @@ const SPINE_FOOT := Color(0.55, 0.3, 0.2)
 const TUNA := Color(0.5, 0.08, 0.26)
 
 static var _cache := {}
+static var _spots := {} # variant -> its fruit's places (its mesh's space)
+
+
+## The fruit it bears (Items), "" none: the fruiting one's tunas.
+static func fruit_of(variant: int) -> String:
+	return "prickly_pear" if VARIANTS[posmod(variant, VARIANTS.size())].has("fruit") else ""
+
+
+## Where its fruit grow (its mesh's space): on the rims of its top pads.
+static func fruit_spots(variant: int) -> PackedVector3Array:
+	variant = posmod(variant, VARIANTS.size())
+	build_lods(variant)
+	return _spots.get(variant, PackedVector3Array())
 
 
 static func build(variant := 0) -> Mesh:
@@ -46,12 +61,12 @@ static func build_lods(variant := 0) -> Array[Mesh]:
 	if not _cache.has(variant):
 		var lods: Array[Mesh] = []
 		for lod in 3:
-			lods.append(_make(VARIANTS[variant], lod))
+			lods.append(_make(VARIANTS[variant], lod, variant))
 		_cache[variant] = lods
 	return _cache[variant]
 
 
-static func _make(V: Dictionary, lod: int) -> Mesh:
+static func _make(V: Dictionary, lod: int, variant := -1) -> Mesh:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = int(V.seed)
 	var pads := PM.begin()
@@ -67,6 +82,7 @@ static func _make(V: Dictionary, lod: int) -> Mesh:
 	# fruit or flowers on the rims of the top pads
 	var nf := int(V.get("fruit", 0))
 	var nfl := int(V.get("flowers", 0))
+	var spots := PackedVector3Array()
 	for t: Array in tops:
 		var b: Basis = t[0]
 		var o: Vector3 = t[1]
@@ -75,12 +91,15 @@ static func _make(V: Dictionary, lod: int) -> Mesh:
 			var ang := rng.randf_range(-1.0, 1.0)
 			var rim := o + _rim(b, L, ang)
 			var way := (b.y * cos(ang) + b.x * sin(ang)).normalized()
-			_tuna(extra, rng, rim + way * 0.025, way, lod)
+			_tuna(null, rng, rim + way * 0.025, way, lod) # (its draws kept as they were: the same pads)
+			spots.append(rim + way * 0.025) # (its fruit hung there as things to pick, not drawn in it)
 		for k in (nfl + rng.randi_range(-1, 0) if nfl > 0 else 0):
 			var ang := rng.randf_range(-0.9, 0.9)
 			var rim := o + _rim(b, L, ang)
 			var way := (b.y * cos(ang) + b.x * sin(ang) + Vector3.UP * 0.4).normalized()
 			_flower(extra, rim, way, lod)
+	if variant >= 0 and lod == 0:
+		_spots[variant] = spots
 	return PM.finish([[pads, PM.painted(0.62, 0.3)], [bits, PM.painted(0.8)], [extra, PM.painted(0.5, 0.1, false)]])
 
 
@@ -175,6 +194,8 @@ static func _tuna(st: SurfaceTool, rng: RandomNumberGenerator, at: Vector3, way:
 	var x := y.cross(Vector3.UP if absf(y.y) < 0.9 else Vector3.RIGHT).normalized()
 	var z := x.cross(y)
 	var shade := rng.randf_range(0.85, 1.1)
+	if st == null: # (its place only: the random draws as they'd be)
+		return
 	PM.ellipsoid(st, at, Basis(x * 0.018, y * 0.027, z * 0.018), [10, 7, 5][lod], [7, 5, 3][lod], func(u: Vector3) -> Color:
 		var c := TUNA * shade
 		var dot := PM.noise(Vector3(floorf(u.x * 6.0), floorf(u.y * 6.0), floorf(u.z * 6.0))) > 0.82
