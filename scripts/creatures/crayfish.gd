@@ -668,15 +668,19 @@ func _walk(dt: float) -> void:
 func _unstretch() -> void:
 	var sc := MM * size
 	for i in _feet.size():
-		if _pose_foot[i] != null or i in (tripod[_swinging] if _swinging >= 0 else []):
+		if _pose_foot[i] != null:
 			continue
 		var L: Dictionary = legs[i / 2]
 		var side := 1.0 if i % 2 == 1 else -1.0
 		var hip := _out(Vector3(float(L.hip.x) * side, float(L.hip.y), float(L.hip.z)))
 		var reach := (float(L.f) + float(L.t) + float(L.s)) * sc
 		# (a drop from it; or out past its leg's reach: shoved along, say)
-		if absf(_feet[i].y - _pos.y) > 0.03 * maxf(size / ADULT, 0.3) or hip.distance_to(_feet[i]) > reach * 1.02:
+		var swinging := _swinging >= 0 and i in tripod[_swinging]
+		var lift := sin(PI * clampf(_swing_t / step_time, 0.0, 1.0)) * stride * 0.35 * sc if swinging else 0.0
+		if absf(_feet[i].y - lift - _pos.y) > 0.03 * maxf(size / ADULT, 0.3) or hip.distance_to(_feet[i]) > reach * 1.02:
 			_feet[i] = _home(i)
+			_from[i] = _feet[i] # (a step it was taking from there: from under it now)
+			_to[i] = _feet[i]
 
 
 func _touch_ok() -> bool:
@@ -819,12 +823,12 @@ func _eat(dt: float) -> void:
 		0: # (to it, its mouth over it: it eats only once it's there)
 			_target = p - to.normalized() * reach if to.length() > reach * 1.05 else _pos
 			_cl_ask = [CL_REACH, CL_REACH]
-			if _st > 30.0: # (can't get to it)
+			if _st > 45.0: # (can't get to it)
 				_food = null
 				wander(_pos, 0.25)
 				return
 			var level := absf(p.y - _out(MOUTH).y) < 0.02 * maxf(size / ADULT, 0.4) # (its mouth at its height: walked to it, or swum up)
-			if to.length() < reach * 1.2 and _speed < 0.01 and level:
+			if to.length() < reach * (1.4 if _swim_h > 0.002 else 1.2) and (_speed < 0.01 or _swim_h > 0.002) and level:
 				_target = _pos
 				_turn_to = atan2(-to.x, -to.z)
 				_stage = 1
