@@ -308,7 +308,7 @@ func _strike() -> void:
 	main.population.remove_prop(tree.uid)
 	var xf: Transform3D = tree.transform
 	var away := _notch_side() # (falling toward the notch, as a tree does: square to the view)
-	var stripes := _view_dir() # (the axe's strokes across the cut run square to the notch's)
+	var stripes := _view_dir() # (the axe's strokes' ridges across the cut run the way the axe came: square to the fall)
 	var entry := _fell(tree.kind, tree.variant, xf, tree.radius, away, stripes, cut)
 	var f: Dictionary = entry.falling
 	_falling.append(f)
@@ -450,8 +450,8 @@ static func _rest_points(kind: PropKind, variant: int) -> Array:
 
 
 ## The stump turned so its own x runs the way the axe came, away from the
-## player (bark.gdshader lays the chopped top's strokes along it: square to
-## the notch's), s across, sy up (as tall as the cut: _stump_height).
+## player (bark.gdshader runs the chopped top's ridges along it: square to
+## the way the tree fell), s across, sy up (as tall as the cut: _stump_height).
 static func _stump_basis(away: Vector3, s: float, sy := -1.0) -> Basis:
 	return Basis(Vector3.UP, atan2(-away.z, away.x)).scaled(Vector3(s, s if sy < 0.0 else sy, s))
 

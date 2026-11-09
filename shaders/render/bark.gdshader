@@ -204,13 +204,15 @@ void fragment() {
 		if (fresh_end) {
 			// an axe's top: chopped flat across in strokes, a band a stroke,
 			// each its own tilt (facets lying across the top, not standing
-			// up off it); shaded from the facets' slopes. The strokes follow
-			// one another along the stump's own x, which Felling turns to
-			// the way the axe came from (the notch's side)
-			float band = notch_p.x * 7.0 + 0.35 * sin(notch_p.z * 4.6 + 1.1);
+			// up off it); shaded from the facets' slopes. Each stroke's ridge
+			// runs along the stump's own x, the way the axe came (Felling
+			// turns x to the player's view), the strokes following one
+			// another across it, along z: the way the tree fell, so the
+			// ridges lie across the fallen trunk, not along it
+			float band = notch_p.z * 7.0 + 0.35 * sin(notch_p.x * 4.6 + 1.1);
 			ivec2 bi = ivec2(int(floor(band)), 17);
-			vec2 s0 = (vec2(lc_hash(vec3(vec2(bi), 3.0)), lc_hash(vec3(vec2(bi), 7.0))) - 0.5) * vec2(0.35, 0.55);
-			vec2 s1 = (vec2(lc_hash(vec3(vec2(bi + ivec2(1, 0)), 3.0)), lc_hash(vec3(vec2(bi + ivec2(1, 0)), 7.0))) - 0.5) * vec2(0.35, 0.55);
+			vec2 s0 = (vec2(lc_hash(vec3(vec2(bi), 3.0)), lc_hash(vec3(vec2(bi), 7.0))) - 0.5) * vec2(0.55, 0.35);
+			vec2 s1 = (vec2(lc_hash(vec3(vec2(bi + ivec2(1, 0)), 3.0)), lc_hash(vec3(vec2(bi + ivec2(1, 0)), 7.0))) - 0.5) * vec2(0.55, 0.35);
 			vec2 slope = mix(s0, s1, smoothstep(0.8, 1.0, fract(band))); // (a stroke rounds over into the next)
 			float fh = dot(UV, slope) * 0.45; // (m)
 			vec3 dpdx = dFdx(VERTEX), dpdy = dFdy(VERTEX);
