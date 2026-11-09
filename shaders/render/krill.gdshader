@@ -22,10 +22,10 @@ render_mode cull_disabled;
 
 uniform float z_hinge = -0.003;
 uniform float z_tail = 0.025;
-uniform vec3 shell : source_color = vec3(0.93, 0.66, 0.6);
-uniform vec3 fleck : source_color = vec3(0.78, 0.1, 0.06);
+uniform vec3 shell : source_color = vec3(0.9, 0.42, 0.34);
+uniform vec3 fleck : source_color = vec3(0.72, 0.06, 0.04);
 uniform vec3 gut : source_color = vec3(0.35, 0.6, 0.18);
-uniform vec3 limb : source_color = vec3(0.96, 0.74, 0.68);
+uniform vec3 limb : source_color = vec3(0.94, 0.52, 0.42);
 uniform vec3 glow : source_color = vec3(0.3, 0.9, 1.0);
 global uniform float night;
 
@@ -97,7 +97,7 @@ void fragment() {
 		// (small round flecks, a few to a cell of half a millimetre)
 		vec3 q = v_rest * 2200.0;
 		vec3 cq = fract(q) - 0.5;
-		float f = step(0.8 - 0.1 * smoothstep(0.0, 0.003, v_rest.y), h3(floor(q))) * (1.0 - smoothstep(0.22, 0.34, length(cq)));
+		float f = step(0.66 - 0.12 * smoothstep(0.0, 0.003, v_rest.y), h3(floor(q))) * (1.0 - smoothstep(0.22, 0.34, length(cq)));
 		c = mix(shell, fleck, f * 0.85);
 		// the gut showing green through the carapace, behind the head
 		float g = smoothstep(-0.019, -0.016, v_rest.z) * (1.0 - smoothstep(-0.008, -0.005, v_rest.z)) * smoothstep(0.0, 0.002, v_rest.y);
