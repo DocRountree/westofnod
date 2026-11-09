@@ -1,299 +1,520 @@
 class_name Krill
-extends MultiMeshInstance3D
-## A swarm of Antarctic krill (Euphausia superba), life size (about 5 cm):
-## slender, see-through pink, flecked with red (their chromatophores); the
-## green of the gut showing through the shell behind the head; big black
-## eyes on stalks; long antennae and antennules; the thoracic legs, fringed
-## with bristles, folded into a feeding basket under the head; five pairs
-## of feathery swimmerets under the abdomen; the tail fan; and the
-## photophores, the little lights under the body and on the eyestalks,
-## glowing blue-green (brighter in the dark).
+extends Node3D
+## Antarctic krill (Euphausia superba), life size (about 4 cm): slender,
+## see-through red, flecked darker (their chromatophores); the green of the
+## gut showing through behind the head; big black eyes on stalks; long
+## antennae and antennules; the thoracic legs, fringed with bristles,
+## folded into a feeding basket under the head; five pairs of feathery
+## swimmerets; the tail fan; and the photophores, little lights under the
+## body and on the eyestalks, glowing blue-green (brighter in the dark).
 ##
-## Made and moved as the ants and the mollies are (AntColony, Mollies): one
-## mesh, every krill an instance of it, posed by its shader
-## (shaders/render/krill.gdshader: the swimmerets beating in a wave from
-## back to front, the feeding basket opening, the antennae trailing, the
-## tail flicked under in its escape), so a swarm of hundreds is one draw
-## call; here each is only moved along, once a frame. setup(n, centre,
-## spread), the water it keeps to: tank_min .. tank_max (its own space;
-## bottom: a Callable (x, z) -> the bottom's y). Each krill:
-## - swarming: close packed (a couple of centimetres apart), all facing
-##   the same way, hanging in the water, the swarm drifting about (or
-##   swim_to(point))
-## - feeding (feed(i), or now and then of its own accord): stopped, tipped
-##   head up, its feeding basket thrown open and swept shut, again and again
-## - its escape (scatter(from): "lobstering"): the tail flicked under it
-##   again and again, shooting it backward away from the threat, fast; then
-##   back with the others
-## - steered, each on its own (member(i): every creature's calls: pilot.gd)
+## A pool of them: every krill in a body of water, one node (add(n, centre,
+## spread) puts more in: a swarm). No swarm is a thing of its own: each
+## krill steers by its own neighbours only (apart from the very nearest,
+## facing the way the ones round it face, toward them), the water's slow
+## currents carrying them about; so swarms are whatever clusters form,
+## joining when they drift together, breaking apart when they're scattered
+## or the current parts them.
+##
+## On the GPU (shaders/compute/krill_swarm.glsl, on a local RenderingDevice:
+## a hashed neighbour grid, then each krill steered; one frame behind,
+## read back as two MultiMeshes' buffers, whole): thousands at well under a
+## millisecond. Drawn as two MultiMeshes: the near (build_mesh: legs,
+## bristles, swimmerets) and, past FAR m from the camera, the far
+## (build_far_mesh: the body, the eyes, the fan), each posed by
+## shaders/render/krill.gdshader (the swimmerets beating, the basket
+## working, the tail flicked under). Without a RenderingDevice (headless,
+## the Compatibility renderer) the same rules run here, slower.
+##
+## Each krill: swarming; feeding (feed_near: head up, the basket thrown open
+## and swept shut), of its own accord now and then too; its escape
+## (scatter(from): "lobstering", tail flicks shooting it backward away);
+## sent somewhere (swim_to(to, from, r): those near `from`).
 
-const ColonyScript := preload("res://scripts/creatures/ant_colony.gd") # (its Member: the same handle every colony's members have)
-const PilotScript := preload("res://scripts/creatures/pilot.gd")
 const MM := 0.001 ## m per model mm (life size)
-const APART := 0.045 ## m: each keeps this far from its neighbours (about a body length: as a real swarm's) (its only neighbour checks: as the ants', a grid this fine)
+const APART := 0.045 ## m: each keeps this far from its neighbours (about a body length)
+const REACH := 0.15 ## m: the neighbours each steers by
+const FAR := 1.2 ## m from the camera: past this, the far mesh
 const Z_HEAD := -26.0 ## mm: the rostrum's tip
 const Z_TAIL := 25.0 ## mm: the tail fan's edge
 const Z_HINGE := -3.0 ## mm: where the abdomen bends from the carapace
-# what each is doing
-const SWARM := 0
-const FEED := 1
-const ESCAPE := 2
-const PILOT := 3
-const HOLD := 4
+const STRIDE := 28 ## floats a krill's state (7 vec4: krill_swarm.glsl's Krill)
+const TABLE := 65536 ## the GPU grid's buckets
+const SLOTS := 24 ## krill a bucket holds
 
 var tank_min := Vector3(-0.5, 0.02, -0.5) ## the water (its own space): the bottom's corner
 var tank_max := Vector3(0.5, 0.45, 0.5) ## and the surface's
-var bottom: Callable ## (x, z) -> the bottom's y there (none: tank_min.y)
 var cruise := 0.045 ## m/s, swarming
 var escape_speed := 0.55 ## m/s, lobstering
-var shader: Shader = preload("res://shaders/render/krill.gdshader")
-var pos := PackedVector3Array()
-var vel := PackedVector3Array()
-var heading := PackedVector3Array()
-var seed := PackedFloat32Array()
-var size := PackedFloat32Array()
-var task := PackedInt32Array()
-var task_t := PackedFloat32Array()
-var aim := PackedVector3Array()
-var pace := PackedFloat32Array()
-var feed_k := PackedFloat32Array()
-var flip_t := PackedFloat32Array() # (s into its escape: its tail flicks)
-var flee_from := PackedVector3Array()
-var goal := Vector3.ZERO ## where the swarm's making for
+var currents := 0.25 ## how strongly the water's currents move them
+var count := 0 ## how many krill
 var rng := RandomNumberGenerator.new()
-var _goal_t := 0.0
-var _pilots := {}
-var _members := {}
-var _vs := PackedVector3Array()
-var _mid := Vector3.ZERO # (the swarm's middle, this frame)
-var _way := Vector3.FORWARD # (the way it faces)
+
+var _state := PackedFloat32Array() # (the CPU's copy: the fallback's own, or the last read back)
+var _near: MultiMeshInstance3D
+var _far: MultiMeshInstance3D
+var _mat: ShaderMaterial
+var _t := 0.0
+var _events := {} # name -> [Vector4, Vector4]: asked this frame (the GPU's params)
+var _gpu := false
+var _rd: RenderingDevice
+var _rids := {} # name -> RID
+var _sets: Array[RID] = []
+var _parity := 0
+var _pending := false
+var _state_stale := false # (the CPU's copy behind the GPU's)
 
 static var _built: Mesh
+static var _built_far: Mesh
 
 
-func setup(n: int, centre: Vector3, spread := 0.08) -> void:
+func _init() -> void:
 	rng.randomize()
-	multimesh = MultiMesh.new()
-	multimesh.transform_format = MultiMesh.TRANSFORM_3D
-	multimesh.use_custom_data = true
+	_make()
+
+
+func _make() -> void:
 	if _built == null:
 		_built = build_mesh()
-	multimesh.mesh = _built
-	multimesh.instance_count = n
-	var m := ShaderMaterial.new()
-	m.shader = shader
-	m.set_shader_parameter("z_hinge", Z_HINGE * MM)
-	m.set_shader_parameter("z_tail", Z_TAIL * MM)
-	material_override = m
-	cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF # (small, see-through)
-	# (each its own: packed arrays are values, resized one by one)
-	pos.resize(n)
-	vel.resize(n)
-	heading.resize(n)
-	aim.resize(n)
-	flee_from.resize(n)
-	_vs.resize(n)
-	seed.resize(n)
-	size.resize(n)
-	task_t.resize(n)
-	pace.resize(n)
-	feed_k.resize(n)
-	flip_t.resize(n)
-	task.resize(n)
+		_built_far = build_far_mesh()
+	_mat = ShaderMaterial.new()
+	_mat.shader = load("res://shaders/render/krill.gdshader")
+	_mat.set_shader_parameter("z_hinge", Z_HINGE * MM)
+	_mat.set_shader_parameter("z_tail", Z_TAIL * MM)
+	for k in 2:
+		var mi := MultiMeshInstance3D.new()
+		var mm := MultiMesh.new()
+		mm.transform_format = MultiMesh.TRANSFORM_3D
+		mm.use_custom_data = true
+		mm.mesh = _built if k == 0 else _built_far
+		mi.multimesh = mm
+		mi.material_override = _mat
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF # (small, see-through)
+		mi.custom_aabb = AABB(tank_min - Vector3.ONE * 0.1, tank_max - tank_min + Vector3.ONE * 0.2)
+		add_child(mi)
+		if k == 0:
+			_near = mi
+		else:
+			_far = mi
+	_gpu = _gpu_init()
+
+
+## n more krill, a swarm round centre (its own space), spread across.
+func add(n: int, centre: Vector3, spread := 0.22) -> void:
+	_sync_state()
 	var a := rng.randf() * TAU
 	var way := Vector3(cos(a), 0.0, sin(a)) # (a swarm all facing the one way)
-	for i in n:
-		pos[i] = centre + Vector3(rng.randf_range(-1, 1), rng.randf_range(-0.6, 0.6), rng.randf_range(-1, 1)) * spread
-		heading[i] = way
-		vel[i] = way * cruise
-		_vs[i] = vel[i]
-		seed[i] = rng.randf()
-		size[i] = rng.randf_range(0.65, 0.9) # (about 4 cm)
-		task[i] = SWARM
-		task_t[i] = rng.randf_range(4.0, 20.0)
-		pace[i] = -1.0
-	goal = centre
-	custom_aabb = AABB(tank_min - Vector3.ONE * 0.1, tank_max - tank_min + Vector3.ONE * 0.2)
+	var old := count
+	count += n
+	_state.resize(count * STRIDE)
+	for i in range(old, count):
+		var p := centre + Vector3(rng.randf_range(-1, 1), rng.randf_range(-0.6, 0.6), rng.randf_range(-1, 1)) * spread
+		var b := i * STRIDE
+		var vals := [p.x, p.y, p.z, rng.randf_range(0.65, 0.9), # (about 4 cm)
+				way.x * cruise, 0.0, way.z * cruise, rng.randf(),
+				way.x, 0.0, way.z, 0.0,
+				way.x * cruise, 0.0, way.z * cruise, 0.0,
+				0.0, rng.randf_range(4.0, 20.0), 0.0, 0.0,
+				0.0, 0.0, 0.0, 0.0,
+				0.0, 0.0, 0.0, 0.0]
+		for q in STRIDE:
+			_state[b + q] = vals[q]
+	for mi in [_near, _far]:
+		mi.custom_aabb = AABB(tank_min - Vector3.ONE * 0.1, tank_max - tank_min + Vector3.ONE * 0.2)
+		mi.multimesh.instance_count = count
+		mi.multimesh.visible_instance_count = 0
+	if _gpu:
+		_gpu_buffers()
 
 
-## The swarm to `point` (its own space), swarming there.
-func swim_to(point: Vector3) -> void:
-	goal = point
-	_goal_t = 20.0
+## (Back compatible: a pool of n.)
+func setup(n: int, centre: Vector3, spread := 0.08) -> void:
+	add(n, centre, spread)
 
 
-## Every krill near `from` off in its escape: tail flicks, shooting backward.
-func scatter(from: Vector3) -> void:
-	for i in pos.size():
-		if pos[i].distance_to(from) < 0.6:
-			task[i] = ESCAPE
-			task_t[i] = rng.randf_range(0.6, 1.1) # (a few flicks: a burst of half a metre or so)
-			flip_t[i] = 0.0
-			flee_from[i] = from
+## Every krill within r of `from` off in its escape.
+func scatter(from: Vector3, r := 0.6) -> void:
+	_events["esc"] = [Vector4(from.x, from.y, from.z, r), Vector4.ZERO]
 
 
-## Krill i stops to feed, its basket working, a while.
-func feed(i: int, secs := -1.0) -> void:
-	task[i] = FEED
-	task_t[i] = secs if secs > 0.0 else rng.randf_range(4.0, 9.0)
+## Every krill within r of `at` stops to feed a while.
+func feed_near(at: Vector3, r := 100.0) -> void:
+	_events["feed"] = [Vector4(at.x, at.y, at.z, r), Vector4.ZERO]
 
 
-func rejoin(i: int) -> void:
-	task[i] = SWARM
-	task_t[i] = rng.randf_range(4.0, 20.0)
+## Those within r of `from` sent to `to` (the rest carry on).
+func swim_to(to: Vector3, from := Vector3.INF, r := 0.5, secs := 20.0) -> void:
+	if from == Vector3.INF:
+		from = middle()
+		r = 100.0
+	_events["goal"] = [Vector4(from.x, from.y, from.z, r), Vector4(to.x, to.y, to.z, secs)]
 
 
-func _floor(x: float, z: float) -> float:
-	return maxf(float(bottom.call(x, z)) if bottom.is_valid() else tank_min.y, tank_min.y)
+## Every krill swarming again (feeding, escaping, sent: let go).
+func rejoin_all() -> void:
+	_sync_state()
+	for i in count:
+		_state[i * STRIDE + 16] = 0.0
+		_state[i * STRIDE + 19] = 0.0
+	_upload_state()
+
+
+## Where they all are (its own space; read back from the GPU).
+func positions() -> PackedVector3Array:
+	_sync_state()
+	var out := PackedVector3Array()
+	out.resize(count)
+	for i in count:
+		out[i] = Vector3(_state[i * STRIDE], _state[i * STRIDE + 1], _state[i * STRIDE + 2])
+	return out
+
+
+## Their middle, all of them.
+func middle() -> Vector3:
+	var ps := positions()
+	var m := Vector3.ZERO
+	for p in ps:
+		m += p
+	return m / maxf(ps.size(), 1.0)
+
+
+## The krill nearest p (its position), or p itself if none.
+func nearest(p: Vector3) -> Vector3:
+	var best := p
+	var bd := INF
+	for q in positions():
+		var d := q.distance_squared_to(p)
+		if d < bd:
+			bd = d
+			best = q
+	return best
+
+
+## How many are feeding (task 1), escaping (2).
+func tasks() -> PackedInt32Array:
+	_sync_state()
+	var out := PackedInt32Array()
+	out.resize(count)
+	for i in count:
+		out[i] = int(round(_state[i * STRIDE + 16]))
+	return out
+
+
+func _cam_local() -> Vector3:
+	var cam := get_viewport().get_camera_3d() if is_inside_tree() else null
+	return to_local(cam.global_position) if cam else Vector3(0.0, 1e6, 0.0)
 
 
 func _process(dt: float) -> void:
-	if multimesh == null or dt <= 0.0:
+	if count == 0 or dt <= 0.0:
 		return
-	for i in _pilots:
-		(_pilots[i] as PilotScript).tick(dt)
-	_goal_t -= dt
-	if _goal_t <= 0.0:
-		_goal_t = rng.randf_range(6.0, 14.0)
-		var lo := tank_min + Vector3(0.1, 0.06, 0.1)
-		var hi := tank_max - Vector3(0.1, 0.06, 0.1)
-		goal = Vector3(rng.randf_range(lo.x, hi.x), rng.randf_range(lo.y, hi.y), rng.randf_range(lo.z, hi.z))
-	var n := pos.size()
-	# the swarm as a whole, once a frame (cheap: no neighbour searches for
-	# it): its middle and the way it faces, from the ones swarming
-	var mid := Vector3.ZERO
-	var way := Vector3.ZERO
-	var m := 0
-	for i in n:
-		if task[i] == SWARM or task[i] == FEED:
-			mid += pos[i]
-			way += heading[i]
-			m += 1
-	_mid = mid / m if m > 0 else goal
-	_way = way.normalized() if way.length() > 1e-4 else Vector3.FORWARD
+	dt = minf(dt, 0.05)
+	_t += dt
+	if _gpu:
+		_gpu_step(dt)
+	else:
+		_cpu_step(dt)
+	_events.clear()
+
+
+# --- on the GPU ------------------------------------------------------------------
+
+func _gpu_init() -> bool:
+	_rd = RenderingServer.create_local_rendering_device()
+	if _rd == null:
+		return false
+	var sf := load("res://shaders/compute/krill_swarm.glsl") as RDShaderFile
+	if sf == null:
+		_rd.free()
+		_rd = null
+		return false
+	var spirv := sf.get_spirv()
+	if spirv.compile_error_compute != "":
+		push_error("krill_swarm.glsl: " + spirv.compile_error_compute)
+		_rd.free()
+		_rd = null
+		return false
+	_rids.shader = _rd.shader_create_from_spirv(spirv)
+	_rids.pipeline = _rd.compute_pipeline_create(_rids.shader)
+	_rids.params = _rd.storage_buffer_create(9 * 16)
+	_rids.gcount = _rd.storage_buffer_create(TABLE * 4)
+	_rids.gslot = _rd.storage_buffer_create(TABLE * SLOTS * 4)
+	_rids.ctr = _rd.storage_buffer_create(16)
+	return true
+
+
+## (The state and output buffers made again, for count krill, from the
+## CPU's copy.)
+func _gpu_buffers() -> void:
+	if _pending:
+		_rd.sync()
+		_pending = false
+	for k in ["a", "b", "near", "far"]:
+		if _rids.has(k):
+			_rd.free_rid(_rids[k])
+	_sets.clear()
+	var bytes := _state.to_byte_array()
+	_rids.a = _rd.storage_buffer_create(bytes.size(), bytes)
+	_rids.b = _rd.storage_buffer_create(bytes.size(), bytes)
+	_rids.near = _rd.storage_buffer_create(count * 64)
+	_rids.far = _rd.storage_buffer_create(count * 64)
+	for pair in [[_rids.a, _rids.b], [_rids.b, _rids.a]]:
+		var us: Array[RDUniform] = []
+		var ids := [_rids.params, pair[0], pair[1], _rids.gcount, _rids.gslot, _rids.near, _rids.far, _rids.ctr]
+		for b in ids.size():
+			var u := RDUniform.new()
+			u.uniform_type = RenderingDevice.UNIFORM_TYPE_STORAGE_BUFFER
+			u.binding = b
+			u.add_id(ids[b])
+			us.append(u)
+		_sets.append(_rd.uniform_set_create(us, _rids.shader, 0))
+	_parity = 0
+	_state_stale = false
+
+
+## Last frame's results drawn (read back: the krill as they are now, near
+## and far), then this frame's steering sent off.
+func _gpu_step(dt: float) -> void:
+	if _pending:
+		_rd.sync()
+		_pending = false
+		var cnt := _rd.buffer_get_data(_rids.ctr, 0, 8).to_int32_array()
+		var nn := clampi(cnt[0], 0, count)
+		var nf := clampi(cnt[1], 0, count)
+		for pair in [[_near, _rids.near, nn], [_far, _rids.far, nf]]:
+			var mi: MultiMeshInstance3D = pair[0]
+			if int(pair[2]) > 0:
+				# (the whole buffer: the multimesh takes all its instances; only the first so many drawn)
+				RenderingServer.multimesh_set_buffer(mi.multimesh.get_rid(), _rd.buffer_get_data(pair[1], 0, count * 64).to_float32_array())
+			mi.multimesh.visible_instance_count = int(pair[2])
+		_parity = 1 - _parity
+		_state_stale = true
+	var cam := _cam_local()
+	var e: Dictionary = _events
+	var p := PackedFloat32Array([
+		tank_min.x, tank_min.y, tank_min.z, 0.0,
+		tank_max.x, tank_max.y, tank_max.z, 0.0,
+		cam.x, cam.y, cam.z, FAR,
+		dt, _t, float(count), cruise])
+	for k in ["esc", "feed", "goal"]:
+		var v: Vector4 = (e[k] as Array)[0] if e.has(k) else Vector4.ZERO
+		p.append_array([v.x, v.y, v.z, v.w])
+	var gt: Vector4 = (e["goal"] as Array)[1] if e.has("goal") else Vector4.ZERO
+	p.append_array([gt.x, gt.y, gt.z, gt.w, escape_speed, APART, REACH, currents])
+	_rd.buffer_update(_rids.params, 0, p.size() * 4, p.to_byte_array())
+	var cl := _rd.compute_list_begin()
+	_rd.compute_list_bind_compute_pipeline(cl, _rids.pipeline)
+	_rd.compute_list_bind_uniform_set(cl, _sets[_parity], 0)
+	for pass_ in 3:
+		var pc := PackedInt32Array([pass_, 0, 0, 0]).to_byte_array()
+		_rd.compute_list_set_push_constant(cl, pc, pc.size())
+		var n := TABLE if pass_ == 0 else count
+		_rd.compute_list_dispatch(cl, ceili(n / 64.0), 1, 1)
+		_rd.compute_list_add_barrier(cl)
+	_rd.compute_list_end()
+	_rd.submit()
+	_pending = true
+
+
+## (The CPU's copy brought up to date: read back from the GPU.)
+func _sync_state() -> void:
+	if not _gpu or not _state_stale or count == 0:
+		return
+	if _pending:
+		_rd.sync()
+		_pending = false
+		_parity = 1 - _parity # (its results kept: the draw just misses one frame's)
+	var cur: RID = _rids.a if _parity == 0 else _rids.b
+	_state = _rd.buffer_get_data(cur, 0, count * STRIDE * 4).to_float32_array()
+	_state_stale = false
+
+
+func _upload_state() -> void:
+	if not _gpu:
+		return
+	if _pending:
+		_rd.sync()
+		_pending = false
+		_parity = 1 - _parity
+	var cur: RID = _rids.a if _parity == 0 else _rids.b
+	var bytes := _state.to_byte_array()
+	_rd.buffer_update(cur, 0, bytes.size(), bytes)
+
+
+func _exit_tree() -> void:
+	if _rd:
+		if _pending:
+			_rd.sync()
+		for k in _rids:
+			if k != "shader" and k != "pipeline" and _rids[k] is RID and (_rids[k] as RID).is_valid():
+				_rd.free_rid(_rids[k])
+		_rd.free_rid(_rids.pipeline)
+		_rd.free_rid(_rids.shader)
+		_rd.free()
+		_rd = null
+		_gpu = false
+
+
+# --- the fallback: the same rules, here --------------------------------------------
+
+func _rnd() -> float:
+	return rng.randf()
+
+
+func _cpu_step(dt: float) -> void:
+	var n := count
+	var S := _state
 	var grid := {}
 	for i in n:
-		var k := Vector3i(floori(pos[i].x / APART), floori(pos[i].y / APART), floori(pos[i].z / APART))
+		var k := Vector3i(floori(S[i * STRIDE] / REACH), floori(S[i * STRIDE + 1] / REACH), floori(S[i * STRIDE + 2] / REACH))
 		if not grid.has(k):
 			grid[k] = []
 		grid[k].append(i)
+	var cam := _cam_local()
+	var out_n := PackedFloat32Array()
+	var out_f := PackedFloat32Array()
+	var nxt := S.duplicate()
+	var flow_k := currents
 	for i in n:
-		_steer(i, dt, grid)
-	for i in n:
-		_place(i, dt)
-
-
-## Krill i's steering: its neighbours (apart, the same way, together), the
-## swarm's goal, the water's walls; its own doing.
-func _steer(i: int, dt: float, grid: Dictionary) -> void:
-	var p := pos[i]
-	var v := vel[i]
-	task_t[i] -= dt
-	# (apart from those right by it: the few in the cells round its own)
-	var sep := Vector3.ZERO
-	var c := Vector3i(floori(p.x / APART), floori(p.y / APART), floori(p.z / APART))
-	for dz in range(-1, 2):
-		for dy in range(-1, 2):
-			for dx in range(-1, 2):
-				for j: int in grid.get(c + Vector3i(dx, dy, dz), []):
-					if j == i:
-						continue
-					var off := p - pos[j]
-					var d := off.length()
-					var keep := APART * size[i]
-					if d < keep and d > 1e-6:
-						sep += off / d * (keep - d) / keep
-	var acc := sep * 1.8
-	# (with the swarm: facing its way, toward its middle, the more the
-	# further out)
-	acc += (_way * cruise - v) * 1.0
-	var to_mid := _mid - p
-	var stray := to_mid.length()
-	acc += to_mid * 1.2 * clampf(stray / 0.2, 0.2, 1.5)
-	var want := cruise * (0.7 + 0.6 * seed[i])
-	if stray > 0.25 and task[i] == SWARM: # (strayed, scattered: back to the others, quickly)
-		acc += to_mid.normalized() * 0.6
-		want = maxf(want, minf(0.04 + stray * 0.6, 0.2))
-	match task[i]:
-		SWARM:
-			if p.distance_to(goal) > 0.06:
-				acc += (goal - p).normalized() * 0.035
-			if task_t[i] <= 0.0:
-				task_t[i] = rng.randf_range(6.0, 20.0)
-				if rng.randf() < 0.35:
-					feed(i)
-		FEED: # (hanging nearly still, its basket working)
+		var b := i * STRIDE
+		var p := Vector3(S[b], S[b + 1], S[b + 2])
+		var sz := S[b + 3]
+		var v := Vector3(S[b + 4], S[b + 5], S[b + 6])
+		var seed := S[b + 7]
+		var hd := Vector3(S[b + 8], S[b + 9], S[b + 10])
+		var feed_k := S[b + 11]
+		var vs := Vector3(S[b + 12], S[b + 13], S[b + 14])
+		var task := S[b + 16]
+		var task_t := S[b + 17]
+		var flip_t := S[b + 18]
+		var goal_t := S[b + 19]
+		var flee := Vector3(S[b + 20], S[b + 21], S[b + 22])
+		var goal := Vector3(S[b + 24], S[b + 25], S[b + 26])
+		if _events.has("esc"):
+			var ev: Vector4 = _events.esc[0]
+			if p.distance_to(Vector3(ev.x, ev.y, ev.z)) < ev.w:
+				task = 2.0
+				task_t = 0.6 + 0.5 * _rnd()
+				flip_t = 0.0
+				flee = Vector3(ev.x, ev.y, ev.z)
+		if _events.has("feed"):
+			var ev: Vector4 = _events.feed[0]
+			if p.distance_to(Vector3(ev.x, ev.y, ev.z)) < ev.w:
+				task = 1.0
+				task_t = 4.0 + 5.0 * _rnd()
+		if _events.has("goal"):
+			var ev: Vector4 = _events.goal[0]
+			var to: Vector4 = _events.goal[1]
+			if p.distance_to(Vector3(ev.x, ev.y, ev.z)) < ev.w:
+				goal = Vector3(to.x, to.y, to.z)
+				goal_t = to.w
+		var sep := Vector3.ZERO
+		var align := Vector3.ZERO
+		var coh := Vector3.ZERO
+		var wsum := 0.0
+		var apart := APART * sz
+		var c := Vector3i(floori(p.x / REACH), floori(p.y / REACH), floori(p.z / REACH))
+		for dz in range(-1, 2):
+			for dy in range(-1, 2):
+				for dx in range(-1, 2):
+					for j: int in grid.get(c + Vector3i(dx, dy, dz), []):
+						if j == i:
+							continue
+						var q := Vector3(S[j * STRIDE], S[j * STRIDE + 1], S[j * STRIDE + 2])
+						var off := p - q
+						var d := off.length()
+						if d > REACH or d < 1e-6:
+							continue
+						if d < apart:
+							sep += off / d * (apart - d) / apart
+						var w := (1.0 - d / REACH) * (1.0 - d / REACH)
+						align += Vector3(S[j * STRIDE + 8], S[j * STRIDE + 9], S[j * STRIDE + 10]) * w
+						coh += q * w
+						wsum += w
+		var acc := sep * 1.8
+		if wsum > 1e-4:
+			acc += (align / wsum * cruise - v) * minf(wsum, 1.0)
+			acc += (coh / wsum - p) * 1.4 * minf(wsum, 1.0)
+		var flow := Vector3(sin(p.z * 0.9 + _t * 0.07 + 1.3) + 0.5 * sin(p.y * 2.1 - _t * 0.05),
+				0.25 * sin(p.x * 1.1 + p.z * 0.7 + _t * 0.04),
+				cos(p.x * 0.8 - _t * 0.06 + 0.4) + 0.5 * cos(p.y * 1.7 + _t * 0.03))
+		acc += (flow * cruise * 0.7 - v) * flow_k * (0.35 if wsum > 1e-4 else 1.0)
+		var want := cruise * (0.7 + 0.6 * seed)
+		if goal_t > 0.0:
+			goal_t -= dt
+			if goal.distance_to(p) > 0.06:
+				acc += (goal - p).normalized() * 0.06
+		task_t -= dt
+		if task < 0.5:
+			if task_t <= 0.0:
+				task_t = 6.0 + 14.0 * _rnd()
+				if _rnd() < 0.35:
+					task = 1.0
+					task_t = 4.0 + 5.0 * _rnd()
+		elif task < 1.5:
 			acc = acc * 0.5 - v * 1.5
 			want = 0.0
-			if task_t[i] <= 0.0:
-				rejoin(i)
-		ESCAPE: # (shot backward by each flick of its tail, away from it)
-			flip_t[i] += dt
-			var away := (p - flee_from[i])
-			away = away.normalized() if away.length() > 1e-4 else -heading[i]
-			var kick := maxf(sin(flip_t[i] * TAU * 3.0), 0.0) # (three flicks a second)
-			away.y *= 0.3 # (mostly level: shot back through the water, not up or down)
-			away = away.normalized()
+			if task_t <= 0.0:
+				task = 0.0
+				task_t = 4.0 + 16.0 * _rnd()
+		else:
+			flip_t += dt
+			var away := p - flee
+			away.y *= 0.3
+			away = away.normalized() if away.length() > 1e-4 else -hd
+			var kick := maxf(sin(flip_t * TAU * 3.0), 0.0)
 			acc = away * escape_speed * 9.0 * kick - v * 2.0
 			want = escape_speed
-			if task_t[i] <= 0.0:
-				rejoin(i)
-		PILOT:
-			var to := aim[i] - p
-			var sp := pace[i] if pace[i] > 0.0 else cruise
-			acc = acc * 0.3 + (to.normalized() * minf(sp, to.length() * 3.0) - v) * 3.0
-			want = sp
-		HOLD:
-			acc = acc * 0.3 + (aim[i] - p) * 4.0 - v * 3.0
-			want = 0.0
-	feed_k[i] = move_toward(feed_k[i], 1.0 if task[i] == FEED else 0.0, dt * 1.5)
-	# the walls, the bottom, the surface
-	var lo := tank_min + Vector3(0.03, 0.0, 0.03)
-	var hi := tank_max - Vector3(0.03, 0.02, 0.03)
-	var fl := _floor(p.x, p.z) + 0.03
-	var wall := Vector3.ZERO
-	wall.x = maxf(lo.x - p.x, 0.0) - maxf(p.x - hi.x, 0.0)
-	wall.z = maxf(lo.z - p.z, 0.0) - maxf(p.z - hi.z, 0.0)
-	wall.y = maxf(fl - p.y, 0.0) - maxf(p.y - hi.y, 0.0)
-	acc += wall * 40.0
-	if task[i] == SWARM:
-		acc.y -= v.y * 1.2 # (level, mostly)
-	v += acc * dt
-	var spd := v.length()
-	var top := escape_speed if task[i] == ESCAPE else maxf(want * 1.6, 0.015)
-	if spd > top:
-		v *= top / spd
-	vel[i] = v
-	var np := p + v * dt
-	np.x = clampf(np.x, tank_min.x, tank_max.x)
-	np.z = clampf(np.z, tank_min.z, tank_max.z)
-	np.y = clampf(np.y, _floor(np.x, np.z) + 0.006, tank_max.y - 0.006)
-	pos[i] = np
-
-
-## Krill i drawn where it is: facing its way (escaping, the way it faced:
-## it goes backward), tipped head up feeding; its pose's numbers.
-func _place(i: int, dt: float) -> void:
-	var v := _vs[i].lerp(vel[i], 1.0 - exp(-4.0 * dt))
-	_vs[i] = v
-	var h := heading[i]
-	var escaping := task[i] == ESCAPE
-	if not escaping and v.length() > 0.008:
-		var flat := Vector3(v.x, 0.0, v.z)
-		if flat.length() > 1e-4:
-			h = h.slerp(flat.normalized(), 1.0 - exp(-3.0 * dt)).normalized()
-	elif escaping: # (its back to the threat... its tail to it: going backward, away)
-		var away := Vector3(pos[i].x - flee_from[i].x, 0.0, pos[i].z - flee_from[i].z)
-		if away.length() > 1e-4:
-			h = h.slerp(-away.normalized(), 1.0 - exp(-8.0 * dt)).normalized()
-	heading[i] = h
-	var pitch := 0.0 if escaping else clampf(atan2(v.y, maxf(Vector2(v.x, v.z).length(), 0.01)), -0.4, 0.4) * 0.6
-	pitch += 0.6 * feed_k[i] # (head up, feeding)
-	var b := Basis.looking_at(h, Vector3.UP) * Basis(Vector3.RIGHT, pitch)
-	multimesh.set_instance_transform(i, Transform3D(b * Basis.from_scale(Vector3.ONE * size[i]), pos[i]))
-	var swim := clampf(v.length() / (cruise * 2.0), 0.0, 1.0)
-	var curl := maxf(sin(flip_t[i] * TAU * 3.0), 0.0) if escaping else 0.0
-	multimesh.set_instance_custom_data(i, Color(swim, feed_k[i], seed[i], curl))
+			if task_t <= 0.0:
+				task = 0.0
+				task_t = 4.0 + 16.0 * _rnd()
+		feed_k = clampf(feed_k + (1.0 if task > 0.5 and task < 1.5 else -1.0) * dt * 1.5, 0.0, 1.0)
+		var lo := tank_min + Vector3(0.03, 0.03, 0.03)
+		var hi := tank_max - Vector3(0.03, 0.02, 0.03)
+		var wall := (lo - p).max(Vector3.ZERO) - (p - hi).max(Vector3.ZERO)
+		acc += wall * 40.0
+		if task < 0.5:
+			acc.y -= v.y * 1.2
+		v += acc * dt
+		var top := escape_speed if task > 1.5 else maxf(want * 1.6, 0.015)
+		if v.length() > top:
+			v = v.normalized() * top
+		var np := (p + v * dt).clamp(tank_min, tank_max - Vector3(0.0, 0.006, 0.0))
+		np.y = maxf(np.y, tank_min.y + 0.006)
+		vs = vs.lerp(v, 1.0 - exp(-4.0 * dt))
+		var escaping := task > 1.5
+		if escaping:
+			var away := Vector3(np.x - flee.x, 0.0, np.z - flee.z)
+			if away.length() > 1e-4:
+				hd = hd.lerp(-away.normalized(), 1.0 - exp(-8.0 * dt))
+		elif vs.length() > 0.008:
+			var flat := Vector3(vs.x, 0.0, vs.z)
+			if flat.length() > 1e-4:
+				hd = hd.lerp(flat.normalized(), 1.0 - exp(-3.0 * dt))
+		hd.y = 0.0
+		hd = hd.normalized() if hd.length() > 1e-4 else Vector3.FORWARD
+		var pitch := 0.0 if escaping else clampf(atan2(vs.y, maxf(Vector2(vs.x, vs.z).length(), 0.01)), -0.4, 0.4) * 0.6
+		pitch += 0.6 * feed_k
+		var bs := Basis.looking_at(hd, Vector3.UP) * Basis(Vector3.RIGHT, pitch) * Basis.from_scale(Vector3.ONE * sz)
+		var swim := clampf(vs.length() / (cruise * 2.0), 0.0, 1.0)
+		var curl := maxf(sin(flip_t * TAU * 3.0), 0.0) if escaping else 0.0
+		var row := [bs.x.x, bs.y.x, bs.z.x, np.x, bs.x.y, bs.y.y, bs.z.y, np.y, bs.x.z, bs.y.z, bs.z.z, np.z, swim, feed_k, seed, curl]
+		if np.distance_to(cam) > FAR:
+			out_f.append_array(row)
+		else:
+			out_n.append_array(row)
+		var vals := [np.x, np.y, np.z, sz, v.x, v.y, v.z, seed, hd.x, hd.y, hd.z, feed_k, vs.x, vs.y, vs.z, 0.0,
+				task, task_t, flip_t, goal_t, flee.x, flee.y, flee.z, 0.0, goal.x, goal.y, goal.z, 0.0]
+		for q in STRIDE:
+			nxt[b + q] = vals[q]
+	_state = nxt
+	for pair in [[_near, out_n], [_far, out_f]]:
+		var mi: MultiMeshInstance3D = pair[0]
+		var data: PackedFloat32Array = pair[1]
+		var k := data.size() / 16
+		data.resize(count * 16)
+		RenderingServer.multimesh_set_buffer(mi.multimesh.get_rid(), data)
+		mi.multimesh.visible_instance_count = k
 
 
 # --- the mesh ----------------------------------------------------------------------
@@ -450,79 +671,32 @@ static func build_mesh() -> Mesh:
 	return st.commit()
 
 
-# --- steering: a state machine's, each one on its own (pilot.gd) -------------------
-
-func member(i: int) -> RefCounted:
-	if not _members.has(i):
-		var m := ColonyScript.Member.new()
-		m.colony = self
-		m.i = i
-		_members[i] = m
-		var p := PilotScript.new(self, i)
-		p.finished = m.action_finished.emit
-		_pilots[i] = p
-	return _members[i]
-
-
-func _p_here(i: int) -> Vector3:
-	return pos[i]
-
-
-func _p_heading(i: int) -> Vector3:
-	return heading[i]
-
-
-func _p_steer(i: int, point: Vector3, speed: float) -> void:
-	task[i] = PILOT
-	aim[i] = point
-	pace[i] = speed
-
-
-func _p_hold(i: int) -> void:
-	task[i] = HOLD
-	aim[i] = pos[i]
-	pace[i] = -1.0
-
-
-func _p_mobile(_i: int) -> bool:
-	return true
-
-
-func _p_speed(_i: int) -> float:
-	return cruise
-
-
-func _p_reach(_i: int) -> float:
-	return 0.01
-
-
-## feed {seconds}; flee {from}.
-func _p_behaviours(_i: int) -> PackedStringArray:
-	return PackedStringArray(["feed", "flee"])
-
-
-func _p_act(i: int, name: String, args: Dictionary) -> bool:
-	match name:
-		"feed":
-			feed(i, float(args.get("seconds", -1.0)))
-		"flee":
-			task[i] = ESCAPE
-			task_t[i] = 1.8
-			flip_t[i] = 0.0
-			flee_from[i] = args.get("from", pos[i] + heading[i] * 0.1)
-		_:
-			return false
-	return true
-
-
-func _p_act_done(i: int, name: String) -> bool:
-	match name:
-		"feed":
-			return task[i] != FEED
-		"flee":
-			return task[i] != ESCAPE
-	return false
-
-
-func _p_act_secs(_i: int, _name: String) -> float:
-	return 6.0
+## The far mesh: the body (fewer rings), the eyes, the tail fan, no limbs:
+## a few hundred triangles less than a tenth of the near one's.
+static func build_far_mesh() -> Mesh:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	st.set_custom_format(0, SurfaceTool.CUSTOM_RGBA_FLOAT)
+	const RING := 5
+	const STEPS := 7
+	var rings := []
+	for s in STEPS + 1:
+		var z := lerpf(Z_HEAD, 19.5, float(s) / STEPS)
+		var k := _key(z)
+		var ring := []
+		for r in RING + 1:
+			var a := TAU * r / RING
+			var p := Vector3(sin(a) * k.y, k.x + cos(a) * k.z, z)
+			ring.append([p, Vector3(sin(a) / maxf(k.y, 0.2), cos(a) / maxf(k.z, 0.2), 0.0).normalized()])
+		rings.append(ring)
+	for s in STEPS:
+		for r in RING:
+			var q := [rings[s][r], rings[s][r + 1], rings[s + 1][r + 1], rings[s + 1][r]]
+			for t: Array in [[0, 1, 2], [0, 2, 3]]:
+				for e: int in t:
+					var c: Array = q[e]
+					_v(st, c[0], c[1], 0)
+	_blob(st, Vector3(0.0, -0.6, 22.0), Vector3(2.6, 0.2, 3.2), 6, 0.0, 4, 2)
+	for side: float in [-1.0, 1.0]:
+		_blob(st, Vector3(2.3 * side, 1.8, -23.2), Vector3(1.6, 1.7, 1.6), 1, 0.0, 4, 3)
+	return st.commit()
