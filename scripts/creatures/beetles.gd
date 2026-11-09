@@ -301,6 +301,14 @@ func mate(i: int, j: int, secs := -1.0) -> bool:
 	return true
 
 
+func _fly_array() -> PackedFloat32Array:
+	return fly_k
+
+
+func _partner_array() -> PackedInt32Array:
+	return partner
+
+
 func _together(i: int, j: int) -> bool:
 	return partner[i] == j
 

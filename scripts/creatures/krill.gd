@@ -223,14 +223,8 @@ func _gpu_init() -> bool:
 	_rd = RenderingServer.create_local_rendering_device()
 	if _rd == null:
 		return false
-	var sf := load("res://shaders/compute/krill_swarm.glsl") as RDShaderFile
-	if sf == null:
-		_rd.free()
-		_rd = null
-		return false
-	var spirv := sf.get_spirv()
-	if spirv.compile_error_compute != "":
-		push_error("krill_swarm.glsl: " + spirv.compile_error_compute)
+	var spirv := AntColony.compute_spirv(_rd, "res://shaders/compute/krill_swarm.glsl") # (from its source: no import needed)
+	if spirv == null:
 		_rd.free()
 		_rd = null
 		return false

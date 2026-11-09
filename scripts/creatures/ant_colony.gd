@@ -24,6 +24,14 @@ extends MultiMeshInstance3D
 ## They keep a little apart from one another. They walk on the ground the
 ## height callable gives (x, z -> y), flat at y 0 without one.
 ##
+## Their walking is on the GPU (shaders/compute/ant_colony.glsl, on a local
+## RenderingDevice): each frame every ant's mind here (_think: where to go,
+## what to do; a beetle's flight, _air, its own), then its body there
+## (turning, stepping on, kept apart, set on the ground: a height grid baked
+## round the colony, baked again if they wander off it), read back the next
+## frame (no stall), its transform with it. Without a RenderingDevice
+## (headless, the Compatibility renderer) all of it here (_cpu_process).
+##
 ## A black carpenter ant: a big heart-shaped head with elbowed antennae and
 ## toothed mandibles, a smoothly arched thorax, a single upright scale for
 ## its waist, an oval gaster, its segments edged faintly gold; dull black,
@@ -169,6 +177,232 @@ func feed(i: int, f: Vector3) -> void:
 func _process(dt: float) -> void:
 	if multimesh == null or dt <= 0.0:
 		return
+	if pos.size() < gpu_from: # (a small colony: cheaper here than the GPU's round trip)
+		if _sub_n >= 0:
+			_gpu_read()
+		_cpu_process(dt)
+		return
+	if not _gpu_tried:
+		_gpu_tried = true
+		_gpu = _gpu_init()
+	if not _gpu:
+		_cpu_process(dt)
+		return
+	dt = minf(dt, 0.05)
+	_t += dt
+	for i in _pilots:
+		(_pilots[i] as PilotScript).tick(dt)
+	_gpu_read()
+	var n := pos.size()
+	_air_flags.resize(n)
+	for i in n:
+		if _air(i, dt): # (a beetle flying: its own; the GPU leaves it be)
+			_air_flags[i] = 1
+			continue
+		_air_flags[i] = 0
+		_think(i, dt)
+	_gpu_submit(dt)
+
+
+# --- on the GPU ------------------------------------------------------------------
+
+## On the GPU from this many (fewer: here, its round trip dearer than they are).
+var gpu_from := 150
+const G_TABLE := 16384
+const G_SLOTS := 16
+const HM_RES := 96 ## the height grid's samples a side
+var _gpu_tried := false
+var _gpu := false
+var _rd: RenderingDevice
+var _g := {} # name -> RID
+var _gset := RID()
+var _cap := 0 # (the buffers' room, ants)
+var _sub_n := -1 # (how many there were when last sent: -1 none pending)
+var _air_flags := PackedInt32Array()
+var _no_fly := PackedFloat32Array()
+var _no_partner := PackedInt32Array()
+var _hm := PackedFloat32Array()
+var _hm_at := Vector4.ZERO # (corner x, z, step, samples a side)
+var _hm_dirty := true
+const _BUFS := ["pos_in", "pos_out", "yaw", "speed", "target", "food", "pace", "seed", "task", "feed_k", "lay_k", "fly", "air", "partner"]
+
+
+func _gpu_init() -> bool:
+	_rd = RenderingServer.create_local_rendering_device()
+	if _rd == null:
+		return false
+	var spirv := compute_spirv(_rd, "res://shaders/compute/ant_colony.glsl")
+	if spirv == null:
+		_rd.free()
+		_rd = null
+		return false
+	_g.shader = _rd.shader_create_from_spirv(spirv)
+	_g.pipeline = _rd.compute_pipeline_create(_g.shader)
+	_g.params = _rd.storage_buffer_create(12 * 4)
+	_g.gcount = _rd.storage_buffer_create(G_TABLE * 4)
+	_g.gslot = _rd.storage_buffer_create(G_TABLE * G_SLOTS * 4)
+	_g.ctr = _rd.storage_buffer_create(16)
+	_g.heights = _rd.storage_buffer_create(16)
+	return true
+
+
+## A compute shader compiled from its own source (path: a .glsl file), not
+## its import (none needed: the editor may not have imported it, the
+## .import files aren't kept). Its SPIR-V, or null (and why, pushed).
+static func compute_spirv(rd: RenderingDevice, path: String) -> RDShaderSPIRV:
+	var f := FileAccess.open(path, FileAccess.READ)
+	if f == null:
+		var sf := load(path) as RDShaderFile if ResourceLoader.exists(path) else null # (an export with it imported)
+		return sf.get_spirv() if sf else null
+	var code := f.get_as_text()
+	code = code.replace("#[compute]", "")
+	var src := RDShaderSource.new()
+	src.language = RenderingDevice.SHADER_LANGUAGE_GLSL
+	src.source_compute = code
+	var spirv := rd.shader_compile_spirv_from_source(src)
+	if spirv.compile_error_compute != "":
+		push_error(path + ": " + spirv.compile_error_compute)
+		return null
+	return spirv
+
+
+## (Its fly (a beetle's how far into flying) and its partners (a mating
+## beetle's): an ant's none.)
+func _fly_array() -> PackedFloat32Array:
+	if _no_fly.size() != pos.size():
+		_no_fly.resize(pos.size())
+		_no_fly.fill(0.0)
+	return _no_fly
+
+
+func _partner_array() -> PackedInt32Array:
+	if _no_partner.size() != pos.size():
+		_no_partner.resize(pos.size())
+		_no_partner.fill(-1)
+	return _no_partner
+
+
+## (The buffers made again with room for n.)
+func _gpu_alloc(n: int) -> void:
+	_cap = maxi(n + 16, int(n * 1.25))
+	for k in _BUFS + ["out"]:
+		if _g.has(k):
+			_rd.free_rid(_g[k])
+	var per := {"pos_in": 12, "pos_out": 12, "target": 12, "food": 12, "out": 64}
+	for k in _BUFS + ["out"]:
+		_g[k] = _rd.storage_buffer_create(_cap * int(per.get(k, 4)))
+	_gpu_set()
+
+
+func _gpu_set() -> void:
+	var order := ["params", "pos_in", "pos_out", "yaw", "speed", "target", "food", "pace", "seed", "task", "feed_k", "lay_k", "fly", "air", "partner", "gcount", "gslot", "out", "heights", "ctr"]
+	var us: Array[RDUniform] = []
+	for b in order.size():
+		var u := RDUniform.new()
+		u.uniform_type = RenderingDevice.UNIFORM_TYPE_STORAGE_BUFFER
+		u.binding = b
+		u.add_id(_g[order[b]])
+		us.append(u)
+	_gset = _rd.uniform_set_create(us, _g.shader, 0)
+
+
+## The ground baked round where they are (and a good way out), for the GPU.
+func _bake_ground() -> void:
+	_hm_dirty = false
+	if not height.is_valid() or pos.is_empty():
+		_hm_at = Vector4.ZERO
+		_hm = PackedFloat32Array([0.0, 0.0, 0.0, 0.0])
+	else:
+		var lo := Vector2(INF, INF)
+		var hi := -lo
+		for i in pos.size():
+			lo = lo.min(Vector2(pos[i].x, pos[i].z))
+			hi = hi.max(Vector2(pos[i].x, pos[i].z))
+			lo = lo.min(Vector2(centre[i].x - radius[i], centre[i].z - radius[i]))
+			hi = hi.max(Vector2(centre[i].x + radius[i], centre[i].z + radius[i]))
+		lo -= Vector2.ONE * 0.4
+		hi += Vector2.ONE * 0.4
+		var step := maxf(hi.x - lo.x, hi.y - lo.y) / (HM_RES - 1)
+		_hm_at = Vector4(lo.x, lo.y, step, HM_RES)
+		_hm.resize(HM_RES * HM_RES)
+		for z in HM_RES:
+			for x in HM_RES:
+				_hm[z * HM_RES + x] = float(height.call(lo.x + x * step, lo.y + z * step))
+	_rd.free_rid(_g.heights)
+	var bytes := _hm.to_byte_array()
+	_g.heights = _rd.storage_buffer_create(bytes.size(), bytes)
+	_gpu_set()
+
+
+## Last frame's walking taken up (where each is now, its way, its speed;
+## its transform drawn).
+func _gpu_read() -> void:
+	if _sub_n < 0:
+		return
+	_rd.sync()
+	var n := _sub_n
+	_sub_n = -1
+	if n != pos.size():
+		return # (one added since: this frame's as they were)
+	var moved := _rd.buffer_get_data(_g.pos_out, 0, n * 12).to_vector3_array()
+	var air := _air_flags
+	for i in n: # (those in the air the CPU's own, moved since)
+		if air[i] == 0:
+			pos[i] = moved[i]
+	yaw = _rd.buffer_get_data(_g.yaw, 0, n * 4).to_float32_array()
+	speed = _rd.buffer_get_data(_g.speed, 0, n * 4).to_float32_array()
+	RenderingServer.multimesh_set_buffer(multimesh.get_rid(), _rd.buffer_get_data(_g.out, 0, n * 64).to_float32_array())
+	if _rd.buffer_get_data(_g.ctr, 0, 4).to_int32_array()[0] > 0:
+		_hm_dirty = true
+
+
+func _gpu_submit(dt: float) -> void:
+	var n := pos.size()
+	if n == 0:
+		return
+	if n > _cap:
+		_gpu_alloc(n)
+	if _hm_dirty:
+		_bake_ground()
+	var up := {"pos_in": pos.to_byte_array(), "yaw": yaw.to_byte_array(), "speed": speed.to_byte_array(),
+			"target": target.to_byte_array(), "food": food.to_byte_array(), "pace": pace.to_byte_array(),
+			"seed": seed.to_byte_array(), "task": task.to_byte_array(), "feed_k": feed_k.to_byte_array(),
+			"lay_k": lay_k.to_byte_array(), "fly": _fly_array().to_byte_array(), "air": _air_flags.to_byte_array(),
+			"partner": _partner_array().to_byte_array()}
+	for k in up:
+		var b: PackedByteArray = up[k]
+		_rd.buffer_update(_g[k], 0, b.size(), b)
+	var prm := PackedFloat32Array([dt, _t, float(n), top_speed, apart * MM, body_h * MM, lay_tilt, 0.0,
+			_hm_at.x, _hm_at.y, _hm_at.z, _hm_at.w])
+	_rd.buffer_update(_g.params, 0, prm.size() * 4, prm.to_byte_array())
+	var cl := _rd.compute_list_begin()
+	_rd.compute_list_bind_compute_pipeline(cl, _g.pipeline)
+	_rd.compute_list_bind_uniform_set(cl, _gset, 0)
+	for pass_ in 3:
+		var pc := PackedInt32Array([pass_, 0, 0, 0]).to_byte_array()
+		_rd.compute_list_set_push_constant(cl, pc, pc.size())
+		_rd.compute_list_dispatch(cl, ceili((G_TABLE if pass_ == 0 else n) / 64.0), 1, 1)
+		_rd.compute_list_add_barrier(cl)
+	_rd.compute_list_end()
+	_rd.submit()
+	_sub_n = n
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_PREDELETE and _rd:
+		if _sub_n >= 0:
+			_rd.sync()
+		for k in _g:
+			if k != "shader" and k != "pipeline":
+				_rd.free_rid(_g[k])
+		_rd.free_rid(_g.pipeline)
+		_rd.free_rid(_g.shader)
+		_rd.free()
+		_rd = null
+
+
+## (All of it here: without the GPU.)
+func _cpu_process(dt: float) -> void:
 	_t += dt
 	for i in _pilots:
 		(_pilots[i] as PilotScript).tick(dt)
