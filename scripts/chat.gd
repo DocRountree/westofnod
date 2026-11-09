@@ -6,7 +6,7 @@ extends CanvasLayer
 ## fade after a while; with the chat open, all of them show.
 ##
 ## Commands (/help lists them): tp / teleport, time, spawn, fly, zoom, aurora,
-## pos, pop, clear, mode / gamemode; in a game that doesn't allow commands
+## pos, pop, sandbox (debug mode), clear, mode / gamemode; in a game that doesn't allow commands
 ## only help, pos and clear.
 
 const SHOW_SECONDS := 10.0
@@ -50,6 +50,7 @@ func _ready() -> void:
 		"zoom": [_zoom, "/zoom <1-8>: magnify"],
 		"aurora": [_aurora, "/aurora: toggle an aurora every night"],
 		"pos": [_pos, "/pos: where you are"],
+		"sandbox": [_sandbox, "/sandbox: the ecology sandbox (debug mode; F9 too)"],
 		"pop": [_pop, "/pop: what is living near by (trees, rocks, animals: Population)"],
 		"clear": [_clear, "/clear: clear the chat"],
 	}
@@ -354,6 +355,13 @@ func _pos(_args: PackedStringArray) -> void:
 	var p: Vector3 = main.player.position
 	var b: String = main.world.biome_at(p.x, p.z)
 	say("x %.0f  y %.1f  z %.0f  (%s)%s" % [p.x, p.y, p.z, _where(), ("  " + b) if b != "" else ""])
+
+
+func _sandbox(_args: PackedStringArray) -> void:
+	if main.sandbox == null:
+		say("The ecology sandbox is in debug mode only.", Color(1.0, 0.45, 0.4))
+		return
+	main.sandbox.open()
 
 
 func _pop(_args: PackedStringArray) -> void:

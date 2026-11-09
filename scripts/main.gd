@@ -25,6 +25,7 @@ var population: Population
 var ground_cover: GroundCover
 var footprints: Footprints
 var pause_menu: PauseMenu
+var sandbox: EcologySandbox ## (debug mode's ecology sandbox: F9, /sandbox)
 const AUTOSAVE_SECONDS := 60.0
 var _since_save := 0.0
 var _played := 0.0 # seconds played in this game, all sessions
@@ -168,9 +169,12 @@ func _ready() -> void:
 	pause_menu = PauseMenu.new()
 	pause_menu.main = self
 	add_child(pause_menu)
+	if Session.debug:
+		sandbox = EcologySandbox.new()
+		add_child(sandbox)
 	apply_settings()
 	if Session.debug:
-		chat.say("Debug mode. Enter to chat, / for commands (/help), Esc for the menu.", Color(0.75, 0.85, 1.0))
+		chat.say("Debug mode. Enter to chat, / for commands (/help), Esc for the menu, F9 the ecology sandbox.", Color(0.75, 0.85, 1.0))
 	elif not Session.data.has("player"):
 		chat.say("Welcome to West of Nod (%s mode%s). Enter to chat, Esc for the menu." % [mode, ", commands on: /help" if commands_allowed else ""], Color(0.75, 0.85, 1.0))
 	else:
@@ -614,6 +618,9 @@ func _magnify() -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if Session.debug and event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_F6:
 		aurora.set_forced(not aurora.forced) # debug: an aurora every night
+	if sandbox and event is InputEventKey and event.pressed and not event.echo and event.keycode == EcologySandbox.KEY and _loaded:
+		sandbox.open() # debug: the ecology sandbox (closed: its own F9)
+		get_viewport().set_input_as_handled()
 	# L: every shadow off, or on again (the sun's and the moon's: all the
 	# shadow maps), to see what they cost and what they do
 	if event is InputEventKey and event.pressed and not event.echo and event.is_action("toggle_shadows") and _loaded:
