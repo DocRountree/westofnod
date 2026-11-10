@@ -29,41 +29,8 @@ uniform vec3 sun_direction = vec3(0.4, 0.6, 0.6);
 // interpolation, differently as the view moves, so textures (the litter's
 // tiles) swam. The map's is made from it per pixel.
 varying vec3 local_pos;
-// How far the ground here is raised as the woods' canopy (m): past where
-// the trees are drawn, the forest's top, not the ground under it, is what's
-// seen (its outline along the ridges).
-varying float canopy_lift;
 
 #include "res://shaders/render/ground.gdshaderinc"
-
-// The woods, past where the trees are drawn (OakTree.VIEW, 600 m): how
-// much of the ground their crowns cover seen from above (0..1), and how
-// much of that is conifers (conifer). From where Population puts them
-// (data/population/props/: their densities by biome, their height ranges,
-// none on ground steeper than they stand on): the forest's broadleaves
-// (oaks, maples, walnuts, tulip trees: thinning up the mountains), the
-// prairie's few, the swamp's sycamores; the taiga's lodgepoles and
-// cypresses (to 1350 m) and spruces (thinning out from 650 m, none past
-// 1050). ny: the ground's normal's y.
-float woods_cover(vec2 p, float h, float ny, out float conifer) {
-	int b1, b2;
-	float w1, w2;
-	biome_top(biome_grid(p), b1, w1, b2, w2);
-	float forest = (b1 == 0 ? w1 : 0.0) + (b2 == 0 && b2 != b1 ? w2 : 0.0);
-	float prairie = (b1 == 2 ? w1 : 0.0) + (b2 == 2 && b2 != b1 ? w2 : 0.0);
-	float swamp = (b1 == 3 ? w1 : 0.0) + (b2 == 3 && b2 != b1 ? w2 : 0.0);
-	float taiga = (b1 == 5 ? w1 : 0.0) + (b2 == 5 && b2 != b1 ? w2 : 0.0);
-	float broad = (forest * 0.62 + prairie * 0.06 + swamp * 0.05) * (1.0 - smoothstep(575.0, 1150.0, h));
-	float con = taiga * (0.4 * (1.0 - smoothstep(675.0, 1350.0, h)) + 0.25 * (1.0 - smoothstep(650.0, 1050.0, h)));
-	conifer = con / max(broad + con, 1e-4);
-	return clamp((broad + con) * 1.6, 0.0, 1.0) * smoothstep(0.68, 0.84, ny) * step(0.4, h);
-}
-
-// The canopy's height there (m), where it's whole.
-const float CANOPY_BROAD = 15.0;
-const float CANOPY_CONIFER = 17.0;
-// From how far (m) it's raised (OakTree.VIEW: the last trees drawn), fully by the second.
-const vec2 CANOPY_LIFT = vec2(600.0, 900.0);
 
 void vertex() {
 	int lod;
@@ -77,22 +44,6 @@ void vertex() {
 	if (morph > 0.0) {
 		float hc = terrain_height(wp, max(lod + 1 - SUB, 0));
 		h = morph >= 1.0 ? hc : mix(h, hc, morph); // (exactly the coarser level's where they meet)
-	}
-	// the canopy: raised by the woods there, from where the trees are no
-	// longer drawn (as everything here: from the map and the camera alone,
-	// the slope from a mip fixed for every level, so neighbouring patches
-	// raise their shared vertices alike)
-	canopy_lift = 0.0;
-	float far = distance(wp, view_pos.xz) / lod_zoom;
-	if (far > CANOPY_LIFT.x) {
-		const float SPAN = 70.0;
-		float gx = height_m(wp + vec2(SPAN, 0.0), 2) - height_m(wp - vec2(SPAN, 0.0), 2);
-		float gz = height_m(wp + vec2(0.0, SPAN), 2) - height_m(wp - vec2(0.0, SPAN), 2);
-		float ny = 2.0 * SPAN / length(vec3(gx, 2.0 * SPAN, gz));
-		float con;
-		float cov = woods_cover(wp, h, ny, con);
-		canopy_lift = cov * mix(CANOPY_BROAD, CANOPY_CONIFER, con) * smoothstep(CANOPY_LIFT.x, CANOPY_LIFT.y, far);
-		h += canopy_lift;
 	}
 	VERTEX = (VIEW_MATRIX * vec4(wp.x - world_origin.x, h, wp.y - world_origin.z, 1.0)).xyz;
 	NORMAL = mat3(VIEW_MATRIX) * slope_normal(slope); // (the shadow passes' normal bias: the colour pass works its own out per pixel)
@@ -158,7 +109,7 @@ void fragment() {
 	terrain_height_grad(p, pm, max(fp, 0.5) * 1.5 + map_cell() * exp2(float(pm)) * 0.25, slope);
 	vec3 n = slope_normal(slope);
 	NORMAL = normalize((VIEW_MATRIX * vec4(n, 0.0)).xyz);
-	float h = world_pos.y - canopy_lift; // (the ground's, under any canopy)
+	float h = world_pos.y;
 	vec4 m = texture(mask_tex, map_uv(p));
 
 	Shared sh = ground_shared(p, h, n, m, fp);
@@ -191,13 +142,11 @@ void fragment() {
 	} else {
 		w2 = 0.0;
 	}
-	// (the shares of a few: the prairie and coast dim at night, the forest
-	// and taiga carry the distant canopy)
+	// (the shares of a few: the prairie and coast dim at night, the forest's
+	// floor takes the boots' mud)
 	float prairie = (b1 == 2 ? w1 : 0.0) + (b2 == 2 ? w2 : 0.0);
 	float coast = (b1 == 10 ? w1 : 0.0) + (b2 == 10 ? w2 : 0.0);
 	float forest = (b1 == 0 ? w1 : 0.0) + (b2 == 0 ? w2 : 0.0);
-	float taiga = (b1 == 5 ? w1 : 0.0) + (b2 == 5 ? w2 : 0.0);
-	float swamp = (b1 == 3 ? w1 : 0.0) + (b2 == 3 ? w2 : 0.0);
 	// the rock's texture (where's there's rock): from the three sides, each
 	// as much as the rock faces that way; its slopes into the normal
 	// (added in each side's plane), its cavity and brightness into the colour
@@ -241,72 +190,6 @@ void fragment() {
 	col *= 1.0 - PRAIRIE_NIGHT_DIM * night * clamp(prairie + coast + m.a * (1.0 - rocky * 0.7), 0.0, 1.0);
 	col = mix(col, seabed, 1.0 - smoothstep(-1.0, 0.2, h));
 	col *= mix(1.0, 0.78, (1.0 - smoothstep(0.0, 0.6, h)) * step(-0.3, h)); // damp line
-	// past where the trees are drawn (OakTree.VIEW, 600 m), their canopy
-	// painted on the ground, as much of it as the trees there would cover
-	// (from their density by biome: data/population/props/, as Population
-	// places them: the forest's oaks, maples, walnuts and tulip trees, the taiga's pines and
-	// cypresses, the prairie's few, the swamp's sycamores): crowns lit on
-	// top, shadow between, fading to their mean once a pixel is wider than
-	// a crown
-	float far_trees = smoothstep(520.0, 640.0, distance(world_pos, CAMERA_POSITION_WORLD + world_origin));
-	if (far_trees > 0.0) {
-		float conifer;
-		float top = woods_cover(p, h, n.y, conifer) * (1.0 - rocky) * (1.0 - m.a);
-		// seen at a slant, the trees hide more of the ground between them
-		// (their sides, not only their tops): nearly all of it toward the
-		// horizon
-		vec3 eye = normalize(CAMERA_POSITION_WORLD + world_origin - world_pos);
-		float slant = clamp(dot(eye, n), 0.04, 1.0);
-		// (in clumps and glades, tens of metres across: not an even
-		// carpet; and their edges ragged)
-		float clumps = vnoise(p / 31.0 + 7.7) * 0.6 + vnoise(p / 93.0 - 3.1) * 0.4;
-		top *= smoothstep(0.18, 0.62, clumps + (top - 0.5) * 0.5);
-		float seen = 1.0 - pow(1.0 - min(top, 0.97), 1.0 / mix(0.3, 1.0, slant));
-		// the crowns, one to a cell of a jittered grid (the trees' spacing
-		// where they're thick), there as often as the woods are thick; each
-		// a dome (broadleaves) or a steep cone (conifers), wider the more
-		// slanting the view (their sides), lit by the sun as they face;
-		// between them shade. Their mean once smaller than a pixel.
-		float cs = mix(7.0, 4.5, conifer);
-		vec2 g = p / cs;
-		vec2 gi = floor(g);
-		float best = 9.0;
-		vec2 bq = vec2(0.0);
-		float tint = 1.0;
-		float rr = 0.6 * (1.0 + 0.5 * (1.0 - slant));
-		for (int k = 0; k < 9; k++) {
-			vec2 c = gi + vec2(float(k % 3 - 1), float(k / 3 - 1));
-			ivec2 ic = ivec2(c);
-			if (hash(ic + ivec2(71, 13)) > seen * 1.2)
-				continue;
-			vec2 at = c + 0.2 + 0.6 * vec2(hash(ic), hash(ic + ivec2(5, 9)));
-			float r = rr * (0.75 + 0.5 * hash(ic + ivec2(-3, 17)));
-			vec2 q = (g - at) / r;
-			float d = length(q);
-			if (d < best) {
-				best = d;
-				bq = q;
-				tint = 0.82 + 0.36 * hash(ic + ivec2(31, -7));
-			}
-		}
-		float detail = 1.0 - smoothstep(cs * 0.2, cs * 0.6, fp);
-		float inside = smoothstep(1.0, 0.8, best);
-		vec3 leaf = mix(vec3(0.2, 0.33, 0.11), vec3(0.17, 0.26, 0.11), conifer) * 0.85; // (the leaves' and needles' own colours: their textures' means, in their own shade)
-		vec3 canopy = mix(leaf * 0.32, leaf * tint, inside);
-		// (past where crowns can be told apart: their mean, lighter and
-		// darker in patches as stands of lit and shaded crowns are)
-		float stands = 0.8 + 0.4 * vnoise(p / 17.0 - 2.3);
-		canopy = mix(leaf * mix(0.32, 1.0, min(seen * 1.1, 1.0)) * stands, canopy, detail);
-		canopy *= 1.0 - 0.5 * night; // (as the leaves: leaves.gdshader NIGHT_DIM)
-		float c = smoothstep(0.02, 0.5, seen) * far_trees;
-		col = mix(mix(col, col * 0.7, smoothstep(0.0, 0.2, seen) * far_trees), canopy, c); // (the ground at the woods' edge in their shade)
-		rough = mix(rough, 1.0, c);
-		// the crown's own slope for the light: a dome, or a steep cone
-		float k = mix(1.1, 2.4, conifer);
-		vec3 nc = normalize(vec3(bq.x * k, 1.0, bq.y * k) + vec3(n.x, 0.0, n.z));
-		n = normalize(mix(n, nc, inside * detail * c));
-		NORMAL = normalize((VIEW_MATRIX * vec4(n, 0.0)).xyz);
-	}
 	// the footprints: one read a pixel near; only where there's a print the
 	// mud here and the print's slopes worked out
 	vec2 puv = (p - print_window.xy) / max(print_window.z, 1e-3);

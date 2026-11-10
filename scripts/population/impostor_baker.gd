@@ -1,12 +1,15 @@
 class_name ImpostorBaker
 extends Node
-## Photographs each standing oak for its far-off card (OakTree._impostor,
-## impostor.gdshader): FRAMES copies of its level-2 mesh side by side, each
-## turned a step further round, taken at once from the side by an
-## orthographic camera (every level drawn whole: lod_fade.gdshaderinc),
-## unlit (the viewport's unshaded drawing: the colours alone), on black
-## that's transparent. One tree a frame, as OakTree asks for them; until its
-## photograph's in, a tree's card draws nothing.
+## Photographs each standing tree for its far-off card (FarTrees.add_card,
+## far_trees.gdshader: a layer of the album), and each plant for its
+## (OakTree._impostor, impostor.gdshader: its own material's): FRAMES copies
+## of its simplest mesh side by side, each turned a step further round,
+## taken at once from the side by an orthographic camera (every level drawn
+## whole: lod_fade.gdshaderinc), unlit (the viewport's unshaded drawing: the
+## colours alone), on black that's transparent. One a frame, as they're
+## asked for (OakTree.impostor_jobs: [mesh, the card's side, its middle's
+## height, a plant's material or null, a tree's layer or -1]); until its
+## photograph's in, a card draws nothing.
 
 const FRAMES := 8 ## ways round
 const PX := 160 ## each photograph's side (px): a tree 250 m off is about 60 px tall
@@ -45,10 +48,11 @@ func _process(_delta: float) -> void:
 
 func _bake(job: Array) -> void:
 	_busy = true
-	var mesh: Mesh = job[1]
-	var mat: ShaderMaterial = job[2]
-	var side: float = job[3]
-	var mid: float = job[4]
+	var mesh: Mesh = job[0]
+	var side: float = job[1]
+	var mid: float = job[2]
+	var mat: ShaderMaterial = job[3]
+	var layer: int = job[4]
 	for c in _row.get_children():
 		c.queue_free()
 	for k in FRAMES:
@@ -64,13 +68,22 @@ func _bake(job: Array) -> void:
 	_cam.size = side
 	var night := OakTree._night
 	OakTree.set_night(0.0) # (its colours by day: the card dims them itself)
+	# (and every level whole: this camera's orthographic, as the shadow
+	# passes', where a level picks its trees by how far the game's own
+	# camera is from them, lod_fade.gdshaderinc: from most places none of
+	# these, and the photograph empty)
+	RenderingServer.global_shader_parameter_set("lod_shadow_pick", false)
 	_vp.render_target_update_mode = SubViewport.UPDATE_ONCE
 	await RenderingServer.frame_post_draw
+	RenderingServer.global_shader_parameter_set("lod_shadow_pick", true) # (as main.gd has it)
 	OakTree.set_night(night)
 	var img := _vp.get_texture().get_image()
 	img.convert(Image.FORMAT_RGBA8)
 	img.generate_mipmaps()
-	mat.set_shader_parameter("atlas", ImageTexture.create_from_image(img))
+	if layer >= 0:
+		FarTrees.set_photo(layer, img)
+	else:
+		mat.set_shader_parameter("atlas", ImageTexture.create_from_image(img))
 	for c in _row.get_children():
 		c.queue_free()
 	_busy = false

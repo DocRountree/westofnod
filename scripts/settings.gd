@@ -16,7 +16,8 @@ const FPS_CAPS := [0, 30, 60, 90, 120, 144, 240] ## (0: none)
 const SHADOWS := ["Off", "Low", "High"]
 const SHADOW_DIST := [0.0, 100.0, 200.0] ## m the sun's reach, by SHADOWS
 const SHADOW_ATLAS := [1024, 2048, 4096] ## px
-const TREES_VIEW := 600.0 ## m: the standard reach of the trees' far cards (OakTree.VIEW)
+const TREES_VIEW := 3000.0 ## m: the standard reach of the trees' far cards (OakTree.FAR)
+const TREES_RANGE := Vector2(500.0, 5000.0) ## m: the least and most the player may set
 ## The game's actions, in the keybindings screen's order: [action, its name,
 ## its key by default (physical)].
 const KEYS := [
@@ -39,7 +40,7 @@ static var fps_cap := 0 ## frames a second (0: none)
 static var render_scale := 1.0 ## the 3D view's resolution, of the window's
 static var shadows := 2 ## SHADOWS
 static var show_fps := false
-static var tree_distance := TREES_VIEW ## m: the far trees' cards out to this
+static var tree_distance := TREES_VIEW ## m: the standing trees' far cards out to this (FarTrees)
 static var grass_distance := 1.0 ## the grass and flowers' reach, times the standard
 static var volume := 80.0 ## %, everything
 static var keys := {} ## action -> physical keycode (those changed from KEYS')
@@ -61,7 +62,7 @@ static func load_settings() -> void:
 	render_scale = clampf(float(c.get_value("display", "render_scale", render_scale)), 0.5, 1.0)
 	shadows = clampi(int(c.get_value("graphics", "shadows", shadows)), 0, SHADOWS.size() - 1)
 	show_fps = bool(c.get_value("view", "show_fps", show_fps))
-	tree_distance = clampf(float(c.get_value("graphics", "tree_distance", tree_distance)), 300.0, 1500.0)
+	tree_distance = clampf(float(c.get_value("graphics", "tree_reach", tree_distance)), TREES_RANGE.x, TREES_RANGE.y)
 	grass_distance = clampf(float(c.get_value("graphics", "grass_distance", grass_distance)), 0.5, 2.0)
 	volume = clampf(float(c.get_value("audio", "volume", volume)), 0.0, 100.0)
 	keys = {}
@@ -81,7 +82,7 @@ static func save_settings() -> void:
 	c.set_value("display", "fps_cap", fps_cap)
 	c.set_value("display", "render_scale", render_scale)
 	c.set_value("graphics", "shadows", shadows)
-	c.set_value("graphics", "tree_distance", tree_distance)
+	c.set_value("graphics", "tree_reach", tree_distance)
 	c.set_value("graphics", "grass_distance", grass_distance)
 	c.set_value("audio", "volume", volume)
 	if c.has_section("keys"):

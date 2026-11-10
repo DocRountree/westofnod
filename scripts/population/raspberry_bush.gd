@@ -21,6 +21,7 @@ const VARIANTS := [
 ]
 
 const SETTINGS := {
+	"far_card": false, # (a bush: no far card, its last level to OakTree.VIEW)
 	"fruit": "raspberry",
 	"fruit_band": Vector2(0.1, 0.9),
 	"seg": [0.2, 0.2, 0.14, 0.1],

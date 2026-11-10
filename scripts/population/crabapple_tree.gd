@@ -54,7 +54,7 @@ const SETTINGS := {
 	# and out on the prairie): straying only where it grows, none in the
 	# swamp; small trees, drawn to 400 m, their trunks slender
 	"props": {
-		"all": {"strict": true, "not_in_swamp": true, "view_distance": 400.0},
+		"all": {"strict": true, "not_in_swamp": true, "far_distance": 2000.0},
 		"tree": {"foot": 0.25, "radius": 0.2},
 		"dead": {"foot": 0.25, "radius": 0.2},
 		"sapling": {"foot": 0.04, "radius": 0.0},

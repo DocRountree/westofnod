@@ -24,8 +24,8 @@ extends RefCounted
 ## later be a prop's mesh_script as the oak is.
 ##
 ## In the game (data/population/props/: each species' .tres), with the oak's
-## far-off cards (OakTree._impostor) and its cut variant for felling; not
-## yet the moss's sporophytes.
+## far-off cards (FarTrees) and its cut variant for felling; not yet the
+## moss's sporophytes.
 
 var name := ""
 var variants: Array = []
@@ -54,6 +54,7 @@ var far_bark := Color(0, 0, 0, 0)
 ## The least radius (m) a limb must have where it leaves the trunk to be
 ## climbed (and stood on).
 var climb_limb_r := 0.05
+var far_card := true ## Its standing trees drawn past their last level as far cards (FarTrees); false: the bushes, none
 var fruit := "" ## The item its grown trees bear (Items: "pawpaw", ...), "" none.
 var fruit_band := Vector2(0.0, 0.66) ## Where up its crown its fruit hang (shares of its height, from its bottom): a bush's all over
 var lichen := true ## Lichen on its bark (false: none on any of its kinds; their moss as ever).
@@ -142,12 +143,14 @@ func _models(v: int) -> Array:
 			_:
 				tb = grow(v)
 				lods = [tb.lod(b[1], l[1], 2, 1, -OakTree.MID_THIN, card_size, OakTree.mid_thin_from()), tb.lod(b[2], l[2], 2, 2, 4, card_size / 0.7, L[1]), tb.lod(b[3], l[3], 1, 3, 12, 2.0 * card_size / 0.7, L[2]), tb.lod(b[4], l[4], 0, 4, 36, 3.2 * card_size / 0.7, L[3])]
-		# a standing tree (live or dead) far off: one card, its photograph
-		# (OakTree._impostor, ImpostorBaker), in place of the last level's
-		# mesh; the meshes kept whole for the felled (cut_meshes)
+		# a standing tree (live or dead) further off than its third level:
+		# one card, its photograph (FarTrees: "far_card", its layer there),
+		# not a fourth level's mesh; every level's kept for the felled
+		# (cut_meshes)
 		var solid := lods.duplicate()
-		if k in ["tree", "dead"]:
-			lods[3] = OakTree._impostor(v, lods[2], name)
+		if far_card and k in ["tree", "dead"]:
+			lods.resize(3)
+			lods[2].set_meta("far_card", FarTrees.add_card(lods[2]))
 		var whole: Mesh
 		if k == "tree" and not twig_bark:
 			whole = tb.lod(b[0], l[0], 2, 1, 0, card_size, OakTree.LEAF_THIN_FROM) # (all but the twigs, every sprig's cards)
@@ -177,7 +180,8 @@ func variant_props(v: int) -> Dictionary:
 	var p: Dictionary = OakTree.PROPS[kind_of(v)].duplicate()
 	p.strays = true
 	p.lod_distances = PackedFloat32Array(OakTree.LOD)
-	p.view_distance = OakTree.VIEW
+	p.view_distance = OakTree.LOD[OakTree.LOD.size() - 1] if far_card and kind_of(v) in ["tree", "dead"] else OakTree.VIEW
+	p.far_distance = OakTree.FAR
 	# the species' own: for every kind ("all"), then for this kind
 	for k in ["all", kind_of(v)]:
 		var o: Dictionary = props.get(k, {})

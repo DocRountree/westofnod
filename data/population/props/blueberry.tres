@@ -12,7 +12,6 @@ shadow_distance = 25.0
 scale_range = Vector2(0.85, 1.15)
 sink = 0.03
 radius = 0.0
-view_distance = 150.0
 density = {
 "forest": 3.0,
 "swamp": 2.0,

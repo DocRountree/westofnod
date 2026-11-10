@@ -116,6 +116,10 @@ func peak_clumped() -> float:
 ## makes it.
 @export var climb := PackedFloat32Array()
 @export var view_distance := 250.0 ## Drawn up to this far (m).
+## Past view_distance, drawn as a far card (FarTrees) out to this (m, at the
+## standard tree render distance: Settings), if it has one (far_card).
+@export var far_distance := 0.0
+var far_card := -1 ## Its far card (FarTrees' layer), -1 none: its last level's mesh says (its "far_card").
 @export var shadows := true
 @export var shadowless_in := PackedStringArray() ## Biomes where it casts none (the oaks: the swamp).
 ## It strays a few hundred metres over its biomes' borders (thinning out

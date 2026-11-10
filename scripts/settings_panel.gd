@@ -68,7 +68,7 @@ func _ready() -> void:
 
 	_heading(grid, "Graphics")
 	_options(grid, "Shadows", Settings.SHADOWS, Settings.shadows, func(i: int) -> void: Settings.shadows = i)
-	_slider(grid, "Tree render distance*", 300.0, 1500.0, 50.0, Settings.tree_distance,
+	_slider(grid, "Tree render distance*", Settings.TREES_RANGE.x, Settings.TREES_RANGE.y, 100.0, Settings.tree_distance,
 			func(v: float) -> void: Settings.tree_distance = v, "%.0f m")
 	_slider(grid, "Grass render distance*", 0.5, 2.0, 0.05, Settings.grass_distance,
 			func(v: float) -> void: Settings.grass_distance = v, "%.0f%%", 100.0)

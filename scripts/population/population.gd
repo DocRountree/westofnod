@@ -67,6 +67,8 @@ var _near_mm := {} # prop uid -> MultiMesh (or null): those on its moss (kept a 
 var _near_order: Array = [] # uids in _near_mm, oldest first
 var walk_changes := 0 ## Counts the times logs or stumps came or went (GroundCover rechecks the grass).
 var _view := Vector3.INF # the camera, on the map (update)
+var far: FarTrees ## The standing trees past their last level: their far cards.
+var far_kinds := PackedInt32Array() ## The prop kinds (indices) with a far card.
 
 
 class _Chunk:
@@ -116,16 +118,12 @@ func _ready() -> void:
 		ib = ib if ib >= 0 else (FIRST_KINDS.size() + 1 + LATE_KINDS.find(String(b.id)) if String(b.id) in LATE_KINDS else FIRST_KINDS.size())
 		return ia < ib if ia != ib else String(a.id) < String(b.id))
 	SettingsScript.ensure_loaded()
-	OakTree.refresh_view()
+	far = FarTrees.new()
+	far.population = self
+	add_child(far)
 	for k in kinds:
 		if k is PropKind:
-			for kv in _variants(k):
-				# (the trees out to the player's tree distance, Settings: their
-				# far cards' reach; each species' as far as it was, in step)
-				if kv.mesh_script and kv.mesh_script.has_method("build_lods") and kv.lod_distances.size() > 0:
-					var last: float = kv.lod_distances[kv.lod_distances.size() - 1]
-					kv.view_distance = maxf(kv.view_distance * OakTree.view() / OakTree.VIEW, last + 20.0)
-				props.append(kv)
+			props.append_array(_variants(k))
 	for k in _load_dir(ACTOR_DIR):
 		if k is ActorKind:
 			actor_kinds.append(k)
@@ -189,6 +187,8 @@ func _variants(k: PropKind) -> Array[PropKind]:
 			kv.mesh = kv.mesh_script.build(v)
 		if kv.lods.is_empty() and kv.mesh_script and kv.mesh_script.has_method("build_lods"):
 			kv.lods = kv.mesh_script.build_lods(v)
+		if not kv.lods.is_empty():
+			kv.far_card = int(kv.lods[kv.lods.size() - 1].get_meta("far_card", -1)) # (a standing tree's: FarTrees)
 		if kv.walk.is_empty() and kv.mesh_script and kv.mesh_script.has_method("build_walk"):
 			kv.walk = kv.mesh_script.build_walk(v)
 		if kv.climb.is_empty() and kv.mesh_script and kv.mesh_script.has_method("build_climb"):
@@ -213,6 +213,8 @@ func refresh() -> void:
 	_lock.lock()
 	_done.clear()
 	_lock.unlock()
+	if far:
+		far.clear()
 	for key in _chunks.keys():
 		_unload(key)
 	for uid in _near:
@@ -256,6 +258,7 @@ func update(focus: Vector3, view := Vector3.INF) -> void:
 		if _wanted(ch.key):
 			_apply(ch)
 	_rebucket()
+	far.update(_view, apply_per_frame > APPLY_PER_FRAME)
 	_update_near(focus)
 	_update_actors(focus)
 
@@ -475,7 +478,9 @@ func load_progress(focus: Vector3) -> float:
 				total += 1
 				if _chunks.has(key):
 					done += 1
-	return float(done) / maxf(total, 1)
+	# (and the far trees' cells, each as much work as its chunks)
+	var cells := far.pending() * FarTrees.CELL_CHUNKS * FarTrees.CELL_CHUNKS / 4
+	return float(done) / maxf(total + cells, 1)
 
 
 ## Moves a body (a circle of radius r at p, horizontally) out of any solid
@@ -850,6 +855,12 @@ func remove_prop(uid: int) -> void:
 	var ch: _Chunk = _chunks.get(_uid_key(uid))
 	if ch:
 		_build_props(ch)
+	far.changed(uid)
+
+
+## The props taken out of the world (remove_prop): uid -> true.
+func removed() -> Dictionary:
+	return _removed
 
 
 ## The standing tree an axe swung from eye (on the map) toward fwd would
@@ -1019,8 +1030,10 @@ func stats() -> Dictionary:
 	_lock.lock()
 	var waiting := _done.size()
 	_lock.unlock()
-	return {"chunks": _chunks.size(), "props": n, "actors": a, "generating": _tasks.size() + _queue.size() + waiting,
+	var out := {"chunks": _chunks.size(), "props": n, "actors": a, "generating": _tasks.size() + _queue.size() + waiting + far.pending(),
 			"prop_kinds": props.size(), "actor_kinds": actor_kinds.size()}
+	out.merge(far.stats())
+	return out
 
 
 # ---- internals
@@ -1029,10 +1042,18 @@ func _resolve() -> void:
 	_radius = actor_radius if not actor_kinds.is_empty() else 0.0
 	if world == null:
 		return
-	for k in props:
+	# (the far cards out to the player's tree distance, Settings: each
+	# kind's as far as its own, in step)
+	var reach := SettingsScript.tree_distance / SettingsScript.TREES_VIEW
+	far_kinds = PackedInt32Array()
+	for i in props.size():
+		var k := props[i]
 		k.resolve(world.biome_names)
 		k.resolve_clump(world.biome_names)
 		_radius = maxf(_radius, k.view_distance)
+		if k.far_card >= 0:
+			far_kinds.append(i)
+			FarTrees.set_span(k.far_card, k.view_distance, maxf(k.far_distance * reach, k.view_distance + 2.0 * LOD_FADE))
 	for k in actor_kinds:
 		k.resolve(world.biome_names)
 
@@ -1094,111 +1115,135 @@ static func _uid(key: Vector2i, kind: int, i: int) -> int:
 	return ((key.x + UID_OFFSET) << 43) | ((key.y + UID_OFFSET) << 24) | ((kind & 0xFF) << 16) | (i & 0xFFFF)
 
 
+## Where a kind's props stand in a chunk, the same every time (on a worker
+## thread; FarTrees asks for its trees' so too): [their transforms (12
+## floats each, from the chunk's corner), their uids, their spots (x, the
+## ground's height, z on the map; the scale)]. feet: the standing trees
+## placed in the chunk so far (PropKind.near_trees). rng: one to use (seeded
+## here; a caller placing many kinds hands on its own, not one made each).
+func _scatter(kind: PropKind, k: int, key: Vector2i, feet: PackedVector4Array, rng: RandomNumberGenerator = null) -> Array:
+	var xf := PackedFloat32Array()
+	var uids := PackedInt64Array()
+	var spots := PackedVector4Array()
+	var peak := kind.peak_clumped()
+	if peak > 0.0 and kind.mesh:
+		var base := Vector2(key) * CHUNK
+		var area_ha := CHUNK * CHUNK / 10000.0
+		var placed := PackedVector2Array() # (for min_spacing)
+		if rng == null:
+			rng = RandomNumberGenerator.new()
+		rng.seed = _seed(key, k)
+		var n := _count(rng, peak * area_ha)
+		for i in n:
+			# draw everything first, so a rejection doesn't shift the rest
+			var x := base.x + rng.randf() * CHUNK
+			var z := base.y + rng.randf() * CHUNK
+			var keep := rng.randf() * peak
+			var turn := rng.randf() * TAU
+			var s := rng.randf_range(kind.scale_range.x, kind.scale_range.y)
+			# (the biomes blended across their borders, as the ground's: a
+			# pick by a hash of the place, so the rng's draws stay as they were)
+			var u := fposmod(sin(x * 12.9898 + z * 78.233) * 43758.5453, 1.0)
+			var bi: int
+			if kind.strays:
+				# straying over the border: the biome read a few hundred
+				# metres off, at random, so a kind thins out across it
+				var ox := (fposmod(sin(x * 39.346 + z * 11.135) * 24634.634, 1.0) - 0.5) * 700.0
+				var oz := (fposmod(sin(x * 73.156 + z * 52.235) * 51381.457, 1.0) - 0.5) * 700.0
+				bi = world.biome_blend_at(x + ox * u, z + oz * u, u)
+			else:
+				bi = world.biome_blend_at(x, z, u)
+			var dc := kind.density_in(bi) * kind.clump_at(bi, x, z)
+			if kind.swamp_depth != Vector2.ZERO and bi == world.swamp and keep < dc * maxf(kind.swamp_depth.x, kind.swamp_depth.y):
+				dc *= lerpf(kind.swamp_depth.x, kind.swamp_depth.y, world.swamp_depth(x, z)) # (more at the edge, or in the middle)
+			if keep >= dc:
+				continue
+			if kind.strict and kind.density_in(world.biome_blend_at(x, z, u)) <= 0.0:
+				continue # (strayed onto ground it doesn't grow in)
+			if kind.not_in_swamp and world.swamp >= 0 and (world.swampiness(x, z) > 0.0 or world.biome_blend_at(x, z, u) == world.swamp):
+				continue # (none in the swamp, nor its muddy edge)
+			if kind.never_bits != 0 and (world.biome_bits_at(x, z) & kind.never_bits) != 0:
+				continue # (none where the ground has any of a biome it never stands in)
+			if kind.strays:
+				# thinning out up the mountains, gone at the top of its range
+				var top := kind.height_range.y
+				if keep >= dc * (1.0 - smoothstep(top * 0.5, top, world.base_height(x, z))):
+					continue
+			if kind.thin_up > 0.0:
+				var top := kind.height_range.y
+				if keep >= dc * (1.0 - smoothstep(top - kind.thin_up, top, world.base_height(x, z))):
+					continue
+			if kind.min_spacing > 0.0:
+				var crowded := false
+				for q in placed:
+					if q.distance_squared_to(Vector2(x, z)) < kind.min_spacing * kind.min_spacing:
+						crowded = true
+						break
+				if crowded:
+					continue
+			var h := world.height_at(x, z)
+			var nrm := world.normal_at(x, z)
+			if not kind.fits(h, nrm):
+				continue
+			if kind.near_trees > 0.0:
+				var by := false
+				for f in feet:
+					var dd := Vector2(f.x - x, f.z - z).length()
+					if dd < kind.near_trees and dd > 0.5 * f.w:
+						by = true
+						break
+				if not by:
+					continue
+			var b := Basis(Vector3.UP, turn)
+			if kind.align_to_ground > 0.0:
+				var up := Vector3.UP.slerp(nrm, kind.align_to_ground)
+				b = Basis(Quaternion(Vector3.UP, up)) * b
+			b = b.scaled(Vector3.ONE * s)
+			# (on a slope, sunk as far as the ground falls away under its foot)
+			var fall := kind.foot * s * sqrt(maxf(1.0 - nrm.y * nrm.y, 0.0)) / maxf(nrm.y, 0.3)
+			var o := Vector3(x - base.x, h - kind.sink * s - fall, z - base.y)
+			xf.append_array([b.x.x, b.y.x, b.z.x, o.x, b.x.y, b.y.y, b.z.y, o.y, b.x.z, b.y.z, b.z.z, o.z])
+			placed.append(Vector2(x, z))
+			uids.append(_uid(key, k, i))
+			spots.append(Vector4(x, h, z, s))
+	return [xf, uids, spots]
+
+
 ## On a worker thread: where everything in a chunk goes. Reads only WorldData
 ## and the kinds (read-only while generating).
 func _generate(key: Vector2i) -> void:
 	var ch := _Chunk.new()
 	ch.key = key
 	var base := Vector2(key) * CHUNK
-	var area_ha := CHUNK * CHUNK / 10000.0
 	var obstacles := PackedFloat32Array()
 	var walk := PackedFloat32Array()
 	var trunks: Array[PackedFloat32Array] = []
 	var feet := PackedVector4Array() # (the standing trees placed: x, y, z of each foot, its scale; for what grows near them)
+	var scatter_rng := RandomNumberGenerator.new()
 	var oaks := [] # (the living oaks: [foot, scale, variant, its mesh_script]; for what grows on them)
 	for k in props.size():
 		var kind := props[k]
 		var xf := PackedFloat32Array()
 		var uids := PackedInt64Array()
 		var peak := kind.peak_clumped()
-		var placed := PackedVector2Array() # (for min_spacing)
 		var standing: bool = kind.mesh_script != null and kind.mesh_script.has_method("choppable") and kind.mesh_script.choppable(int(kind.get_meta("variant", 0)))
 		if kind.grows_on == "wood":
 			_on_wood(kind, k, key, base, walk, oaks, xf, uids)
 		elif peak > 0.0 and kind.mesh:
-			var rng := RandomNumberGenerator.new()
-			rng.seed = _seed(key, k)
-			var n := _count(rng, peak * area_ha)
-			for i in n:
-				# draw everything first, so a rejection doesn't shift the rest
-				var x := base.x + rng.randf() * CHUNK
-				var z := base.y + rng.randf() * CHUNK
-				var keep := rng.randf() * peak
-				var turn := rng.randf() * TAU
-				var s := rng.randf_range(kind.scale_range.x, kind.scale_range.y)
-				# (the biomes blended across their borders, as the ground's: a
-				# pick by a hash of the place, so the rng's draws stay as they were)
-				var u := fposmod(sin(x * 12.9898 + z * 78.233) * 43758.5453, 1.0)
-				var bi: int
-				if kind.strays:
-					# straying over the border: the biome read a few hundred
-					# metres off, at random, so a kind thins out across it
-					var ox := (fposmod(sin(x * 39.346 + z * 11.135) * 24634.634, 1.0) - 0.5) * 700.0
-					var oz := (fposmod(sin(x * 73.156 + z * 52.235) * 51381.457, 1.0) - 0.5) * 700.0
-					bi = world.biome_blend_at(x + ox * u, z + oz * u, u)
-				else:
-					bi = world.biome_blend_at(x, z, u)
-				var dc := kind.density_in(bi) * kind.clump_at(bi, x, z)
-				if kind.swamp_depth != Vector2.ZERO and bi == world.swamp and keep < dc * maxf(kind.swamp_depth.x, kind.swamp_depth.y):
-					dc *= lerpf(kind.swamp_depth.x, kind.swamp_depth.y, world.swamp_depth(x, z)) # (more at the edge, or in the middle)
-				if keep >= dc:
-					continue
-				if kind.strict and kind.density_in(world.biome_blend_at(x, z, u)) <= 0.0:
-					continue # (strayed onto ground it doesn't grow in)
-				if kind.not_in_swamp and world.swamp >= 0 and (world.swampiness(x, z) > 0.0 or world.biome_blend_at(x, z, u) == world.swamp):
-					continue # (none in the swamp, nor its muddy edge)
-				if kind.never_bits != 0 and (world.biome_bits_at(x, z) & kind.never_bits) != 0:
-					continue # (none where the ground has any of a biome it never stands in)
-				if kind.strays:
-					# thinning out up the mountains, gone at the top of its range
-					var top := kind.height_range.y
-					if keep >= dc * (1.0 - smoothstep(top * 0.5, top, world.base_height(x, z))):
-						continue
-				if kind.thin_up > 0.0:
-					var top := kind.height_range.y
-					if keep >= dc * (1.0 - smoothstep(top - kind.thin_up, top, world.base_height(x, z))):
-						continue
-				if kind.min_spacing > 0.0:
-					var crowded := false
-					for q in placed:
-						if q.distance_squared_to(Vector2(x, z)) < kind.min_spacing * kind.min_spacing:
-							crowded = true
-							break
-					if crowded:
-						continue
-				var h := world.height_at(x, z)
-				var nrm := world.normal_at(x, z)
-				if not kind.fits(h, nrm):
-					continue
-				if kind.near_trees > 0.0:
-					var by := false
-					for f in feet:
-						var dd := Vector2(f.x - x, f.z - z).length()
-						if dd < kind.near_trees and dd > 0.5 * f.w:
-							by = true
-							break
-					if not by:
-						continue
-				var b := Basis(Vector3.UP, turn)
-				if kind.align_to_ground > 0.0:
-					var up := Vector3.UP.slerp(nrm, kind.align_to_ground)
-					b = Basis(Quaternion(Vector3.UP, up)) * b
-				b = b.scaled(Vector3.ONE * s)
-				# (on a slope, sunk as far as the ground falls away under its foot)
-				var fall := kind.foot * s * sqrt(maxf(1.0 - nrm.y * nrm.y, 0.0)) / maxf(nrm.y, 0.3)
-				var o := Vector3(x - base.x, h - kind.sink * s - fall, z - base.y)
-				xf.append_array([b.x.x, b.y.x, b.z.x, o.x, b.x.y, b.y.y, b.z.y, o.y, b.x.z, b.y.z, b.z.z, o.z])
-				placed.append(Vector2(x, z))
-				var uid := _uid(key, k, i)
-				uids.append(uid)
+			var sc := _scatter(kind, k, key, feet, scatter_rng)
+			xf = sc[0]
+			uids = sc[1]
+			var spots: PackedVector4Array = sc[2]
+			for n in spots.size():
+				var q := spots[n] # (x, the ground's height, z; its scale)
 				if kind.radius > 0.0:
-					obstacles.append_array([x, z, kind.radius * s])
-				_add_walk(walk, kind, xf, xf.size() / 12 - 1, Vector3(base.x, 0.0, base.y))
-				_add_trunk(trunks, kind, xf, xf.size() / 12 - 1, Vector3(base.x, 0.0, base.y))
+					obstacles.append_array([q.x, q.z, kind.radius * q.w])
+				_add_walk(walk, kind, xf, n, Vector3(base.x, 0.0, base.y))
+				_add_trunk(trunks, kind, xf, n, Vector3(base.x, 0.0, base.y))
 				if standing:
-					feet.append(Vector4(x, h, z, s))
+					feet.append(q)
 					if String(kind.id).begins_with("oak"):
-						oaks.append([Vector3(x, h, z), s, int(kind.get_meta("variant", 0)), kind.mesh_script])
+						oaks.append([Vector3(q.x, q.y, q.z), q.w, int(kind.get_meta("variant", 0)), kind.mesh_script])
 		ch.xforms.append(xf)
 		ch.uids.append(uids)
 	ch.obstacles = obstacles
@@ -1350,6 +1395,8 @@ func restore_props(uid_list: Array) -> void:
 		if _chunks.has(key):
 			_unload(key)
 	_retarget(_focus)
+	for uid in uid_list:
+		far.changed(int(uid))
 
 
 ## How many of something with mean count `mean` (the fraction by chance).

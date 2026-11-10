@@ -46,9 +46,10 @@ static var _cache := {}
 
 
 ## Its levels of detail (Population; PlantMesh.levels): where each simpler
-## one takes over (m), the last its far card, out to VIEW (m).
+## one takes over (m), the last its far card (FarTrees: with the trees'),
+## out to FAR (m, at the standard tree render distance).
 const LOD := [30.0, 90.0, 160.0]
-const VIEW := 400.0
+const FAR := 2000.0
 
 
 static func build(variant := 0) -> Mesh:
@@ -56,14 +57,14 @@ static func build(variant := 0) -> Mesh:
 
 
 ## Its simpler levels (after the whole one, build()): fewer leaves and dead leaves; the far one
-## (each rosette a ball, the branches bare); then its far card.
+## (each rosette a ball, the branches bare).
 static func build_lods(variant := 0) -> Array[Mesh]:
 	return _levels(variant)[1]
 
 
 ## Population: its levels' distances and its reach, every variant's.
 static func variant_props(_variant: int) -> Dictionary:
-	return {"lod_distances": PackedFloat32Array(LOD), "view_distance": VIEW}
+	return {"lod_distances": PackedFloat32Array(LOD), "view_distance": LOD[2], "far_distance": FAR}
 
 
 static func _levels(variant: int) -> Array:
@@ -72,7 +73,7 @@ static func _levels(variant: int) -> Array:
 		var raw := []
 		for lod in 3:
 			raw.append(_make(VARIANTS[variant], lod))
-		_cache[variant] = PM.levels(raw, LOD, VIEW, "joshua_tree", variant)
+		_cache[variant] = PM.levels(raw, LOD, LOD[2], "joshua_tree", variant, true)
 	return _cache[variant]
 
 

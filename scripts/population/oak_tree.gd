@@ -75,7 +75,8 @@ const TIP_R := 0.006 ## m, the thinnest twig
 ## near (to 15 m); then without its twigs (thinner than a pixel or two from
 ## there, and behind its leaves) and half its sprig cards, each the bigger
 ## (MID_THIN), to 40 m; then branches and clump cards, limbs and fewer,
-## bigger clumps, and the far card.
+## bigger clumps; past the last a standing tree is its far card (FarTrees),
+## the rest (logs, stumps, saplings) the stem and a few clumps, to VIEW.
 const LOD := [15.0, 40.0, 120.0, 250.0]
 ## The second level's leaves: one sprig card in this many kept, each
 ## sqrt(this) times the size; they start thinning out as much further off
@@ -89,7 +90,8 @@ const LEAF_THIN_POWER := 1.3 ## (leaves.gdshader: thin_power)
 ## Where the second level's leaves start thinning out (see MID_THIN).
 static func mid_thin_from() -> float:
 	return LEAF_THIN_FROM * pow(float(MID_THIN), 1.0 / LEAF_THIN_POWER)
-const VIEW := 600.0
+const VIEW := 300.0 ## m: what has no far card (logs, stumps, saplings) drawn to here
+const FAR := 3000.0 ## m: the standing trees' far cards' reach (FarTrees), at the standard tree render distance (Settings.TREES_VIEW)
 
 static var _bark_mats := {} # [level, cover] -> ShaderMaterial
 
@@ -111,8 +113,8 @@ static var _growth := {} # the biome map's parameters (set_growth_map)
 const LICHEN_ANY := ["dead", "log", "stump"] ## Their lichen doesn't go by the biome (the prairie's dry air thins it on the living trees only).
 const MOSS_ANY := ["log", "stump"] ## Their moss grows on the prairie too (on the ground, damp underneath).
 static var _leaf_mats := {}
-static var _cache := {} # variant -> [mesh, lods, near_multimesh, solid lods (the last a mesh, not the impostor)]
-## The far trees' cards waiting to be photographed (ImpostorBaker): each
+static var _cache := {} # variant -> [mesh, lods, near_multimesh, solid lods (every level a mesh: a standing tree's lods end where its far card takes over)]
+## The far cards waiting to be photographed (ImpostorBaker): each
 ## [variant, mesh to photograph, card material, side, middle's height].
 static var impostor_jobs: Array = []
 static var _night := 0.0
@@ -380,30 +382,8 @@ static func _texture(path: String) -> Texture2D:
 
 static func _lod_span(m: ShaderMaterial, level: int) -> void:
 	var begin: float = 0.0 if level == 0 else LOD[level - 1]
-	var end: float = view() if level == LOD.size() else LOD[level]
+	var end: float = VIEW if level == LOD.size() else LOD[level]
 	m.set_shader_parameter("lod_range", Vector3(begin, end, Population.LOD_FADE if lod_fade_on else 0.0)) # (off: drawn wherever it stands, set_lod_fade)
-
-
-## The far cards' reach, m: VIEW, or the player's own (Settings: the tree
-## render distance).
-static func view() -> float:
-	return maxf(SettingsScript.tree_distance, LOD[LOD.size() - 1] + 20.0)
-
-
-## (The cards' materials made before, their reach brought to the setting's:
-## a world loaded again, the setting changed between.)
-static func refresh_view() -> void:
-	for mats in [_bark_mats, _leaf_mats]:
-		for key in mats:
-			var r = mats[key].get_shader_parameter("lod_range")
-			if not r is Vector3:
-				continue # (the moss's sporophytes: no levels)
-			if mats[key].has_meta("view_base"): # (a plant's far card, its own reach: PlantMesh.levels)
-				r.y = preload("res://scripts/population/plant_mesh.gd").reach(mats[key].get_meta("view_base"), r.x)
-				mats[key].set_shader_parameter("lod_range", r)
-			elif r.x >= LOD[LOD.size() - 1] - 1.0: # (the last level's: the cards)
-				r.y = view()
-				mats[key].set_shader_parameter("lod_range", r)
 
 
 ## Off: every level drawn wherever it is (e.g. to look at one level alone).
@@ -553,7 +533,9 @@ static func variant_props(v: int) -> Dictionary:
 	var p: Dictionary = PROPS[_kind(v)].duplicate()
 	p.strays = true # (over the biomes' borders, and thinning up the mountains: Population)
 	p.lod_distances = PackedFloat32Array(LOD)
-	p.view_distance = VIEW
+	# (a standing oak, live or dead: past its last level its far card, FarTrees)
+	p.view_distance = LOD[LOD.size() - 1] if _kind(v) in ["tree", "dead"] else VIEW
+	p.far_distance = FAR
 	return p
 
 
@@ -690,15 +672,23 @@ static func _cut_material(mat: ShaderMaterial) -> ShaderMaterial:
 	return _bark_mats[key]
 
 
-## The card a standing oak is drawn as far off (from LOD[3]): a square on
-## the crown's middle, side the tree's height or width, whichever is more;
-## its material's atlas photographed from `mesh` by ImpostorBaker (until
-## then empty: nothing drawn).
-static func _impostor(variant: int, mesh: Mesh, species := "oak") -> Mesh:
+## A far card's square, for the thing whose mesh this is: on its middle
+## (x: how high, its own units), its side (y) its height or width,
+## whichever is more.
+static func card_frame(mesh: Mesh) -> Vector2:
 	var box := mesh.get_aabb()
 	var ext := maxf(maxf(absf(box.position.x), absf(box.end.x)), maxf(absf(box.position.z), absf(box.end.z)))
-	var side := maxf(box.size.y, ext * 2.0) * 1.04
-	var mid := box.position.y + box.size.y * 0.5
+	return Vector2(box.position.y + box.size.y * 0.5, maxf(box.size.y, ext * 2.0) * 1.04)
+
+
+## The card a plant is drawn as far off (PlantMesh.levels: its last level):
+## its square (card_frame), its material's atlas photographed from `mesh`
+## by ImpostorBaker (until then empty: nothing drawn). (The standing trees'
+## cards: FarTrees.)
+static func _impostor(variant: int, mesh: Mesh, species: String) -> Mesh:
+	var f := card_frame(mesh)
+	var mid := f.x
+	var side := f.y
 	var arrays := []
 	arrays.resize(Mesh.ARRAY_MAX)
 	arrays[Mesh.ARRAY_VERTEX] = PackedVector3Array([Vector3.ZERO, Vector3.ZERO, Vector3.ZERO, Vector3.ZERO])
@@ -721,7 +711,7 @@ static func _impostor(variant: int, mesh: Mesh, species := "oak") -> Mesh:
 	_lod_span(m, LOD.size())
 	_leaf_mats[["impostor", species, variant]] = m # (told the night, and the levels' fade, with the leaves)
 	quad.surface_set_material(0, m)
-	impostor_jobs.append([variant, mesh, m, side, mid])
+	impostor_jobs.append([mesh, side, mid, m, -1])
 	return quad
 
 
@@ -751,11 +741,13 @@ static func _models(variant: int) -> Array:
 				tb = grow(variant)
 				lods = [tb.lod(b[1], l[1], 2, 1, -MID_THIN, 1.0, mid_thin_from()), tb.lod(b[2], l[2], 2, 2, 4, 1.0, LOD[1]), tb.lod(b[3], l[3], 1, 3, 12, 2.0, LOD[2]), tb.lod(b[4], l[4], 0, 4, 36, 3.2, LOD[3])]
 		var mesh := tb.build(b[0], l[0], LEAF_THIN_FROM)
-		# a standing oak (live or dead) far off: one card, its photograph
-		# (impostor.gdshader), in place of the last level's mesh
+		# a standing oak (live or dead) further off than its third level:
+		# one card, its photograph (FarTrees: "far_card", its layer there),
+		# not a fourth level's mesh
 		var solid := lods.duplicate()
 		if k in ["tree", "dead"]:
-			lods[3] = _impostor(variant, lods[2])
+			lods.resize(3)
+			lods[2].set_meta("far_card", FarTrees.add_card(lods[2]))
 		var near := []
 		if (COVER.get(k, COVER.tree) as Array)[1] > 0.0:
 			var mm := _sporophyte_multimesh(mesh, VARIANTS[variant].get("seed", variant))

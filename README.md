@@ -715,9 +715,10 @@ and islands; a pixel works out the two biomes with most of it, `biome_top`; `bio
 the borders also wander in kilometre-wide tongues and islands; the trees are
 picked by the same shares (`WorldData.biome_blend_at`), each read a few hundred
 metres off at random, so they thin out across a border into scattered oaks and
-copses, thinning out up the mountains. Past 600 m, where the trees stop being drawn, their canopy is painted on
-the terrain (crowns and shadow, as much as the trees there would cover), and the
-haze is thicker (6.5 km), so distant land softens and blues. The pale
+copses, thinning out up the mountains. Past 250 m every standing tree is a card, its photograph from eight ways
+round, out to the tree render distance (3 km unless set otherwise; `FarTrees`: the trees where `Population`
+puts them, a 512 m cell of them, whatever their species, drawn at once), and the
+haze is thick (6.5 km), so distant land softens and blues. The pale
 grounds (prairie, coast, beaches) dim at night, as the leaves do. Marram,
 half the prairie grass's height and as pale as the sand, grows in patches on
 the coast and beaches: none at the water's edge, thicker and taller up the beach. `/pos`
