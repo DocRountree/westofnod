@@ -4,6 +4,8 @@ extends SceneTree
 ## key=value: a look's fields (CharacterLook.FIELDS: hair_style=braids, skin=#7b4e31, ...); row: six figures, by chance.
 var out := "user://"
 var _name := "figure"
+var _cam: Camera3D
+var _hands := false
 
 func _initialize() -> void:
 	var args := OS.get_cmdline_user_args()
@@ -16,7 +18,7 @@ func _initialize() -> void:
 			var kv := a.split("=")
 			var f := CharacterLook.field(kv[0])
 			set_[kv[0]] = Color.html(kv[1]) if not f.is_empty() and f.type == "color" else kv[1]
-		elif a in ["face", "back", "side", "row", "walk", "hands", "chest", "head"]:
+		elif a in ["face", "back", "side", "row", "walk", "hands", "chest", "head", "fist"]:
 			words.append(a)
 		else:
 			_name = a
@@ -77,13 +79,23 @@ func _initialize() -> void:
 		cam.look_at_from_position(Vector3(0.6, 1.5, 5.6), Vector3(0, 0.92, 0))
 	else:
 		cam.look_at_from_position(Vector3(0.9, 1.35, 3.2), Vector3(0, 0.95, 0))
-	_go(figures, 2.6 if words.has("walk") else 0.0)
+	_cam = cam
+	_hands = words.has("hands")
+	_go(figures, 2.6 if words.has("walk") else 0.0, words.has("fist"))
 
-func _go(figures: Array[Avatar], speed: float) -> void:
+func _go(figures: Array[Avatar], speed: float, fist := false) -> void:
 	await process_frame # (the figures in the scene: their bones made)
+	if fist: # (the right hand holding the axe)
+		for av in figures:
+			av.grip("r").add_child(Items.model("axe"))
 	for i in 24:
 		for av in figures:
 			av.walk(1.0 / 30.0, speed, true)
+		await process_frame
+	if _hands: # (close on the right hand, from in front and outside it)
+		var g: Vector3 = figures[0].grip("r").global_position
+		_cam.fov = 30
+		_cam.look_at_from_position(g + Vector3(-0.32, 0.06, 0.30), g + Vector3(0.0, 0.03, 0.0))
 		await process_frame
 	await RenderingServer.frame_post_draw
 	root.get_texture().get_image().save_png(out.path_join(_name + ".png"))

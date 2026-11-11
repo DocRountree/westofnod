@@ -285,30 +285,81 @@ static func _hand(side: float, curl: float) -> M:
 			[0.345, p * 0.002, -0.001, 0.0135, 0.040, 0.037, 3.2], [0.368, p * 0.004, 0.0, 0.010, 0.037, 0.035, 3.0]], 12, 2, "z")
 	var lens := [0.074, 0.082, 0.076, 0.060]
 	for f in 4:
+		# its joints: from the knuckle, each bone turned further in by the curl
 		var at := Vector3(p * 0.003, -0.028 + 0.0185 * f, -0.362)
-		var a := 0.0
 		var r := 0.0098 - 0.0006 * absf(f - 1.0)
+		var pts := [at + Vector3(0.0, 0.0, 0.012)] # (rooted a little inside the palm: no step at the knuckles)
+		var radii := [r * 1.04]
+		var a := 0.0
 		for j in 3:
 			a += [0.30, 0.45, 0.35][j] * curl
-			var seg: float = lens[f] * [0.45, 0.31, 0.26][j]
-			var d := Vector3(sin(a) * p, 0.0, -cos(a))
-			var b := Basis(Vector3(cos(a), 0.0, sin(a) * p), Vector3.UP, -d).orthonormalized() # (its long way: -z, down the finger)
-			m.blob(at + d * seg * 0.5, Vector3(r, r * 1.05, seg * 0.62), b, 8, 6)
-			at += d * seg
-			r *= 0.9
-	# the thumb: off the palm's front edge, forward and in
-	var open := Vector3(p * 0.45, -0.62, -0.64).normalized()
+			at += Vector3(sin(a) * p, 0.0, -cos(a)) * lens[f] * [0.45, 0.31, 0.26][j]
+			pts.append(at)
+			radii.append(r * [0.97, 0.93, 0.80][j] * (1.0 if j == 2 else 1.04)) # (a little fuller at each knuckle)
+		_digit(m, pts, radii, Vector3.UP)
+	# the thumb: off the palm's front edge, forward and in, two bones
+	var open := Vector3(p * 0.36, -0.50, -0.78).normalized()
 	var shut := Vector3(p * 0.85, 0.12, -0.5).normalized()
 	var td := open.lerp(shut, clampf((curl - 1.0) / 2.3, 0.0, 1.0)).normalized()
-	var ta := Vector3(p * 0.006, -0.032, -0.300)
+	var ta := Vector3(p * 0.006, -0.030, -0.296)
+	var tpts := [ta]
+	var tr := [0.0125]
 	for j in 2:
-		var seg: float = [0.042, 0.030][j]
-		var up := td.cross(Vector3(p, 0.0, 0.0)).normalized()
-		var b := Basis(up.cross(td).normalized(), up, -td).orthonormalized()
-		m.blob(ta + td * seg * 0.5, Vector3(0.0115 - 0.0015 * j, 0.012 - 0.0015 * j, seg * 0.64), b, 8, 6)
-		ta += td * seg
+		ta += td * [0.044, 0.031][j]
+		tpts.append(ta)
+		tr.append([0.0118, 0.0098][j])
 		td = td.lerp(Vector3(p * 0.3 * curl, 0.0, -1.0).normalized(), 0.35).normalized()
+	_digit(m, tpts, tr, Vector3(p, 0.0, 0.0).cross(td).normalized())
 	return m
+
+
+## A finger (or a thumb): one tube along a smooth line through its joints,
+## each its radius, a little flatter than round (wider across, as fingers
+## are), its tip rounded off; bend: the axis it bends about (across its
+## knuckles), so its sides don't twist as it curls.
+static func _digit(m: M, joints: Array, radii: Array, bend: Vector3) -> void:
+	var rows: Array[PackedVector3Array] = []
+	var segs := 10
+	var per := 5
+	var n := (joints.size() - 1) * per
+	var last_c := Vector3.ZERO
+	var last_along := Vector3.FORWARD
+	var last_r := 0.0
+	var frame := func(along: Vector3) -> Array:
+		var across := (bend - along * bend.dot(along))
+		across = across.normalized() if across.length() > 1e-5 else along.cross(Vector3.RIGHT).normalized()
+		return [across, along.cross(across).normalized()]
+	var ring := func(c: Vector3, along: Vector3, r: float) -> PackedVector3Array:
+		var f: Array = frame.call(along)
+		var row := PackedVector3Array()
+		for j in segs:
+			var t := TAU * j / segs
+			row.append(c + ((f[0] as Vector3) * cos(t) * 1.12 + (f[1] as Vector3) * sin(t) * 0.92) * maxf(r, 0.0004))
+		return row
+	for i in n + 1:
+		var f := float(i) / n * (joints.size() - 1)
+		var k := mini(int(f), joints.size() - 2)
+		var t := f - k
+		var p0: Vector3 = joints[maxi(k - 1, 0)]
+		var p1: Vector3 = joints[k]
+		var p2: Vector3 = joints[k + 1]
+		var p3: Vector3 = joints[mini(k + 2, joints.size() - 1)]
+		var c := Vector3(M._cr(p0.x, p1.x, p2.x, p3.x, t), M._cr(p0.y, p1.y, p2.y, p3.y, t), M._cr(p0.z, p1.z, p2.z, p3.z, t))
+		var t2 := minf(t + 0.05, 1.0)
+		var t1 := t2 - 0.05
+		var ahead := Vector3(M._cr(p0.x, p1.x, p2.x, p3.x, t2), M._cr(p0.y, p1.y, p2.y, p3.y, t2), M._cr(p0.z, p1.z, p2.z, p3.z, t2))
+		var behind := Vector3(M._cr(p0.x, p1.x, p2.x, p3.x, t1), M._cr(p0.y, p1.y, p2.y, p3.y, t1), M._cr(p0.z, p1.z, p2.z, p3.z, t1))
+		var along := (ahead - behind).normalized() if ahead.distance_to(behind) > 1e-7 else (p2 - p1).normalized()
+		var r := lerpf(float(radii[k]), float(radii[k + 1]), smoothstep(0.0, 1.0, t))
+		rows.append(ring.call(c, along, r))
+		last_c = c
+		last_along = along
+		last_r = r
+	# its tip, rounded: a half dome on the last ring
+	for q in range(1, 5):
+		var th := PI * 0.5 * q / 4.0
+		rows.append(ring.call(last_c + last_along * last_r * 0.9 * sin(th), last_along, last_r * cos(th)))
+	m.grid(rows, true, PackedFloat32Array(), true)
 
 
 ## A boot on a foot's bone (its origin on the ground under the ankle, its
