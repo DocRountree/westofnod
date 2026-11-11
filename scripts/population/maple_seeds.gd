@@ -3,15 +3,15 @@ extends Node
 ## Maple seeds (the sugar maple's samaras: "helicopters") falling from the
 ## grown maples near the player: those within OakTree.LOD[1] of it (drawn at
 ## their two most detailed levels). One now and then, about every
-## MEAN_INTERVAL seconds among all of them (twice as often as the meteors
-## at night: Meteors.mean_interval), day or night: from somewhere in a
+## MEAN_INTERVAL seconds among all of them (four times as often as the
+## meteors at night: Meteors.mean_interval), day or night: from somewhere in a
 ## tree's crown, a moment tumbling, then spinning down, its wing out and
 ## coned up a little, round the seed at its root, drifting a little on the
 ## air, about a metre a second. Gone where it reaches the ground (the
 ## ground's height under where it started, taken once: nothing's hit).
 ## Cheap: a few at most in the air at once, each one small mesh.
 
-const MEAN_INTERVAL := 12.5 ## s between seeds, on average (the meteors' 25 at night, halved)
+const MEAN_INTERVAL := 6.25 ## s between seeds, on average (four times the meteors at night: Meteors.mean_interval 25)
 const MATURE := [0, 1, 2, 3] ## MapleTree's standing grown trees (not its stumps, logs, dead or saplings)
 const RECHECK := 2.0 ## s between looking for the maples near
 const FALL := 0.95 ## m/s, spinning down

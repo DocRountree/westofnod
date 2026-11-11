@@ -7,9 +7,12 @@ laid out as the oak's (bake_oak_textures.py; TreeBuilder reads them the same):
   colour of the nearest leaf.
   - Sugar maple (Acer saccharum): a sprig 0.5 m across, a twig with leaves in
     opposite pairs on long stalks, a pair and one more at its tip; the leaves
-    8-13 cm, palmate, five-lobed (the two at the base small), the sinuses
-    rounded, a few big blunt-pointed teeth, the veins running out from the
-    stalk to each lobe. Clumps 1 m across.
+    8-13 cm, palmate, five-lobed (the two at the base small), drawn from an
+    outline traced off a photograph (MAPLE_HALF, mirrored, a little different
+    each time): the three big lobes each with a few big pointed teeth, the
+    sinuses between them rounded U's; its five main veins out to the lobes'
+    tips, pale, side veins off them to the teeth; folded along its midrib (one
+    half a little lighter); its stalk long, reddish. Clumps 1 m across.
   - American sycamore (Platanus occidentalis): a sprig 0.65 m across, a
     zigzag twig with big leaves one by one on stout stalks, and now and then
     a seed ball hanging on its long thread; the leaves 14-20 cm, broader than
@@ -44,8 +47,21 @@ rng = np.random.default_rng(17)
 MAPLE = {
     "lobes": [(0.0, 1.0, 0.52), (1.0, 0.88, 0.5), (-1.0, 0.88, 0.5), (1.95, 0.45, 0.42), (-1.95, 0.45, 0.42)],
     "body": 0.36, "teeth": 20, "tooth": 0.1, "base": 0.17, "lobe_power": 0.75,
-    "green": [0.19, 0.34, 0.1], "vein": [0.55, 0.66, 0.3],
+    "green": [0.21, 0.37, 0.12], "vein": [0.6, 0.7, 0.36], "template": True,
 }
+
+# the sugar maple's leaf, traced (its right half: across, along; the stalk's
+# end at 0, the middle lobe's tip at along 1): three big lobes, each with a
+# few big pointed teeth, the sinuses between them rounded U's, two small
+# lobes at the base; mirrored for its left half
+MAPLE_HALF = [
+    (0.00, 1.00), (0.05, 0.89), (0.15, 0.87), (0.12, 0.79), (0.20, 0.71), (0.14, 0.64), (0.13, 0.55),
+    (0.15, 0.48), (0.19, 0.46), (0.25, 0.51), (0.32, 0.63), (0.36, 0.59), (0.52, 0.81), (0.51, 0.67),
+    (0.61, 0.63), (0.53, 0.55), (0.61, 0.44), (0.49, 0.41), (0.41, 0.35), (0.45, 0.30), (0.57, 0.24),
+    (0.43, 0.17), (0.31, 0.11), (0.17, 0.06), (0.06, 0.07), (0.00, 0.11),
+]
+# its main veins: out from the stalk's end to each lobe's tip
+MAPLE_VEINS = [(0.0, 1.0), (0.52, 0.81), (-0.52, 0.81), (0.57, 0.24), (-0.57, 0.24)]
 SYCAMORE = {
     "lobes": [(0.0, 1.0, 0.55), (1.1, 0.9, 0.55), (-1.1, 0.9, 0.55), (2.05, 0.55, 0.5), (-2.05, 0.55, 0.5)],
     "body": 0.52, "teeth": 28, "tooth": 0.09, "base": 0.42, "lobe_power": 1.3,
@@ -70,9 +86,85 @@ def outline(phi, sp, wob):
     return r * (1.0 + sp["tooth"] * saw * (0.35 + 0.65 * deep) - sp["tooth"] * 0.3)
 
 
+def template_leaf(rgba, cover, x0, y0, ang, length, colour):
+    """A sugar maple leaf from its traced outline (MAPLE_HALF), a little
+    different each time (its lobes longer or shorter, its points moved), its
+    stalk's end at (x0, y0), pointing ang, length px to its middle lobe's tip;
+    its five main veins out to its lobes' tips, pale, the side veins off
+    them to the teeth; its two halves lit a little differently (folded along
+    its midrib); darker toward its sinuses."""
+    h, w, _ = rgba.shape
+    length *= 1.15  # (its lobes reach no further than its tip: a little bigger, to fill the sprig as the old did)
+    j = rng.uniform(-1, 1, (len(MAPLE_HALF), 2)) * 0.012
+    lobe = rng.uniform(0.9, 1.08)
+    half = []
+    for (x, y), (jx, jy) in zip(MAPLE_HALF, j):
+        k = lobe if x > 0.3 else 1.0
+        half.append((x * k + jx, y + jy))
+    left = [(-x, y) for x, y in reversed(half[1:-1])]
+    poly = half + left
+    ca, sa = math.cos(ang), math.sin(ang)
+    def to_px(x, y):  # (across, along) -> px
+        return (x0 + (y * ca - x * sa) * length, y0 + (y * sa + x * ca) * length)
+    pts = [to_px(x, y) for x, y in poly]
+    xs = [q[0] for q in pts]
+    ys = [q[1] for q in pts]
+    xa, xb = int(max(min(xs) - 2, 0)), int(min(max(xs) + 2, w))
+    ya, yb = int(max(min(ys) - 2, 0)), int(min(max(ys) + 2, h))
+    if xa >= xb or ya >= yb:
+        return
+    from PIL import ImageDraw
+    m = Image.new("L", (xb - xa, yb - ya), 0)
+    ImageDraw.Draw(m).polygon([(q[0] - xa, q[1] - ya) for q in pts], fill=255)
+    inside = np.asarray(m) > 127
+    if not inside.any():
+        return
+    yy, xx = np.mgrid[ya:yb, xa:xb].astype(np.float32)
+    dx, dy = xx - x0, yy - y0
+    along = (dx * ca + dy * sa) / length
+    across = (-dx * sa + dy * ca) / length
+    c = np.array(colour, np.float32)
+    col = np.broadcast_to(c, inside.shape + (3,)).copy()
+    # folded along its midrib: one half a little lighter
+    col *= (1.0 + np.where(across > 0, 0.06, -0.05))[..., None]
+    # darker out toward its margin and its sinuses (the blade cupped)
+    rho = np.hypot(along, across)
+    col *= (1.0 - 0.1 * np.clip(rho, 0, 1) ** 2)[..., None]
+    # the veins
+    def seg_d(ax, ay, bx, by):
+        sx, sy = bx - ax, by - ay
+        t = np.clip(((across - ax) * sx + (along - ay) * sy) / (sx * sx + sy * sy), 0, 1)
+        return np.hypot(across - ax - t * sx, along - ay - t * sy), t
+    vein = np.zeros(inside.shape, np.float32)
+    for vx, vy in MAPLE_VEINS:
+        vx *= lobe if abs(vx) > 0.3 else 1.0
+        d, t = seg_d(0.0, 0.0, vx * 0.93, vy * 0.93)
+        wv = 0.011 * (1.15 - t)
+        vein = np.maximum(vein, np.clip(1.0 - d / wv, 0, 1))
+        for k in range(1, 4):  # (side veins, out to the teeth)
+            f = k / 4.0
+            px, py = vx * f * 0.93, vy * f * 0.93
+            for sd in (-1, 1):
+                a = math.atan2(vy, vx) + sd * 0.8
+                qx, qy = px + 0.17 * math.cos(a), py + 0.17 * math.sin(a)
+                d2, _ = seg_d(px, py, qx, qy)
+                vein = np.maximum(vein, np.clip(1.0 - d2 / 0.0045, 0, 1) * 0.8)
+    vein_c = np.array(MAPLE["vein"], np.float32)
+    mott = 1.0 + 0.05 * np.sin(xx * 0.21 + yy * 0.13) * np.sin(yy * 0.17 - xx * 0.07)
+    col = col * mott[..., None]
+    col = col * (1 - vein[..., None] * 0.55) + vein_c * (vein[..., None] * 0.55)
+    sub = rgba[ya:yb, xa:xb]
+    sub[inside, :3] = col[inside]
+    sub[inside, 3] = 1.0
+    cover[ya:yb, xa:xb] |= inside
+
+
 def draw_palmate(rgba, cover, x0, y0, ang, length, sp, colour):
     """A palmate leaf, its stalk's end at (x0, y0), pointing ang, length px
     from the stalk's end to the middle lobe's tip."""
+    if sp.get("template"):
+        template_leaf(rgba, cover, x0, y0, ang, length, colour)
+        return
     h, w, _ = rgba.shape
     reach = length * 1.15
     xa, xb = int(max(x0 - reach, 0)), int(min(x0 + reach, w))
@@ -129,7 +221,7 @@ def leaf_colour(sp):
 def stalked_leaf(rgba, cover, x, y, ang, stalk, length, sp, stalk_w):
     """A leaf on its stalk from (x, y), heading ang."""
     ex, ey = x + math.cos(ang) * stalk, y + math.sin(ang) * stalk
-    draw_line(rgba, cover, (x, y), (ex, ey), stalk_w, stalk_w * 0.8, [0.42, 0.38, 0.2])
+    draw_line(rgba, cover, (x, y), (ex, ey), stalk_w, stalk_w * 0.8, [0.5, 0.36, 0.22] if sp is MAPLE else [0.42, 0.38, 0.2])
     draw_palmate(rgba, cover, ex, ey, ang + rng.uniform(-0.15, 0.15), length, sp, leaf_colour(sp))
 
 

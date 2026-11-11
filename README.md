@@ -156,7 +156,7 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   on the leaf cards (`tools/trees/bake_fruit_plant_textures.py`); every one choppable
   (`data/population/README.md`), streamed by `Population`.
   The grown sugar maples within 40 m of the player (their two most detailed levels) drop a seed now and then,
-  about every 12 s among them (twice the meteors' rate at night), day or night (`scripts/population/maple_seeds.gd`,
+  about every 6 s among them (four times the meteors' rate at night), day or night (`scripts/population/maple_seeds.gd`,
   `MapleSeeds`): a samara (its seed a netted teardrop, its wing a veined, see-through paddle, painted once at
   start-up) tumbling a moment out of the crown, then spinning down at about a metre a second, drifting a little; gone
   at the ground's height under where it started (taken once: nothing's hit).
