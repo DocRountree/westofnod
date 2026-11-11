@@ -121,6 +121,23 @@ func _coat(part: int, along := 0.0) -> ShaderMaterial:
 	return m
 
 
+## Heavily tick-infested (0 healthy .. 1 the worst: carnivore.gdshader's
+## infest), alive or dead: wasted, its ribs, hips and flanks sunk in, its
+## legs thin; its coat dull and thin, and where the ticks crowd (its head,
+## ears, neck, shoulders) its hair fallen out in patches, the skin grey,
+## crusted and scabbed, pitted with bites, rotting in weeping sores. (The
+## ticks themselves not drawn: their marks.)
+func set_infested(k: float) -> void:
+	infested = k
+	for m in _mats:
+		m.set_shader_parameter("infest", k)
+		m.set_shader_parameter("sink_mm", float(S.body_w))
+		m.set_shader_parameter("rib_mm", float(S.body_len) / 17.0)
+
+
+var infested := 0.0
+
+
 ## Its coat's season now (its antlers too: velvet, or hard).
 func set_season(s: String) -> void:
 	season = int(SEASONS.get(s, 0))

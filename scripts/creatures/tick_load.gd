@@ -82,11 +82,11 @@ func _find_sites() -> void:
 			w = 1.0
 		elif bname == "jaw":
 			w = 0.45
-		elif bname == "neck":
-			w = 1.1
+		elif bname == "neck": # (its skin there has fewer vertices than the head's: weighted up to match)
+			w = 3.2
 		elif bname == "torso":
 			var fz := clampf((vs[k].z - front_z) / maxf(back_z - front_z, 1.0), 0.0, 1.0) # (0 its front .. 1 its rump)
-			w = lerpf(0.6, 0.05, smoothstep(0.15, 0.55, fz))
+			w = lerpf(1.1, 0.05, smoothstep(0.12, 0.5, fz))
 			if ns[k].y < -0.5: # (its belly, between its legs)
 				w = maxf(w, 0.18)
 		elif bname.begins_with("leg"):

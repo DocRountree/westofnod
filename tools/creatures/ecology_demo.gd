@@ -46,7 +46,6 @@ const TigerSnailScript := preload("res://scripts/creatures/flamed_tigersnails.gd
 const GrassSnailScript := preload("res://scripts/creatures/grass_snails.gd")
 const DeerTickScript := preload("res://scripts/creatures/blacklegged_ticks.gd")
 const LoneStarScript := preload("res://scripts/creatures/lone_star_ticks.gd")
-const TickLoadScript := preload("res://scripts/creatures/tick_load.gd")
 const LarvaScript := preload("res://scripts/creatures/larva.gd")
 const BroodScript := preload("res://scripts/creatures/brood.gd")
 const PupaScript := preload("res://scripts/creatures/pupa.gd")
@@ -582,7 +581,7 @@ func spawn(key: String, at: Vector3, stage := "adult", male := false) -> Node:
 			add_child(n)
 		"carcass_deer_ticks": # (fresh only: dead with its ticks still on it)
 			n = CarcassScript.make(self, DeerScript, at, randf() * TAU, 1, male, ["summer"])
-			TickLoadScript.of(n as Node3D).call("infest", 900)
+			n.call("set_infested", 1.0)
 		"carcass_wolf", "carcass_black_bear", "carcass_brown_bear", "carcass_deer", "carcass_moose", "carcass_bison":
 			var k := key.substr(8)
 			var sc: Script = {"wolf": WolfScript, "black_bear": BlackBearScript, "brown_bear": BrownBearScript, "deer": DeerScript, "moose": MooseScript, "bison": BisonScript}[k]
@@ -1300,13 +1299,13 @@ func _spawn_animal(key: String, at: Vector3, stage: String, male: bool, young: b
 				br.call("grow", 0.25, 1.0)
 			br.call("forage", at, 2.5)
 			return br
-		"deer_ticks": # (a deer in a bad tick year: hundreds on its head, ears and neck)
+		"deer_ticks": # (a deer in a bad tick year: wasted, its coat ruined where they crowded)
 			var dt_: Node3D = DeerScript.new(false, "summer")
 			dt_.set("male", male)
 			_org(dt_, at, false)
 			dt_.call("place", at, randf() * TAU)
 			dt_.call("graze", at, 1.5)
-			TickLoadScript.of(dt_).call("infest", 900)
+			dt_.call("set_infested", 1.0)
 			return dt_
 		"deer_tick", "lone_star_tick":
 			var tc: Ticks = (DeerTickScript if key == "deer_tick" else LoneStarScript).new()

@@ -808,8 +808,10 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   (`blacklegged_ticks.gd`, *Ixodes scapularis*: black scutum, orange-red back, slate engorged; the male all dark,
   rimmed pale) and the lone star tick (`lone_star_ticks.gd`, *Amblyomma americanum*: reddish brown, the female's one
   white spot, banded orange legs, festoons, grey-olive marbled yellow engorged). And a tick-infested white-tailed
-  deer, alive or dead (fresh only): `TickLoad.infest`, some 900 ticks of both kinds, thickest on its head, ears and
-  neck, many females swollen grey, clusters of seed ticks.
+  deer, alive or dead (fresh only), its ticks not drawn but their marks (`Deer.set_infested`, carnivore.gdshader's
+  `infest`): wasted, the skin drawn in over its ribs, hips and flanks, its legs thin, its eyes sunk; its coat dull,
+  thin and coarse; where they crowd (its head, ears, round its eyes, its neck and shoulders) its hair fallen out in
+  patches, the skin grey and thickened, crusted and scabbed, pitted with bites, rotting in weeping sores.
   The ecology sandbox's plain is grown over with the game's own short grass (`DemoFlowers.meadow`: GroundCover's
   finest grass layer's clumps, 7 to 16 cm, coloured as `ground_cover.gdshader` colours them, swaying in the same
   wind and as much), kept off the ponds and round the small creatures.

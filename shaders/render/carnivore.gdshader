@@ -63,6 +63,14 @@ uniform float soak = 0.0; // (its coat wet: 0 dry .. 1 just out of the water: an
 uniform float decay = 0.0;
 uniform float sink_mm = 100.0;
 uniform float rib_mm = 60.0;
+// heavily tick-infested (a deer in a bad tick year), alive or fresh dead:
+// 0 healthy .. 1 the worst. Wasted (its skin drawn in over its ribs, its
+// hips and flanks, its legs thin, its eyes sunk); its coat dull, thin and
+// coarse; where the ticks crowd (its head, ears, neck and shoulders, round
+// its eyes; its belly and armpits less) its hair rubbed and fallen out in
+// patches, the bare skin grey, thickened and crusted, scabbed, pitted
+// with bites, weeping and rotting in sores
+uniform float infest = 0.0;
 
 
 varying vec4 c0;
@@ -76,7 +84,7 @@ void vertex() {
 		rp = CUSTOM1.xyz;
 		rn = CUSTOM2.xyz;
 		hp = CUSTOM3.xyz;
-		if (decay > 0.0) {
+		if (decay > 0.0 || infest > 0.0) {
 			// (sunk in: drawn in along its normal, the most where there's
 			// least under the skin but bone)
 			float pt_ = floor(CUSTOM0.x + 0.5);
@@ -96,6 +104,22 @@ void vertex() {
 				s = (decay > 1.0 ? 0.09 : 0.07) + 0.06 * (1.0 - smoothstep(1.0, 2.6, e));
 			} else if (pt_ == 6.0) {
 				s = decay > 1.0 ? 0.04 : 0.02;
+			}
+			if (decay <= 0.0) { // (wasted, alive: less than a rotting carcass, its bones the plainer)
+				s = 0.0;
+				if (pt_ == 0.0 && fw_ < 0.5) {
+					float side = smoothstep(0.2, 0.7, abs(nrm.x));
+					float ribs = (0.5 + 0.5 * cos(rp.z * 6.2832 / rib_mm)) * smoothstep(0.42, 0.5, a_) * (1.0 - smoothstep(0.78, 0.86, a_)) * side;
+					float flank = smoothstep(0.12, 0.28, a_) * (1.0 - smoothstep(0.48, 0.6, a_)) * (1.0 - smoothstep(-0.6, 0.5, nrm.y));
+					float hips = (1.0 - smoothstep(0.08, 0.2, a_)) * smoothstep(0.2, 0.8, nrm.y) * 0.5; // (its hip bones, its spine standing up)
+					s = 0.035 + 0.1 * ribs + 0.17 * flank + 0.05 * hips;
+				} else if (pt_ == 2.0 || pt_ == 3.0) {
+					s = 0.045 * (1.0 - smoothstep(0.75, 0.92, a_));
+				} else if (fw_ > 0.5) {
+					float e = min(length(hp - bare_a), length(hp - bare_b)) / max(bare_r, 1.0);
+					s = 0.025 + 0.05 * (1.0 - smoothstep(1.0, 2.6, e));
+				}
+				s *= infest;
 			}
 			VERTEX -= normalize(NORMAL) * s * sink_mm;
 		}
@@ -752,6 +776,38 @@ void fragment() {
 		c = mix(c, meat, wet * 0.9);
 		rot = max(rot, wet * 0.8);
 		slip = max(slip, 0.7);
+	}
+	// tick-infested: its coat dull and thin; where they crowd, bald, the
+	// skin crusted, scabbed, pitted, weeping
+	if (infest > 0.0 && pt != 7.0 && pt != 4.0) {
+		float ik = infest;
+		c = mix(c, c * vec3(0.82, 0.8, 0.78) + vec3(0.035), ik * 0.7); // (dull, faded, coarse)
+		// where the ticks crowd: the head and the ears most, the neck and
+		// shoulders, the belly a little
+		float crowd = 0.15;
+		if (pt == 5.0) crowd = 1.0;
+		else if (fw > 0.5 || (pt == 0.0 && a > 0.72)) crowd = 0.9;
+		else if (pt == 0.0) crowd = max(mix(0.15, 0.85, smoothstep(0.45, 0.66, a)), 0.45 * (1.0 - smoothstep(-0.7, -0.2, ny)));
+		else if (leg) crowd = 0.35 * (1.0 - smoothstep(0.2, 0.45, a));
+		float e = min(length(hp - bare_a), length(hp - bare_b)) / max(bare_r, 1.0);
+		if (fw > 0.5) crowd = max(crowd, 1.0 - smoothstep(1.2, 2.4, e)); // (round its eyes)
+		float nb = vn(rp * 0.014 + 41.0) * 0.55 + vn(rp * 0.045 + 13.0) * 0.3 + vn(rp * 0.16 + 5.0) * 0.15;
+		float bald = smoothstep(0.47, 0.41, nb + (1.0 - crowd) * 0.5) * ik; // (patches only: most of its coat still on it, thinned)
+		c = mix(c, c * 0.8 + vec3(0.04, 0.035, 0.03), smoothstep(0.62, 0.48, nb + (1.0 - crowd) * 0.5) * ik * 0.6); // (thinned round them, the skin showing through)
+		vec3 hide = mix(vec3(0.36, 0.29, 0.27), vec3(0.27, 0.23, 0.22), vn(rp * 0.05 + 3.0)); // (bare, thickened, grey pink)
+		c = mix(c, hide, bald);
+		slip = max(slip, bald);
+		// crusts and scabs, dark red brown; pitted with bites, each a dark
+		// speck ringed paler; weeping sores, yellowish green at their edges
+		float crust = smoothstep(0.62, 0.8, vn(rp * 0.09 + 23.0)) * crowd * ik * bald;
+		c = mix(c, mix(vec3(0.22, 0.09, 0.06), vec3(0.32, 0.2, 0.12), vn(rp * 0.2)), crust * (0.4 + 0.6 * bald));
+		float bite = (1.0 - smoothstep(0.0, 0.32, spots(rp, 6.0, 1.0))) * smoothstep(0.25, 0.75, crowd) * ik; // (a dark speck at each bite, or a tick's own scar, thick where they crowded)
+		c = mix(c, vec3(0.12, 0.05, 0.04), bite * 0.85);
+		float sv = vn(rp * 0.03 + 61.0) + crowd * 0.15;
+		float sore = smoothstep(0.84, 0.9, sv) * bald;
+		vec3 weep = mix(vec3(0.34, 0.28, 0.15), vec3(0.26, 0.07, 0.05), smoothstep(0.86, 0.93, sv)); // (dark raw red in the middle, a dull yellowish weeping crust at its edge)
+		c = mix(c, weep, sore);
+		rot = max(rot, sore * 0.7);
 	}
 	bool bare = rot > 0.5 || slip > 0.5 || pt == 4.0 || pt == 7.0 || (species == 11 && ((pt == 6.0 && a > 0.12) || (leg && a > 0.7))) || (species == 14 && ((pt == 6.0 && a > 0.08) || (leg && a > 0.85) || pt == 5.0 || fur < 0.5)) || leather > 0.5;
 	float s = clamp(hair * 0.06, 0.3, 4.0); // (a strand's width, mm)
