@@ -7,7 +7,7 @@ always in the same places and nothing needs saving.
 
 - `props/*.tres`: `PropKind` (trees, rocks, grass). Mesh, material, density
   per biome (per hectare; `"*"` = any other biome), scale range, ground
-  alignment, slope and height limits, view distance, and `radius` (solid:
+  alignment, slope and height limits, view distance (and `far_distance`, for a far card past it), and `radius` (solid:
   the player and actors walk round it; 0 = walk through, e.g. grass).
   Each kind in a chunk is one MultiMesh (one per level of detail: `lods`
   are simpler meshes drawn from `lod_distances` on).
@@ -64,13 +64,19 @@ shallows, and don't sway.
   cut and broken ends show growth rings. Textures: `python3
   tools/trees/bake_oak_textures.py`.
 - Level of detail: full (16-30k triangles a tree) within 40 m, 3-6k to
-  120 m, ~1k to 250 m, then (standing oaks, live and dead) one card to 600 m:
-  the tree photographed from eight ways round at load (`ImpostorBaker`,
-  `shaders/render/impostor.gdshader`: turned to face you, lit as a crown);
-  stumps, logs and saplings their 200-400 triangle mesh (the stem and a few
-  big clumps) there instead,
-  cross-fading stippled tree by tree over 12 m at each switch (and out at
-  600 m) in `shaders/render/lod_fade.gdshaderinc` (each level's materials
+  120 m, ~1k to 250 m, then (standing oaks, live and dead) one card to
+  3 km: the tree photographed from eight ways round at load
+  (`ImpostorBaker`), the cards drawn by `FarTrees` (`far_trees.gd`,
+  `shaders/render/far_trees.gdshader`, turned to face you, lit as a crown):
+  not by the chunks but a 512 m cell at a time, every species' standing
+  trees in it one MultiMesh, placed by `Population._scatter`, the same trees
+  in the same places as the chunks', each a layer of one `Texture2DArray`
+  (`PropKind.far_card`, `far_distance`; the tree render distance setting
+  scales it, 500 m to 5 km, thinning out over the last fifth); stumps, logs
+  and saplings their 200-400 triangle mesh (the stem and a few big clumps)
+  there instead, to 300 m,
+  cross-fading stippled tree by tree over 12 m at each switch (the card's
+  too: `shaders/render/lod_fade.gdshaderinc`, each level's materials
   hold its span). Each level's MultiMesh holds only a chunk's trees near
   enough its span to show in it, sorted on the CPU as the camera moves
   (`Population._bucket`: its fade and 6 m to spare either side, a few
@@ -182,7 +188,7 @@ maple` (or `sycamore`; `pair`, `pair2` for the standing trees nearer).
   `tulip_bark.png`); `preview.gd ... tulip`.
 
 All in the game (`props/*.tres`), choppable as the oak (their cut
-variants), with the oak's far-off cards (`ImpostorBaker`); not yet the
+variants), with the oak's far-off cards (`FarTrees`; the bushes have none); not yet the
 moss's sporophytes on their logs and stumps. Where they grow (whole kinds,
 per hectare, shared among their variants as the oak's):
 

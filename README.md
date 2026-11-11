@@ -6,7 +6,7 @@ popping. Walk, sprint, swim (as in Minecraft), climb and fly.
 
 ## Running
 
-Open the folder in **Godot 4.3+** (Forward+ renderer) and press Play. The start
+Open the folder in **Godot 4.5+** (Forward+ renderer; written for 4.5.1: 4.4 doesn't compile it, the ants' GPU readback uses `PackedByteArray.to_vector3_array`) and press Play. The start
 menu (`menu.tscn`) lists your games, the one played last first: resume one, start a
 new one, rename or delete one, or enter **debug mode**. A new game asks for its
 **mode** and whether it **allows commands**:
@@ -63,8 +63,8 @@ The keys above are the defaults: every one but Esc and the mouse can be rebound 
 Settings (from the start menu and the pause menu; `scripts/settings.gd`, kept in `user://settings.cfg`,
 the same for every game): mouse sensitivity and inverted look; field of view; the frame rate on screen; the
 window (windowed, fullscreen, borderless), V-sync, a frame rate cap, the render scale (below 100%: FSR
-upscaling); shadows (off, low, high: their reach and their maps' size); how far the trees' far cards and the
-grass and flowers reach (when a world is next loaded); the volume; the keybindings (`scripts/keybindings_panel.gd`:
+upscaling); shadows (off, low, high: their reach and their maps' size); how far the trees' far cards (500 m to 5 km, 3 km
+unless set) and the grass and flowers reach (when a world is next loaded); the volume; the keybindings (`scripts/keybindings_panel.gd`:
 click an action, press its key; a key taken from another action swaps with it).
 
 ## Data (`tools/dem/bake_galapagos.py` → `data/world/`)
@@ -114,15 +114,18 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
 - **Terrain**: one CDLOD quadtree over the height map; patches morph into the next
   coarser level toward the end of their range, so there are no cracks and no pops.
   Normals and materials are per pixel, from the finest mip a pixel can show.
-- **Sea**: Gerstner waves on a camera-centred grid; they read the sea floor from the
-  height map and shrink to nothing at the shore, and the terrain hides them on land.
-- **Water lighting** is ported from DocRountree/game (`water_core.gdshaderinc`, its river
-  shader's optics and "Adrift" flowing ripples in `water_ripples.gdshaderinc`):
-  refraction never pulling in what's in front of the water, Beer-Lambert absorption,
-  the body's own colour (clear high up, silty low down, sea water at the mouth),
-  Fresnel, a capped GGX sun highlight, and gloss falling away with distance. With MSAA
-  the depth buffer can't be read, so the water's thickness falls back to the channel
-  depth (rivers) or the sea floor (sea) and the view angle.
+- **Sea** (`ocean.gdshader`): a wind sea of Gerstner waves on a camera-centred grid, their wavelengths
+  stepping down geometrically with amplitudes after a Pierson-Moskowitz spectrum (directions spreading wider the
+  shorter the wave), plus one long swell; they read the sea floor from the height map, steepen, slow and die in
+  water shallower than a third of their wavelength, and the terrain hides them on land. The vertices carry the
+  waves the grid can hold and the pixels those a pixel can resolve; slope too fine to draw becomes roughness (a
+  GGX surface's slope variance), so the far sea is a broad glittering sun path, not aliasing. Detail under 8 m is
+  animated 3D noise, not sines, so nothing lines up into a grid.
+- **Water lighting** (the same shader): reflection is Godot's GGX with water's F0 of 0.02; what comes up through
+  the surface is the refracted scene, dimmed by Beer-Lambert absorption down to the floor and back (red goes
+  within metres, blue last), filled in with light scattered by the water itself and shining through thin crests
+  toward the sun; foam where the surface folds over (the Gerstner Jacobian) and in the shore surf. The ecology
+  tools' ponds use it too, calmed and browned.
 - **Trees**: English oaks, sugar maples, black walnuts and crabapples in the
   forest (a few of each on the prairie), pawpaws in its understory (only there), lodgepole pines and bald
   cypresses thick in the taiga (a few in the forest), sycamores in the swamp
@@ -132,6 +135,17 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   on the prairie too), their fruit hanging as real things to pick, never painted
   on the leaf cards (`tools/trees/bake_fruit_plant_textures.py`); every one choppable
   (`data/population/README.md`), streamed by `Population`.
+  Seen at a distance, a tree steps down through four levels of detail (whole to 15 m, no twigs to 40 m, branches
+  and clump cards to 120 m, limbs and a few big clumps to 250 m), each handing over to the next stippled tree by
+  tree (`lod_fade.gdshaderinc`); past 250 m every standing tree, live or dead, is a card (`FarTrees`): its
+  photograph from eight ways round (`ImpostorBaker`, taken at load, every level drawn whole), turned to face the
+  camera and lit as a crown (`far_trees.gdshader`, sharing `impostor.gdshaderinc` with the desert plants' own
+  cards). The cards are the trees where `Population` puts them (its placing, `_scatter`, run again for a 512 m
+  cell of 64 m chunks on a worker thread), a cell one MultiMesh of every species at once, each tree's photograph
+  a layer of one `Texture2DArray`: about 100,000 cards in a hundred-odd draws in a forest. They reach the tree
+  render distance (3 km: each kind its own share, the pawpaws' 1.5 km, the crabapples' 2) and thin out over the
+  last fifth. Stumps, logs, saplings and the bushes have no card: they're drawn to 300 m. Past all that the
+  terrain is just the terrain.
   Their bark carries lichen (leafy rosettes, cracked crust with fruiting discs, a
   powdery yellow-green crust: `data/population/textures/lichen.png`, drawn lobe by lobe
   by `tools/trees/bake_lichen.py`, each tree reading it from its own place, in drifts,
@@ -183,9 +197,13 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   the settings screen (both menus'), `scripts/keybindings_panel.gd` the keys'.
 - `scripts/main.gd` builds the scene.
 - `scripts/world/`: `world_data.gd` (loads the data, textures, height and water
-  queries), `cdlod.gd`, `scatter_field.gd`, `prop_meshes.gd`,
-  `terrain_collider.gd`.
-- `scripts/player.gd`, `scripts/hud.gd`.
+  queries), `cdlod.gd`, `origin.gd`, `footprints.gd`, `terrain_collider.gd`.
+- `scripts/population/`: `population.gd` streams the props in 64 m chunks (`data/population/README.md`);
+  `far_trees.gd` and `impostor_baker.gd` the trees' far cards; `oak_tree.gd`, `species_tree.gd` and the
+  species' own scripts the trees; `ground_cover.gd` the grass; `plant_mesh.gd` the desert plants and fungi.
+- `scripts/items/` (the axe, felling, foraging, tapping, the knapsack, drops), `scripts/sky/` (the sun, moon,
+  stars, planets, aurora, the clock).
+- `scripts/player.gd`, `scripts/hud.gd`, `scripts/chat.gd`, `scripts/ecology_sandbox.gd` (debug mode's tools).
 - `tools/shot.tscn` is a scripted fly-through that saves screenshots.
 - `scripts/creatures/ant_colony.gd`: ants (`AntColony`, black carpenter ants at twice
   life size; `harvester_ants.gd`, `HarvesterAnts`: red harvesters, rust red, a big squarish ridged head, toothed
@@ -517,16 +535,19 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   scorplings climbing onto her back and carried, then down and away, yellowing as they grow); mating, the promenade a
   deux (juddering, his chelae holding hers, to and fro, a sting at her pedipalp, his spermatophore laid and her drawn
   over it, then he's off).
-- The desert's plants, built whole, not in the game yet (`scripts/population/plant_mesh.gd`, `PlantMesh`: swept and
+- The desert's plants, in the game on the mesa (`data/population/props/`: Joshua trees 0.35 a hectare, San Pedro
+  cacti 0.3, prickly pears 0.8; `scripts/population/plant_mesh.gd`, `PlantMesh`: swept and
   ribbed tubes, tapering blades, spines, ellipsoids, painted per vertex): `joshua_tree.gd` (`JoshuaTree`: the trunk
   corky low, every branch shaggy with its dead leaves, forking crooked into an open crown, a ball of stiff blue-green
   dagger leaves at each tip; old, younger, young with its skirt to the ground, in flower), `san_pedro_cactus.gd`
   (`SanPedroCactus`: blue-green columns rising from the base, broad rounded ribs, felted areoles with a few short
   spines along the crests, pinched at each year's growth, domed paler tips, corky at the foot; huge white flowers on
   dark tubes) and `prickly_pear.gd` (`PricklyPear`: obovate pads off one another's rims, glochid tufts and pale spines
-  in diagonal rows, the oldest pads woody; wine-red tunas, yellow flowers). Four variants each, three levels of
-  detail (`build(v)`, `build_lods(v)`); `tools/plants/preview.gd` renders them (`xvfb-run godot --path .
-  --resolution 1600x900 --script res://tools/plants/preview.gd -- <out_dir> [joshua | sanpedro | pear]`),; none of them are in the ecology sandbox.
+  in diagonal rows, the oldest pads woody; wine-red tunas, yellow flowers). Ten Joshua trees, four San Pedros, six
+  prickly pears; three levels of detail then a card (`build(v)`, `build_lods(v)`; the Joshua trees' card is one of
+  the trees' own far cards, to 2 km); `tools/plants/preview.gd` renders them (`xvfb-run godot --path .
+  --resolution 1600x900 --script res://tools/plants/preview.gd -- <out_dir> [joshua | sanpedro | pear]`). All
+  three are in the ecology tools' list (Trees and bushes).
 - Mating (every species but the ants: their workers don't; `hexapod.gd`'s `mate(partner)` for the walkers, each
   species saying how): a male of each (`male`, set before it's added; told apart only where it must be: the male
   spiders smaller with the swollen bulbs of their palps, the garden spider's male a quarter her size, tan and slender;
@@ -544,10 +565,11 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   her back, chin rubbing, their tails twisted together; the mice's, the male following her, mounting from behind,
   thrusting in bouts, then washing. `act("mate", {partner})` for any of them (pilot.gd).
 - `tools/creatures/ecology_demo.tscn`: the ecology sandbox, every creature not yet in the game and the plants and
-  water they live by, staged by hand in one scene to try any mix of them together. A list down the left (plants:
-  the game's flowers, a berry bush, an aspen, an oak, fallen persimmons, clover, a willow shoot, a mushroom, a leaf;
-  features: a puddle, ponds, a sea with its beach, sand, gravel, a dead branch; the insects, spiders and kin, fish,
-  amphibians and reptiles, mammals): pick one, then left click the ground to put one there (again and again; right
+  water they live by, staged by hand in one scene to try any mix of them together (and, as `ecology_demo.gd`,
+  debug mode's tools in the game itself: see the top, and `scripts/ecology_sandbox.gd`). A list down the left
+  (plants: the game's flowers; trees and bushes: every one of the game's, grown or a sapling, fruit hanging; features: a puddle, ponds, a sea with its beach, sand,
+  gravel, a dead branch; the insects, spiders and kin, crustaceans, fish, amphibians and reptiles, mammals; the
+  game's carcasses, fresh, rotting or bones; and every item, laid as it falls when dropped): pick one, then left click the ground to put one there (again and again; right
   click or Esc: done), as an adult, young or a pupa, female or male (the boxes under the list). Left click a creature
   to select it (Shift: add to the selection; the ground: none); Delete takes the selection away with whatever was
   put down with it. Right drag turns round, middle drag (or the arrow keys) moves along the ground, the wheel zooms,
@@ -687,9 +709,9 @@ props only, never to the sky.
 ## Magnifying
 
 Z magnifies the view (2x to 8x, mouse wheel). Detail is chosen as if
-everything were that many times nearer: terrain patches, relief, props,
+everything were that many times nearer: terrain patches, relief,
 shadows. Only the wedge you see gets
-the extra detail (`ScatterField.magnify`, `Cdlod.magnify`). Stars stay points
+the extra detail (`Cdlod.magnify`, and the global `lod_zoom` the shaders read). Stars stay points
 but gather light like a telescope (magnification squared), so fainter ones
 appear: about 104,000 real stars from V 6.5 to 10.5 out of the HYG database
 (`data/faint_stars.f32`, built by `tools/build_faint_stars.py`; HYG (c) David
