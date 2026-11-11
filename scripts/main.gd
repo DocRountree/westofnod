@@ -142,6 +142,9 @@ func _ready() -> void:
 	foraging = Foraging.new()
 	foraging.main = self
 	add_child(foraging)
+	var seeds := MapleSeeds.new() # (the grown maples near: their seeds now and then, spinning down)
+	seeds.main = self
+	add_child(seeds)
 	tapping = Tapping.new() # (after foraging: a pot looked at is taken up before a flower's picked)
 	tapping.main = self
 	add_child(tapping)

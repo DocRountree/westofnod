@@ -155,6 +155,11 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   on the prairie too), their fruit hanging as real things to pick, never painted
   on the leaf cards (`tools/trees/bake_fruit_plant_textures.py`); every one choppable
   (`data/population/README.md`), streamed by `Population`.
+  The grown sugar maples within 40 m of the player (their two most detailed levels) drop a seed now and then,
+  about every 12 s among them (twice the meteors' rate at night), day or night (`scripts/population/maple_seeds.gd`,
+  `MapleSeeds`): a samara (its seed a netted teardrop, its wing a veined, see-through paddle, painted once at
+  start-up) tumbling a moment out of the crown, then spinning down at about a metre a second, drifting a little; gone
+  at the ground's height under where it started (taken once: nothing's hit).
   Seen at a distance, a tree steps down through four levels of detail (whole to 15 m, no twigs to 40 m, branches
   and clump cards to 120 m, limbs and a few big clumps to 250 m), each handing over to the next stippled tree by
   tree (`lod_fade.gdshaderinc`); past 250 m every standing tree, live or dead, is a card (`FarTrees`): its

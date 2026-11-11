@@ -979,6 +979,36 @@ func fruit_trees_near(p: Vector3, r: float) -> Array:
 	return out
 
 
+## The trees of mesh_script (its variants among `variants`; all, if empty)
+## standing within r of p (on the map, across the ground): {uid, variant,
+## transform} each (MapleSeeds: the grown sugar maples near the player).
+func trees_near(p: Vector3, r: float, mesh_script: Script, variants := []) -> Array:
+	var out := []
+	var c := _key(p)
+	var n := ceili(r / CHUNK)
+	for dz in range(-n, n + 1):
+		for dx in range(-n, n + 1):
+			var ch: _Chunk = _chunks.get(c + Vector2i(dx, dz))
+			if ch == null:
+				continue
+			var base := Vector3(ch.key.x * CHUNK, 0.0, ch.key.y * CHUNK)
+			for k in ch.xforms.size():
+				var kind := props[k]
+				var v := int(kind.get_meta("variant", 0))
+				if kind.mesh_script != mesh_script or (not variants.is_empty() and not variants.has(v)):
+					continue
+				var xf: PackedFloat32Array = ch.xforms[k]
+				var uids: PackedInt64Array = ch.uids[k]
+				for i in uids.size():
+					var j := i * 12
+					var at := base + Vector3(xf[j + 3], xf[j + 7], xf[j + 11])
+					if Vector2(at.x - p.x, at.z - p.z).length() > r or _removed.has(uids[i]):
+						continue
+					var b := Basis(Vector3(xf[j], xf[j + 4], xf[j + 8]), Vector3(xf[j + 1], xf[j + 5], xf[j + 9]), Vector3(xf[j + 2], xf[j + 6], xf[j + 10]))
+					out.append({"uid": uids[i], "variant": v, "transform": Transform3D(b, at)})
+	return out
+
+
 ## The prop kind made from mesh_script's variant v (null if none).
 func kind_of(mesh_script: Script, v: int) -> PropKind:
 	for k in props:
