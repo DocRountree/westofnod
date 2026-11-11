@@ -9,12 +9,30 @@ popping. Walk, sprint, swim (as in Minecraft), climb and fly.
 Open the folder in **Godot 4.5+** (Forward+ renderer; written for 4.5.1: 4.4 doesn't compile it, the ants' GPU readback uses `PackedByteArray.to_vector3_array`) and press Play. The start
 menu (`menu.tscn`) lists your games, the one played last first: resume one, start a
 new one, rename or delete one, or enter **debug mode**. A new game asks for its
-**mode** and whether it **allows commands**:
+**mode** and whether it **allows commands**, and then for **your character** (the
+character picker, below):
 
 - *Survival*: not defined yet (no flying, no time keys).
 - *God*: fly (Space twice), move time (`[` `]`).
 - *Allow commands*: every chat command, `/mode survival|god` (or `/gamemode`)
   among them; without, only `/help`, `/pos` and `/clear`, and the mode stays as chosen.
+
+The character picker (`scripts/character_picker.gd`): your figure to look at (drag to turn it; its whole self
+or its face) and, beside it, what it's made of: skin (the skin tones, or any colour: each colour has its own
+palette and the standard one), build, eyes; hairstyle (short, bald, buzz, medium, long, a ponytail, braids, a
+bun, a mohawk), how it curls (straight, wavy, curly, coily: thicker and shorter the more it does), its colour
+(natural hair, or any colour), facial hair (stubble, a moustache, a goatee, a beard, a long one, sideburns); a
+shirt (long or short sleeves, a vest, a belted tunic, none), its colour, a pattern worked into it and the
+pattern's two colours; pants (trousers, shorts, fringed leggings) and their colour; glasses (round, square,
+sunglasses); a hat (wide brim, straw, a knit cap, a headband, a cap) and its colour. Random makes somebody by
+chance; Start goes into the game, which keeps the look with its save. In debug mode P opens it over the game
+(it isn't shown on the way in), to change the figure there.
+
+The shirt patterns are counted out in stitches, as weaving and beadwork are, so their edges step: geometric
+designs after Native American work, not copies of any one piece (chief blanket bands, stepped diamonds and
+the eye dazzler's serrated zigzags after Diné weaving; the morning star of Plains star quilts; arrow
+chevrons, mountain triangles and lightning after beadwork and parfleche painting; basketry's stepped
+diagonals; the four directions' stepped cross; a ribbon shirt's ribbons).
 
 A game saves itself (where you are and look, the time and day, what has been taken
 from the world, its mode) every minute, when you leave it and when you quit, to
@@ -49,6 +67,7 @@ moose): those are in the sandbox's own scene still.
 | F5 | toggle third-person camera |
 | H | shadows off or on again (every shadow: the sun's and the moon's), for debugging |
 | L | debug mode: the ecology tools open or away again (as `/sandbox`) |
+| P | debug mode: the character picker, over the game |
 | C | climb a tree (next to its trunk: W/S up and down, A/D round it; where a limb leaves the trunk, move its way, or W from just under it, to go out along it; C again on top of a limb stands you on it) or rock too steep to walk (WASD over the rock); Space climbs on up as W does; C again lets go |
 | E | the knapsack: 10 slots and a hand each (click to pick up and put down, right-click half or one, shift-click to or from the hands); what the hands hold shows in them. `/give <item> [count]` puts items in it (stick, stone, acorn, oak leaf, pawpaw, crabapple, walnut, black_cherry, raspberry, blueberry, susan, fleabane, coneflower, aster, yampah, milkweed, swamp_milkweed, nettle, cattail, clay_pot, pot_of_sap) |
 | X | take the knapsack off and set it down on the ground before you (on a log or stump if you're on one), or, back beside it (within about 2.2 m), pick it up and put it on again. It's a hide bag, made by hand, nothing on it but hide and twine (`scripts/items/pack.gd`: a soft buckskin sack, its seams laced with a thong; a flap over its mouth, its edge ragged as the skin was cut, fringed; twine wound twice round it over the flap and knotted at its front, the ends hanging; a twine loop on top to carry it by; twisted twine cords down its back for the shoulders), worn on the figure's back (seen in third person). Set down, E doesn't open it: right-click it (looking at it, beside it) to open it there; away from it you have only what's in your hands. Where it is and whether it's worn are saved with the game (rebindable: Settings, Keybindings) |
@@ -180,8 +199,21 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   needle duff in mottles between dark feather moss, a texture of fallen pine needles (and the
   odd cone and twig) the same way. Textures:
   `tools/ground/bake_ground_textures.py`.
-- **Player** (`scripts/avatar.gd`): a stylised figure animated procedurally with two-bone
-  IK. Walking: feet step in turn, arms swing. Climbing: hands and feet hold points on
+- **Player** (`scripts/avatar.gd`): a figure built from its look (`scripts/character/`) and animated
+  procedurally with two-bone IK. The look (`CharacterLook`) is a value for each of a list of fields (`FIELDS`: a
+  colour from its palettes, or one of its options); the picker lays itself out from that list, a saved game
+  keeps it, and `CharacterLook.random(rng)` makes anybody's from a seed (for the NPCs to come), so something
+  new to choose is a field or an option added there and built in `CharacterParts`. The figure
+  (`CharacterParts`, on `CharacterMesh`'s lofted tubes, ellipsoids and sheets): a torso and pelvis lofted up the
+  spine and limbs down their bones (a shoulder's roundness, a biceps, a calf's swell, each bone's ends rounded
+  into its joint), hands with fingers and a thumb (open, and closed round what they hold), boots; a head
+  whose face is one skin (the eyes' sockets, the brow's ridge, the lids, the nose, the lips, the chin shaped
+  into it), eyes, ears, brows; hair as a sheet of strands from the crown over the scalp and hanging from the
+  hairline, its style's tail, braids, bun or crest, a beard on the jaw's own surface; clothes over the body
+  in cloth that carries the shirt's pattern (`character_cloth.gdshader`); hats and glasses.
+  `tools/character/preview.gd` renders one, or a row of six by chance (`xvfb-run godot --path . --resolution
+  1600x900 --script res://tools/character/preview.gd -- <out_dir> [name] [field=value ...] [face | head | chest
+  | back | side | hands | row | walk]`). Walking: feet step in turn, arms swing. Climbing: hands and feet hold points on
   the rock surface (projected onto the terrain along its normal) and move one at a
   time to new holds ahead. Climbing switches to third
   person; the camera's spring arm is a sphere and it is kept above the terrain.
@@ -205,6 +237,9 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
 - `scripts/items/` (the axe, felling, foraging, tapping, the knapsack, drops), `scripts/sky/` (the sun, moon,
   stars, planets, aurora, the clock).
 - `scripts/player.gd`, `scripts/hud.gd`, `scripts/chat.gd`, `scripts/ecology_sandbox.gd` (debug mode's tools).
+- `scripts/character/` (`character_look.gd`: what a figure's look is made of; `character_parts.gd`: the figure
+  built from it; `character_mesh.gd`: its shapes), `scripts/character_picker.gd` (the picker), `scripts/avatar.gd`
+  (its bones and how they move).
 - `tools/shot.tscn` is a scripted fly-through that saves screenshots.
 - `scripts/creatures/ant_colony.gd`: ants (`AntColony`, black carpenter ants at twice
   life size; `harvester_ants.gd`, `HarvesterAnts`: red harvesters, rust red, a big squarish ridged head, toothed

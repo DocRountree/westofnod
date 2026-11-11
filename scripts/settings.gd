@@ -29,7 +29,7 @@ const KEYS := [
 	["third_person", "Third person", KEY_F5], ["chat", "Chat", KEY_ENTER],
 	["command", "Command", KEY_SLASH], ["time_backward", "Time back (god)", KEY_BRACKETLEFT],
 	["time_forward", "Time on (god)", KEY_BRACKETRIGHT], ["toggle_shadows", "Shadows on/off", KEY_H],
-	["ecology_tools", "Ecology tools (debug mode)", KEY_L],
+	["ecology_tools", "Ecology tools (debug mode)", KEY_L], ["character", "Character picker (debug mode)", KEY_P],
 ]
 
 static var mouse_sens := 1.0 ## times the standard

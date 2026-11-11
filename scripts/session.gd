@@ -8,7 +8,8 @@ class_name Session
 ## time keys) and allows commands or not (chosen when it's made; without,
 ## only /help, /pos and /clear; with, /mode switches the mode). It saves
 ## itself (where you are and look, the time and day, what has been taken
-## from the world, its mode) every minute, on leaving it and on quitting.
+## from the world, its mode, how your character looks) every minute, on
+## leaving it and on quitting.
 ## Debug mode: god mode, every command, the frame rate and coordinates on
 ## screen, F6; nothing is saved.
 ## Saves are JSON files in user://saves/.
@@ -54,12 +55,13 @@ static func play(name: String) -> void:
 			data = d
 
 
-## Starts a new game called name: its mode (MODES) and whether commands
-## are allowed in it.
-static func play_new(name: String, mode: String, commands: bool) -> void:
+## Starts a new game called name: its mode (MODES), whether commands are
+## allowed in it, and how its character looks (CharacterLook.to_dict(): the
+## character picker's).
+static func play_new(name: String, mode: String, commands: bool, look := {}) -> void:
 	debug = false
 	game_name = name
-	data = {"mode": mode, "commands": commands}
+	data = {"mode": mode, "commands": commands, "look": look}
 
 
 static func play_debug() -> void:

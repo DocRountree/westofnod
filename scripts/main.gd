@@ -26,6 +26,8 @@ var ground_cover: GroundCover
 var footprints: Footprints
 var pause_menu: PauseMenu
 var sandbox: EcologySandbox ## (debug mode's ecology tools, in the game: L, /sandbox)
+var look := CharacterLook.new() ## How the player's figure looks (the character picker's; kept with the game).
+var _picker: CanvasLayer # (debug mode: the character picker over the game, P)
 const AUTOSAVE_SECONDS := 60.0
 var _since_save := 0.0
 var _played := 0.0 # seconds played in this game, all sessions
@@ -269,6 +271,9 @@ func _load_game() -> void:
 	if not mode in Session.MODES:
 		mode = "survival"
 	commands_allowed = bool(d.get("commands", false))
+	if d.get("look") is Dictionary: # (how its character looks: the picker's, when the game was made)
+		look = CharacterLook.from_dict(d.look)
+		player.avatar.set_look(look)
 	if not d.has("player"):
 		inventory.set_at(Inventory.RIGHT, {"id": "axe", "count": 1}) # (a new game: an axe to start with)
 		return
@@ -330,6 +335,7 @@ func save_game() -> void:
 		"play_seconds": _played,
 		"mode": mode,
 		"commands": commands_allowed,
+		"look": look.to_dict(),
 	})
 	_since_save = 0.0
 
@@ -587,6 +593,32 @@ func set_global(name: String, value: Variant) -> void:
 	RenderingServer.global_shader_parameter_set(name, value)
 
 
+## The character picker over the game (debug mode, P): the figure's look
+## changed as it's left (Done), or left as it was (Cancel). The game goes
+## on under it, the player's keys and mouse the picker's while it's open.
+func pick_character() -> void:
+	_picker = CanvasLayer.new()
+	_picker.layer = 9 # (over the HUD, the chat and the ecology tools; under the pause menu)
+	add_child(_picker)
+	var picker := CharacterPicker.new()
+	picker.setup(look, "Done")
+	_picker.add_child(picker)
+	var was_typing := player.typing
+	var was_mouse := Input.mouse_mode
+	player.typing = true # (as the chat: its keys not the game's)
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	var close := func() -> void:
+		_picker.queue_free()
+		_picker = null
+		player.typing = was_typing
+		Input.mouse_mode = was_mouse
+	picker.done.connect(func(l: CharacterLook) -> void:
+		look = l
+		player.avatar.set_look(look)
+		close.call())
+	picker.cancelled.connect(close)
+
+
 ## The settings (Settings) as they are now: the window's and renderer's,
 ## the view's width, the shadows' reach (off: none drawn). (At the start,
 ## and from the settings screen as each is changed.)
@@ -619,6 +651,10 @@ func _magnify() -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if Session.debug and event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_F6:
 		aurora.set_forced(not aurora.forced) # debug: an aurora every night
+	# P (rebindable): debug mode's character picker, over the game
+	if Session.debug and event is InputEventKey and event.pressed and not event.echo and event.is_action("character") and _loaded and not player.typing and _picker == null:
+		pick_character()
+		get_viewport().set_input_as_handled()
 	# L (Settings: rebindable): debug mode's ecology tools, open or away again
 	if sandbox and event is InputEventKey and event.pressed and not event.echo and event.is_action("ecology_tools") and _loaded and not player.typing:
 		sandbox.toggle()

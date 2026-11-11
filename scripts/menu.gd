@@ -203,8 +203,15 @@ func _name_done() -> void:
 	if Session.exists(n):
 		_name.modulate = Color(1, 0.5, 0.5)
 		return
-	Session.play_new(n, Session.MODES[_mode.selected], _commands.button_pressed)
-	_start("Starting %s..." % n)
+	# its character, then into it (CharacterPicker; Cancel: back here)
+	var picker := CharacterPicker.new()
+	picker.setup(CharacterLook.new(), "Start")
+	picker.done.connect(func(look: CharacterLook) -> void:
+		picker.queue_free()
+		Session.play_new(n, Session.MODES[_mode.selected], _commands.button_pressed, look.to_dict())
+		_start("Starting %s..." % n))
+	picker.cancelled.connect(picker.queue_free)
+	add_child(picker)
 
 
 func _cancel_name() -> void:

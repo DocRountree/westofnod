@@ -1,6 +1,7 @@
 class_name Avatar
 extends Node3D
-## A stylised figure built from rounded parts, animated procedurally.
+## A figure, built from its look (CharacterLook, CharacterParts: its body,
+## hair and clothes) onto a few bones, animated procedurally.
 ##
 ## Limbs are two-bone chains solved by analytic IK toward targets:
 ##  - walking: feet step along the ground in turn (a foot stays planted while
@@ -15,15 +16,10 @@ extends Node3D
 
 const ARM := [0.30, 0.28] # upper, lower
 const LEG := [0.44, 0.42]
-const SKIN := Color(0.86, 0.68, 0.55)
-const SHIRT := Color(0.78, 0.33, 0.20)
-const TROUSERS := Color(0.22, 0.27, 0.36)
-const HAIR := Color(0.18, 0.12, 0.08)
-const SHIRT_DARK := Color(0.6, 0.24, 0.15)
-const BELT := Color(0.28, 0.2, 0.13)
-const BOOT := Color(0.3, 0.22, 0.15)
-const EYE := Color(0.08, 0.07, 0.07)
 
+## How it looks (CharacterLook: the player's from the character picker, an
+## NPC's from CharacterLook.random()): set_look() builds it.
+var look: CharacterLook
 var world: WorldData
 var _hips: Node3D
 var _chest: Node3D
@@ -36,55 +32,57 @@ var _grips := {} # "l"/"r" -> Node3D: where the hands hold things
 var _limbs := {} # name -> {root: Node3D (socket on the body), a, b (bone pivots), len, hold: Vector3, planted}
 var _phase := 0.0
 var _climb_dist := 0.0
-var _mats := {}
 var _boots := {}
+var _hands := {} # "l"/"r" -> [open, closed]: the hand's two meshes (CharacterParts)
 var sink := 0.0 ## How deep the feet are in mud (the player's).
 var trunk := PackedFloat32Array() ## The tree being climbed (Population trunk), if any: holds are on its bark.
-var _head: MeshInstance3D
+var _head: Node3D
 var _pack: Node3D # the knapsack on its back (wear_pack)
 
 
 func _ready() -> void:
+	# its bones: the hips, the chest on them, the head on that; each limb's
+	# socket on the body and its two bones; a foot under each leg. What's
+	# seen is built onto them from its look (set_look, CharacterParts).
 	_hips = Node3D.new()
 	_hips.position = Vector3(0, 0.95, 0)
 	add_child(_hips)
-	_part(_hips, CapsuleMesh, Vector3(0, 0.0, 0), Vector3(0.34, 0.24, 0.22), TROUSERS) # pelvis
-	_part(_hips, CylinderMesh, Vector3(0, 0.1, 0), Vector3(0.33, 0.05, 0.215), BELT) # belt
 	_chest = Node3D.new()
-	_chest.position = Vector3(0, 0.12, 0)
+	_chest.position = CharacterParts.CHEST_AT
 	_hips.add_child(_chest)
-	_part(_chest, CapsuleMesh, Vector3(0, 0.12, 0), Vector3(0.31, 0.32, 0.2), SHIRT) # waist
-	_part(_chest, CapsuleMesh, Vector3(0, 0.33, 0), Vector3(0.42, 0.36, 0.25), SHIRT) # chest
-	_part(_chest, CapsuleMesh, Vector3(0, 0.47, 0), Vector3(0.46, 0.13, 0.2), SHIRT) # shoulders
-	_part(_chest, CylinderMesh, Vector3(0, 0.55, 0), Vector3(0.17, 0.05, 0.15), SHIRT_DARK) # collar
-	_part(_chest, CylinderMesh, Vector3(0, 0.6, 0), Vector3(0.1, 0.12, 0.1), SKIN) # neck
-	_head = _part(_chest, SphereMesh, Vector3(0, 0.75, 0.0), Vector3(0.22, 0.26, 0.24), SKIN)
-	_part(_head, SphereMesh, Vector3(0, 0.12, 0.04), Vector3(1.06, 0.72, 1.04), HAIR) # hair cap
-	_part(_head, SphereMesh, Vector3(0, -0.02, -0.47), Vector3(0.16, 0.2, 0.16), SKIN) # nose
-	_part(_head, SphereMesh, Vector3(0, -0.28, -0.32), Vector3(0.5, 0.25, 0.4), SKIN) # chin
-	for side: int in [-1, 1]:
-		_part(_head, SphereMesh, Vector3(0.18 * side, 0.08, -0.4), Vector3(0.13, 0.13, 0.08), EYE) # eyes
-		_part(_head, SphereMesh, Vector3(0.5 * side, 0.02, 0.0), Vector3(0.12, 0.3, 0.22), SKIN) # ears
-		_part(_head, SphereMesh, Vector3(0.18 * side, 0.22, -0.43), Vector3(0.22, 0.05, 0.06), HAIR) # brows
+	_head = Node3D.new()
+	_head.position = CharacterParts.HEAD_AT
+	_head.scale = Vector3.ONE * 1.05 # (a little large: read at a distance)
+	_chest.add_child(_head)
 	for side: int in [-1, 1]:
 		var sname := "l" if side < 0 else "r"
-		_limb(sname + "_arm", _chest, Vector3(0.23 * side, 0.45, 0), ARM, [SHIRT, SKIN], 0.07)
-		_limb(sname + "_leg", _hips, Vector3(0.1 * side, -0.02, 0), LEG, [TROUSERS, TROUSERS], 0.085)
-		# a hand at the end of the forearm; a boot placed under each foot (see _feet)
+		_limb(sname + "_arm", _chest, CharacterParts.SHOULDER * Vector3(side, 1, 1), ARM)
+		_limb(sname + "_leg", _hips, CharacterParts.HIP * Vector3(side, 1, 1), LEG)
 		var arm: Dictionary = _limbs[sname + "_arm"]
-		_part(arm.b, SphereMesh, Vector3(0, 0, -ARM[1] - 0.05), Vector3(0.09, 0.11, 0.07), SKIN)
 		var grip := Node3D.new() # what the hand holds (Player.set_held), across the fist
 		grip.position = Vector3(0, 0, -ARM[1] - 0.07)
 		arm.b.add_child(grip)
 		_grips[sname] = grip
-		var boot := Node3D.new()
+		var boot := Node3D.new() # (placed under each foot: _feet)
 		add_child(boot)
-		_part(boot, CapsuleMesh, Vector3(0, 0.05, -0.04), Vector3(0.11, 0.26, 0.11), BOOT).rotation.x = PI / 2
-		_part(boot, CylinderMesh, Vector3(0, 0.1, 0.02), Vector3(0.12, 0.1, 0.12), BOOT)
 		_boots[sname] = boot
 	_pack = Pack.model() # (on its back: its front, the flap and buckles, out)
-	_pack.position = Vector3(0, 0.02, 0.215)
+	_pack.position = Vector3(0, -0.02, 0.225)
 	_chest.add_child(_pack)
+	set_look(look if look else CharacterLook.new())
+
+
+## Builds the figure as l says (its body, hair, clothes: CharacterParts),
+## in place of how it looked; its bones, and what its hands hold, as they
+## were.
+func set_look(l: CharacterLook) -> void:
+	look = l
+	if _hips == null:
+		return # (not in the scene yet: built then)
+	var limbs := {}
+	for name in _limbs:
+		limbs[name] = {"a": _limbs[name].a, "b": _limbs[name].b}
+	_hands = CharacterParts.build({"hips": _hips, "chest": _chest, "head": _head, "limbs": limbs, "boots": _boots}, l).hands
 
 
 ## The knapsack on its back, or not (set down: Knapsack.set_down).
@@ -104,37 +102,15 @@ func _feet(fwd: Vector3, up: Vector3) -> void:
 		var z := -(fwd - y * fwd.dot(y)).normalized()
 		var boot: Node3D = _boots[sname]
 		boot.global_transform = Transform3D(Basis(y.cross(z), y, z), ankle - y * 0.1)
-
-
-func _material(c: Color) -> StandardMaterial3D:
-	if not _mats.has(c):
-		var m := StandardMaterial3D.new()
-		m.albedo_color = c
-		m.roughness = 0.85
-		_mats[c] = m
-	return _mats[c]
-
-
-func _part(parent: Node3D, kind, pos: Vector3, size: Vector3, c: Color) -> MeshInstance3D:
-	var mi := MeshInstance3D.new()
-	var mesh: PrimitiveMesh = kind.new()
-	if mesh is CylinderMesh:
-		mesh.top_radius = 0.5
-		mesh.bottom_radius = 0.5
-		mesh.height = 1.0
-	else:
-		mesh.radius = 0.5
-		mesh.height = 1.0
-	mi.mesh = mesh
-	mi.scale = size
-	mi.position = pos
-	mi.material_override = _material(c)
-	parent.add_child(mi)
-	return mi
+		# (and its hands: closed round what they hold, else open)
+		var held: bool = (_grips[sname] as Node3D).get_child_count() > 0
+		if _hands.has(sname) and (_hands[sname][1] as Node3D).visible != held:
+			(_hands[sname][0] as Node3D).visible = not held
+			(_hands[sname][1] as Node3D).visible = held
 
 
 ## A two-bone limb: pivots whose -Z axis points down the bone (so look_at aims it).
-func _limb(name: String, parent: Node3D, socket: Vector3, lens: Array, cols: Array, r: float) -> void:
+func _limb(name: String, parent: Node3D, socket: Vector3, lens: Array) -> void:
 	var root := Node3D.new()
 	root.position = socket
 	parent.add_child(root)
@@ -142,24 +118,6 @@ func _limb(name: String, parent: Node3D, socket: Vector3, lens: Array, cols: Arr
 	add_child(a)
 	var b := Node3D.new()
 	add_child(b)
-	for k in 2:
-		var pivot: Node3D = [a, b][k]
-		var mi := MeshInstance3D.new()
-		var cap := CapsuleMesh.new()
-		cap.radius = r * (1.0 if k == 0 else 0.85)
-		cap.height = lens[k] + cap.radius * 2.0
-		mi.mesh = cap
-		mi.rotation.x = -PI / 2 # capsule along -Z
-		mi.position = Vector3(0, 0, -lens[k] * 0.5)
-		mi.material_override = _material(cols[k])
-		pivot.add_child(mi)
-		var joint := MeshInstance3D.new() # (shoulder, elbow / hip, knee)
-		var ball := SphereMesh.new()
-		ball.radius = cap.radius * 1.05
-		ball.height = ball.radius * 2.0
-		joint.mesh = ball
-		joint.material_override = _material(cols[k])
-		pivot.add_child(joint)
 	_limbs[name] = {"root": root, "a": a, "b": b, "len": lens, "hold": Vector3.INF, "planted": true}
 
 
