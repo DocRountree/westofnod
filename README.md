@@ -584,6 +584,15 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   the trees' own far cards, to 2 km); `tools/plants/preview.gd` renders them (`xvfb-run godot --path .
   --resolution 1600x900 --script res://tools/plants/preview.gd -- <out_dir> [joshua | sanpedro | pear]`). All
   three are in the ecology tools' list (Trees and bushes).
+- Water lilies, not placed yet (nothing puts props on the water yet; no kind in `data/population/props/` has
+  them): `scripts/population/lily_pad.gd` (`LilyPad`, built with `PlantMesh`, y = 0 the water's face). Six: a white
+  water lily's pad (round, a narrow slit to its stalk, waxy green, veins fanning out, red beneath); a raft of four, a
+  young one's rim curled up; two pads and the flower open on the water (whorls of white petals round yellow
+  stamens); two pads and a bud; spatterdock (longer heart-shaped pads, a yellow globe on a stout stalk); an old pad,
+  yellowing, torn and holed. Three levels and no card (flat on the water). Each picked whole, as the fungi are
+  (`variant_props`: `item`, `pick_at`, `pick_r`, `pick_count`): `lily_pad`, `water_lily`, `spatterdock` in
+  `Items`, held by their stalks (`LilyPad.held`). `tools/plants/lily_preview.gd` renders them (`-- <out_dir> [0..5 |
+  held] [lod1 | lod2] [low]`).
 - Mating (every species but the ants: their workers don't; `hexapod.gd`'s `mate(partner)` for the walkers, each
   species saying how): a male of each (`male`, set before it's added; told apart only where it must be: the male
   spiders smaller with the swollen bulbs of their palps, the garden spider's male a quarter her size, tan and slender;

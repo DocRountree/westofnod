@@ -3,7 +3,7 @@ class_name Items
 ## (Felling); the rest, for now, are only things to carry (/give in the chat;
 ## the pawpaw, crabapple, walnut and acorn picked from their trees, the flowers
 ## and cattails where they grow, the fungi on the ground and on the wood:
-## Foraging).
+## Foraging; the lily pads and their flowers, LilyPad, once they're placed).
 ##
 ## Each: name, stack (how many fit in one slot or hand), and how it looks held
 ## (a primitive: shape, size in m, colour).
@@ -41,6 +41,10 @@ const KINDS := {
 	"fly_agaric": {"name": "Fly agaric", "stack": 8, "shape": "fungus", "size": Vector3(0.14, 0.18, 0.14), "color": Color(0.8, 0.1, 0.04)},
 	"little_brown": {"name": "Browncap", "stack": 32, "shape": "fungus", "size": Vector3(0.025, 0.06, 0.025), "color": Color(0.44, 0.3, 0.17)},
 	"chicken_of_the_woods": {"name": "Chicken of the woods", "stack": 4, "shape": "fungus", "size": Vector3(0.14, 0.04, 0.1), "color": Color(0.95, 0.5, 0.08)},
+	# water lilies (LilyPad: picked whole where they float; held, one of them)
+	"lily_pad": {"name": "Lily pad", "stack": 16, "shape": "lily", "size": Vector3(0.18, 0.2, 0.01), "color": Color(0.22, 0.38, 0.12)},
+	"water_lily": {"name": "Water lily", "stack": 8, "shape": "lily", "size": Vector3(0.1, 0.18, 0.1), "color": Color(0.96, 0.95, 0.92)},
+	"spatterdock": {"name": "Spatterdock", "stack": 8, "shape": "lily", "size": Vector3(0.05, 0.16, 0.05), "color": Color(0.93, 0.76, 0.1)},
 	"cattail": {"name": "Cattail", "stack": 16, "shape": "cattail", "size": Vector3(0.024, 0.75, 0.16), "color": Color(0.36, 0.22, 0.12)},
 }
 
@@ -89,6 +93,13 @@ static func model(id: String) -> Node3D:
 		var holder := Node3D.new()
 		holder.add_child(fm)
 		return holder
+	if k.shape == "lily": # (a pad by its stalk, a flower on its: LilyPad)
+		var lm := MeshInstance3D.new()
+		lm.mesh = LilyPad.held(id)
+		lm.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		var lh := Node3D.new()
+		lh.add_child(lm)
+		return lh
 	var mesh: PrimitiveMesh
 	match k.shape:
 		"cylinder":
