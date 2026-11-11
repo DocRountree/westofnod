@@ -29,7 +29,8 @@ extends AntColony
 ## The species' shape (mm): {under, pronotum, elytra (the shell over both:
 ## one dome, centred on the middle line), scutellum: [centre, size] each; neck, head, clypeus, eye ([offset from
 ## the neck, size]); antenna: "lamellate" (a June bug's: a fan of plates)
-## or "clubbed" (a lady beetle's: short, beaded, thickening), antenna_at
+## or "clubbed" (a lady beetle's: short, beaded, thickening) or
+## "filiform" (a firefly's: long, slender, even), antenna_at
 ## (its socket, off the neck), antenna_len; legs: [{hip, f, t, s, home}] x3
 ## (the right side's: hip (mm), femur, tibia, tarsus lengths, home: the
 ## foot at rest, x z); leg_r: the legs' thickness (mm, the femur's);
@@ -147,6 +148,16 @@ func _build_mesh() -> Array:
 				var b := Basis.looking_at(_dir(0.45 + (k - 1) * 0.22, 0.1 + (k - 1) * 0.12, side), Vector3.UP)
 				ball.call(p + b * Vector3(0.0, 0.0, -length * 0.17), Vector3(length * 0.11, length * 0.03, length * 0.36), 6 + s, b)
 			p += fwd * length * 0.3
+		elif S.antenna == "filiform":
+			# a firefly's: long, slender, of eleven even segments, a little
+			# flattened, curving out and forward
+			var fp := 0.15
+			for k in 11:
+				var q := p + _dir(0.5 + 0.03 * k, fp, side) * length * 0.075
+				var r := length * 0.028 * (1.0 - 0.025 * k)
+				ball.call((p + q) * 0.5, Vector3(r * 1.25, r, length * 0.082), 6 + s, Basis.looking_at(q - p, Vector3.UP))
+				p = q
+				fp -= 0.045
 		else:
 			# beads, thickening to a club
 			var fp := 0.2

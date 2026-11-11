@@ -24,13 +24,18 @@ const EGGS := {
 	"cloak": [0.9, 0.8, Color(0.82, 0.72, 0.42), true], # (ribbed, yellowish tan, in a ring round a twig)
 	"cecropia": [2.0, 1.6, Color(0.88, 0.84, 0.74), false], # (big, white, stained brown, in twos and threes)
 	"polyphemus": [2.2, 2.0, Color(0.88, 0.85, 0.75), false], # (big, flattish, cream ringed brown, one or two to a leaf)
+	"firefly": [0.6, 0.55, Color(0.95, 0.92, 0.66), false], # (round, pale yellow, in the soil: glowing faintly)
+	"tigersnail": [2.6, 2.4, Color(0.97, 0.95, 0.9), false], # (a flamed tigersnail's: white pearls, a clutch in the soil)
+	"grass_snail": [0.75, 0.7, Color(0.97, 0.96, 0.92), false], # (a lovely grass snail's: tiny, glassy white, one or a few)
 	"grasshopper": [4.5, 1.1, Color(0.8, 0.66, 0.4), true], # (tan, long, packed upright in a pod in the soil: Grasshopper.Pod)
 }
+## (A snail's eggs hatch a snail: on_hatch.call(where), not a larva.)
+const SNAIL_EGGS := ["tigersnail", "grass_snail"]
 ## kind: the hatchling's size (a share of full grown), seconds to grow up
 const HATCHLING := {
 	"wasp": [0.25, 60.0], "carpenter": [0.35, 50.0], "harvester": [0.35, 50.0], "june": [0.25, 80.0],
 	"lady": [0.25, 50.0], "monarch": [0.12, 90.0], "hemaris": [0.12, 90.0],
-	"swallowtail": [0.12, 90.0], "luna": [0.1, 100.0], "cloak": [0.14, 80.0], "cecropia": [0.08, 120.0], "polyphemus": [0.09, 110.0],
+	"swallowtail": [0.12, 90.0], "luna": [0.1, 100.0], "firefly": [0.18, 90.0], "cloak": [0.14, 80.0], "cecropia": [0.08, 120.0], "polyphemus": [0.09, 110.0],
 }
 
 static var _meshes := {}
@@ -45,6 +50,9 @@ var _t := 0.0
 var _after := Callable()
 var _shell_scale := Vector3.ONE
 var _meal: Node3D # (its shell, eaten by its caterpillar: Meal)
+## What hatches instead of a larva (a snail's egg: its colony's hatchling,
+## at the egg's place, its parent's space): on_hatch.call(at).
+var on_hatch := Callable()
 
 
 func _init(k := "wasp") -> void:
@@ -64,6 +72,14 @@ func _init(k := "wasp") -> void:
 		mat.roughness = 0.35
 		mat.rim_enabled = true # (a pearly sheen)
 		mat.rim = 0.3
+		if k == "firefly": # (a firefly's eggs glow, faintly)
+			mat.emission_enabled = true
+			mat.emission = Color(0.75, 1.0, 0.25)
+			mat.emission_energy_multiplier = 0.6
+		elif k in SNAIL_EGGS: # (a snail's: translucent, glassy)
+			mat.roughness = 0.15
+			mat.subsurf_scatter_enabled = false
+			mat.rim = 0.6
 		_mats[k] = mat
 	_rock = Node3D.new()
 	add_child(_rock)
@@ -118,6 +134,17 @@ func _out() -> void:
 	_rock.rotation = Vector3.ZERO
 	var parent := get_parent() as Node3D
 	if parent == null:
+		return
+	if on_hatch.is_valid() or not HATCHLING.has(kind):
+		if on_hatch.is_valid():
+			on_hatch.call(parent.to_local(global_position))
+		_state = "empty"
+		_t = 0.0
+		var me := (_shell.material_override as StandardMaterial3D).duplicate() as StandardMaterial3D
+		me.albedo_color = Color(0.92, 0.92, 0.88, 1.0)
+		me.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		_shell.material_override = me
+		_shell.scale = Vector3(1.0, 0.45, 1.0)
 		return
 	var h: Array = HATCHLING[kind]
 	var lv := LarvaScript.new(kind, h[0])

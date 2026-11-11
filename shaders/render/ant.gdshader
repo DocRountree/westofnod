@@ -31,6 +31,10 @@ shader_type spatial;
 //   spread (elytra_open: roll out, pitch up, yaw out, rad), the hind wings
 //   unfolding from under them and beating (fly_hz; drawn stippled, a blur),
 //   the legs tucked (fly_tuck: back, in)
+// - a firefly's lantern (part 27: the last segments of its belly), lit by
+//   INSTANCE_CUSTOM.w's whole part: w = fly + 2 * light, light 0..31 (the
+//   flash, its own each instant: set on the CPU, Fireflies), glowing
+//   yellow-green (lantern_light); unlit, a pale cream (lantern)
 
 uniform vec3 hips[6];      // each leg's coxa, at the body
 uniform vec3 knees[6];
@@ -65,11 +69,15 @@ uniform vec3 elytra_open = vec3(0.9, -0.35, 0.3);
 uniform vec2 fly_tuck = vec2(0.7, 0.5);
 uniform float fly_hz = 22.0; // (drawn: a real beat's too fast to see)
 uniform vec3 wing_color : source_color = vec3(0.45, 0.35, 0.25); // how much the antennae sweep and drum (an ant's 1)
+uniform vec3 lantern : source_color = vec3(0.93, 0.9, 0.68);
+uniform vec3 lantern_light : source_color = vec3(0.72, 1.0, 0.18);
+uniform float lantern_energy = 16.0;
 
 varying flat int part;
 varying vec3 rest; // where it is on the ant at rest (m): for its sculpture
 varying float band_z;
 varying flat float banded;
+varying flat float lit;
 
 vec3 rot(vec3 v, vec3 a, float ang) {
 	float c = cos(ang), s = sin(ang);
@@ -91,7 +99,9 @@ void vertex() {
 	float walk = INSTANCE_CUSTOM.x;
 	float feed = max(INSTANCE_CUSTOM.y, 0.0);
 	float seed = INSTANCE_CUSTOM.z;
-	float fly = INSTANCE_CUSTOM.w;
+	float lq = floor(INSTANCE_CUSTOM.w * 0.5);
+	float fly = INSTANCE_CUSTOM.w - 2.0 * lq;
+	lit = lq / 31.0;
 	float t = TIME + seed * 37.0;
 	vec3 v = VERTEX;
 	vec3 n = NORMAL;
@@ -232,6 +242,11 @@ void fragment() {
 			discard;
 		c = wing_color;
 		gloss = 0.8;
+	}
+	if (part == 27) { // (a firefly's lantern)
+		c = lantern;
+		gloss = 0.55;
+		EMISSION = lantern_light * lantern_energy * lit * lit;
 	}
 	ALBEDO = c;
 	METALLIC = metal;

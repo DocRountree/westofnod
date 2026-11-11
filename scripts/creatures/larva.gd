@@ -35,6 +35,12 @@ extends Node3D
 ##   brown head
 ## - lady: the lady beetle's larva ("alligator"), blackish, bumpy, tapering,
 ##   orange patches on its sides, six legs, quick
+## - firefly: a firefly's larva (a "glowworm"), long, flattened, its back
+##   in dark plates, each edged pale pink at its sides, a fine pale line
+##   down its middle, two pale spots at each plate's back; its small head
+##   drawn back under the first plate; six short legs. Its lantern: two
+##   spots under its last segment, glowing yellow-green in slow pulses
+##   (brighter, steady, when it's disturbed); a hunter of snails
 ## - june: a June bug's white grub, C-curled on its side, a brown head, six
 ##   small legs, its rear end dark (the soil it's eaten, showing through)
 ## - wasp: a paper wasp's grub, white, fat, legless, curled
@@ -89,6 +95,10 @@ const KINDS := {
 	"lady": {"style": "crawl", "n": 10, "len": 10.0, "w": 2.6, "shape": [0.8, 1.0, 0.95, 0.75, 0.5, 0.3],
 			"pattern": 3, "base": Color(0.14, 0.14, 0.16), "band_b": Color(0.95, 0.45, 0.08), "spots": [1, 4],
 			"head": Color(0.04, 0.04, 0.05), "eyes": true, "speed": 0.02, "legs": "six", "gloss": 0.3, "crease": 0.18, "bend": 0.22, "tubercles": true},
+	"firefly": {"style": "crawl", "n": 12, "len": 18.0, "w": 4.2, "shape": [0.42, 0.85, 1.0, 1.0, 0.92, 0.6],
+			"pattern": 10, "base": Color(0.17, 0.13, 0.12), "line": Color(0.86, 0.6, 0.55), "band_b": Color(0.9, 0.76, 0.58),
+			"head": Color(0.05, 0.04, 0.04), "eyes": false, "speed": 0.014, "legs": "six", "gloss": 0.4, "crease": 0.2, "bend": 0.2,
+			"flat": true, "glow": true},
 	"june": {"style": "curl", "n": 11, "len": 35.0, "w": 9.0, "shape": [0.75, 0.85, 0.9, 0.95, 1.1, 1.3], "round_tail": true,
 			"pattern": 4, "base": Color(0.93, 0.9, 0.82), "dark_tail": Color(0.42, 0.38, 0.32),
 			"head": Color(0.66, 0.4, 0.14), "curl": 3.6, "legs": "grub", "crease": 0.12, "mandibles": true,
@@ -593,6 +603,7 @@ func _tube() -> ArrayMesh:
 	var crease: float = K.get("crease", 0.06)
 	var flat_belly: bool = K.get("legs", "") == "caterpillar"
 	var round_tail: bool = K.get("round_tail", false)
+	var flat: bool = K.get("flat", false) # (a firefly larva's: flattened, its plates out at its sides)
 	var radius := func(s: float) -> float:
 		var c := clampf(s, 0.0, n - 1.0)
 		var i := mini(int(c), n - 2) if n > 1 else 0
@@ -624,7 +635,7 @@ func _tube() -> ArrayMesh:
 		var sv: float = g[0]
 		var r: float = g[1]
 		var a := TAU * float(a_i % ROUND) / ROUND
-		var hy := 0.92 * (0.8 if flat_belly and sin(a) < 0.0 else 1.0)
+		var hy := 0.92 * (0.8 if flat_belly and sin(a) < 0.0 else 1.0) * (0.55 if flat else 1.0)
 		var x := cos(a) * r
 		var y := sin(a) * r * hy
 		# (outward round the ellipse; tipped forward where it widens back)
@@ -745,6 +756,8 @@ func _process(dt: float) -> void:
 		return
 	_t += dt
 	_g = move_toward(_g, _g_to, _g_rate * dt)
+	if K.get("glow", false):
+		_glow_step(dt)
 	if _pilot:
 		_pilot.tick(dt)
 	if K.style == "crawl":
@@ -785,6 +798,30 @@ func _process(dt: float) -> void:
 		var side: float = l.get_meta("side")
 		var pair: int = l.get_meta("pair")
 		l.rotation = Vector3(0.25 * sin(_t * 1.6 + pair * 1.1 + (0.0 if side > 0.0 else 1.5)), 0.0, 0.0)
+
+
+## A firefly larva's lantern: slow pulses, now and then, glowing a few
+## seconds and fading; disturbed (struggling, flinching), bright and steady.
+func _glow_step(dt: float) -> void:
+	var want := 0.0
+	if _mode in ["struggle", "threat"]:
+		want = 1.0
+	else:
+		_glow_wait -= dt
+		if _glow_wait <= 0.0:
+			_glow_wait = rng.randf_range(4.0, 9.0)
+			_glow_on = rng.randf_range(1.5, 3.5)
+		_glow_on -= dt
+		want = 0.75 if _glow_on > 0.0 else 0.0
+		if _mode == "limp":
+			want = 0.0
+	_glow = move_toward(_glow, want, dt * (1.5 if want > _glow else 0.6))
+	_skin_mat.set_shader_parameter("glow", _glow)
+
+
+var _glow := 0.0
+var _glow_on := 0.0
+var _glow_wait := 1.0
 
 
 func _crawl(dt: float) -> void:

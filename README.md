@@ -781,6 +781,35 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   pink-lined, a small clear eye on each forewing and the great one on each hindwing; resting shut over its back;
   startled, its wings flung open and pumped, the forewings drawn up off the staring eyes; its caterpillar plump, bright
   green, slanting yellow lines, small orange knobs flecked silver; its cocoon a firm oval wrapped in a leaf.
+  `fireflies.gd` (`Fireflies`, *Photinus pyralis*, the "big dipper"): beetles on the ants' GPU colony (`Beetles`), long
+  and soft, the wing cases dull blackish edged pale yellow, the pronotum's shield rose pink with a black spot, rimmed
+  yellow; the lantern (two cream segments under the tail, `ant.gdshader` part 27) lit each instant from the CPU,
+  yellow-green, a few small lights cast from the brightest flashes. At dusk (the global night, or D: court) the males
+  fly low, each flashing every 5.6 s as he swoops down and up (a J of light); the females in the grass answer 2 s after
+  a male's flash; an answered male comes in nearer and lower at each exchange, lands, walks to her and they mate; she
+  lays a dozen eggs, which glow faintly. Its larva (a glowworm: flat, dark plates edged pink, two lanterns pulsing
+  under its tail, bright when disturbed) hunts snails (H: to the nearest, bitten, eaten at its shell's mouth); its pupa
+  lies on its back in a ring of soil, its lantern glowing now and then. T in the sandbox: day, dusk, night.
+  `snails.gd` (`Snails`, on the same GPU colony, `snail.gdshader`): land snails, each a smooth foot and head with two
+  pairs of tentacles (eyes on the upper), the mantle's collar and breathing pore, and a coiled shell built as a tube
+  along a growing spiral (dextral), carried on edge with its spire out to the left; gliding (the sole's waves, the head
+  swaying, the tentacles feeling and dabbing) and leaving a glistening slime trail that dries away (`slime.gdshader`);
+  feeding (E), withdrawing into the shell (X: tentacles first), asleep sealed behind a dried film (Z); mating (K: both
+  hermaphrodites, head to head, reared up, then both carrying eggs) or, alone, selfing (1 lays anyway: its eggs its
+  own); a clutch of white eggs left in a hole its head made, hatching on their own into tiny snails that grow. The
+  flamed tigersnail (`flamed_tigersnails.gd`, *Anguispira alternata*): a low ribbed cone, horn yellow with slanting
+  red-brown flames, a tan body; the lovely grass snail (`grass_snails.gd`, *Vallonia pulchella*): tiny, a glassy
+  white disc with a flared white lip, mostly selfing.
+  `ticks.gd` (`Ticks`, on the GPU colony, `tick.gdshader`): hard ticks with eight legs (the larva six), at each stage
+  (larva, nymph, male, female) and engorged (the soft back swelling up to a grape, the shield left small at its
+  front, tan to grey, marbled). They quest (front legs up, waving), cling to a mammal passing close (`tick_load.gd`:
+  pinned to its skin's bones and its ears, feeding, swelling), drop off engorged, moult (the old skin left) or, a
+  female, lay a heaped egg mass (`tick_eggs.gd`) and die; the eggs hatch into a swarm of larvae. The blacklegged tick
+  (`blacklegged_ticks.gd`, *Ixodes scapularis*: black scutum, orange-red back, slate engorged; the male all dark,
+  rimmed pale) and the lone star tick (`lone_star_ticks.gd`, *Amblyomma americanum*: reddish brown, the female's one
+  white spot, banded orange legs, festoons, grey-olive marbled yellow engorged). And a tick-infested white-tailed
+  deer, alive or dead (fresh only): `TickLoad.infest`, some 900 ticks of both kinds, thickest on its head, ears and
+  neck, many females swollen grey, clusters of seed ticks.
   The ecology sandbox's plain is grown over with the game's own short grass (`DemoFlowers.meadow`: GroundCover's
   finest grass layer's clumps, 7 to 16 cm, coloured as `ground_cover.gdshader` colours them, swaying in the same
   wind and as much), kept off the ponds and round the small creatures.

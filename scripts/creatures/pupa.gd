@@ -45,6 +45,11 @@ extends Node3D
 ## - june: the June bug's, on its back in its cell in the soil: creamy, its
 ##   legs folded on its front, its wing pads at its sides. Out: a June bug
 ##   (colony's), the skin left pale
+## - firefly: the firefly's, in its cell in the soil (a ring of crumbs
+##   heaped round it): lying on its back, soft, pale cream flushed pink, its
+##   pronotum's shield over its head, legs and wing pads folded on its
+##   front; its lantern under its tail glowing now and then, slow pulses.
+##   Out: a firefly (colony's), the skin left pale
 ## - wasp: the paper wasp's: only its cell's cap to see, a white dome of
 ##   silk over the cell's mouth (its origin). Out: the cap chewed open and
 ##   gone, a wasp (Wasp) out of the cell and down beside it
@@ -101,6 +106,8 @@ var _t := 0.0
 var _twitch := 0.0
 var _body: Node3D
 var _after := Callable()
+var _glow_mat: StandardMaterial3D # (a firefly's lantern)
+var _glow_k := 0.0
 
 
 func _init(k := "monarch") -> void:
@@ -334,6 +341,29 @@ func _build_other(shell: MeshInstance3D) -> void:
 			for side: float in [-1.0, 1.0]: # (its wing pads, along its sides)
 				part.call(Vector3(4.2 * side, 6.4, -2.0), Vector3(1.8, 3.0, 9.0), Color(0.84, 0.74, 0.52), 0.4)
 			part.call(Vector3(0.0, 6.0, -10.0), Vector3(4.0, 3.5, 3.0), Color(0.78, 0.6, 0.36), 0.35) # (its head)
+		"firefly":
+			# on its back in its cell: pale cream, flushed pink
+			var keys := [[0.0, 0.3, 0.3], [1.0, 1.6, 1.1], [3.0, 2.0, 1.4], [6.0, 2.1, 1.5], [9.0, 1.8, 1.3], [11.0, 1.1, 0.8], [12.0, 0.3, 0.3]]
+			shell.mesh = _loft(keys, Vector3(0.0, 1.5, -6.0), Vector3.BACK, Vector3.RIGHT, Vector3.UP)
+			shell.material_override = _plain(Color(0.94, 0.84, 0.74), 0.45)
+			part.call(Vector3(0.0, 1.8, -5.2), Vector3(4.6, 1.4, 3.6), Color(0.96, 0.78, 0.72), 0.45) # (the pronotum's shield, over its head)
+			for k in 3: # (its legs, folded on its front: up, on its back)
+				for side: float in [-1.0, 1.0]:
+					part.call(Vector3(0.9 * side, 3.0, -3.6 + 1.3 * k), Vector3(0.6, 0.5, 2.2), Color(0.92, 0.8, 0.7), 0.4, Vector3(0.0, 0.3 * side, 0.0))
+			for side: float in [-1.0, 1.0]: # (its wing pads, along its sides)
+				part.call(Vector3(1.9 * side, 2.4, -0.5), Vector3(0.8, 1.2, 5.0), Color(0.93, 0.82, 0.72), 0.4)
+			_glow_mat = _plain(Color(0.96, 0.93, 0.72), 0.4)
+			_glow_mat.emission_enabled = true
+			_glow_mat.emission = Color(0.75, 1.0, 0.2)
+			_glow_mat.emission_energy_multiplier = 0.0
+			for side: float in [-1.0, 1.0]: # (its lantern: two spots under its tail, lit now and then)
+				var l := part.call(Vector3(0.7 * side, 1.1, 4.0), Vector3(1.0, 0.7, 1.3), Color.WHITE, 0.4) as MeshInstance3D
+				l.material_override = _glow_mat
+			var soil := _plain(Color(0.27, 0.2, 0.13), 0.95)
+			for k in 14: # (its cell: a ring of crumbs heaped round it)
+				var a := TAU * k / 14.0
+				var r := Vector3(sin(a) * 4.6, 0.0, cos(a) * 9.0)
+				part.call(r + Vector3(0.0, 0.8, 0.0), Vector3(2.6, 1.9, 2.8) * randf_range(0.8, 1.2), Color(soil.albedo_color), 0.95, Vector3(0.0, a, 0.0))
 		"carpenter":
 			# its cocoon: tan, lying, a dark spot at its tail end
 			var keys := [[0.0, 0.4, 0.4], [1.5, 2.4, 2.4], [4.0, 3.2, 3.2], [7.0, 3.1, 3.1], [9.0, 2.2, 2.2], [10.0, 0.3, 0.3]]
@@ -438,7 +468,10 @@ func _process(dt: float) -> void:
 	elif _state == "":
 		# the clearwing's twitching now and then, the bare pupae's (the
 		# monarch's still, the cocoon and the capped cell too)
-		if kind in ["hemaris", "june", "harvester", "lady"]:
+		if _glow_mat: # (a firefly's: its lantern glowing now and then)
+			_glow_k = 0.5 + 0.5 * sin(_t * 0.9)
+			_glow_mat.emission_energy_multiplier = 3.0 * smoothstep(0.55, 1.0, _glow_k)
+		if kind in ["hemaris", "june", "harvester", "lady", "firefly"]:
 			_twitch -= dt
 			if _twitch <= 0.0:
 				_twitch = randf_range(3.0, 7.0)

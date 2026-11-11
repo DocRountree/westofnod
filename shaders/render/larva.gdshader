@@ -30,6 +30,10 @@ shader_type spatial;
 // pattern 9: a polyphemus caterpillar's: bright green, see-through, a
 //   slanting yellow line (line) down each side of each segment, a pale
 //   line low along it
+// pattern 10: a firefly larva's: dark plates over its back, each edged
+//   pale pink (line) at its sides, a fine pale line down its middle, two
+//   pale spots (band_b) at each plate's back; paler beneath; under its last
+//   segment its lantern, two cream spots glowing (glow, 0..1) yellow-green
 // The segments from tail_from on are `tail` (a June grub's dark rear).
 
 uniform int pattern = 0;
@@ -52,6 +56,8 @@ uniform int count = 2;
 uniform float size = 1.0;
 uniform int spot_mask = 0;
 uniform int tail_from = 99;
+uniform float glow = 0.0;
+uniform vec3 glow_light : source_color = vec3(0.75, 1.0, 0.2);
 
 varying vec3 o;
 varying flat float seg;
@@ -190,6 +196,22 @@ void fragment() {
 		if (spiracles)
 			c = mix(c, vec3(0.55, 0.32, 0.12), (1.0 - smoothstep(0.03, 0.045, length(vec2(z - 0.2, (o.y + 0.08) * 1.3)))) * step(0.85, side));
 		SSS_STRENGTH = 0.25;
+	} else if (pattern == 10) {
+		float z = o.z + 0.5;
+		float top = step(-0.05, o.y);
+		// each plate a little darker toward its front, its back edge
+		// raised; the creases between dark
+		c *= mix(0.85, 1.1, z) * (1.0 - 0.35 * (1.0 - smoothstep(0.0, 0.1, min(z, 1.0 - z))));
+		c = mix(c, line, smoothstep(0.84, 0.92, side) * top); // (its sides' pink edges)
+		c = mix(c, line * 0.9, smoothstep(0.03, 0.0, abs(o.x) - 0.012) * top * step(0.1, z)); // (down its middle)
+		float psp = 1.0 - smoothstep(0.045, 0.065, length(vec2(abs(o.x) - 0.2, z - 0.72)));
+		c = mix(c, band_b, psp * top);
+		c = mix(c, vec3(0.62, 0.5, 0.45), (1.0 - top) * 0.6); // (paler beneath)
+		if (seg >= float(count) - 1.5) { // (the lantern)
+			float l = 1.0 - smoothstep(0.12, 0.17, length(vec2(abs(o.x) - 0.3, (z - 0.45) * 0.7))); // (a spot each side, its light through the plates above it too)
+			c = mix(c, vec3(0.95, 0.92, 0.7), l);
+			EMISSION = glow_light * glow * glow * 10.0 * l;
+		}
 	} else if (pattern == 4) {
 		// creased across: each segment folded into annulets
 		c *= 1.0 - wrinkle * (0.5 + 0.5 * cos((o.z + 0.5) * 6.2832 * annulets));

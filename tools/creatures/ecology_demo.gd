@@ -19,9 +19,9 @@ extends Node3D
 ## give birth, 2 hatch / come out / moult / shed, 3 pupate, E eat, H hunt, U an
 ## unusual meal, K mate (each male with the nearest female of his kind),
 ## G groom, Z sleep / rest, F fly / hop / climb, X alarm (flee, roll up,
-## coil, sting, play dead), D display / call, V the young play, N nurse, B
+## coil, sting, play dead, withdraw), D display / call (fireflies: flash), V the young play, N nurse, B
 ## forage (home, gather, swim, cache, wade), S spin a web, M mark, A sit, W
-## back to their own ways; Space slow motion.
+## back to their own ways; Space slow motion; T day, dusk, night.
 ##
 ## What each needs and isn't here is put down for it, close by, the first
 ## time it needs it (a den, a nest, a comb, a web's moorings, a pond, a
@@ -41,6 +41,12 @@ const PolyScript := preload("res://scripts/creatures/polyphemus_moth.gd")
 const HarvesterScript := preload("res://scripts/creatures/harvester_ants.gd")
 const JuneScript := preload("res://scripts/creatures/june_beetles.gd")
 const LadyScript := preload("res://scripts/creatures/lady_beetles.gd")
+const FireflyScript := preload("res://scripts/creatures/fireflies.gd")
+const TigerSnailScript := preload("res://scripts/creatures/flamed_tigersnails.gd")
+const GrassSnailScript := preload("res://scripts/creatures/grass_snails.gd")
+const DeerTickScript := preload("res://scripts/creatures/blacklegged_ticks.gd")
+const LoneStarScript := preload("res://scripts/creatures/lone_star_ticks.gd")
+const TickLoadScript := preload("res://scripts/creatures/tick_load.gd")
 const LarvaScript := preload("res://scripts/creatures/larva.gd")
 const BroodScript := preload("res://scripts/creatures/brood.gd")
 const PupaScript := preload("res://scripts/creatures/pupa.gd")
@@ -136,6 +142,7 @@ const CATALOGUE := [
 	["Insects", "red harvester (queen)", "harvester", ["adult", "young"]],
 	["Insects", "June bugs (a pair)", "june", ["adult", "young"]],
 	["Insects", "convergent lady beetles (a pair)", "lady", ["adult", "young"]],
+	["Insects", "common eastern fireflies (a few)", "firefly", ["adult", "young", "pupa"]],
 	["Insects", "differential grasshopper", "hopper", ["adult", "young"]],
 	["Insects", "blue-winged grasshopper", "blue_hopper", ["adult", "young"]],
 	["Insects", "Carolina mantis", "mantis", ["adult", "young"]],
@@ -146,6 +153,10 @@ const CATALOGUE := [
 	["Spiders and kin", "yellow garden spider", "garden_spider", ["adult", "young"]],
 	["Spiders and kin", "Arizona bark scorpion", "scorpion", ["adult", "young"]],
 	["Spiders and kin", "pill bug", "pillbug", ["adult", "young"]],
+	["Spiders and kin", "blacklegged (deer) ticks", "deer_tick", ["adult", "young"]],
+	["Spiders and kin", "lone star ticks", "lone_star_tick", ["adult", "young"]],
+	["Snails", "flamed tigersnails (a few)", "tigersnail", ["adult", "young"]],
+	["Snails", "lovely grass snails (a few)", "grass_snail", ["adult", "young"]],
 	["Crustaceans", "red swamp crayfish", "red_crayfish", ["adult", "young"]],
 	["Crustaceans", "virile crayfish", "virile_crayfish", ["adult", "young"]],
 	["Crustaceans", "white shrimp (in the sea)", "white_shrimp", ["adult", "young"]],
@@ -183,12 +194,14 @@ const CATALOGUE := [
 	["Mammals", "brown bear (grizzly)", "brown_bear", ["adult", "young"]],
 	["Mammals", "white-tailed deer (summer)", "deer", ["adult", "young"]],
 	["Mammals", "white-tailed deer (winter)", "deer_winter", ["adult"]],
+	["Mammals", "white-tailed deer, tick-infested", "deer_ticks", ["adult"]],
 	["Mammals", "moose", "moose", ["adult", "young"]],
 	["Mammals", "American bison", "bison", ["adult", "young"]],
 	["Carcasses", "grey wolf", "carcass_wolf", ["adult"]],
 	["Carcasses", "American black bear", "carcass_black_bear", ["adult"]],
 	["Carcasses", "brown bear (grizzly)", "carcass_brown_bear", ["adult"]],
 	["Carcasses", "white-tailed deer", "carcass_deer", ["adult"]],
+	["Carcasses", "white-tailed deer, tick-infested (fresh)", "carcass_deer_ticks", ["adult"]],
 	["Carcasses", "moose", "carcass_moose", ["adult"]],
 	["Carcasses", "American bison", "carcass_bison", ["adult"]],
 ]
@@ -567,6 +580,9 @@ func spawn(key: String, at: Vector3, stage := "adult", male := false) -> Node:
 			n = OpossumScript.snag(at, at + Vector3(-0.45, 0.85, -0.5))
 			n.set_meta("snag", [at, at + Vector3(-0.45, 0.85, -0.5), 0.035])
 			add_child(n)
+		"carcass_deer_ticks": # (fresh only: dead with its ticks still on it)
+			n = CarcassScript.make(self, DeerScript, at, randf() * TAU, 1, male, ["summer"])
+			TickLoadScript.of(n as Node3D).call("infest", 900)
 		"carcass_wolf", "carcass_black_bear", "carcass_brown_bear", "carcass_deer", "carcass_moose", "carcass_bison":
 			var k := key.substr(8)
 			var sc: Script = {"wolf": WolfScript, "black_bear": BlackBearScript, "brown_bear": BrownBearScript, "deer": DeerScript, "moose": MooseScript, "bison": BisonScript}[k]
@@ -936,6 +952,37 @@ func _spawn_animal(key: String, at: Vector3, stage: String, male: bool, young: b
 				_kit_add(bc, lf)
 			bc.setup(2, Vector3.ZERO, 0.06 if key == "june" else 0.04) # (0 a female, 1 a male)
 			return bc
+		"firefly":
+			if young:
+				var l := LarvaScript.new("firefly")
+				_org(l, at, true)
+				l.place(at, Vector3.LEFT.rotated(Vector3.UP, randf() * TAU))
+				l.wander(at, 0.06)
+				return l
+			if stage == "pupa":
+				var pu := PupaScript.new("firefly")
+				_org(pu, at, true)
+				pu.rotation.y = randf() * TAU
+				pu.colony = _colony_near("firefly", at)
+				return pu
+			var ff: Fireflies = FireflyScript.new()
+			ff.position = at
+			_org(ff, at, true)
+			ff.setup(4, Vector3.ZERO, 0.06) # (two females, two males)
+			return ff
+		"tigersnail", "grass_snail":
+			var sn: Snails = (TigerSnailScript if key == "tigersnail" else GrassSnailScript).new()
+			sn.position = at
+			_org(sn, at, true)
+			var lt := Beetles.leaf() # (rotting litter, to eat at)
+			lt.position = at + Vector3(0.0, 0.0, 0.05)
+			lt.scale = Vector3(1.5, 1.0, 1.5)
+			_kit_add(sn, lt)
+			sn.setup(3, Vector3.ZERO, 0.05 if key == "tigersnail" else 0.012)
+			if young:
+				for i in 3:
+					sn.size[i] = 0.15
+			return sn
 		"hopper", "blue_hopper":
 			var sc: Script = HopperScript if key == "hopper" else BlueHopperScript
 			var g: Node3D = sc.new(true, 0.3) if young else sc.new()
@@ -1253,6 +1300,20 @@ func _spawn_animal(key: String, at: Vector3, stage: String, male: bool, young: b
 				br.call("grow", 0.25, 1.0)
 			br.call("forage", at, 2.5)
 			return br
+		"deer_ticks": # (a deer in a bad tick year: hundreds on its head, ears and neck)
+			var dt_: Node3D = DeerScript.new(false, "summer")
+			dt_.set("male", male)
+			_org(dt_, at, false)
+			dt_.call("place", at, randf() * TAU)
+			dt_.call("graze", at, 1.5)
+			TickLoadScript.of(dt_).call("infest", 900)
+			return dt_
+		"deer_tick", "lone_star_tick":
+			var tc: Ticks = (DeerTickScript if key == "deer_tick" else LoneStarScript).new()
+			tc.position = at
+			_org(tc, at, true)
+			tc.setup_stages(8 if not young else 14, Vector3.ZERO, 0.08, [Ticks.MALE, Ticks.FEMALE] if not young else [Ticks.LARVA, Ticks.LARVA, Ticks.NYMPH])
+			return tc
 		"deer", "deer_winter":
 			var season := "winter" if key == "deer_winter" else "summer"
 			var d: Node3D = DeerScript.new(young, season)
@@ -2282,6 +2343,28 @@ func _mate(all: Array) -> void:
 		if c is Beetles:
 			(c as Beetles).mate(1, 0)
 			continue
+		if c is Ticks: # (each free male with the nearest adult female)
+			var tc := c as Ticks
+			for i in tc.pos.size():
+				if tc.stage[i] != Ticks.MALE:
+					continue
+				var best := -1
+				for j in tc.pos.size():
+					if tc.stage[j] == Ticks.FEMALE and tc.mated[j] == 0 and not tc.is_dead(j) and (best < 0 or tc.pos[j].distance_to(tc.pos[i]) < tc.pos[best].distance_to(tc.pos[i])):
+						best = j
+				if best >= 0:
+					tc.mate(i, best)
+			continue
+		if c is Snails: # (each grown one with the nearest other free one: hermaphrodites, each the other's mate)
+			var sn := c as Snails
+			for i in sn.pos.size():
+				var best := -1
+				for j in sn.pos.size():
+					if j != i and sn.mate_of[j] < 0 and sn.mate_of[i] < 0 and sn.size[j] >= 0.8 and not sn.is_dead(j) and (best < 0 or sn.pos[j].distance_to(sn.pos[i]) < sn.pos[best].distance_to(sn.pos[i])):
+						best = j
+				if best >= 0:
+					sn.mate(i, best)
+			continue
 		if not _flag(c, "male") or _young(c) or not c.has_method("mate"):
 			continue
 		var best: Node = null
@@ -2309,7 +2392,10 @@ func _pupate(all: Array) -> void:
 			continue
 		var kind: String = c.get("kind")
 		var p: Vector3 = c.get("_pos")
-		if kind in ["lady", "june", "wasp", "carpenter", "harvester"]:
+		if kind == "firefly": # (into the soil where it is, its cell)
+			var colf := _colony_near("firefly", p)
+			c.call("pupate", p, [], func(pu: Node3D) -> void: pu.set("colony", colf))
+		elif kind in ["lady", "june", "wasp", "carpenter", "harvester"]:
 			var d: Vector3 = c.get("_dir")
 			var at := p + d * 0.015 if kind == "lady" else (p + Vector3.UP * 0.012 if kind == "wasp" else p)
 			var col: Node = null
@@ -2352,9 +2438,131 @@ func _pupate(all: Array) -> void:
 var _hung := 0
 
 
+## A snail colony's ways (each snail): E feeding at the litter by them, X
+## withdrawn into their shells a while, Z asleep (sealed), 1 laying (their
+## eggs their own, if none mated: selfing), W out and about again.
+func _snail_do(sn: Snails, act_: String) -> void:
+	for i in sn.pos.size():
+		if sn.is_dead(i):
+			continue
+		match act_:
+			"eat", "forage":
+				sn.feed(i, Vector3(0.0, 0.0, 0.05) + Vector3(randf_range(-0.01, 0.01), 0.0, randf_range(-0.01, 0.01)))
+			"alarm":
+				sn.withdraw(i, randf_range(8.0, 15.0))
+			"sleep":
+				sn.sleep(i)
+			"lay":
+				sn.lay(i, sn.pos[i])
+			"wander":
+				sn.wander(i, Vector3.ZERO, 0.06 if sn is FlamedTigersnails else 0.015)
+
+
+## A tick colony's ways: E / H questing, 1 the engorged females laying, 2
+## the engorged young moulting and the egg masses hatching, X still, W
+## walking about (then questing again).
+func _tick_do(tc: Ticks, act_: String) -> void:
+	if act_ == "hatch":
+		for m in tc.egg_masses:
+			if is_instance_valid(m):
+				m.call("hatch")
+	for i in tc.pos.size():
+		if tc.is_dead(i) or tc.gone[i] == 1:
+			continue
+		match act_:
+			"eat", "hunt", "forage":
+				tc.quest(i)
+			"lay":
+				tc.lay(i)
+			"hatch":
+				if tc.eng[i] > 0.5:
+					tc.molt(i)
+			"alarm":
+				tc.wander(i, tc.pos[i], 0.001)
+			"wander":
+				tc.wander(i, Vector3.ZERO, 0.08)
+
+
+## A firefly larva hunting: to the nearest live snail (of any colony here),
+## bites it (it withdraws, paralysed: dead), and feeds at its shell's mouth.
+func _glowworm_hunt(l: Node3D) -> void:
+	for h: Array in _hunts:
+		if h[0] == l:
+			return # (at one already)
+	var p: Vector3 = l.get("_pos")
+	var best: Snails = null
+	var bi := -1
+	var bd := INF
+	for n in get_children():
+		if n is Snails:
+			var sn := n as Snails
+			for i in sn.pos.size():
+				var w := to_local(sn.to_global(sn.pos[i]))
+				if not sn.is_dead(i) and w.distance_to(p) < bd:
+					bd = w.distance_to(p)
+					best = sn
+					bi = i
+	if best == null:
+		return
+	_hunts.append([l, best, bi, 0.0])
+	l.call("go_to", to_local(best.to_global(best.pos[bi])))
+
+
+var _hunts: Array = [] # [larva, snails, i, s at it]
+
+
+func _hunt_step(dt: float) -> void:
+	for h: Array in _hunts.duplicate():
+		var l: Node3D = h[0]
+		var sn: Snails = h[1]
+		var i: int = h[2]
+		if not is_instance_valid(l) or not is_instance_valid(sn):
+			_hunts.erase(h)
+			continue
+		var at := to_local(sn.to_global(sn.pos[i]))
+		var lp: Vector3 = l.get("_pos")
+		if float(h[3]) == 0.0:
+			if Vector2(lp.x - at.x, lp.z - at.z).length() < 0.014:
+				sn.die(i) # (bitten: paralysed, withdrawn)
+				l.call("flinch", 0.6)
+				h[3] = 0.001
+			else:
+				l.call("go_to", at)
+		else:
+			h[3] = float(h[3]) + dt
+			if float(h[3]) < 0.1:
+				l.call("eat")
+			if float(h[3]) > 40.0: # (eaten: off again)
+				l.call("wander", lp, 0.06)
+				_hunts.erase(h)
+
+
+## Day, then dusk, then night, then day (the sky's light, the global
+## night: the fireflies court in it).
+func _dusk() -> void:
+	_night_step = (_night_step + 1) % 3
+	var night: float = [0.0, 0.55, 1.0][_night_step]
+	OakTree.set_night(night)
+	for n in get_children():
+		if n is DirectionalLight3D:
+			(n as DirectionalLight3D).light_energy = [1.0, 0.25, 0.04][_night_step]
+			(n as DirectionalLight3D).light_color = [Color.WHITE, Color(1.0, 0.7, 0.5), Color(0.6, 0.7, 1.0)][_night_step]
+		elif n is WorldEnvironment:
+			var env := (n as WorldEnvironment).environment
+			env.background_energy_multiplier = [1.0, 0.25, 0.03][_night_step]
+			env.ambient_light_energy = [1.0, 0.35, 0.08][_night_step]
+			env.glow_enabled = _night_step > 0
+			env.glow_hdr_threshold = 1.2
+	_status = ["day", "dusk", "night"][_night_step]
+	_say()
+
+
+var _night_step := 0
+
+
 ## The lady beetles' or June bugs' colony nearest p (a new one, if none).
 func _colony_near(kind: String, p: Vector3) -> Node:
-	var sc: Script = LadyScript if kind == "lady" else JuneScript
+	var sc: Script = LadyScript if kind == "lady" else (FireflyScript if kind == "firefly" else JuneScript)
 	var best: Node3D = null
 	for n in get_children():
 		if n.get_script() == sc and (best == null or (n as Node3D).position.distance_to(p) < best.position.distance_to(p)):
@@ -2457,6 +2665,18 @@ func _do(c: Node, act_: String) -> void:
 		return
 	if sc == TurtleScript or sc == SnapScript or sc == SeaScript or sc == PaintedScript:
 		_turtle_do(c, act_, young, p)
+		return
+	if c is Snails:
+		_snail_do(c as Snails, act_)
+		return
+	if c is Ticks:
+		_tick_do(c as Ticks, act_)
+		return
+	if c is Fireflies and act_ == "display": # (courting now, whatever the hour)
+		(c as Fireflies).court = not (c as Fireflies).court
+		return
+	if c.get_script() == LarvaScript and c.get("kind") == "firefly" and act_ in ["hunt", "eat"]:
+		_glowworm_hunt(c as Node3D)
 		return
 	if c is Beetles or c is AntColony:
 		var col := c as AntColony
@@ -3396,6 +3616,8 @@ func _unhandled_input(e: InputEvent) -> void:
 				_delete_selected()
 			KEY_C:
 				_center()
+			KEY_T:
+				_dusk()
 			KEY_SPACE:
 				Engine.time_scale = 0.2 if Engine.time_scale > 0.5 else 1.0
 		return
@@ -3666,6 +3888,7 @@ func _process(dt: float) -> void:
 		_dist = 3.0
 		_keep_on_land()
 		_mark()
+		_hunt_step(dt)
 		return
 	# the camera, round its focus
 	var k := Input.get_vector("ui_left", "ui_right", "ui_up", "ui_down")
@@ -3683,6 +3906,7 @@ func _process(dt: float) -> void:
 	cam.global_position = _focus + off
 	cam.look_at(_focus, Vector3.UP)
 	_mark()
+	_hunt_step(dt)
 
 
 ## In the game: n over the land as it lies (its height callable, if it goes
