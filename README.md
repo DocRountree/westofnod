@@ -52,7 +52,7 @@ the keys are the game's, as ever. What's put down stays and lives there with the
 it is saved. Their places are drawn ones, so the floating origin is held where it is while anything put down is
 there; 3 km from it, all of it is taken away. Not there yet: ponds, the sea and what lives in or by them (the
 dragonfly, the fishing spider, crayfish, shrimp, krill, the fish, frogs and toads, the turtles, the beaver, the
-moose): those are in the sandbox's own scene still.
+otters, the moose): those are in the sandbox's own scene still.
 
 | Input | Action |
 |---|---|
@@ -507,6 +507,39 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   peeled; mud plastered on the lodge; grooming sat up; kits born furred, following her on land and swimming; mating
   in the water. In the ecology sandbox, with what it uses there: a female and a male, a bank with aspens and sticks, a pond and
   their lodge (E eat bark, H fell an aspen, B swim, X slap and dive, M mud, 1 birth).
+- `scripts/creatures/otter.gd` (`Otter`, on the hunters' make, plantigrade, webbed): the otters' ways in the water
+  (`wet`, `water_y`, `floor_y`): swimming low, head and back showing, forefeet tucked, hind feet paddling (by turns
+  slow, together fast), body pitching as it dives and rises, its tail rippling; diving to swim along the bottom;
+  floating on its back; its coat soaked in the water (`carnivore.gdshader`'s `soak`: darker, glossy, gathered into
+  spiky locks), drying on land over a couple of minutes (faster rolling and grooming). After a fish (`fish(school)`:
+  under, chasing the nearest of a pond's trout or salmon, taken in its jaws) or anything in or by the water
+  (`catch(prey)`: a crayfish on the bottom, a frog), up with it, eaten held to its mouth (`eat_held`).
+- `scripts/creatures/river_otter.gd` (`RiverOtter`, *Lontra canadensis*): a North American river otter, life size;
+  one skin, long, low and supple, its neck as thick as its broad flat head, small round ears set low, small eyes set
+  high, a short blunt muzzle with full whisker pads and thick white whiskers, a broad black nose pad, clawed webbed
+  feet, its tail thick at the root and tapering (species 15: dark chocolate, its belly paler, its throat, chin, lips
+  and cheeks silvery cream down onto its chest). Its catch carried ashore and eaten lying on its belly, pinned under
+  its forepaws, head tilted to crunch it; up on its hind legs to look (`periscope`, its tail a prop; in the water,
+  treading it); sliding: up the bank, a bound down it and onto its belly, forelegs swept back, into the water
+  (`slide`); rolling dry on the bank, then licking its coat (groom); its spraint left crouched, tail up (dark, fish
+  scales glinting in it); a snort, a look, a dash for the water and a dive (`alarm`); asleep and its pups born in its
+  holt (`RiverOtter.holt()`: a den dug in the bank among roots); mating in the water.
+- `scripts/creatures/sea_otter.gd` (`SeaOtter`, *Enhydra lutris*): a sea otter, life size; one skin, heavy and round,
+  its neck short, its head round and blunt, the whisker pads swelling either side of a broad black nose, long pale
+  drooping whiskers, small dark eyes set wide, tiny ears, mitten forepaws, broad flat webbed hind flippers, a short
+  flattened tail (species 16: a deep brown frosted silver at the guard hairs' tips; its head, throat and chest cream to
+  blond, a grown male's near white; a pup a fluffy buff). It lives on its back: drifting, its forepaws on its chest,
+  its flippers out of the water; travelling belly down. Foraging (`forage`): a dive, nosing and digging on the bottom,
+  up with a clam (`SeaOtter.clam()`) and a rock (`rock()`) under its arm, or an urchin (`urchin()`); over onto its
+  back, the rock on its chest and the clam hammered on it two-handed till it opens; eaten off its chest; the shells
+  and the rock let go, sinking. Grooming rolled over and over in the water, then rubbing and kneading its fur; asleep
+  on its back, its forepaws over its eyes, wrapped in kelp (`kelp()`: bull kelp's floats and blades on the surface)
+  or rafted beside another, holding paws; up tall in the water and a dive away (`alarm`). Its pup born on her chest
+  and carried there, nursing at her belly; left bobbing on its back, crying, while she dives, and fetched back.
+  In the ecology sandbox, both in their water (a pool with a holt in its bank; the sea and a kelp bed): E a crayfish
+  (the sea otter foraging), H fishing (trout put in the pool if it has none), B a dive, G groom, Z sleep, X alarm, D
+  up to look, V the slide (the sea otter rolling), A sat (floating on its back), 1 birth, N nurse, M spraint;
+  `tools/creatures/otter_preview.gd` renders them at it.
 - `scripts/creatures/opossum.gd` (`Opossum`, *Didelphis virginiana*, on the hunters' make, plantigrade): a Virginia
   opossum, life size; one skin, low and round backed, its rump high, its long head conical, white faced, the eyes
   small and black, a dark smudge round each, the pink nose overhanging the jaw; its fifty teeth (shown only with its
@@ -672,7 +705,7 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   the coat (fading out far off, where they'd shimmer), matte, a velvet rim; the bison's front in curled wool. The
   faces: almond eyes set in, dark-lidded; the lip line along the jaw to the mouth's corner; whisker spots in rows;
   the muzzle darker toward the nose; the ears furred pale within, their backs the species' own. The heads of the
-  fox, bobcat, coyote, wolf, both bears, bison, deer, beaver and opossum are sculpted (`scripts/creatures/sculpt_head.gd`,
+  fox, bobcat, coyote, wolf, both bears, bison, deer, beaver, opossum and both otters are sculpted (`scripts/creatures/sculpt_head.gd`,
   `SculptHead`: each species' `sculpt` in its SPEC, fitted to photographs): cross-sections changing along the head,
   its profile's own line, the eye sockets, lids, brows, cheeks, stop, whisker pads and lips pushed in or out; the
   lower jaw tucked under the lips; the nose leather and the face's marks painted on (`carnivore.gdshader`'s `sculpt`).

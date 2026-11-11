@@ -23,7 +23,9 @@ render_mode diffuse_lambert_wrap, specular_schlick_ggx;
 // (phase: 0 brown, 1 grizzled, 2 blond), 6 an American bison (front_z: its
 // shaggy front's hind edge), 7 a white-tailed deer (phase: 0 summer, 1
 // winter; muzzle_z: the white band behind its nose; bare_a, bare_b, bare_r:
-// its eyes, ringed white), ... 14 a Virginia opossum.
+// its eyes, ringed white), ... 14 a Virginia opossum, 15 a North American
+// river otter, 16 a sea otter. Wet (soak: 0 dry .. 1 just out of the water):
+// its coat darker, glossy, gathered into spiky wet locks.
 
 uniform int species = 0;
 uniform int part = 0;
@@ -51,6 +53,7 @@ uniform vec3 nose_col = vec3(0.045, 0.038, 0.036); // (its nose leather: black, 
 uniform float almond = 0.72; // (its eye's opening: height to length)
 uniform float slant = 0.0; // (its outer corner raised)
 uniform float hair = 20.0; // (its coat's length, mm: the grain's size)
+uniform float soak = 0.0; // (its coat wet: 0 dry .. 1 just out of the water: an otter's)
 // a carcass (Carcass): 0 fresh; 1 rotting (its skin sunk in between its ribs,
 // over its flanks and belly, round its eyes, its legs thin; its fur slipped
 // in patches, the skin under it discoloured; its flesh open and rotting at
@@ -526,6 +529,69 @@ void fragment() {
 			c = mix(c * 0.6, tail, smoothstep(0.04, 0.1, a));
 		}
 		c = mix(vec3(0.9, 0.62, 0.6), c, fur);
+	} else if (species == 15) {
+		// a North American river otter: dark chocolate brown, glossy, its
+		// back the darkest, its sides warmer, its belly paler, greyer; its
+		// throat, chin, lips and cheeks silvery cream, the pale running down
+		// the front of its neck to its chest; its muzzle paler at the sides
+		// (its whisker pads); its legs and feet dark, the webs between its
+		// toes darker still; its small round ears brown, paler within. A pup
+		// darker all over, softer, the pale of its throat greyer.
+		vec3 back = young ? vec3(0.17, 0.14, 0.11) : vec3(0.19, 0.14, 0.1);
+		vec3 side = young ? vec3(0.22, 0.18, 0.14) : vec3(0.28, 0.21, 0.15);
+		vec3 belly = young ? vec3(0.3, 0.26, 0.21) : vec3(0.42, 0.36, 0.29);
+		vec3 cream = young ? vec3(0.5, 0.46, 0.4) : vec3(0.76, 0.7, 0.6);
+		c = countershade(back, side, belly, ny, -0.3);
+		c *= 0.9 + 0.2 * vn(rp * vec3(0.03, 0.03, 0.012));
+		if (pt == 0.0 && fw < 0.5) // (the pale of its throat, down the front of its neck onto its chest)
+			c = mix(c, cream, smoothstep(0.48, 0.62, a) * (1.0 - smoothstep(-0.55, 0.05, ny)) * 0.9);
+		if (fw > 0.0) {
+			vec3 face = mix(side, back, smoothstep(0.3, 0.9, ny));
+			face = mix(face, cream, 1.0 - smoothstep(-0.45, 0.12, ny)); // (its chin, its lips, its cheeks)
+			float ahead = smoothstep(bare_b.z + 5.0, bare_b.z - 45.0, hp.z);
+			face = mix(face, mix(cream, side, 0.45), ahead * smoothstep(0.3, 0.7, abs(normalize(rn).x)) * (1.0 - smoothstep(0.2, 0.7, ny)) * 0.8); // (its whisker pads)
+			c = mix(c, face, fw);
+		}
+		if (leg)
+			c = mix(c, side * 0.6, smoothstep(0.35, 0.75, a));
+		if (pt == 4.0)
+			c = vec3(0.1, 0.075, 0.06);
+		if (pt == 5.0)
+			c = rn.z > 0.0 ? mix(side, cream, 0.35) : back * 1.05;
+		if (pt == 6.0)
+			c = mix(c, back, smoothstep(0.1, 0.5, a));
+	} else if (species == 16) {
+		// a sea otter: its body a deep brown, near black, frosted with the
+		// pale tips of its guard hairs (grizzled, silvery in the light); its
+		// head, throat and chest cream to blond (paler with age, a grown
+		// male's near white), the pale fading back down its neck; its
+		// forepaws small dark mittens; its hind feet broad flippers, brown,
+		// furred above; its short flat tail brown. A pup's coat a thick fluffy
+		// buff all over, its head paler.
+		vec3 dark = vec3(0.21, 0.14, 0.09);
+		vec3 frost = vec3(0.66, 0.6, 0.52);
+		float gz = vn(rp * vec3(0.3, 0.3, 0.1)) * 0.55 + vn(rp * vec3(0.8, 0.8, 0.25) + 5.0) * 0.45;
+		vec3 body = mix(dark, frost, 0.1 + 0.28 * smoothstep(0.45, 0.85, gz));
+		vec3 head = male ? vec3(0.86, 0.82, 0.72) : vec3(0.8, 0.7, 0.52);
+		if (young) {
+			body = mix(vec3(0.48, 0.38, 0.26), vec3(0.62, 0.52, 0.38), gz);
+			head = vec3(0.72, 0.62, 0.46);
+		}
+		c = countershade(body * 0.88, body, body * 1.12, ny, -0.4);
+		if (pt == 0.0 && fw < 0.5) // (the pale down its neck, onto its chest)
+			c = mix(c, head * (0.85 + 0.2 * gz), smoothstep(0.5, 0.68, a) * mix(1.0, 0.85, smoothstep(0.0, 0.6, ny)));
+		if (fw > 0.0) {
+			vec3 face = head * (0.88 + 0.18 * vn(rp * vec3(0.12, 0.12, 0.05)));
+			c = mix(c, face, fw);
+		}
+		if (leg)
+			c = mix(c, dark * 1.1, smoothstep(0.3, 0.7, a));
+		if (pt == 4.0)
+			c = vec3(0.09, 0.07, 0.06);
+		if (pt == 5.0)
+			c = mix(c, head * 0.7, 0.5);
+		if (pt == 6.0)
+			c = dark * (1.0 + 0.3 * gz);
 	} else {
 		// a white-tailed deer: summer red brown, darker down its spine;
 		// winter grey brown; white beneath and inside its legs, its chin, a
@@ -604,7 +670,7 @@ void fragment() {
 			c = mix(c, vec3(0.1, 0.07, 0.06), smoothstep(0.85, 0.97, ny) * ahead * 0.5);
 		if (pt == 0.0 && !rodent && !sculpt) // (and the upper's, along the head's underside to its mouth's corner)
 			c = mix(c, vec3(0.07, 0.05, 0.045), (1.0 - smoothstep(-0.9, -0.62, ny)) * smoothstep(0.2, 0.6, ahead) * 0.7);
-		if (species < 4 || rodent) { // (the whisker spots, in rows along its muzzle's sides)
+		if (species < 4 || rodent || species == 15 || species == 16) { // (the whisker spots, in rows along its muzzle's sides)
 			float side = smoothstep(0.25, 0.6, abs(normalize(rn).x));
 			float wsp = spots(vec3(hp.x * 0.5, hp.y * 1.7, hp.z), bare_r * 0.42, 0.28);
 			c = mix(c, c * 0.45, wsp * side * smoothstep(0.4, 0.8, ahead) * (1.0 - smoothstep(-0.2, 0.25, ny)) * 0.8);
@@ -707,6 +773,10 @@ void fragment() {
 		c *= mix(1.0, 0.62 + 0.55 * curl, wool);
 	}
 	float h = mix(0.5, strand, fine_vis) * 0.55 + mix(0.5, locks, lock_vis) * 0.45;
+	if (soak > 0.0 && !bare) { // (wet: gathered into spiky locks, dark between them; the whole coat darker)
+		h = mix(h, smoothstep(0.3, 0.7, locks) * 0.8 + strand * 0.2, soak * lock_vis);
+		c *= mix(1.0, 0.88, soak);
+	}
 	if (!bare) {
 		c *= mix(0.82, 1.14, h); // (tips lighter, roots darker)
 		c *= 0.92 + 0.16 * mott;
@@ -723,7 +793,7 @@ void fragment() {
 		vec3 r1 = cross(dpdy, n);
 		vec3 r2 = cross(n, dpdx);
 		float det = dot(dpdx, r1);
-		float k = s * 0.0007 * (1.0 + 3.5 * wool) * clamp(hair / 20.0, 0.5, 2.0);
+		float k = s * 0.0007 * (1.0 + 3.5 * wool + 1.5 * soak) * clamp(hair / 20.0, 0.5, 2.0);
 		vec3 grad = sign(det) * (dhdx * r1 + dhdy * r2);
 		NORMAL = normalize(abs(det) * n - grad * k);
 	}
@@ -751,6 +821,11 @@ void fragment() {
 			ROUGHNESS = mix(ROUGHNESS, 0.32, leather);
 			SPECULAR = mix(SPECULAR, 0.5, leather);
 		}
+	}
+	if (soak > 0.0 && pt != 7.0) { // (wet: glossy, the light caught on each lock)
+		ROUGHNESS = mix(ROUGHNESS, 0.32, soak);
+		SPECULAR = mix(SPECULAR, 0.5, soak);
+		RIM = mix(RIM, 0.06, soak);
 	}
 	if (pt == 5.0) { // (its ears: thin, a little light through them; no rim to wash them out)
 		BACKLIGHT = vec3(0.1, 0.05, 0.035);

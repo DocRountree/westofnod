@@ -75,6 +75,9 @@ const SeaScript := preload("res://scripts/creatures/sea_turtle.gd")
 const SquirrelScript := preload("res://scripts/creatures/fox_squirrel.gd")
 const GreySqScript := preload("res://scripts/creatures/grey_squirrel.gd")
 const BeaverScript := preload("res://scripts/creatures/beaver.gd")
+const OtterScript := preload("res://scripts/creatures/otter.gd")
+const RiverOtterScript := preload("res://scripts/creatures/river_otter.gd")
+const SeaOtterScript := preload("res://scripts/creatures/sea_otter.gd")
 const TrigScript := preload("res://scripts/creatures/trigonalid.gd")
 const IchScript := preload("res://scripts/creatures/ichneumon.gd")
 const MealScript := preload("res://scripts/creatures/meal.gd")
@@ -163,6 +166,8 @@ const CATALOGUE := [
 	["Mammals", "eastern fox squirrel", "fox_squirrel", ["adult"]],
 	["Mammals", "eastern grey squirrel", "grey_squirrel", ["adult"]],
 	["Mammals", "North American beaver", "beaver", ["adult", "young"]],
+	["Mammals", "North American river otter", "river_otter", ["adult", "young"]],
+	["Mammals", "sea otter (in the sea)", "sea_otter", ["adult", "young"]],
 	["Mammals", "Virginia opossum", "opossum", ["adult", "young"]],
 	["Mammals", "red fox", "fox", ["adult", "young"]],
 	["Mammals", "bobcat", "bobcat", ["adult", "young"]],
@@ -186,13 +191,13 @@ const CATALOGUE := [
 ## game, whose land isn't dug (world).
 const WET := ["puddle", "small_pond", "pond", "large_pond", "sea", "darner", "fishing_spider", "red_crayfish", "virile_crayfish",
 	"white_shrimp", "brown_shrimp", "pink_shrimp", "krill", "mollies", "chinook", "chinook_spawning", "rainbow", "steelhead", "bluefin",
-	"frog", "toad", "box_turtle", "snapper", "painted", "sea_turtle", "beaver", "moose"]
+	"frog", "toad", "box_turtle", "snapper", "painted", "sea_turtle", "beaver", "moose", "river_otter", "sea_otter"]
 
 ## Ponds by their size: [half width, half depth, deep] (m).
 const PONDS := {
 	"puddle": [0.32, 0.24, 0.05], "small_pond": [0.5, 0.4, 0.2], "pond": [1.2, 0.9, 0.45],
 	"large_pond": [1.6, 1.0, 0.45], "sea": [3.2, 2.4, 1.1], "salmon": [3.0, 2.0, 1.4], "trout": [2.2, 0.7, 0.55], "ocean": [10.0, 6.0, 3.5], "darner": [0.6, 0.45, 0.09], "fishing": [0.42, 0.36, 0.3],
-	"beaver": [1.5, 2.0, 0.3],
+	"beaver": [1.5, 2.0, 0.3], "otter": [1.8, 1.3, 0.6],
 }
 
 ## (The acts' names on their buttons, in the game: where not the act's own.)
@@ -1136,6 +1141,38 @@ func _spawn_animal(key: String, at: Vector3, stage: String, male: bool, young: b
 			bv.call("place", bank, randf() * TAU)
 			bv.call("wander", bank, 0.7)
 			return bv
+		"river_otter":
+			var q := _pond_for(at, "otter")
+			var ot: Node3D = RiverOtterScript.new(young)
+			ot.set("male", male and not young)
+			_otter_water(ot, q)
+			ot.set("home_den", _holt_of(q, at))
+			_org(ot, at, false)
+			var bank := _bank_of(q, at)
+			ot.call("place", bank, randf() * TAU)
+			if young:
+				ot.call("grow", 0.5, 500.0)
+			ot.call("wander", bank, 0.8)
+			return ot
+		"sea_otter":
+			var q := _pond_for(at, "sea")
+			var so: Node3D = SeaOtterScript.new(young)
+			so.set("male", male and not young)
+			_otter_water(so, q)
+			var kelp: Node3D = q.get("kelp")
+			if not is_instance_valid(kelp): # (a bed of kelp in its sea, to sleep wrapped in)
+				kelp = SeaOtterScript.kelp(float(q.deep))
+				kelp.position = (q.c as Vector3) + Vector3(float(q.hw) * 0.45, POND, -float(q.hd) * 0.35)
+				add_child(kelp)
+				(q.nodes as Array).append(kelp)
+				q["kelp"] = kelp
+			so.set("kelp_bed", kelp)
+			_org(so, at, false)
+			var c0: Vector3 = q.c
+			var inn := Vector3(clampf(at.x, c0.x - float(q.hw) + 0.6, c0.x + float(q.hw) - 0.6), 0.0, clampf(at.z, c0.z - float(q.hd) + 0.6, c0.z + float(q.hd) - 0.6))
+			so.call("place", inn, randf() * TAU)
+			so.call("swim", c0, minf(float(q.hw), float(q.hd)) * 0.7)
+			return so
 		"opossum":
 			var op: Node3D = OpossumScript.new(young)
 			op.set("male", male and not young)
@@ -1222,6 +1259,121 @@ func _water_set(n: Node, q: Dictionary) -> void:
 	n.set("floor_y", -float(q.deep) + 0.01)
 	n.set("pond", [q.c, Vector2(q.hw, q.hd)])
 	n.set("stems", q.stems)
+
+
+## (An otter's water: its pond, its surface, its bottom; and the ground.)
+func _otter_water(n: Node, q: Dictionary) -> void:
+	n.set("wet", func(x: float, z: float) -> bool: return _in_pond(q, x, z))
+	n.set("water_y", POND)
+	n.set("floor_y", -float(q.deep) + 0.01)
+	n.set("height", _height)
+
+
+## (A river otter's holt, in its pond's bank: the one there, or one dug.)
+func _holt_of(q: Dictionary, at: Vector3) -> Node3D:
+	var h: Node3D = q.get("holt")
+	if is_instance_valid(h):
+		return h
+	var c: Vector3 = q.c
+	var side := -1.0 if at.z > c.z else 1.0 # (the bank across from where it's put)
+	h = RiverOtterScript.holt()
+	h.position = Vector3(c.x - float(q.hw) * 0.4, 0.0, c.z + side * (float(q.hd) + 0.55))
+	h.rotation.y = 0.0 if side < 0.0 else PI # (its way in toward the water)
+	add_child(h)
+	h.set_meta("prop", true)
+	(q.nodes as Array).append(h)
+	q["holt"] = h
+	return h
+
+
+## (A few trout in an otter's pool, for it to fish: the school there, or one
+## put in.)
+func _school_in(q: Dictionary) -> Node3D:
+	var fs := _fish_school_near(q.c, 0.5)
+	if fs:
+		return fs
+	fs = FishScript.new("rainbow", "")
+	var fc: Vector3 = q.c
+	var fd := float(q.deep)
+	fs.set("tank_min", fc + Vector3(-float(q.hw) + 0.1, POND - fd + 0.02, -float(q.hd) + 0.1))
+	fs.set("tank_max", fc + Vector3(float(q.hw) - 0.1, POND - 0.03, float(q.hd) - 0.1))
+	_org(fs, fc, false)
+	fs.call("setup", 4, fc + Vector3(0.0, POND - fd * 0.5, 0.0), minf(float(q.hw), float(q.hd)) * 0.4)
+	fs.set_meta("pond", fc)
+	return fs
+
+
+## The otters' own (Otter: in and by their water): E a crayfish (the river
+## otter's; the sea otter a clam or an urchin off the bottom), H a fish
+## (trout put in its pool if there are none), B a dive (the sea otter
+## foraging), G rolling dry or grooming on the water, Z asleep (the holt; on
+## its back, wrapped in kelp), X its alarm, D up to look, V a slide down the
+## bank (the river otter's; the sea otter rolling), A sat (or floating on
+## its back), W about its water, 1 its young, N nursing, M its spraint.
+func _otter_do(c: Node, act_: String, young: bool, p: Vector3) -> void:
+	var sea := c is SeaOtterScript
+	var q := _pond_near(p, 3.0)
+	match act_:
+		"wander":
+			if young and c.get("_mother") != null and not sea:
+				c.set("_mode", "follow")
+			elif not q.is_empty() and (bool(c.get("_in_water")) or sea):
+				c.call("swim", q.c, minf(float(q.hw), float(q.hd)) * 0.8)
+			else:
+				c.call("wander", p, 1.0)
+		"eat":
+			if sea:
+				c.call("forage")
+			elif not q.is_empty():
+				var cr: Node3D = _prey_here(c, ["crayfish"], 4.0)
+				if cr == null:
+					var cc: Vector3 = q.c
+					cr = spawn("red_crayfish", cc + Vector3(randf_range(-0.4, 0.4) * float(q.hw), 0.0, randf_range(-0.4, 0.4) * float(q.hd)))
+				if cr:
+					cr.set_meta("hunted", c)
+					c.call("catch", cr)
+		"hunt":
+			var fs := _fish_school_near(p, 6.0)
+			if fs == null and not q.is_empty() and not sea:
+				fs = _school_in(q)
+			if fs:
+				c.call("fish", fs)
+			elif sea:
+				c.call("forage")
+		"forage", "fly":
+			c.call("forage" if sea else "dive")
+		"groom":
+			c.call("groom")
+		"sleep":
+			c.call("sleep", 30.0)
+		"alarm":
+			c.call("alarm")
+		"display":
+			if sea:
+				c.call("alarm")
+			else:
+				c.call("periscope", 5.0)
+		"play":
+			if sea:
+				c.call("groom")
+			else:
+				c.call("slide")
+		"sit":
+			if sea:
+				c.call("swim", p, 0.5)
+				c.set("_float_t", 15.0)
+			else:
+				c.call("sit", 8.0)
+		"lay":
+			if sea:
+				c.call("birth", 1)
+			else:
+				c.call("birth", 3, c.get("home_den"))
+		"nurse":
+			c.call("nurse")
+		"mark":
+			if not sea:
+				c.call("mark")
 
 
 ## (The point on a pond's bank nearest p, a little out from its edge.)
@@ -1572,6 +1724,10 @@ func _kind_of(n: Node) -> String:
 			return "bison_calf" if young else ""
 		BeaverScript:
 			return "beaver_kit" if young else "beaver"
+		RiverOtterScript:
+			return "otter_pup" if young else ""
+		RedCrayScript, VirileCrayScript:
+			return "crayfish"
 		FoxScript:
 			return "fox_kit" if young else "fox"
 		CoyoteScript:
@@ -1652,6 +1808,8 @@ func _real_prey(kind: String, at: Vector3) -> Node3D:
 			n = BeaverScript.new()
 		"beaver_kit":
 			n = BeaverScript.new(true)
+		"otter_pup":
+			n = RiverOtterScript.new(true)
 		"fox":
 			n = FoxScript.new()
 		"fox_kit":
@@ -2116,6 +2274,9 @@ func _do(c: Node, act_: String) -> void:
 		return
 	if c is CrayScript: # (its own: in its pond)
 		_crayfish_do(c, act_, young, p)
+		return
+	if c is OtterScript: # (its own: in and by its water)
+		_otter_do(c, act_, young, p)
 		return
 	# a mushroom: R, or E with one it eats grown or laid by it
 	if act_ == "mushroom" or (act_ == "eat" and _fungus_near(p, MUSHROOM_EATERS.get(sc, []), 1.5) != null):
@@ -2973,10 +3134,10 @@ func _carrion_near(p: Vector3, r: float) -> Node3D:
 const UNUSUAL := {
 	"fox": ["fawn", "beaver_kit", "bobcat_kit", "grub", "grasshopper", "mouse_pup", "leveret", "snake_young", "fruit", "ants", "wasps"],
 	"bobcat": ["fawn", "deer", "fox", "fox_kit", "beaver_kit", "grasshopper", "snake"],
-	"coyote": ["fawn", "fox", "fox_kit", "bobcat_kit", "beaver", "grub", "grasshopper", "snake"],
+	"coyote": ["fawn", "fox", "fox_kit", "bobcat_kit", "beaver", "otter_pup", "grub", "grasshopper", "snake"],
 	"rattler": ["frog", "toad", "anole"],
 	"milk": ["frog", "toad", "anole", "snake_young"],
-	"wolf": ["deer", "fawn", "moose_calf", "bison_calf", "beaver", "coyote", "fox"],
+	"wolf": ["deer", "fawn", "moose_calf", "bison_calf", "beaver", "otter_pup", "coyote", "fox"],
 	"black_bear": ["fawn", "moose_calf", "beaver", "grub", "mouse_pup", "squirrel", "bobcat_kit"],
 	"brown_bear": ["moose_calf", "bison_calf", "fawn", "deer", "beaver", "grub", "black_cub", "wolf_pup"],
 	"deer": ["mouse_pup"],
