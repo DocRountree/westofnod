@@ -1,56 +1,52 @@
 class_name EcologySandbox
-extends CanvasLayer
-## Debug mode's ecology sandbox: the creature toolkit (tools/creatures/
-## ecology_demo: the list, placing, selecting, the act keys) opened over the
-## game, F9 or /sandbox, and closed again the same way (or its button). It
-## has its own world (its plain, its sky and sun, its camera: a SubViewport
-## with its own World3D), so nothing put down there gets into the game; the
-## game stops underneath while it's open (paused, its 3D not drawn) and goes
-## on as it was when it's closed. What's in the sandbox stays there, waiting,
-## for the next time it's opened.
+extends Node
+## Debug mode's ecology tools: the creature toolkit (tools/creatures/
+## ecology_demo: the list, placing, selecting, what they all do) in the game
+## itself, F9 or /sandbox, and away again the same way. The game goes on
+## under them: what's put down is put down on the land where the view meets
+## it, and lives there (a creature over the ground as it lies, by day and
+## night, among the game's own trees), whether the tools are open or not.
+## Nothing of it is saved.
 ##
-## While it's open: the trees whole (no levels of detail), day and clear air
-## (the game's night and underwater not carried in), its own flower sway for
-## the butterflies; all as they were again on closing.
+## Open, the mouse is free: the list (right), then a left click on the
+## ground puts one there, and again; right click or Esc: done. A left click
+## on a creature (not placing) selects it (Shift: more). The right button
+## held: looking round, as ever; the keys move you, as ever. What the
+## selected do (none: everything put down): the panel's buttons, or Alt
+## with the toolkit's own key (Alt + E eat, Alt + H hunt, ...). Delete: the
+## selected gone.
+##
+## The toolkit's own space is the drawn one (Origin's: its creatures go by
+## where things are drawn), so the floating origin is held where it is
+## while anything put down is there (Origin.hold); 3 km from it everything
+## put down is taken away, and the origin follows again.
+##
+## Not here yet: ponds, the sea and what lives in them (the toolkit digs
+## them in its own plain: EcologyDemo.WET); those are still in its own
+## scene, tools/creatures/ecology_demo.tscn.
 
-const DEMO := "res://tools/creatures/ecology_demo.tscn"
+const DEMO := preload("res://tools/creatures/ecology_demo.gd")
 const KEY := KEY_F9
+const HOLD := 3072.0 ## m: how far past its step the origin's held for what's put down
 
+var main: Node ## (main.gd: its world, its player, its chat)
 var is_open := false
-var _box: SubViewportContainer
-var _view: SubViewport
-var _demo: Node
-var _mouse := Input.MOUSE_MODE_CAPTURED
-var _was_3d := true
+var _demo: Node3D
+var _looking := false # (the right button held: the view turned)
+var _looked := 0.0 # (px, since it went down)
+var _left_down := Vector2.INF
 
 
 func _ready() -> void:
-	layer = 8 # (over the HUD and the chat; under the pause menu)
-	process_mode = Node.PROCESS_MODE_ALWAYS
-	_box = SubViewportContainer.new()
-	_box.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_box.stretch = true
-	_box.visible = false
-	add_child(_box)
-	_view = SubViewport.new()
-	_view.own_world_3d = true
-	_view.handle_input_locally = true
-	_view.render_target_update_mode = SubViewport.UPDATE_DISABLED
-	_view.process_mode = Node.PROCESS_MODE_DISABLED
-	_box.add_child(_view)
-	var back := Button.new()
-	back.text = "Back to the world (F9)"
-	back.focus_mode = Control.FOCUS_NONE
-	back.anchor_left = 1.0 # (bottom right: clear of its panel and its key list)
-	back.anchor_right = 1.0
-	back.anchor_top = 1.0
-	back.anchor_bottom = 1.0
-	back.offset_left = -200.0
-	back.offset_right = -8.0
-	back.offset_top = -40.0
-	back.offset_bottom = -8.0
-	back.pressed.connect(close)
-	_box.add_child(back)
+	_demo = DEMO.new()
+	_demo.set("world", main.world)
+	_demo.set("cam", main.player.camera)
+	main.add_child(_demo) # (main: at the origin, unmoved, so its space is the drawn one)
+	_demo.call("show_ui", false)
+
+
+func _exit_tree() -> void:
+	Origin.hold = 0.0
 
 
 func toggle() -> void:
@@ -64,65 +60,75 @@ func open() -> void:
 	if is_open:
 		return
 	is_open = true
-	_mouse = Input.mouse_mode
+	_demo.call("show_ui", true)
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
-	get_tree().paused = true
-	_was_3d = not get_viewport().disable_3d
-	get_viewport().disable_3d = true # (the game's world, unseen under it: not drawn)
-	_keep_globals()
-	_box.visible = true
-	_view.process_mode = Node.PROCESS_MODE_ALWAYS
-	_view.render_target_update_mode = SubViewport.UPDATE_ALWAYS
-	if _demo == null:
-		_demo = (load(DEMO) as PackedScene).instantiate() # (its _ready: the trees whole, the sway)
-		_view.add_child(_demo)
-	else:
-		OakTree.set_lod_fade(false)
-		Lepidoptera.sway_of = Callable(_demo, "_sway_of")
 
 
 func close() -> void:
 	if not is_open:
 		return
 	is_open = false
-	_box.visible = false
-	_view.process_mode = Node.PROCESS_MODE_DISABLED
-	_view.render_target_update_mode = SubViewport.UPDATE_DISABLED
-	Engine.time_scale = 1.0 # (its slow motion, Space, not carried out)
-	OakTree.set_lod_fade(true)
-	Lepidoptera.sway_of = Callable()
-	_put_globals_back()
-	get_viewport().disable_3d = not _was_3d
-	get_tree().paused = false
-	Input.mouse_mode = _mouse
+	_looking = false
+	_demo.call("show_ui", false)
+	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
 
-## The sandbox's own day, in clear air: the game's night and its
-## underwater (global shader parameters) not carried in. (Godot can't read a
-## global back outside the editor: the game's own are put back from where
-## it keeps them, OakTree's night and main's set_global.)
-func _keep_globals() -> void:
-	RenderingServer.global_shader_parameter_set("night", 0.0)
-	RenderingServer.global_shader_parameter_set("underwater", false)
+func _process(_dt: float) -> void:
+	# the origin held while anything put down is here; too far from it,
+	# everything taken away
+	var things: bool = _demo.call("has_things")
+	Origin.hold = HOLD if things else 0.0
+	var p: Vector3 = Origin.render(main.player.position)
+	if things and maxf(absf(p.x), absf(p.z)) > Origin.STEP + HOLD - 64.0:
+		_demo.call("clear_all")
+		Origin.hold = 0.0
+		main.chat.say("The ecology tools: too far from what was put down; all of it taken away.", Color(0.75, 0.85, 1.0))
+	# (the chat, the menu and the knapsack take the mouse and give it back
+	# caught: open, it's free again)
+	if is_open and not _looking and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED and not get_tree().paused and not main.player.typing:
+		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 
 
-func _put_globals_back() -> void:
-	RenderingServer.global_shader_parameter_set("night", maxf(OakTree._night_sent, 0.0))
-	var main := get_parent()
-	var g: Dictionary = main.get("_globals") if main and main.get("_globals") is Dictionary else {}
-	RenderingServer.global_shader_parameter_set("underwater", bool(g.get("underwater", false)))
-
-
-## Open: every key the sandbox's (F9 closes it); none gets through to the
-## game under it (Esc, the chat, the pause menu). The mouse goes through the
-## container to it.
+## Open: the mouse's buttons are the tools' (none gets to the game: the axe,
+## the hands), but over the panel, which takes its own; Alt with a key, what
+## the selected do. Everything else is the game's.
 func _input(event: InputEvent) -> void:
-	if not is_open:
+	if not is_open or get_tree().paused or main.player.typing:
 		return
-	if event is InputEventKey:
+	if event is InputEventKey and event.pressed and not event.echo:
 		var k := event as InputEventKey
-		if k.pressed and not k.echo and k.keycode == KEY:
+		if k.keycode == KEY:
 			close()
+		elif k.alt_pressed and DEMO.KEYS.has(k.keycode):
+			_demo.call("do_act", DEMO.KEYS[k.keycode])
+		elif k.keycode == KEY_DELETE:
+			_demo.call("_delete_selected")
+		elif k.keycode == KEY_ESCAPE and _demo.call("placing"):
+			_demo.call("_stop_placing")
 		else:
-			_view.push_input(event)
+			return
+		get_viewport().set_input_as_handled()
+	elif event is InputEventMouseMotion and _looking:
+		_looked += (event as InputEventMouseMotion).relative.length()
+	elif event is InputEventMouseButton:
+		var mb := event as InputEventMouseButton
+		if not _looking and mb.pressed and get_viewport().gui_get_hovered_control() != null:
+			return # (the panel's own)
+		match mb.button_index:
+			MOUSE_BUTTON_RIGHT:
+				_looking = mb.pressed
+				Input.mouse_mode = Input.MOUSE_MODE_CAPTURED if mb.pressed else Input.MOUSE_MODE_VISIBLE
+				if mb.pressed:
+					_looked = 0.0
+				elif _looked < 4.0:
+					_demo.call("_stop_placing")
+			MOUSE_BUTTON_LEFT:
+				if mb.pressed:
+					_left_down = mb.position
+				elif _left_down != Vector2.INF and not _looking:
+					if mb.position.distance_to(_left_down) < 6.0:
+						_demo.call("click", mb.position, mb.shift_pressed)
+					_left_down = Vector2.INF
+			_:
+				return
 		get_viewport().set_input_as_handled()

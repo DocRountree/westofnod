@@ -50,7 +50,7 @@ func _ready() -> void:
 		"zoom": [_zoom, "/zoom <1-8>: magnify"],
 		"aurora": [_aurora, "/aurora: toggle an aurora every night"],
 		"pos": [_pos, "/pos: where you are"],
-		"sandbox": [_sandbox, "/sandbox: the ecology sandbox (debug mode; F9 too)"],
+		"sandbox": [_sandbox, "/sandbox: the ecology tools, to put creatures and plants down in the world (debug mode; F9 too)"],
 		"pop": [_pop, "/pop: what is living near by (trees, rocks, animals: Population)"],
 		"clear": [_clear, "/clear: clear the chat"],
 	}
@@ -359,9 +359,9 @@ func _pos(_args: PackedStringArray) -> void:
 
 func _sandbox(_args: PackedStringArray) -> void:
 	if main.sandbox == null:
-		say("The ecology sandbox is in debug mode only.", Color(1.0, 0.45, 0.4))
+		say("The ecology tools are in debug mode only.", Color(1.0, 0.45, 0.4))
 		return
-	main.sandbox.open()
+	main.sandbox.toggle()
 
 
 func _pop(_args: PackedStringArray) -> void:

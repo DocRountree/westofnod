@@ -2,6 +2,7 @@ extends Node3D
 ## The ecology sandbox: one scene, staged by hand, every creature not yet in
 ## the game and the plants and water they live by, to try them together in
 ## any mix: godot --path . res://tools/creatures/ecology_demo.tscn
+## (And in the game, debug mode's ecology tools: EcologySandbox, `world`.)
 ##
 ## THE MOUSE
 ## - the list (left): a plant, a feature (a pond, sand) or an animal; then
@@ -89,6 +90,7 @@ const SHRIMP := {"white_shrimp": preload("res://scripts/creatures/white_shrimp.g
 
 const PersonalSpace := preload("res://scripts/creatures/personal_space.gd")
 const HALF := 12.0 ## m: the plain's half width (it's square)
+const REACH := 150.0 ## m: in the game, how far off a click finds the ground
 const POND := -0.004 ## m: a pond's surface, a little below the plain
 const GRASS := Color(0.36, 0.4, 0.22)
 const TILE := 4.0 # (m: the grass's tiles)
@@ -180,12 +182,21 @@ const CATALOGUE := [
 	["Carcasses", "American bison", "carcass_bison", ["adult"]],
 ]
 
+## What needs a pond or the sea (dug in the plain here): not put down in the
+## game, whose land isn't dug (world).
+const WET := ["puddle", "small_pond", "pond", "large_pond", "sea", "darner", "fishing_spider", "red_crayfish", "virile_crayfish",
+	"white_shrimp", "brown_shrimp", "pink_shrimp", "krill", "mollies", "chinook", "chinook_spawning", "rainbow", "steelhead", "bluefin",
+	"frog", "toad", "box_turtle", "snapper", "painted", "sea_turtle", "beaver", "moose"]
+
 ## Ponds by their size: [half width, half depth, deep] (m).
 const PONDS := {
 	"puddle": [0.32, 0.24, 0.05], "small_pond": [0.5, 0.4, 0.2], "pond": [1.2, 0.9, 0.45],
 	"large_pond": [1.6, 1.0, 0.45], "sea": [3.2, 2.4, 1.1], "salmon": [3.0, 2.0, 1.4], "trout": [2.2, 0.7, 0.55], "ocean": [10.0, 6.0, 3.5], "darner": [0.6, 0.45, 0.09], "fishing": [0.42, 0.36, 0.3],
 	"beaver": [1.5, 2.0, 0.3],
 }
+
+## (The acts' names on their buttons, in the game: where not the act's own.)
+const ACT_NAMES := {"lay": "lay / birth", "hatch": "hatch / moult", "pupae": "pupate", "fly": "fly / climb", "unusual": "odd meal"}
 
 ## The keys: one for each thing they all do.
 const KEYS := {
@@ -195,6 +206,14 @@ const KEYS := {
 	KEY_U: "unusual", KEY_R: "mushroom",
 }
 
+## In the game (EcologySandbox: debug mode's tools): the game's own land,
+## given before it's added to the tree, and the player's camera (cam). Then
+## there's no plain, sky, sun or camera of its own: things are put down on
+## the land itself, where the view meets it, and go by its heights
+## (_gy: its own space the drawn one, Origin's, the creatures' own); its
+## keys and clicks come from EcologySandbox (act, click, ...), not its own
+## input. Not yet there: ponds, the sea, and what lives in them (WET).
+var world: WorldData
 var cam: Camera3D
 var _yaw := 0.6
 var _pitch := -0.55
@@ -216,6 +235,7 @@ var _ui_stage: OptionButton
 var _ui_male: CheckBox
 var _ui_decay: OptionButton
 var _ui_info: Label
+var _ui_layer: CanvasLayer
 var _status := ""
 var _ring_mesh: TorusMesh
 var _ring_mat: StandardMaterial3D
@@ -223,10 +243,30 @@ var _worker_colonies := {} # (each queen's (or larva's kind's) workers: kind -> 
 
 
 func _ready() -> void:
+	Lepidoptera.sway_of = _sway_of # (a butterfly's flower held still under it)
+	_ring_mesh = TorusMesh.new()
+	_ring_mesh.inner_radius = 0.92
+	_ring_mesh.outer_radius = 1.0
+	_ring_mesh.rings = 24
+	_ring_mesh.ring_segments = 4
+	_ring_mat = StandardMaterial3D.new()
+	_ring_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	_ring_mat.albedo_color = Color(1.0, 0.85, 0.2)
+	_ring_mat.no_depth_test = true
+	_ghost = MeshInstance3D.new()
+	_ghost.mesh = _ring_mesh
+	var gm := _ring_mat.duplicate() as StandardMaterial3D
+	gm.albedo_color = Color(0.4, 0.9, 1.0)
+	_ghost.material_override = gm
+	_ghost.visible = false
+	add_child(_ghost)
+	if world: # (in the game: its land, its sky, the player's view)
+		_build_ui()
+		_say()
+		return
 	# (the game's trees here whole wherever they stand: no levels of detail,
-	# no chunks; and a butterfly's flower held still under it)
+	# no chunks)
 	OakTree.set_lod_fade(false)
-	Lepidoptera.sway_of = _sway_of
 	var env := Environment.new()
 	env.background_mode = Environment.BG_SKY
 	env.sky = Sky.new()
@@ -247,22 +287,6 @@ func _ready() -> void:
 	cam.far = 80.0
 	cam.fov = 50.0
 	add_child(cam)
-	_ring_mesh = TorusMesh.new()
-	_ring_mesh.inner_radius = 0.92
-	_ring_mesh.outer_radius = 1.0
-	_ring_mesh.rings = 24
-	_ring_mesh.ring_segments = 4
-	_ring_mat = StandardMaterial3D.new()
-	_ring_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	_ring_mat.albedo_color = Color(1.0, 0.85, 0.2)
-	_ring_mat.no_depth_test = true
-	_ghost = MeshInstance3D.new()
-	_ghost.mesh = _ring_mesh
-	var gm := _ring_mat.duplicate() as StandardMaterial3D
-	gm.albedo_color = Color(0.4, 0.9, 1.0)
-	_ghost.material_override = gm
-	_ghost.visible = false
-	add_child(_ghost)
 	_rebuild_ground()
 	for ix in int(HALF * 2.0 / TILE):
 		for iz in int(HALF * 2.0 / TILE):
@@ -275,6 +299,8 @@ func _ready() -> void:
 
 ## The plain: a square, holes left in it for the ponds (each sunk in it).
 func _rebuild_ground() -> void:
+	if world:
+		return # (the game's own land)
 	for n in _ground:
 		if is_instance_valid(n):
 			(n as Node).queue_free()
@@ -338,6 +364,8 @@ func _grass_clear(x: float, z: float) -> bool:
 
 ## (The grass made again on the tiles touching the rectangle.)
 func _regrass(r: Rect2) -> void:
+	if world:
+		return # (the game's own grass)
 	var n := int(HALF * 2.0 / TILE)
 	for ix in n:
 		for iz in n:
@@ -476,6 +504,8 @@ func _in_pond(q: Dictionary, x: float, z: float, margin := 0.0) -> bool:
 ## The ground's height at (x, z): the plain's, a pond's floor, or its
 ## sloping bank.
 func _height(x: float, z: float) -> float:
+	if world:
+		return _gy(x, z)
 	for q: Dictionary in _ponds:
 		if q.has("ramp"):
 			var rp: Array = q.ramp
@@ -488,12 +518,25 @@ func _height(x: float, z: float) -> float:
 	return 0.0
 
 
+## The land's height at (x, z) (here: drawn, as the creatures are; the
+## plain's, 0, out of the game).
+func _gy(x: float, z: float) -> float:
+	return world.height_at(x + Origin.offset.x, z + Origin.offset.z) if world else 0.0
+
+
+## p on the ground (its y the land's there).
+func _on(p: Vector3) -> Vector3:
+	return Vector3(p.x, _gy(p.x, p.z), p.z)
+
+
 # --- putting things down ---------------------------------------------------------
 
 ## The thing of catalogue key `key` put down at `at` (stage: adult, young,
 ## pupa; male). The organism (or the plant, the feature) it is.
 func spawn(key: String, at: Vector3, stage := "adult", male := false) -> Node:
-	at.y = 0.0
+	at = _on(at)
+	if world and key in WET:
+		return null
 	var young := stage == "young"
 	var n: Node = null
 	match key:
@@ -550,6 +593,12 @@ func _plant_flowers(kind: String, at: Vector3) -> Node3D:
 	holder.set_meta("florets", (made.heads as Array).map(func(h: Array) -> Vector3: return h[0]))
 	holder.set_meta("leaves", made.get("leaves", []))
 	holder.set_meta("home", at)
+	if at.y != 0.0: # (in the game: grown from the ground there, its heads and leaves with it)
+		holder.position.y = at.y
+		for key in ["heads", "leaves"]:
+			for e: Array in holder.get_meta(key):
+				e[0] = (e[0] as Vector3) + Vector3.UP * at.y
+		holder.set_meta("florets", (holder.get_meta("heads") as Array).map(func(h: Array) -> Vector3: return h[0]))
 	_plants.append(holder)
 	return holder
 
@@ -579,6 +628,11 @@ func _plant_game(id: String, at: Vector3, young: bool) -> Node3D:
 	var mi := MeshInstance3D.new()
 	mi.mesh = sc.call("build", v)
 	holder.add_child(mi)
+	if world and sc.has_method("build_lods"): # (in the game: its simpler levels too, each over its own span, as Population draws them; no far card)
+		for m: Mesh in sc.call("build_lods", v):
+			var li := MeshInstance3D.new()
+			li.mesh = m
+			holder.add_child(li)
 	var fruit := String(sc.call("fruit_of", v)) if sc.has_method("fruit_of") else ""
 	if fruit != "" and Items.exists(fruit):
 		var spots: PackedVector3Array = sc.call("fruit_spots", v)
@@ -682,7 +736,7 @@ func _spawn_animal(key: String, at: Vector3, stage: String, male: bool, young: b
 				var cat := LarvaScript.new("monarch")
 				var mw := _plants_near(at, 1.5, ["milkweed", "swamp_milkweed"])
 				var leaves: Array = (mw[0] as Node).get_meta("leaves", []) if not mw.is_empty() else []
-				leaves = leaves.filter(func(l: Array) -> bool: return (l[0] as Vector3).y < 0.8)
+				leaves = leaves.filter(func(l: Array) -> bool: return (l[0] as Vector3).y < _gy((l[0] as Vector3).x, (l[0] as Vector3).z) + 0.8)
 				_org(cat, at, true)
 				if not leaves.is_empty():
 					var l: Array = leaves[randi() % leaves.size()]
@@ -720,7 +774,7 @@ func _spawn_animal(key: String, at: Vector3, stage: String, male: bool, young: b
 				_org(cat, at, true)
 				var host := _plants_near(at, 1.5, ["yampah"]) if key == "swallowtail" else []
 				var leaves: Array = (host[0] as Node).get_meta("leaves", []) if not host.is_empty() else []
-				leaves = leaves.filter(func(l: Array) -> bool: return (l[0] as Vector3).y < 0.8)
+				leaves = leaves.filter(func(l: Array) -> bool: return (l[0] as Vector3).y < _gy((l[0] as Vector3).x, (l[0] as Vector3).z) + 0.8)
 				if not leaves.is_empty():
 					var l: Array = leaves[randi() % leaves.size()]
 					cat.place((l[0] as Vector3) + (l[2] as Vector3) * 0.03 + (l[1] as Vector3) * 0.004, l[2])
@@ -1148,6 +1202,7 @@ func _spawn_animal(key: String, at: Vector3, stage: String, male: bool, young: b
 func _org(n: Node, at: Vector3, small: bool) -> Node:
 	add_child(n)
 	n.set_meta("home", at)
+	_land(n)
 	if small:
 		_clear_grass(at, 0.3)
 	return n
@@ -1157,7 +1212,8 @@ func _org(n: Node, at: Vector3, small: bool) -> Node:
 ## water, which it sinks in: Hexapod.sink_water.)
 func _sinks(n: Node) -> void:
 	n.set("height", _height)
-	n.set("sink_water", POND)
+	if world == null:
+		n.set("sink_water", POND)
 
 
 ## (A water creature's pond: its water, its floor, its reeds.)
@@ -1311,14 +1367,14 @@ func _twig_near(p: Vector3) -> Array:
 	var tr: Vector3 = pts[2]
 	var dir := Vector3(under.x - tr.x, 0.0, under.z - tr.z)
 	dir = dir.normalized() if dir.length() > 1e-3 else Vector3.RIGHT
-	return [Vector3(tr.x, 0.0, tr.z), tr, under, out, dir]
+	return [_on(tr), tr, under, out, dir]
 
 ## A stem by a clearwing's pupa, to climb out of the litter and hang from:
 ## [its point, the way it faces].
 func _moth_perch(at: Vector3, turn: float) -> Array:
 	var fwd := Vector3.FORWARD.rotated(Vector3.UP, turn)
 	var stem := at + fwd * 0.05
-	var b := _box_at(Vector3(stem.x, 0.08, stem.z), Vector3(0.004, 0.16, 0.004), Color(0.38, 0.33, 0.2))
+	var b := _box_at(Vector3(stem.x, at.y + 0.08, stem.z), Vector3(0.004, 0.16, 0.004), Color(0.38, 0.33, 0.2))
 	b.set_meta("prop", true)
 	for k in 9: # (the litter it lies in)
 		var leaf := Beetles.leaf()
@@ -1329,7 +1385,7 @@ func _moth_perch(at: Vector3, turn: float) -> Array:
 		add_child(leaf)
 		leaf.set_meta("prop", true)
 	_clear_grass(at, 0.25)
-	return [Vector3(stem.x, 0.075, stem.z) - fwd * 0.002, -fwd]
+	return [Vector3(stem.x, at.y + 0.075, stem.z) - fwd * 0.002, -fwd]
 
 
 ## Leaves on stalks round p (a moth's, a trigonalid's to lay on): [top, up]
@@ -1345,7 +1401,8 @@ func _leaves_round(n: Node, p: Vector3) -> Array:
 		leaf.position = at
 		leaf.scale = Vector3(0.7, 1.0, 0.7)
 		_kit_add(n, leaf)
-		_kit_box(n, at - Vector3(0.0, at.y * 0.5, 0.0), Vector3(0.004, at.y, 0.004), Color(0.3, 0.42, 0.18))
+		var up := at.y - _gy(at.x, at.z) # (its stalk, from the ground)
+		_kit_box(n, at - Vector3(0.0, up * 0.5, 0.0), Vector3(0.004, up, 0.004), Color(0.3, 0.42, 0.18))
 		out.append([at + Vector3(0.0, 0.002, 0.0), Vector3.UP])
 	kit["leaves"] = out
 	n.set_meta("kit", kit)
@@ -1580,7 +1637,7 @@ func _prey_here(c: Node, kinds: Array, r: float) -> Node3D:
 ## One of the animals living here, made for a meal, at `at`, going about
 ## its own ways there (a grub curled, a dead mouse on its back).
 func _real_prey(kind: String, at: Vector3) -> Node3D:
-	at.y = 0.0
+	at = _on(at)
 	var n: Node3D
 	match kind:
 		"fawn":
@@ -1715,7 +1772,7 @@ func _nut_for(c: Node, p: Vector3) -> Node3D:
 		best = _laid("walnut", Vector3.ZERO, randf() * TAU) # (the game's)
 		remove_child(best)
 		var at := p + Vector3(cos(a), 0.0, sin(a)) * 0.4
-		best.position = Vector3(at.x, 0.0, at.z)
+		best.position = _on(at)
 		_kit_add(c, best)
 		nuts.append(best)
 		kit["nuts"] = nuts
@@ -1982,8 +2039,8 @@ func _pupate(all: Array) -> void:
 			var tw := _twig_near(p)
 			var y: Vector3 = tw[4]
 			var via := []
-			if p.y > 0.02: # (down the milkweed's stem)
-				via.append([Vector3(p.x, 0.0, p.z), Vector3.BACK])
+			if p.y > _gy(p.x, p.z) + 0.02: # (down the milkweed's stem)
+				via.append([_on(p), Vector3.BACK])
 			via.append([tw[0], Vector3.UP]) # (to the trunk's foot)
 			via.append([tw[1], y]) # (up it)
 			via.append([(tw[2] as Vector3) - y * 0.03, Vector3.DOWN]) # (onto the branch's underside)
@@ -1994,8 +2051,8 @@ func _pupate(all: Array) -> void:
 			var tw := _twig_near(p)
 			var y: Vector3 = tw[4]
 			var via := []
-			if p.y > 0.02:
-				via.append([Vector3(p.x, 0.0, p.z), Vector3.BACK])
+			if p.y > _gy(p.x, p.z) + 0.02:
+				via.append([_on(p), Vector3.BACK])
 			via.append([tw[0], Vector3.UP])
 			var at: Vector3 = (tw[1] as Vector3) - Vector3.UP * (0.08 + 0.06 * float(_hung % 3))
 			_hung += 1
@@ -2022,7 +2079,7 @@ func _colony_near(kind: String, p: Vector3) -> Node:
 	if best:
 		return best
 	var bc: Beetles = sc.new()
-	bc.position = Vector3(p.x, 0.0, p.z)
+	bc.position = _on(p)
 	add_child(bc)
 	bc.setup(0, Vector3.ZERO, 0.05)
 	return bc
@@ -2033,7 +2090,7 @@ func _colony_near(kind: String, p: Vector3) -> Node:
 func _workers(kind: String, p: Vector3) -> Node:
 	if _worker_colonies.has(kind) and is_instance_valid(_worker_colonies[kind]):
 		return _worker_colonies[kind]
-	var at := Vector3(p.x, 0.0, p.z)
+	var at := _on(p)
 	for n in get_children():
 		if n.get_meta("ant", "") == kind:
 			at = (n as Node3D).position
@@ -2050,7 +2107,7 @@ func _do(c: Node, act_: String) -> void:
 	var sc: Script = c.get_script()
 	var p := _where(c)
 	var young := _young(c)
-	var st: Vector3 = c.get_meta("home", Vector3(p.x, 0.0, p.z))
+	var st: Vector3 = c.get_meta("home", _on(p))
 	var a := randf() * TAU
 	var near := Vector3(cos(a), 0.0, sin(a))
 	if c.has_meta("carcass"): # (a carcass: 2 takes it a stage further on; nothing else)
@@ -2258,7 +2315,7 @@ func _do(c: Node, act_: String) -> void:
 				c.call("lay", st + Vector3(0.05, 0.0, -0.08))
 			elif sc == MantisScript:
 				var stem: Node3D = _kit(c, "stem", func() -> Node3D: return _box_at(st + Vector3(0.12, 0.1, -0.12), Vector3(0.005, 0.2, 0.005), Color(0.4, 0.34, 0.2)))
-				c.call("lay", Vector3(stem.position.x, 0.006, stem.position.z))
+				c.call("lay", _on(stem.position) + Vector3.UP * 0.006)
 			elif sc == SnakeScript:
 				c.call("lay", 5 if c.get("kind") == "rattler" else 6)
 			elif sc == SpiderScript or sc == IsopodScript:
@@ -2708,7 +2765,7 @@ func _feed(c: Node, act_: String, young: bool, p: Vector3, st: Vector3, near: Ve
 	elif sc == LunaScript: # (it never eats: down to rest, its wings spread)
 		c.call("rest", p * Vector3(1.0, 0.0, 1.0) + near * 0.1, Vector3.UP)
 	elif sc == HopperScript or sc == BlueHopperScript: # (the grass: chewing it where it stands)
-		c.call("feed", Vector3(p.x, 0.0, p.z) + near * (0.03 if young else 0.12) + Vector3.UP * (0.001 if young else 0.002))
+		c.call("feed", _on(p) + near * (0.03 if young else 0.12) + Vector3.UP * (0.001 if young else 0.002))
 	elif sc == MantisScript:
 		var f := _insect_at(p + near * (0.03 if young else 0.06), 0.2 if young else 0.45)
 		c.call("strike", f.position + Vector3(0.0, 0.004, 0.0), f)
@@ -2838,7 +2895,7 @@ func _mushroom_meal(c: Node, young: bool, p: Vector3, near: Vector3) -> void:
 	if f == null:
 		var id: String = kinds[randi() % kinds.size()]
 		var d: float = {TurtleScript: 0.22, MouseScript: 0.08, SquirrelScript: 0.25, GreySqScript: 0.25, OpossumScript: 0.4, DeerScript: 0.75, MooseScript: 1.1}.get(sc, 0.9)
-		f = _mushroom(id, Vector3(p.x, 0.0, p.z) + near * d)
+		f = _mushroom(id, _on(p) + near * d)
 	# (not used up, as a bush's berries aren't: bitten at where it grows, and
 	# left; the hunters' make (the deer, the moose, the bears, the opossum)
 	# their mouths brought down onto its cap, the rest nibbling at it)
@@ -2994,7 +3051,7 @@ func _fox_spot(c: Node, kind: String, from: Vector3) -> Vector3:
 ## [spot, normal] each, four, each its own leaf.
 func _milkweed_leaves(p: Vector3) -> Array:
 	var mw: Node = _plant_near(p, ["milkweed", "swamp_milkweed"], 3.0)
-	var leaves: Array = (mw.get_meta("leaves", []) as Array).filter(func(l: Array) -> bool: return (l[0] as Vector3).y < 0.8)
+	var leaves: Array = (mw.get_meta("leaves", []) as Array).filter(func(l: Array) -> bool: return (l[0] as Vector3).y < _gy((l[0] as Vector3).x, (l[0] as Vector3).z) + 0.8)
 	leaves.sort_custom(func(a: Array, b: Array) -> bool: return (a[0] as Vector3).y < (b[0] as Vector3).y)
 	var out := []
 	for l: Array in leaves:
@@ -3035,6 +3092,8 @@ static func _flat(arrays: Array) -> Array:
 # --- selection, placing, the camera ------------------------------------------------
 
 func _unhandled_input(e: InputEvent) -> void:
+	if world:
+		return # (in the game: EcologySandbox hands on what's the tools')
 	if e is InputEventKey and e.pressed and not e.echo:
 		if KEYS.has(e.keycode):
 			act(KEYS[e.keycode])
@@ -3082,17 +3141,43 @@ func _unhandled_input(e: InputEvent) -> void:
 		_left_down = Vector2.INF
 		_left_dragged = false
 		if not dragged:
-			var g := _ground_at(mb.position)
-			if _placing != "":
-				if g != Vector3.INF:
-					var n := spawn(_placing, g, _stage(), _ui_male.button_pressed)
-					_status = ("put down: %s" % _name_of(_placing)) if n else ("nothing put down (%s)" % _name_of(_placing))
-					_say()
-			else:
-				_pick(mb.position, mb.shift_pressed)
+			click(mb.position, mb.shift_pressed)
 	elif e is InputEventMouseButton and not e.pressed and (e as InputEventMouseButton).button_index == MOUSE_BUTTON_RIGHT:
 		if _placing != "" and (e as InputEventMouseButton).position.distance_to(_right_down) < 4.0:
 			_stop_placing()
+
+
+## A click on the view at sp: placing, one more put down on the ground
+## there; else the creature there selected (add: with those already).
+func click(sp: Vector2, add: bool) -> void:
+	if _placing != "":
+		var g := _ground_at(sp)
+		if g != Vector3.INF:
+			var n := spawn(_placing, g, _stage(), _ui_male.button_pressed)
+			_status = ("put down: %s" % _name_of(_placing)) if n else ("nothing put down (%s)" % _name_of(_placing))
+			_say()
+	else:
+		_pick(sp, add)
+
+
+## Whether a kind is being put down (click).
+func placing() -> bool:
+	return _placing != ""
+
+
+## Whether anything's been put down and is still here.
+func has_things() -> bool:
+	for n in get_children():
+		if n.has_meta("placed") or n.has_meta("home"):
+			return true
+	return false
+
+
+## The panel shown or not (in the game: the tools open or closed).
+func show_ui(on: bool) -> void:
+	_ui_layer.visible = on
+	if not on:
+		_stop_placing()
 
 
 var _right_down := Vector2.ZERO
@@ -3104,6 +3189,23 @@ var _left_dragged := false
 func _ground_at(sp: Vector2) -> Vector3:
 	var from := cam.project_ray_origin(sp)
 	var dir := cam.project_ray_normal(sp)
+	if world: # (the land itself: along the view till it's under it, then halved down to it)
+		var t0 := 0.0
+		var t1 := 0.3
+		while t1 < REACH:
+			var q := from + dir * t1
+			if q.y < _gy(q.x, q.z):
+				for i in 14:
+					var tm := (t0 + t1) * 0.5
+					var m := from + dir * tm
+					if m.y < _gy(m.x, m.z):
+						t1 = tm
+					else:
+						t0 = tm
+				return _on(from + dir * t1)
+			t0 = t1
+			t1 += 0.2 + t1 * 0.03
+		return Vector3.INF
 	if dir.y > -1e-4:
 		return Vector3.INF
 	var t := -from.y / dir.y
@@ -3234,6 +3336,8 @@ static func _game_trees() -> Dictionary:
 func _catalogue() -> Array:
 	var out: Array = []
 	for e: Array in CATALOGUE:
+		if world and e[2] in WET:
+			continue
 		out.append(e)
 		if e[2] == "tobacco": # (after the plants: the trees and bushes)
 			var gt := _game_trees()
@@ -3268,6 +3372,12 @@ func _sway_of(at: Vector3) -> float:
 
 
 func _process(dt: float) -> void:
+	if world:
+		_focus = _on(cam.global_position)
+		_dist = 3.0
+		_keep_on_land()
+		_mark()
+		return
 	# the camera, round its focus
 	var k := Input.get_vector("ui_left", "ui_right", "ui_up", "ui_down")
 	if k != Vector2.ZERO and Input.is_key_pressed(KEY_SHIFT): # (Shift + arrows: turning the view round, tilting it)
@@ -3283,12 +3393,52 @@ func _process(dt: float) -> void:
 	var off := Vector3(sin(_yaw) * cos(_pitch), -sin(_pitch), cos(_yaw) * cos(_pitch)) * _dist
 	cam.global_position = _focus + off
 	cam.look_at(_focus, Vector3.UP)
-	# the ghost under the mouse, placing
-	if _placing != "":
+	_mark()
+
+
+## In the game: n over the land as it lies (its height callable, if it goes
+## by one and has none yet); a colony's in its own space, about where it's set.
+func _land(n: Node) -> void:
+	if world == null or not "height" in n or (n.get("height") as Callable).is_valid():
+		return
+	if n is AntColony:
+		var c := n as Node3D
+		n.set("height", func(x: float, z: float) -> float: return _gy(x + c.position.x, z + c.position.z) - c.position.y)
+	else:
+		n.set("height", _height)
+
+
+## In the game: no creature left under the land (one dropped, fallen, come
+## down "to the ground" where the plain's was, 0: brought up onto the land
+## there), and those that fly told the ground's height under them.
+func _keep_on_land() -> void:
+	for c in get_children():
+		if c.get_script() == null or not (c is Node3D) or not (c as Node3D).visible:
+			continue
+		_land(c) # (one born or hatched here, a colony made for one: not put down)
+		var p: Variant = c.get("_pos")
+		if not p is Vector3:
+			continue
+		# (only one whose _pos is where it is here: not an egg's, a pupa's,
+		# kept from where its own node stands)
+		var at := (c as Node3D).position
+		if at != Vector3.ZERO and Vector2(at.x - (p as Vector3).x, at.z - (p as Vector3).z).length() > 0.5:
+			continue
+		var g := _gy((p as Vector3).x, (p as Vector3).z)
+		if c is Lepidoptera:
+			c.set("floor_y", g)
+		if (p as Vector3).y < g - 0.25:
+			c.set("_pos", Vector3((p as Vector3).x, g, (p as Vector3).z))
+
+
+## The ghost under the mouse (placing) and the selection's rings.
+func _mark() -> void:
+	_ghost.visible = false
+	if _placing != "" and (world == null or Input.mouse_mode == Input.MOUSE_MODE_VISIBLE):
 		var g := _ground_at(get_viewport().get_mouse_position())
 		_ghost.visible = g != Vector3.INF
 		if _ghost.visible:
-			var r := clampf(_dist * 0.03, 0.02, 1.0)
+			var r := clampf((cam.global_position.distance_to(g) if world else _dist) * 0.03, 0.02, 1.0)
 			_ghost.transform = Transform3D(Basis.from_scale(Vector3(r, r * 0.3, r)), g + Vector3.UP * 0.003)
 	# the selection's rings
 	_selected = _selected.filter(func(n) -> bool: return is_instance_valid(n))
@@ -3309,7 +3459,7 @@ func _process(dt: float) -> void:
 			if n is Node3D:
 				var d: Vector2 = PersonalSpace._dims(n as Node3D) if n.get_script() != null else Vector2.ZERO
 				r = clampf(d.x * 0.6, 0.02, 2.0) if d.x > 0.0 else 0.08
-			ring.transform = Transform3D(Basis.from_scale(Vector3(r, r * 0.2, r)), Vector3(p.x, maxf(p.y, 0.0) + 0.004, p.z))
+			ring.transform = Transform3D(Basis.from_scale(Vector3(r, r * 0.2, r)), Vector3(p.x, maxf(p.y, _gy(p.x, p.z)) + 0.004, p.z))
 
 
 # --- the panel --------------------------------------------------------------------
@@ -3317,6 +3467,7 @@ func _process(dt: float) -> void:
 func _build_ui() -> void:
 	var cl := CanvasLayer.new()
 	add_child(cl)
+	_ui_layer = cl
 	var panel := PanelContainer.new()
 	panel.anchor_top = 0.0
 	panel.anchor_bottom = 1.0
@@ -3324,6 +3475,14 @@ func _build_ui() -> void:
 	panel.offset_top = 8.0
 	panel.offset_bottom = -8.0
 	panel.offset_right = 290.0
+	if world: # (in the game: down the right, clear of the HUD's lines and its hands)
+		cl.layer = 8 # (over the HUD and the chat; under the pause menu)
+		panel.anchor_left = 1.0
+		panel.anchor_right = 1.0
+		panel.offset_left = -338.0
+		panel.offset_right = -8.0
+		panel.offset_top = 88.0
+		panel.offset_bottom = -84.0
 	cl.add_child(panel)
 	var box := VBoxContainer.new()
 	panel.add_child(box)
@@ -3333,6 +3492,7 @@ func _build_ui() -> void:
 	_ui_tree = Tree.new()
 	_ui_tree.hide_root = true
 	_ui_tree.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_ui_tree.custom_minimum_size.y = 160.0
 	_ui_tree.focus_mode = Control.FOCUS_NONE
 	box.add_child(_ui_tree)
 	var root := _ui_tree.create_item()
@@ -3354,6 +3514,8 @@ func _build_ui() -> void:
 			_placing = it.get_metadata(0)
 			_status = "placing: %s" % it.get_text(0)
 			_say())
+	if world:
+		title.add_theme_font_size_override("font_size", 13)
 	var row := HBoxContainer.new()
 	box.add_child(row)
 	_ui_stage = OptionButton.new()
@@ -3373,6 +3535,7 @@ func _build_ui() -> void:
 	row.add_child(_ui_decay)
 	var grass := CheckBox.new()
 	grass.text = "grass"
+	grass.visible = world == null # (the game's own grass there)
 	grass.button_pressed = true
 	grass.focus_mode = Control.FOCUS_NONE
 	grass.toggled.connect(func(on: bool) -> void:
@@ -3394,14 +3557,44 @@ func _build_ui() -> void:
 	clr.pressed.connect(clear_all)
 	row2.add_child(clr)
 	_ui_info = Label.new()
+	if world:
+		# (in the game the keys are the game's own: what they all do, here,
+		# a button each; Alt with its key too)
+		var acts := GridContainer.new()
+		acts.columns = 4
+		box.add_child(acts)
+		for key: int in KEYS:
+			var b := Button.new()
+			b.text = "%s %s" % [OS.get_keycode_string(key), ACT_NAMES.get(KEYS[key], KEYS[key])]
+			b.tooltip_text = "Alt + %s" % OS.get_keycode_string(key)
+			b.focus_mode = Control.FOCUS_NONE
+			b.add_theme_font_size_override("font_size", 11)
+			b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			b.pressed.connect(do_act.bind(KEYS[key]))
+			acts.add_child(b)
+		_ui_info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		_ui_info.add_theme_font_size_override("font_size", 12)
+		box.add_child(_ui_info)
+		return
 	_ui_info.position = Vector2(300, 8)
 	cl.add_child(_ui_info)
+
+
+## What the keys all do (act), told (in the game: its buttons, Alt + its key).
+func do_act(what: String) -> void:
+	act(what)
+	_status = "%s: %d" % [what, _targets().size()]
+	_say()
 
 
 func _say() -> void:
 	if _ui_info == null:
 		return
 	var sel := _selected.filter(func(n) -> bool: return is_instance_valid(n))
+	if world:
+		_ui_info.text = "Acts on: %s   %s\nClick: put down / select (Shift: more). Right click: done; held: look. Delete: selected gone. F9: away." % [
+				"everything put down (%d)" % _creatures().size() if sel.is_empty() else ", ".join(sel.slice(0, 3).map(func(n: Node) -> String: return _label_of(n))) + (" ..." if sel.size() > 3 else ""), _status]
+		return
 	var who := "everything here (%d)" % _creatures().size() if sel.is_empty() else ", ".join(sel.slice(0, 4).map(func(n: Node) -> String: return _label_of(n))) + (" ..." if sel.size() > 4 else "")
 	_ui_info.text = "Keys act on: %s     %s\n1 lay / birth   2 hatch / moult / decay on   3 pupate   E eat   H hunt   U an unusual meal   R a mushroom   K mate   G groom   Z sleep\nF fly / hop / climb   X alarm   D display / call   V play   N nurse   B forage / home   S spin   M mark   A sit   W own ways\nclick: select (Shift: add)   Del: delete   C: centre   left or right drag, Shift + arrows: turn   middle drag / arrows: move   wheel: zoom   Space: slow" % [who, _status]
 
@@ -3436,7 +3629,7 @@ func _where(n: Node) -> Vector3:
 	var p: Variant = n.get("_pos")
 	if p is Vector3:
 		return p
-	if n.has_meta("home") and not (n is Node3D and (n as Node3D).position != Vector3.ZERO):
+	if n.has_meta("home") and not (n is Node3D and Vector2((n as Node3D).position.x, (n as Node3D).position.z) != Vector2.ZERO): # (one whose node stands at the origin, or only lifted from it, in the game: a clump of flowers)
 		return n.get_meta("home")
 	return (n as Node3D).global_position if n is Node3D else Vector3.INF
 

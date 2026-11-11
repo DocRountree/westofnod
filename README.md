@@ -23,6 +23,19 @@ command, F6, the frame rate and coordinates on screen; nothing is saved. Running
 `main.tscn` on its own (the editor's Run Current Scene, `tools/shot.tscn`) starts
 debug mode directly.
 
+Debug mode's ecology tools (F9, or `/sandbox`; `scripts/ecology_sandbox.gd`): the ecology sandbox's toolkit
+(`tools/creatures/ecology_demo.gd`) in the game itself, which goes on under it. A list (right): a plant, a tree or
+bush, an item, a carcass or an animal, as an adult, young or a pupa, female or male; then left click the ground to
+put one there, where the view meets the land (again and again; right click or Esc: done). Left click a creature to
+select it (Shift: more). What the selected do (none selected: everything put down): the panel's buttons, or Alt with
+the sandbox's own key (Alt + E eat, Alt + H hunt, Alt + K mate, ...). Delete takes the selected away. The right
+button held looks round, and the keys move you, as ever. What's put down stays and lives there with the tools away
+(creatures over the land as it lies; the game's trees with their levels of detail), until the game is left: none of
+it is saved. Their places are drawn ones, so the floating origin is held where it is while anything put down is
+there; 3 km from it, all of it is taken away. Not there yet: ponds, the sea and what lives in or by them (the
+dragonfly, the fishing spider, crayfish, shrimp, krill, the fish, frogs and toads, the turtles, the beaver, the
+moose): those are in the sandbox's own scene still.
+
 | Input | Action |
 |---|---|
 | WASD, Space, Ctrl, Shift | move, jump, sprint, crouch (on foot: lower and slower) |

@@ -326,7 +326,9 @@ static func _skeleton(c: Node3D) -> Node3D:
 				var thick := r * (1.6 if q == 0 else 0.9)
 				meat.call(a.lerp(b, 0.45), Vector3(thick, thick, a.distance_to(b) * 0.8), root)
 				var mi: MeshInstance3D = root.get_child(root.get_child_count() - 1)
-				mi.look_at_from_position(mi.position, b, Vector3.UP if absf((b - a).normalized().y) < 0.9 else Vector3.RIGHT)
+				# (turned along the bone in the bones' own space: look_at_from_position
+				# takes the world's, and threw it hundreds of metres off)
+				mi.transform = Transform3D(Basis.looking_at(b - mi.position, Vector3.UP if absf((b - a).normalized().y) < 0.9 else Vector3.RIGHT), mi.position)
 				mi.scale = Vector3(thick, thick, a.distance_to(b) * 0.8)
 			if q < 2 and rng.randf() < 0.6:
 				stick.call(a.lerp(b, 0.15) + Vector3(0.0, r * 0.3, 0.0), a.lerp(b, 0.85) + Vector3(0.0, r * 0.3, 0.0), r * 0.08, hide, root)

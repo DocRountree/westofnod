@@ -21,6 +21,10 @@ class_name Origin
 const STEP := 1024.0 ## m
 
 static var offset := Vector3.ZERO ## map = drawn + offset (y 0)
+## m more than a STEP the player may be from the offset before it moves
+## (EcologySandbox: held where it is while anything put down by the debug
+## tools is there, whose places are drawn ones).
+static var hold := 0.0
 static var root: Node3D ## the node all of the world hangs from (main.gd)
 
 
@@ -37,7 +41,7 @@ static func render(p: Vector3) -> Vector3:
 ## Keeps the offset within a STEP of the player (map position p). True when
 ## it moved.
 static func follow(p: Vector3) -> bool:
-	if absf(p.x - offset.x) <= STEP and absf(p.z - offset.z) <= STEP and root and root.position == -offset:
+	if absf(p.x - offset.x) <= STEP + hold and absf(p.z - offset.z) <= STEP + hold and root and root.position == -offset:
 		return false
 	offset = Vector3(snappedf(p.x, STEP), 0.0, snappedf(p.z, STEP))
 	if root:
