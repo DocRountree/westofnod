@@ -71,6 +71,14 @@ const SWALLOW_SHELL := [[0.0, 0.5, 0.5], [3.0, 2.4, 2.2], [8.0, 3.9, 3.5], [12.5
 const SWALLOW_ALONG := Vector3(0.0, 0.42, -0.906) ## (leaning out from its stem, a little: its own y the stem's out, -z up it)
 const SWALLOWTAIL := preload("res://scripts/creatures/swallowtail.gd")
 const LUNA := preload("res://scripts/creatures/luna_moth.gd")
+const CLOAK := preload("res://scripts/creatures/mourning_cloak.gd")
+const CECROPIA := preload("res://scripts/creatures/cecropia_moth.gd")
+const POLYPHEMUS := preload("res://scripts/creatures/polyphemus_moth.gd")
+## the mourning cloak's chrysalis: hanging, angular, a crest of points
+const CLOAK_SHELL := [[0.0, 0.4, 0.4], [1.5, 1.8, 1.6], [3.5, 3.4, 3.0], [6.0, 4.6, 3.9], [8.5, 5.0, 4.6], [11.0, 4.7, 4.9],
+		[14.5, 4.6, 4.6], [18.0, 4.1, 4.0], [21.0, 3.0, 3.1], [23.0, 1.8, 2.0], [24.0, 0.3, 0.3]]
+const LEPIDOPTERA := ["monarch", "hemaris", "swallowtail", "luna", "cloak", "cecropia", "polyphemus"]
+const COCOONED := ["hemaris", "luna", "cecropia", "polyphemus"]
 
 var kind := "monarch"
 ## A parasitoid in it, not its own adult (one in PARASITIZED_ONE_IN,
@@ -98,7 +106,7 @@ var _after := Callable()
 func _init(k := "monarch") -> void:
 	kind = k
 	if randf() < 1.0 / PARASITIZED_ONE_IN:
-		if kind in ["monarch", "hemaris", "swallowtail", "luna"]:
+		if kind in LEPIDOPTERA:
 			parasitoid = "ichneumon"
 		elif kind == "wasp":
 			parasitoid = "trigonalid"
@@ -116,12 +124,12 @@ func _ready() -> void:
 	add_child(_body)
 	_mat = ShaderMaterial.new()
 	_mat.shader = preload("res://shaders/render/pupa.gdshader")
-	_mat.set_shader_parameter("kind", 0 if kind == "monarch" else (2 if kind == "swallowtail" else 1))
+	_mat.set_shader_parameter("kind", 0 if kind == "monarch" else (2 if kind == "swallowtail" else (3 if kind == "cloak" else 1)))
 	var shell := MeshInstance3D.new()
 	shell.material_override = _mat
 	_body.add_child(shell)
 	_shell = shell
-	if not kind in ["monarch", "hemaris", "swallowtail", "luna"]:
+	if not kind in LEPIDOPTERA:
 		_mat = null
 		_build_other(shell)
 	elif kind == "swallowtail":
@@ -157,6 +165,47 @@ func _ready() -> void:
 			horn.basis = Basis(Vector3.RIGHT, -0.75)
 			horn.material_override = horn_m
 			_body.add_child(horn)
+	elif kind == "cloak":
+		# hanging from its pad by its tail, head down: grey brown, a crest
+		# of pointed knobs down its back, two short horns at its head
+		var stalk := MeshInstance3D.new()
+		var cyl := CylinderMesh.new()
+		cyl.top_radius = 0.5 * MM
+		cyl.bottom_radius = 0.35 * MM
+		cyl.height = 2.0 * MM
+		cyl.radial_segments = 6
+		stalk.mesh = cyl
+		stalk.position = Vector3(0.0, -1.0 * MM, 0.0)
+		stalk.material_override = _plain(Color(0.1, 0.08, 0.06), 0.6)
+		_body.add_child(stalk)
+		shell.mesh = _loft(CLOAK_SHELL, Vector3(0.0, -2.0, 0.0), Vector3.DOWN, Vector3.RIGHT, Vector3.BACK)
+		var pt := _plain(Color(0.62, 0.42, 0.34), 0.6)
+		for k in 6: # (its points: a pair each segment down its back, pinkish tan)
+			for side: float in [-1.0, 1.0]:
+				var horn := MeshInstance3D.new()
+				var cone := CylinderMesh.new()
+				cone.top_radius = 0.0
+				cone.bottom_radius = 0.6 * MM
+				cone.height = 1.8 * MM
+				cone.radial_segments = 5
+				horn.mesh = cone
+				var y := -4.0 - 2.4 * k
+				horn.position = Vector3(1.6 * side, y, -3.4 - 0.15 * k) * MM
+				horn.basis = Basis(Vector3.RIGHT, -PI * 0.5 - 0.3) * Basis(Vector3.FORWARD, 0.4 * side)
+				horn.material_override = pt
+				_body.add_child(horn)
+		for side: float in [-1.0, 1.0]:
+			var horn := MeshInstance3D.new()
+			var cone := CylinderMesh.new()
+			cone.top_radius = 0.0
+			cone.bottom_radius = 0.5 * MM
+			cone.height = 2.0 * MM
+			cone.radial_segments = 5
+			horn.mesh = cone
+			horn.position = Vector3(1.0 * side, -26.5, 0.0) * MM
+			horn.basis = Basis(Vector3.FORWARD, PI + 0.3 * side)
+			horn.material_override = pt
+			_body.add_child(horn)
 	elif kind == "monarch":
 		# the stalk, black, then the case hanging from it down -y, its
 		# front +z
@@ -173,7 +222,7 @@ func _ready() -> void:
 		shell.mesh = _loft(MONARCH_SHELL, Vector3(0.0, -3.0, 0.0), Vector3.DOWN, Vector3.RIGHT, Vector3.BACK)
 	else: # (the clearwing's; the luna's, bigger, in a thick papery cocoon)
 		# lying, head to -z, its front up; the spike at its tail
-		var k := 1.3 if kind == "luna" else 1.0
+		var k: float = {"luna": 1.3, "cecropia": 1.6, "polyphemus": 1.4}.get(kind, 1.0)
 		var keys := MOTH_SHELL.map(func(e: Array) -> Array: return [float(e[0]) * k, float(e[1]) * k, float(e[2]) * k])
 		var half: float = (keys[keys.size() - 1] as Array)[0] * 0.5
 		shell.mesh = _loft(keys, Vector3(0.0, 4.2 * k, -half), Vector3.BACK, Vector3.RIGHT, Vector3.UP)
@@ -196,6 +245,12 @@ func _ready() -> void:
 		if kind == "luna": # (thin, papery, brown, not see-through)
 			silk = _plain(Color(0.6, 0.48, 0.3), 0.85)
 			silk.cull_mode = BaseMaterial3D.CULL_DISABLED
+		elif kind == "cecropia": # (tough, baggy, brown-grey, wrinkled)
+			silk = _plain(Color(0.5, 0.42, 0.33), 0.95)
+			silk.cull_mode = BaseMaterial3D.CULL_DISABLED
+		elif kind == "polyphemus": # (dense, hard, whitish tan)
+			silk = _plain(Color(0.78, 0.7, 0.56), 0.8)
+			silk.cull_mode = BaseMaterial3D.CULL_DISABLED
 		var sphere := SphereMesh.new()
 		sphere.radius = 0.5
 		sphere.height = 1.0
@@ -204,6 +259,10 @@ func _ready() -> void:
 		var bags := [[Vector3(0.0, 4.5, 0.0), Vector3(14.0, 10.5, 30.0)], [Vector3(1.2, 5.0, -3.0), Vector3(12.0, 9.0, 22.0)], [Vector3(-1.0, 4.0, 4.0), Vector3(11.0, 8.0, 20.0)]]
 		if kind == "luna":
 			bags = [[Vector3(0.0, 6.2, 0.0), Vector3(17.0, 12.5, 40.0)]]
+		elif kind == "cecropia": # (a spindle: baggy outer over a tight inner, pointed at both ends)
+			bags = [[Vector3(0.0, 9.0, 0.0), Vector3(24.0, 18.0, 52.0)], [Vector3(0.0, 8.0, -24.0), Vector3(9.0, 7.0, 22.0)], [Vector3(0.0, 8.0, 24.0), Vector3(10.0, 8.0, 26.0)]]
+		elif kind == "polyphemus": # (an oval, firm)
+			bags = [[Vector3(0.0, 8.0, 0.0), Vector3(20.0, 15.0, 36.0)]]
 		for b in bags:
 			var bag := MeshInstance3D.new()
 			bag.mesh = sphere
@@ -215,7 +274,9 @@ func _ready() -> void:
 		litter.cull_mode = BaseMaterial3D.CULL_DISABLED
 		var bits := [[Vector3(5.0, 8.5, -6.0), 0.5], [Vector3(-5.5, 7.0, 7.0), -0.7], [Vector3(1.0, 10.0, 9.0), 0.2]]
 		var leaf_size := Vector3(7.0, 0.3, 4.5)
-		if kind == "luna": # (its leaves wrapped round it: big, dead, brown)
+		if kind == "cecropia": # (no leaves: a few strands of it to the twig, dead leaf bits caught in it)
+			bits = [[Vector3(4.0, 15.0, -8.0), 0.5], [Vector3(-5.0, 14.0, 12.0), -0.7]]
+		if kind in ["luna", "polyphemus"]: # (its leaves wrapped round it: big, dead, brown)
 			bits = [[Vector3(6.0, 8.0, -6.0), 0.5], [Vector3(-6.5, 7.5, 5.0), -0.7], [Vector3(1.0, 12.2, 2.0), 0.2]]
 			leaf_size = Vector3(9.0, 0.3, 20.0)
 			litter = _plain(Color(0.36, 0.25, 0.13), 0.9)
@@ -368,7 +429,7 @@ func _process(dt: float) -> void:
 		var w := ripe * ripe
 		if parasitized:
 			_body.rotation = Vector3(0.0, sin(_t * 40.0) * 0.01 * smoothstep(0.7, 1.0, ripe), 0.0)
-		elif kind == "monarch":
+		elif kind in ["monarch", "cloak"]:
 			_body.rotation = Vector3(sin(_t * 7.0) * 0.05 * w, sin(_t * 3.1) * 0.15 * w, sin(_t * 9.0) * 0.04 * w)
 		elif kind != "wasp":
 			_body.rotation = Vector3(0.0, sin(_t * 8.0) * 0.07 * w, 0.0)
@@ -397,14 +458,14 @@ func _split() -> void:
 		_mat.set_shader_parameter("empty", true)
 	if parent == null:
 		return
-	if not kind in ["monarch", "hemaris", "swallowtail", "luna"]:
+	if not kind in LEPIDOPTERA:
 		_out_other(parent)
 		return
 	var a: Node3D
 	var b := global_transform.basis
 	var to := func(local_mm: Vector3) -> Vector3: return parent.to_local(global_transform * (local_mm * MM))
-	if kind == "monarch":
-		a = MONARCH.new()
+	if kind in ["monarch", "cloak"]:
+		a = (MONARCH if kind == "monarch" else CLOAK).new()
 		parent.add_child(a)
 		var front := (b * Vector3.BACK).normalized()
 		# out head first, down, from inside the wing cases; then turned
@@ -413,7 +474,7 @@ func _split() -> void:
 		a.call("emerge", to.call(Vector3(0.0, -40.0, 2.0)), front, (b * Vector3.UP).normalized(), _done.bind(a),
 				to.call(Vector3(0.0, -20.0, 0.0)), (b * Vector3.DOWN).normalized(), front)
 	else:
-		a = (SWALLOWTAIL if kind == "swallowtail" else (LUNA if kind == "luna" else MOTH)).new()
+		a = ({"swallowtail": SWALLOWTAIL, "luna": LUNA, "cecropia": CECROPIA, "polyphemus": POLYPHEMUS} as Dictionary).get(kind, MOTH).new()
 		parent.add_child(a)
 		var fwd := (b * Vector3.FORWARD).normalized()
 		var at: Vector3
@@ -422,7 +483,7 @@ func _split() -> void:
 			at = perch_at
 			n = perch_normal.normalized()
 		else:
-			at = to.call(Vector3(0.0, 12.0, 0.0) if kind != "luna" else Vector3(0.0, 15.0, 0.0))
+			at = to.call(Vector3(0.0, {"luna": 15.0, "cecropia": 20.0, "polyphemus": 17.0}.get(kind, 12.0), 0.0))
 			n = Vector3.UP
 		# out of the front of its cocoon (its case's head), crawling; then up
 		# its perch
@@ -449,6 +510,10 @@ func _head_mm() -> Vector3:
 			return SWALLOW_ALONG * 26.0
 		"luna":
 			return Vector3(0.0, 6.0, -9.0)
+		"cecropia":
+			return Vector3(0.0, 9.0, -14.0)
+		"polyphemus":
+			return Vector3(0.0, 8.0, -11.0)
 	return HOLE_MOTH
 
 
@@ -464,7 +529,7 @@ func _wasp_out(parent: Node3D) -> void:
 	var hole: Vector3
 	var front: Vector3
 	match kind:
-		"monarch":
+		"monarch", "cloak":
 			front = (b * Vector3.BACK).normalized()
 			hole = global_transform * (HOLE * MM)
 		"wasp": # (up out of its cell, its cap chewed open)

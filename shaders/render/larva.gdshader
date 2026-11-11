@@ -23,6 +23,13 @@ shader_type spatial;
 // pattern 6: a luna caterpillar's: lime green, paler creases between its
 //   segments, a pale line (line) low along each side, two pairs of small
 //   magenta warts (band_b) across each segment's back
+// pattern 7: a mourning cloak caterpillar's: black, finely flecked white
+//   (line), a red-orange spot (band_b) on each segment's back
+// pattern 8: a cecropia caterpillar's: pale bluish green, paler and
+//   yellower low down, small black dots (band_a) scattered over it
+// pattern 9: a polyphemus caterpillar's: bright green, see-through, a
+//   slanting yellow line (line) down each side of each segment, a pale
+//   line low along it
 // The segments from tail_from on are `tail` (a June grub's dark rear).
 
 uniform int pattern = 0;
@@ -151,6 +158,38 @@ void fragment() {
 		c = mix(c, band_b, w * step(0.15, o.y));
 		if (spiracles) // (small, pale, ringed brown, low on each side)
 			c = mix(c, vec3(0.45, 0.3, 0.15), (1.0 - smoothstep(0.03, 0.045, length(vec2(z - 0.25, (o.y + 0.05) * 1.3)))) * step(0.85, side));
+	} else if (pattern == 7 || pattern == 8) {
+		float z = o.z + 0.5;
+		float along = seg + z;
+		float round_ = atan(o.y, o.x) / 6.2832 + 0.5;
+		vec2 g = vec2(along * (pattern == 7 ? 7.0 : 4.0), round_ * (pattern == 7 ? 34.0 : 20.0));
+		vec2 cell = floor(g);
+		float h = fract(sin(dot(cell, vec2(12.9898, 78.233))) * 43758.5453);
+		vec2 jit = vec2(fract(h * 7.31), fract(h * 3.17)) - 0.5;
+		float d = length(fract(g) - 0.5 - jit * 0.4);
+		if (pattern == 7) {
+			c = mix(c, line, (1.0 - smoothstep(0.1, 0.17, d)) * step(0.35, h)); // (the white flecks)
+			float dspot = 1.0 - smoothstep(0.1, 0.14, length(vec2(o.x * 1.4, z - 0.5)));
+			c = mix(c, band_b, dspot * step(0.2, o.y));
+			c *= 1.0 - 0.1 * (1.0 - smoothstep(0.0, 0.08, min(z, 1.0 - z)));
+		} else {
+			c = mix(c, c * 1.12 + vec3(0.04, 0.05, -0.02), smoothstep(0.3, -0.4, o.y));
+			c = mix(c, band_a, (1.0 - smoothstep(0.08, 0.12, d)) * step(0.6, h));
+			c *= 1.0 - 0.12 * (1.0 - smoothstep(0.0, 0.1, min(z, 1.0 - z)));
+			if (spiracles)
+				c = mix(c, vec3(0.9, 0.85, 0.6), (1.0 - smoothstep(0.03, 0.045, length(vec2(z - 0.3, (o.y + 0.1) * 1.3)))) * step(0.85, side));
+		}
+	} else if (pattern == 9) {
+		float z = o.z + 0.5;
+		c *= 1.0 - 0.14 * (1.0 - smoothstep(0.0, 0.1, min(z, 1.0 - z)));
+		c = mix(c, c * 1.15 + 0.04, smoothstep(0.35, -0.3, o.y) * 0.3);
+		// the slanting line: from low at its front to high at its back
+		float sl = abs(o.y + 0.15 - (z - 0.3) * 0.55);
+		c = mix(c, line, (1.0 - smoothstep(0.02, 0.035, sl)) * step(0.6, side) * step(0.15, z) * step(z, 0.95));
+		c = mix(c, line * 0.95, smoothstep(0.012, 0.0, abs(o.y + 0.32) - 0.02) * step(0.8, side));
+		if (spiracles)
+			c = mix(c, vec3(0.55, 0.32, 0.12), (1.0 - smoothstep(0.03, 0.045, length(vec2(z - 0.2, (o.y + 0.08) * 1.3)))) * step(0.85, side));
+		SSS_STRENGTH = 0.25;
 	} else if (pattern == 4) {
 		// creased across: each segment folded into annulets
 		c *= 1.0 - wrinkle * (0.5 + 0.5 * cos((o.z + 0.5) * 6.2832 * annulets));

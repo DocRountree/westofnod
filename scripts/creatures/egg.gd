@@ -21,13 +21,16 @@ const EGGS := {
 	"hemaris": [1.0, 0.9, Color(0.72, 0.85, 0.6), false], # (glassy pale green, one at a time)
 	"swallowtail": [1.0, 1.0, Color(0.96, 0.86, 0.38), false], # (a yellow pearl, one to a leaf)
 	"luna": [1.8, 1.5, Color(0.86, 0.82, 0.68), false], # (big, whitish, flecked brown, a few to a leaf)
+	"cloak": [0.9, 0.8, Color(0.82, 0.72, 0.42), true], # (ribbed, yellowish tan, in a ring round a twig)
+	"cecropia": [2.0, 1.6, Color(0.88, 0.84, 0.74), false], # (big, white, stained brown, in twos and threes)
+	"polyphemus": [2.2, 2.0, Color(0.88, 0.85, 0.75), false], # (big, flattish, cream ringed brown, one or two to a leaf)
 	"grasshopper": [4.5, 1.1, Color(0.8, 0.66, 0.4), true], # (tan, long, packed upright in a pod in the soil: Grasshopper.Pod)
 }
 ## kind: the hatchling's size (a share of full grown), seconds to grow up
 const HATCHLING := {
 	"wasp": [0.25, 60.0], "carpenter": [0.35, 50.0], "harvester": [0.35, 50.0], "june": [0.25, 80.0],
 	"lady": [0.25, 50.0], "monarch": [0.12, 90.0], "hemaris": [0.12, 90.0],
-	"swallowtail": [0.12, 90.0], "luna": [0.1, 100.0],
+	"swallowtail": [0.12, 90.0], "luna": [0.1, 100.0], "cloak": [0.14, 80.0], "cecropia": [0.08, 120.0], "polyphemus": [0.09, 110.0],
 }
 
 static var _meshes := {}
@@ -123,7 +126,7 @@ func _out() -> void:
 	var at := parent.to_local(global_position)
 	var facing := Vector3.FORWARD.rotated(Vector3.UP, randf() * TAU)
 	var crawler: bool = LarvaScript.KINDS[kind].style == "crawl"
-	if kind in ["monarch", "hemaris", "swallowtail", "luna"]:
+	if kind in ["monarch", "hemaris", "swallowtail", "luna", "cloak", "cecropia", "polyphemus"]:
 		# beside its shell, turned to it, eating it
 		lv.place(at - facing * float(LarvaScript.KINDS[kind].len) * MM * h[0] * 0.15, facing)
 		lv.eat()

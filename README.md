@@ -760,6 +760,22 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   wings spread; feed on a flower, its wings closed over its back). `tools/creatures/lepidoptera_demo.tscn` shows them
   in a patch of the game's flowers (`DemoFlowers.patch`: three clumps of common milkweed, one of swamp milkweed,
   coneflowers, Susans, fleabane, asters, yampah) and a stone, each animation on a key.
+  Three more, each with its eggs, caterpillar, pupa and adult (in the ecology sandbox's Insects, adult, young or
+  pupa; `tools/creatures/butterfly_preview.gd` renders any of them at any of their ways):
+  `mourning_cloak.gd` (`MourningCloak`, *Nymphalis antiopa*, on the monarch's motor, a brush-foot): maroon above,
+  a ragged cream border speckled dark, a row of violet-blue spots in black inside it; beneath, near-black bark; it
+  basks spread on a stone or a trunk, feeds at rotting fruit (E: crabapples gone brown), rests shut on bark, startles
+  (X, D: wings flicked open and shut, clicking, then off), lays a ring of eggs round a twig; its caterpillars in a
+  brood, black, flecked white, a red spot on each segment's back, red prolegs, branched black spines in rows; its
+  chrysalis hanging under a branch, bark grey, a crest of pinkish points. `cecropia_moth.gd` (`CecropiaMoth`,
+  *Hyalophora cecropia*) and `polyphemus_moth.gd` (`PolyphemusMoth`, *Antheraea polyphemus*), the luna's kin
+  (`LunaMoth._feathered`: feathered antennae; no mouthparts; flying at night): the cecropia frosted grey-brown, red at
+  the base, a white band edged red-orange, white crescents, a lilac tip with its black eye, its body red-orange
+  banded white, resting spread (its forewings drawn forward: `Lepidoptera.fore_forward`); its caterpillar huge, pale
+  blue-green, red, yellow and blue knobs bristling black; its cocoon a baggy brown spindle. The polyphemus tawny,
+  pink-lined, a small clear eye on each forewing and the great one on each hindwing; resting shut over its back;
+  startled, its wings flung open and pumped, the forewings drawn up off the staring eyes; its caterpillar plump, bright
+  green, slanting yellow lines, small orange knobs flecked silver; its cocoon a firm oval wrapped in a leaf.
   The ecology sandbox's plain is grown over with the game's own short grass (`DemoFlowers.meadow`: GroundCover's
   finest grass layer's clumps, 7 to 16 cm, coloured as `ground_cover.gdshader` colours them, swaying in the same
   wind and as much), kept off the ponds and round the small creatures.

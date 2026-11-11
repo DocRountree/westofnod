@@ -12,6 +12,9 @@ render_mode depth_prepass_alpha, cull_disabled;
 // kind 1, the clearwing's: mahogany, glossy, the abdomen's segments
 //   ringed, the wing cases' outline, the tongue's sheath down the front,
 //   a row of spiracles along each side.
+// kind 2, the swallowtail's: green, pale lines down its sides and back.
+// kind 3, the mourning cloak's: grey brown, mottled like bark, its
+//   ridges and points tipped pinkish tan, a dark line down its back.
 // ripe 0..1: going dark and clear, the wings inside showing through (the
 // monarch's orange and black). empty: split, left behind: pale, see-
 // through, a slit open where it came out.
@@ -79,6 +82,18 @@ void fragment() {
 		metal *= 1.0 - 0.7 * dead;
 		if (holed && fr > 0.9 && length(vec2((1.0 - fr) * 4.0, (v - 0.42) * 26.0)) < 0.7)
 			discard; // (the wasp's way out)
+	} else if (kind == 3) {
+		// the mourning cloak's: bark, grey brown, mottled, a dark line down
+		// its back, its points pinkish tan
+		float n = fract(sin(dot(floor(vec2(u * 40.0, v * 60.0)), vec2(12.9898, 78.233))) * 43758.5453);
+		c = mix(vec3(0.12, 0.09, 0.07), vec3(0.24, 0.2, 0.17), n);
+		c = mix(c, vec3(0.06, 0.045, 0.04), (1.0 - smoothstep(0.0, 0.05, fr > 0.0 ? abs(u - 0.0) * abs(u - 1.0) : 1.0)) * 0.6);
+		c = mix(c, vec3(0.08, 0.06, 0.05), 1.0 - smoothstep(0.0, 0.04, min(u, 1.0 - u)));
+		rough = 0.65;
+		c = mix(c, mix(vec3(0.05, 0.04, 0.03), vec3(0.35, 0.08, 0.06), step(0.5, fract(v * 7.0)) * step(0.5, fr)), ripe);
+		c = mix(c, vec3(0.05, 0.035, 0.025), smoothstep(0.0, 1.0, dead));
+		if (holed && fr > 0.9 && length(vec2((1.0 - fr) * 4.0, (v - 0.42) * 26.0)) < 0.7)
+			discard;
 	} else if (kind == 2) {
 		// the swallowtail's: green, a pale yellow line down each side and
 		// along the keel of its back, faintly mottled

@@ -35,6 +35,9 @@ const MothScript := preload("res://scripts/creatures/hummingbird_moth.gd")
 const MonarchScript := preload("res://scripts/creatures/monarch.gd")
 const SwallowScript := preload("res://scripts/creatures/swallowtail.gd")
 const LunaScript := preload("res://scripts/creatures/luna_moth.gd")
+const CloakScript := preload("res://scripts/creatures/mourning_cloak.gd")
+const CecropiaScript := preload("res://scripts/creatures/cecropia_moth.gd")
+const PolyScript := preload("res://scripts/creatures/polyphemus_moth.gd")
 const HarvesterScript := preload("res://scripts/creatures/harvester_ants.gd")
 const JuneScript := preload("res://scripts/creatures/june_beetles.gd")
 const LadyScript := preload("res://scripts/creatures/lady_beetles.gd")
@@ -122,6 +125,9 @@ const CATALOGUE := [
 	["Insects", "hummingbird clearwing", "moth", ["adult", "young", "pupa"]],
 	["Insects", "Old World swallowtail", "swallowtail", ["adult", "young", "pupa"]],
 	["Insects", "luna moth", "luna", ["adult", "young", "pupa"]],
+	["Insects", "mourning cloak", "cloak", ["adult", "young", "pupa"]],
+	["Insects", "cecropia moth", "cecropia", ["adult", "young", "pupa"]],
+	["Insects", "polyphemus moth", "polyphemus", ["adult", "young", "pupa"]],
 	["Insects", "paper wasp", "wasp", ["adult", "young"]],
 	["Insects", "common eastern bumble bee", "bee", ["adult", "queen"]],
 	["Insects", "trigonalid wasp", "trig", ["adult"]],
@@ -793,6 +799,51 @@ func _spawn_animal(key: String, at: Vector3, stage: String, male: bool, young: b
 			b.call("place", at + Vector3(0.0, 0.5, 0.0))
 			b.call("fly", at, 0.4)
 			return b
+		"cloak":
+			if stage == "pupa": # (hanging under a tree's lowest branch)
+				var tw := _twig_near(at)
+				var ch := PupaScript.new("cloak")
+				ch.position = (tw[2] as Vector3).lerp(tw[3], randf() * 0.6)
+				return _org(ch, at, false)
+			if young: # (a brood of them, together, feeding: they live in company)
+				var first: Node = null
+				for k in 5:
+					var cat := LarvaScript.new("cloak")
+					var a := float(k) / 5.0 * TAU
+					var cp := at + Vector3(cos(a), 0.0, sin(a)) * 0.03 * (1.0 if k > 0 else 0.0)
+					_org(cat, cp, true)
+					cat.place(cp, Vector3.RIGHT.rotated(Vector3.UP, a + 0.3))
+					cat.eat()
+					if first == null:
+						first = cat
+				return first
+			var mc := CloakScript.new()
+			mc.male = male
+			_org(mc, at, false)
+			mc.place(at + Vector3(0.0, 0.5, 0.0))
+			mc.fly(at, 0.4)
+			return mc
+		"cecropia", "polyphemus":
+			if stage == "pupa": # (its cocoon in the litter, a stem by it to climb out on)
+				var sp := PupaScript.new(key)
+				sp.position = at
+				sp.rotation.y = randf() * TAU
+				var perch := _moth_perch(at, sp.rotation.y)
+				sp.perch_at = perch[0]
+				sp.perch_normal = perch[1]
+				return _org(sp, at, true)
+			if young:
+				var cat := LarvaScript.new(key)
+				_org(cat, at, true)
+				cat.place(at, Vector3.RIGHT.rotated(Vector3.UP, randf() * TAU))
+				cat.eat()
+				return cat
+			var sm: Node3D = (CecropiaScript if key == "cecropia" else PolyScript).new()
+			sm.set("male", male)
+			_org(sm, at, false)
+			sm.call("place", at + Vector3(0.0, 0.5, 0.0))
+			sm.call("fly", at, 0.4)
+			return sm
 		"moth":
 			if stage == "pupa":
 				var mp := PupaScript.new("hemaris")
@@ -1374,6 +1425,80 @@ func _otter_do(c: Node, act_: String, young: bool, p: Vector3) -> void:
 		"mark":
 			if not sea:
 				c.call("mark")
+
+
+## The mourning cloak's and the two silk moths' own: W / F fly about; 1
+## eggs (the cloak's a ring round a twig of a tree by it; the moths' on
+## leaves round them); E the cloak feeding at rotting fruit on the ground
+## (the moths never eat: down to rest); X / D startled (the cloak's wings
+## flicked, clicking; the polyphemus's flung open, its eyes staring; the
+## cecropia off); A / Z / G resting (the cloak shut on bark, on a trunk;
+## the moths on the ground: the cecropia spread, the polyphemus shut).
+func _cloak_do(c: Node, act_: String, p: Vector3, near: Vector3) -> void:
+	var st: Vector3 = c.get_meta("home", _on(p))
+	var cloak := c is CloakScript
+	match act_:
+		"wander", "fly":
+			c.call("fly", st, 0.5)
+		"lay":
+			if _flag(c, "male"):
+				return
+			if cloak: # (a ring of them round a twig)
+				var tw := _twig_near(st)
+				var a0: Vector3 = tw[2]
+				var b0: Vector3 = tw[3]
+				var ax := (b0 - a0).normalized()
+				var mid := a0.lerp(b0, 0.45)
+				var r1 := ax.cross(Vector3.UP).normalized()
+				var r2 := ax.cross(r1).normalized()
+				var spots := []
+				var normals := []
+				for k in 8:
+					var ang := TAU * k / 8.0
+					var n := (r1 * cos(ang) + r2 * sin(ang)).normalized()
+					spots.append(mid + ax * 0.004 * float(k % 2) + n * 0.006)
+					normals.append(n)
+				c.call("lay", spots, normals, Callable(c, "fly").bind(st, 0.4))
+			else:
+				var lv := _leaves_round(c, st)
+				c.call("lay", lv.slice(0, 3).map(func(l): return l[0]), lv.slice(0, 3).map(func(l): return l[1]), Callable(c, "fly").bind(st, 0.4))
+		"eat", "hunt":
+			if cloak: # (rotting fruit on the ground: crabapples, gone soft and brown)
+				var fruit: Node3D = _kit(c, "fruit", func() -> Node3D:
+					var h := Node3D.new()
+					h.position = _on(st + Vector3(0.25, 0.0, 0.2))
+					var m := StandardMaterial3D.new()
+					m.albedo_color = Color(0.36, 0.16, 0.08)
+					m.roughness = 0.35
+					for k in 4:
+						var f := MeshInstance3D.new()
+						var sph := SphereMesh.new()
+						sph.radius = 0.013
+						sph.height = 0.022
+						f.mesh = sph
+						f.material_override = m
+						f.position = Vector3(cos(k * 1.7) * 0.025, 0.009, sin(k * 1.7) * 0.025)
+						h.add_child(f)
+					return h)
+				var tops := []
+				for f in fruit.get_children():
+					tops.append(fruit.position + (f as Node3D).position + Vector3.UP * 0.011)
+				c.call("feed", tops)
+			else:
+				c.call("rest", _on(p + near * 0.1), Vector3.UP)
+		"alarm", "display":
+			if c.has_method("startle") and not bool(c.get("flying")):
+				c.call("startle")
+			else:
+				c.call("fly", st, 0.8)
+		"sit", "sleep", "groom":
+			if cloak: # (shut, on a tree's trunk: the bark of its undersides)
+				var tw := _twig_near(st)
+				var tr: Vector3 = tw[0]
+				var dir: Vector3 = tw[4]
+				c.call("rest", tr + Vector3.UP * 0.35 + dir * 0.06, dir)
+			else:
+				c.call("rest", _on(p + near * 0.1), Vector3.UP)
 
 
 ## (The point on a pond's bank nearest p, a little out from its edge.)
@@ -2088,7 +2213,7 @@ func _caterpillar_near(p: Vector3) -> Node3D:
 	var best: Node3D = null
 	var bd := INF
 	for n in get_children():
-		if n.get_script() == LarvaScript and String(n.get("kind")) in ["monarch", "hemaris", "swallowtail", "luna"] and not bool(n.get("parasitized")) and String(n.get("_mode")) != "pupate":
+		if n.get_script() == LarvaScript and String(n.get("kind")) in ["monarch", "hemaris", "swallowtail", "luna", "cloak", "cecropia", "polyphemus"] and not bool(n.get("parasitized")) and String(n.get("_mode")) != "pupate":
 			var d := (n.get("_pos") as Vector3).distance_to(p)
 			if d < bd:
 				bd = d
@@ -2193,7 +2318,7 @@ func _pupate(all: Array) -> void:
 			elif kind in ["carpenter", "harvester"]:
 				col = _workers(kind, p)
 			c.call("pupate", at, [], func(pu: Node3D) -> void: pu.set("colony", col))
-		elif kind == "monarch": # (to a tree, up its trunk, out under its lowest branch, to hang there)
+		elif kind in ["monarch", "cloak"]: # (to a tree, up its trunk, out under its lowest branch, to hang there)
 			var tw := _twig_near(p)
 			var y: Vector3 = tw[4]
 			var via := []
@@ -2215,7 +2340,7 @@ func _pupate(all: Array) -> void:
 			var at: Vector3 = (tw[1] as Vector3) - Vector3.UP * (0.08 + 0.06 * float(_hung % 3))
 			_hung += 1
 			c.call("pupate", at, via + [[at, y]])
-		elif kind in ["hemaris", "luna"]: # (in the litter, on the ground)
+		elif kind in ["hemaris", "luna", "cecropia", "polyphemus"]: # (in the litter, on the ground)
 			var turn := randf() * TAU
 			var at := p + Vector3(0.05, 0.0, 0.05)
 			var perch := _moth_perch(at, turn)
@@ -2277,6 +2402,9 @@ func _do(c: Node, act_: String) -> void:
 		return
 	if c is OtterScript: # (its own: in and by its water)
 		_otter_do(c, act_, young, p)
+		return
+	if (c is CloakScript or c is CecropiaScript or c is PolyScript) and act_ in ["wander", "fly", "lay", "eat", "hunt", "alarm", "display", "sit", "sleep", "groom"]:
+		_cloak_do(c, act_, p, near)
 		return
 	# a mushroom: R, or E with one it eats grown or laid by it
 	if act_ == "mushroom" or (act_ == "eat" and _fungus_near(p, MUSHROOM_EATERS.get(sc, []), 1.5) != null):

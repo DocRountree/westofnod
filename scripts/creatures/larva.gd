@@ -22,6 +22,17 @@ extends Node3D
 ## - luna: the luna moth's, big, plump, lime green, faint pale creases
 ##   between its segments, a pale yellow line low along each side, small
 ##   magenta warts in a row across each segment's back; a brown head
+## - cloak: the mourning cloak's ("spiny elm caterpillar"), black, flecked
+##   white, a red-orange spot on each segment's back, its prolegs red,
+##   bristling with branched black spines in rows down its back and sides
+## - cecropia: the cecropia moth's, huge, pale bluish green, flecked black;
+##   its knobs (scoli): a pair of big red-orange ones on each of its
+##   thoracic segments behind the first, yellow ones in a pair along its
+##   back, blue ones down its sides, each bristling black
+## - polyphemus: the polyphemus moth's, big, plump, bright green,
+##   see-through; a slanting yellow line down each side of each segment;
+##   small orange-red knobs flecked silver along its back and sides; a
+##   brown head
 ## - lady: the lady beetle's larva ("alligator"), blackish, bumpy, tapering,
 ##   orange patches on its sides, six legs, quick
 ## - june: a June bug's white grub, C-curled on its side, a brown head, six
@@ -63,6 +74,18 @@ const KINDS := {
 			"pattern": 6, "base": Color(0.55, 0.78, 0.25), "line": Color(0.96, 0.92, 0.55), "band_b": Color(0.85, 0.15, 0.35),
 			"head": Color(0.62, 0.42, 0.18), "eyes": true, "speed": 0.01, "true_leg": Color(0.6, 0.35, 0.15),
 			"legs": "caterpillar", "crease": 0.11, "bend": 0.11, "gloss": 0.55, "spiracles": true},
+	"cloak": {"style": "crawl", "n": 12, "len": 50.0, "w": 7.0, "shape": [0.7, 0.95, 1.0, 1.02, 0.98, 0.75],
+			"pattern": 7, "base": Color(0.05, 0.045, 0.045), "line": Color(0.92, 0.9, 0.86), "band_b": Color(0.8, 0.22, 0.08),
+			"head": Color(0.06, 0.05, 0.05), "eyes": true, "speed": 0.012, "true_leg": Color(0.08, 0.07, 0.07), "proleg": Color(0.62, 0.2, 0.08),
+			"legs": "caterpillar", "crease": 0.1, "bend": 0.12, "gloss": 0.4, "spines": Color(0.03, 0.03, 0.03)},
+	"cecropia": {"style": "crawl", "n": 12, "len": 100.0, "w": 15.0, "shape": [0.62, 0.92, 1.04, 1.08, 1.0, 0.74],
+			"pattern": 8, "base": Color(0.6, 0.78, 0.66), "band_a": Color(0.04, 0.05, 0.05),
+			"head": Color(0.62, 0.74, 0.5), "eyes": true, "speed": 0.009, "true_leg": Color(0.55, 0.62, 0.45),
+			"legs": "caterpillar", "crease": 0.12, "bend": 0.1, "gloss": 0.45, "spiracles": true, "knobs": "cecropia"},
+	"polyphemus": {"style": "crawl", "n": 12, "len": 75.0, "w": 12.5, "shape": [0.6, 0.92, 1.06, 1.1, 1.02, 0.74],
+			"pattern": 9, "base": Color(0.5, 0.78, 0.22), "line": Color(0.95, 0.92, 0.5), "band_b": Color(0.85, 0.3, 0.18),
+			"head": Color(0.55, 0.36, 0.16), "eyes": true, "speed": 0.01, "true_leg": Color(0.55, 0.32, 0.15),
+			"legs": "caterpillar", "crease": 0.13, "bend": 0.1, "gloss": 0.55, "spiracles": true, "knobs": "polyphemus"},
 	"lady": {"style": "crawl", "n": 10, "len": 10.0, "w": 2.6, "shape": [0.8, 1.0, 0.95, 0.75, 0.5, 0.3],
 			"pattern": 3, "base": Color(0.14, 0.14, 0.16), "band_b": Color(0.95, 0.45, 0.08), "spots": [1, 4],
 			"head": Color(0.04, 0.04, 0.05), "eyes": true, "speed": 0.02, "legs": "six", "gloss": 0.3, "crease": 0.18, "bend": 0.22, "tubercles": true},
@@ -224,7 +247,7 @@ func threat(secs := 3.0) -> void:
 func pupate(at: Vector3, via := [], after := Callable()) -> void:
 	_mode = "pupate"
 	_pp_way = via.duplicate()
-	_pp_way.append([at, Vector3.DOWN if kind == "monarch" else Vector3.UP])
+	_pp_way.append([at, Vector3.DOWN if kind in ["monarch", "cloak"] else Vector3.UP])
 	_pp_at = at
 	_pp_stage = 0 if K.style == "crawl" else 1
 	_pp_t = 0.0
@@ -410,6 +433,39 @@ func _build() -> void:
 							b.rotation = Vector3(0.5 * (k * 2 - 1), 0.0, -0.5 * side)
 							b.material_override = dark
 							_holders[i].add_child(b)
+	# the mourning cloak caterpillar's spines: in rows down its back and
+	# sides, black, each branched (a few short side spines)
+	if K.has("spines"):
+		var sm := _flat(K.spines, 0.35)
+		for i in range(1, n):
+			var tw := _widths[i]
+			for row in 3:
+				var at: Vector2 = [Vector2(0.25, 0.97), Vector2(0.72, 0.7), Vector2(0.99, -0.05)][row]
+				for side: float in [-1.0, 1.0]:
+					if row == 0 and side > 0.0 and i % 2 == 0:
+						continue # (its back's row a single one every other segment)
+					var dirn := Vector3(at.x * side, at.y, 0.0).normalized()
+					var root := Vector3(tw * at.x * side, tw * at.y, 0.0)
+					var ln := tw * (1.05 if row < 2 else 0.8)
+					var sp := MeshInstance3D.new()
+					sp.mesh = _cone
+					sp.scale = Vector3(tw * 0.13, ln, tw * 0.13)
+					sp.basis = Basis(Quaternion(Vector3.UP, dirn)) * Basis.from_scale(Vector3(tw * 0.13, ln, tw * 0.13))
+					sp.position = root + dirn * ln * 0.45
+					sp.material_override = sm
+					_holders[i].add_child(sp)
+					for k in 2: # (its branches)
+						var b := MeshInstance3D.new()
+						b.mesh = _stick
+						var bd := (dirn + Vector3(0.0, 0.0, 0.9 if k == 0 else -0.9) + dirn.cross(Vector3.FORWARD) * 0.4).normalized()
+						var bl := tw * 0.3
+						b.basis = Basis(Quaternion(Vector3.UP, bd)) * Basis.from_scale(Vector3(tw * 0.035, bl, tw * 0.035))
+						b.position = root + dirn * ln * (0.45 + 0.2 * k) + bd * bl * 0.5
+						b.material_override = sm
+						_holders[i].add_child(b)
+	# the giant silk moths' knobs (scoli)
+	if K.has("knobs"):
+		_knobs(String(K.knobs), n)
 	# the monarch caterpillar's filaments: a pair behind its head, a pair
 	# near its tail, black, long and supple
 	if K.get("filaments", false):
@@ -621,6 +677,54 @@ func _mat(which: String) -> ShaderMaterial:
 		m.set_shader_parameter("gloss", 0.7)
 	_mats[key] = m
 	return m
+
+
+## (The giant silk moths' caterpillars' knobs: the cecropia's big and
+## coloured, bristling; the polyphemus's small, orange-red, flecked silver.)
+func _knobs(which: String, n: int) -> void:
+	var bristle := _flat(Color(0.03, 0.03, 0.03), 0.4)
+	var silver := StandardMaterial3D.new()
+	silver.albedo_color = Color(0.85, 0.86, 0.88)
+	silver.metallic = 0.8
+	silver.roughness = 0.2
+	for i in range(1, n):
+		var tw := _widths[i]
+		var rows := [] # [x, y (of its width round it), size, colour]
+		if which == "cecropia":
+			if i <= 2:
+				rows = [[0.32, 0.95, 0.42, Color(0.92, 0.36, 0.12)], [0.86, 0.45, 0.2, Color(0.35, 0.55, 0.85)]]
+			elif i == n - 1:
+				rows = [[0.0, 1.0, 0.3, Color(0.95, 0.8, 0.2)]]
+			else:
+				rows = [[0.3, 0.95, 0.3 if i == 3 else 0.24, Color(0.96, 0.82, 0.2)], [0.86, 0.45, 0.17, Color(0.35, 0.55, 0.85)], [0.98, -0.25, 0.13, Color(0.35, 0.55, 0.85)]]
+		else:
+			rows = [[0.3, 0.95, 0.11, Color(0.88, 0.32, 0.18)], [0.85, 0.45, 0.09, Color(0.88, 0.32, 0.18)]]
+		for r: Array in rows:
+			for side: float in ([-1.0, 1.0] if float(r[0]) > 0.0 else [1.0]):
+				var dirn := Vector3(float(r[0]) * side, float(r[1]), 0.0).normalized()
+				var sz := float(r[2]) * tw
+				var kb := MeshInstance3D.new()
+				kb.mesh = _sphere
+				kb.basis = Basis(Quaternion(Vector3.UP, dirn)) * Basis.from_scale(Vector3(sz * 1.6, sz * 2.2, sz * 1.6))
+				kb.position = Vector3(tw * float(r[0]) * side, tw * float(r[1]), 0.0) + dirn * sz * 0.6
+				kb.material_override = _flat(r[3], 0.4)
+				_holders[i].add_child(kb)
+				if which == "cecropia": # (its black bristles, out of its top)
+					for k in 3:
+						var b := MeshInstance3D.new()
+						b.mesh = _stick
+						var bd := (dirn + Vector3(0.35 * cos(k * 2.1), 0.0, 0.35 * sin(k * 2.1))).normalized()
+						b.basis = Basis(Quaternion(Vector3.UP, bd)) * Basis.from_scale(Vector3(tw * 0.025, sz * 1.1, tw * 0.025))
+						b.position = kb.position + dirn * sz * 1.0 + bd * sz * 0.5
+						b.material_override = bristle
+						_holders[i].add_child(b)
+				else: # (a silver fleck beside it)
+					var f := MeshInstance3D.new()
+					f.mesh = _sphere
+					f.scale = Vector3.ONE * sz * 0.9
+					f.position = kb.position + Vector3(0.0, 0.0, sz * 1.8) - dirn * sz * 0.4
+					f.material_override = silver
+					_holders[i].add_child(f)
 
 
 static func _flat(c: Color, rough: float) -> StandardMaterial3D:
@@ -860,10 +964,10 @@ func _pupate_clock(dt: float) -> void:
 	if _pp_stage == 0:
 		return
 	_pp_t += dt
-	var hang := kind == "monarch"
+	var hang := kind in ["monarch", "cloak"]
 	match _pp_stage:
 		1:
-			if _pp_t > SPIN_SECS * (1.0 if hang else (1.8 if kind in ["hemaris", "luna"] else 1.2)):
+			if _pp_t > SPIN_SECS * (1.0 if hang else (1.8 if kind in ["hemaris", "luna", "cecropia", "polyphemus"] else 1.2)):
 				_pp_from.clear()
 				_pp_stage = 2 if hang else 4
 				_pp_t = 0.0
@@ -899,15 +1003,15 @@ func _new_pupa() -> void:
 	get_parent().add_child(pupa)
 	var ln := float(K.len) * MM * _g
 	match kind:
-		"monarch", "wasp": # (hanging from its pad; under its cell's cap)
+		"monarch", "cloak", "wasp": # (hanging from its pad; under its cell's cap)
 			pupa.position = _pp_at
 		"lady": # (glued by its tail)
 			pupa.position = _pp_at - _dir * ln * 0.8
-		"hemaris", "luna", "swallowtail": # (in its cocoon; the swallowtail's girdled to where it stopped)
+		"hemaris", "luna", "cecropia", "polyphemus", "swallowtail": # (in its cocoon; the swallowtail's girdled to where it stopped)
 			pupa.position = _pp_at - _dir * ln * 0.5
 		_: # (a grub's: where it lay, its middle)
 			pupa.position = _pp_at
-	pupa.rotation.y = atan2(_dir.x, _dir.z) if kind == "monarch" else atan2(-_dir.x, -_dir.z)
+	pupa.rotation.y = atan2(_dir.x, _dir.z) if kind in ["monarch", "cloak"] else atan2(-_dir.x, -_dir.z)
 	if kind == "swallowtail": # (girdled where it stopped: its own +y out from the surface; on a trunk or a stem, its head up it)
 		var y := _pp_n.normalized()
 		if absf(y.y) < 0.7: # (on a trunk or a stem: straight out from it)
@@ -927,7 +1031,7 @@ func _pupa_spine(pts: Array[Vector3], ups: Array[Vector3], n: int, sg: float) ->
 	var trail_pts: Array[Vector3] = []
 	for i in n:
 		trail_pts.append(_along_trail((i + 0.5) * sg) + _pp_n * _widths[i] * _g * 0.95)
-	if kind != "monarch":
+	if kind not in ["monarch", "cloak"]:
 		var mid := Vector3.ZERO
 		for q in trail_pts:
 			mid += q

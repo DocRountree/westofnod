@@ -61,6 +61,7 @@ var accel := 6.0 ## how hard it springs toward its target
 var proboscis := 15.0 ## mm, uncoiled
 var stand := 3.0 ## mm its middle stands over what it's perched on
 var pattern := 0 ## lepidoptera_wing.gdshader's (the blur's colour)
+var fore_forward := 0.0 ## rad: perched, its forewings drawn forward this much more (off its hindwings: a silk moth's)
 var fore_wing := "monarch_fore" ## lepidoptera_wings.gd's
 var hind_wing := "monarch_hind"
 var fore_hinge := Vector3(0.9, 1.0, -1.2) ## mm: the right forewing's root on the thorax
@@ -577,7 +578,7 @@ func _pose_wings(dt: float) -> void:
 		else:
 			# closed upright over its back (a little past, touching) .. spread flat
 			up = lerpf(PI * 0.5 - 0.04, -0.03, _open_now)
-		var sweep := (-0.15 if hind else 0.12) + (0.18 * sin(_phase + 1.2) * _flap_now if flying else 0.0)
+		var sweep := (-0.15 if hind else 0.12) + (0.18 * sin(_phase + 1.2) * _flap_now if flying else 0.0) - (fore_forward * _open_now if not hind and not flying else 0.0)
 		hinge.transform.basis = Basis(Vector3.UP, -sweep * side) * Basis(Vector3.BACK, up * side)
 		if _grow < 0.999: # (just out: small, crumpled, filling out)
 			var crumple := (1.0 - _grow) * (0.5 if k % 2 == 0 else -0.4)

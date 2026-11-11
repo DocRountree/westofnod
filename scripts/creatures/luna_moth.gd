@@ -70,26 +70,31 @@ func _build() -> void:
 	_loft_part([[-0.6, 0.1, 2.0, 1.9], [1.0, 0.05, 2.5, 2.4], [5.0, -0.1, 2.6, 2.5], [10.0, -0.35, 2.3, 2.2], [14.0, -0.6, 1.7, 1.6], [16.5, -0.75, 1.0, 0.95], [17.6, -0.8, 0.2, 0.2]],
 			white, 0.95, _abdomen, 0.6, Vector2(1.0, 3.0))
 	_loft_part([[0.5, -1.4, 1.6, 0.6], [6.0, -1.6, 1.9, 0.7], [13.0, -1.6, 1.3, 0.5], [15.5, -1.5, 0.5, 0.2]], cream, 0.95, _abdomen, 0.4)
-	# its antennae: feathered, each a shaft with fine branches out both
-	# sides, broad in the middle (a male's), yellowish tan
+	# its antennae: feathered, broad in the middle (a male's), yellowish tan
+	_feathered(Vector3(0.7, 1.3, -8.4), 9.0, 1.9, tan)
+	# its legs: furred, purplish pink
+	_legs_at(Vector3(0.0, -2.2, -3.0), 8.5, pink, false)
+
+
+## Its antennae (the giant silk moths'): feathered, each a shaft from its
+## socket at base (mm, the right one's) `length` long, with fine branches
+## out both sides, longest (`breadth`) in its middle.
+func _feathered(base: Vector3, length: float, breadth: float, color: Color) -> void:
 	for side: float in [-1.0, 1.0]:
-		var base := Vector3(0.7 * side, 1.3, -8.4)
 		var d := Vector3(0.45 * side, 0.6, -0.66).normalized()
 		var across := d.cross(Vector3.UP).normalized() * side
 		const N := 14
-		var p := base
+		var p := Vector3(base.x * side, base.y, base.z)
 		for k in N:
 			var t := float(k + 1) / N
-			var q := p + d * 9.0 / N
-			_stick(p, q, 0.13, tan)
-			var bl := 1.9 * sin(PI * clampf(t * 1.05, 0.0, 1.0)) + 0.25 # (the branches: longest in the middle)
+			var q := p + d * length / N
+			_stick(p, q, 0.13 * length / 9.0, color)
+			var bl := breadth * sin(PI * clampf(t * 1.05, 0.0, 1.0)) + 0.25
 			for s2: float in [-1.0, 1.0]:
 				var b := q + (across * s2 * 0.85 + d * 0.35 + Vector3.UP * 0.12).normalized() * bl
-				_stick(q, b, 0.05, tan)
+				_stick(q, b, 0.05 * length / 9.0, color)
 			p = q
 			d = (d + Vector3(0.0, -0.02, 0.03)).normalized()
-	# its legs: furred, purplish pink
-	_legs_at(Vector3(0.0, -2.2, -3.0), 8.5, pink, false)
 
 
 ## Its behaviours (pilot.gd): fly {centre, radius}, rest {at, normal} (its
