@@ -23,13 +23,13 @@ command, F6, the frame rate and coordinates on screen; nothing is saved. Running
 `main.tscn` on its own (the editor's Run Current Scene, `tools/shot.tscn`) starts
 debug mode directly.
 
-Debug mode's ecology tools (F9, or `/sandbox`; `scripts/ecology_sandbox.gd`): the ecology sandbox's toolkit
+Debug mode's ecology tools (L, or `/sandbox`; `scripts/ecology_sandbox.gd`): the ecology sandbox's toolkit
 (`tools/creatures/ecology_demo.gd`) in the game itself, which goes on under it. A list (right): a plant, a tree or
 bush, an item, a carcass or an animal, as an adult, young or a pupa, female or male; then left click the ground to
-put one there, where the view meets the land (again and again; right click or Esc: done). Left click a creature to
-select it (Shift: more). What the selected do (none selected: everything put down): the panel's buttons, or Alt with
-the sandbox's own key (Alt + E eat, Alt + H hunt, Alt + K mate, ...). Delete takes the selected away. The right
-button held looks round, and the keys move you, as ever. What's put down stays and lives there with the tools away
+put one there, where the view meets the land (again and again; right click or Done: stop). Left click a creature to
+select it (Shift: more). Everything else is a button on the panel: what the selected do (none selected: everything
+put down), Delete selected, Clear all. The tools have no keys of their own: the right button held looks round, and
+the keys are the game's, as ever. What's put down stays and lives there with the tools away
 (creatures over the land as it lies; the game's trees with their levels of detail), until the game is left: none of
 it is saved. Their places are drawn ones, so the floating origin is held where it is while anything put down is
 there; 3 km from it, all of it is taken away. Not there yet: ponds, the sea and what lives in or by them (the
@@ -47,7 +47,8 @@ moose): those are in the sandbox's own scene still.
 | F6 | *(debug)* an aurora every night |
 | Space ×2 | *(god mode)* toggle fly mode (Space / Shift to go up / down) |
 | F5 | toggle third-person camera |
-| L | shadows off or on again (every shadow: the sun's and the moon's), for debugging |
+| H | shadows off or on again (every shadow: the sun's and the moon's), for debugging |
+| L | debug mode: the ecology tools open or away again (as `/sandbox`) |
 | C | climb a tree (next to its trunk: W/S up and down, A/D round it; where a limb leaves the trunk, move its way, or W from just under it, to go out along it; C again on top of a limb stands you on it) or rock too steep to walk (WASD over the rock); Space climbs on up as W does; C again lets go |
 | E | the knapsack: 10 slots and a hand each (click to pick up and put down, right-click half or one, shift-click to or from the hands); what the hands hold shows in them. `/give <item> [count]` puts items in it (stick, stone, acorn, oak leaf, pawpaw, crabapple, walnut, black_cherry, raspberry, blueberry, susan, fleabane, coneflower, aster, yampah, milkweed, swamp_milkweed, nettle, cattail, clay_pot, pot_of_sap) |
 | X | take the knapsack off and set it down on the ground before you (on a log or stump if you're on one), or, back beside it (within about 2.2 m), pick it up and put it on again. It's a hide bag, made by hand, nothing on it but hide and twine (`scripts/items/pack.gd`: a soft buckskin sack, its seams laced with a thong; a flap over its mouth, its edge ragged as the skin was cut, fringed; twine wound twice round it over the flap and knotted at its front, the ends hanging; a twine loop on top to carry it by; twisted twine cords down its back for the shoulders), worn on the figure's back (seen in third person). Set down, E doesn't open it: right-click it (looking at it, beside it) to open it there; away from it you have only what's in your hands. Where it is and whether it's worn are saved with the game (rebindable: Settings, Keybindings) |

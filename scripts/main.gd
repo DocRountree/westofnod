@@ -25,7 +25,7 @@ var population: Population
 var ground_cover: GroundCover
 var footprints: Footprints
 var pause_menu: PauseMenu
-var sandbox: EcologySandbox ## (debug mode's ecology tools, in the game: F9, /sandbox)
+var sandbox: EcologySandbox ## (debug mode's ecology tools, in the game: L, /sandbox)
 const AUTOSAVE_SECONDS := 60.0
 var _since_save := 0.0
 var _played := 0.0 # seconds played in this game, all sessions
@@ -175,7 +175,7 @@ func _ready() -> void:
 		add_child(sandbox)
 	apply_settings()
 	if Session.debug:
-		chat.say("Debug mode. Enter to chat, / for commands (/help), Esc for the menu, F9 the ecology tools.", Color(0.75, 0.85, 1.0))
+		chat.say("Debug mode. Enter to chat, / for commands (/help), Esc for the menu, %s the ecology tools." % Settings.key_name(Settings.key_of("ecology_tools")), Color(0.75, 0.85, 1.0))
 	elif not Session.data.has("player"):
 		chat.say("Welcome to West of Nod (%s mode%s). Enter to chat, Esc for the menu." % [mode, ", commands on: /help" if commands_allowed else ""], Color(0.75, 0.85, 1.0))
 	else:
@@ -619,23 +619,15 @@ func _magnify() -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if Session.debug and event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_F6:
 		aurora.set_forced(not aurora.forced) # debug: an aurora every night
-	if sandbox and event is InputEventKey and event.pressed and not event.echo and event.keycode == EcologySandbox.KEY and _loaded:
-		sandbox.open() # debug: the ecology tools (away again: their own F9)
+	# L (Settings: rebindable): debug mode's ecology tools, open or away again
+	if sandbox and event is InputEventKey and event.pressed and not event.echo and event.is_action("ecology_tools") and _loaded and not player.typing:
+		sandbox.toggle()
 		get_viewport().set_input_as_handled()
-	# L: every shadow off, or on again (the sun's and the moon's: all the
+	# H (rebindable): every shadow off, or on again (the sun's and the moon's: all the
 	# shadow maps), to see what they cost and what they do
 	if event is InputEventKey and event.pressed and not event.echo and event.is_action("toggle_shadows") and _loaded:
 		atmosphere.shadows = not atmosphere.shadows
 		chat.say("Shadows %s." % ("on" if atmosphere.shadows else "off"), Color(0.75, 0.85, 1.0))
-		get_viewport().set_input_as_handled()
-	# G: the grass, ferns and flowers off, or on again; T: the trees,
-	# bushes, logs and rocks (everything Population draws, their shadows
-	# too), to see what each costs where the framerate drops. (Not F7/F8:
-	# run from the editor, those pause and stop the game.)
-	if event is InputEventKey and event.pressed and not event.echo and _loaded and event.keycode in [KEY_G, KEY_T]:
-		var what: Node3D = ground_cover if event.keycode == KEY_G else population
-		what.visible = not what.visible
-		chat.say("%s %s." % ["Ground cover" if what == ground_cover else "Trees and props", "on" if what.visible else "off"], Color(0.75, 0.85, 1.0))
 		get_viewport().set_input_as_handled()
 
 

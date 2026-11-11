@@ -56,8 +56,9 @@ func _process(delta: float) -> void:
 		place = "   %s   %.1f°%s %.1f°%s" % [clk.time_text(), absf(cfg.latitude), "N" if cfg.latitude >= 0.0 else "S",
 				absf(cfg.longitude), "E" if cfg.longitude >= 0.0 else "W"]
 	if Session.debug:
-		info.text = "%d fps   x %.0f  y %.1f  z %.0f%s%s\nWASD move · Space jump/swim · Ctrl sprint · Shift crouch · Space×2 fly (Space/Shift up/down) · F5 third person · C climb · E knapsack · X take it off / on · Q drop\nZ magnify (wheel: power) · [ ] time · Enter chat · / commands · F9 ecology tools · Esc menu" % [
-			Engine.get_frames_per_second(), p.x, p.y, p.z, ("   [fly]" if player.flying else "") + ("   [%.1fx]" % player.zoom if player.zoom > 1.0 else ""), place]
+		info.text = "%d fps   x %.0f  y %.1f  z %.0f%s%s\nWASD move · Space jump/swim · Ctrl sprint · Shift crouch · Space×2 fly (Space/Shift up/down) · F5 third person · C climb · E knapsack · X take it off / on · Q drop\nZ magnify (wheel: power) · [ ] time · Enter chat · / commands · %s ecology tools · Esc menu" % [
+			Engine.get_frames_per_second(), p.x, p.y, p.z, ("   [fly]" if player.flying else "") + ("   [%.1fx]" % player.zoom if player.zoom > 1.0 else ""), place,
+			Settings.key_name(Settings.key_of("ecology_tools"))]
 	else:
 		var god: bool = player.can_fly
 		info.text = ("%d fps   " % Engine.get_frames_per_second() if Settings.show_fps else "") + "%s   [%s]%s%s\nWASD move · Space jump/swim · Ctrl sprint · Shift crouch%s · F5 third person · C climb · E knapsack · X take it off / on · Q drop · Z magnify%s · Enter chat · Esc menu" % [

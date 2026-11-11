@@ -3487,7 +3487,7 @@ func _build_ui() -> void:
 	var box := VBoxContainer.new()
 	panel.add_child(box)
 	var title := Label.new()
-	title.text = "Add: a kind, then click the ground\n(right click or Esc: done)"
+	title.text = "Add: a kind, then click the ground\n(right click or Esc: done)" if world == null else "Add: a kind, then click the ground\n(right click or Done: stop)"
 	box.add_child(title)
 	_ui_tree = Tree.new()
 	_ui_tree.hide_root = true
@@ -3556,17 +3556,22 @@ func _build_ui() -> void:
 	clr.focus_mode = Control.FOCUS_NONE
 	clr.pressed.connect(clear_all)
 	row2.add_child(clr)
+	if world: # (in the game: no keys of its own, so a button to stop placing)
+		var done := Button.new()
+		done.text = "Done"
+		done.focus_mode = Control.FOCUS_NONE
+		done.pressed.connect(_stop_placing)
+		row2.add_child(done)
 	_ui_info = Label.new()
 	if world:
-		# (in the game the keys are the game's own: what they all do, here,
-		# a button each; Alt with its key too)
+		# (in the game the keys are all the game's own: what they all do, a
+		# button each)
 		var acts := GridContainer.new()
 		acts.columns = 4
 		box.add_child(acts)
 		for key: int in KEYS:
 			var b := Button.new()
-			b.text = "%s %s" % [OS.get_keycode_string(key), ACT_NAMES.get(KEYS[key], KEYS[key])]
-			b.tooltip_text = "Alt + %s" % OS.get_keycode_string(key)
+			b.text = String(ACT_NAMES.get(KEYS[key], KEYS[key]))
 			b.focus_mode = Control.FOCUS_NONE
 			b.add_theme_font_size_override("font_size", 11)
 			b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -3580,7 +3585,7 @@ func _build_ui() -> void:
 	cl.add_child(_ui_info)
 
 
-## What the keys all do (act), told (in the game: its buttons, Alt + its key).
+## What the keys all do (act), told (in the game: its buttons).
 func do_act(what: String) -> void:
 	act(what)
 	_status = "%s: %d" % [what, _targets().size()]
@@ -3592,7 +3597,7 @@ func _say() -> void:
 		return
 	var sel := _selected.filter(func(n) -> bool: return is_instance_valid(n))
 	if world:
-		_ui_info.text = "Acts on: %s   %s\nClick: put down / select (Shift: more). Right click: done; held: look. Delete: selected gone. F9: away." % [
+		_ui_info.text = "Acts on: %s   %s\nClick: put down / select (Shift: more). Right click: done; held: look." % [
 				"everything put down (%d)" % _creatures().size() if sel.is_empty() else ", ".join(sel.slice(0, 3).map(func(n: Node) -> String: return _label_of(n))) + (" ..." if sel.size() > 3 else ""), _status]
 		return
 	var who := "everything here (%d)" % _creatures().size() if sel.is_empty() else ", ".join(sel.slice(0, 4).map(func(n: Node) -> String: return _label_of(n))) + (" ..." if sel.size() > 4 else "")

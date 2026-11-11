@@ -2,19 +2,19 @@ class_name EcologySandbox
 extends Node
 ## Debug mode's ecology tools: the creature toolkit (tools/creatures/
 ## ecology_demo: the list, placing, selecting, what they all do) in the game
-## itself, F9 or /sandbox, and away again the same way. The game goes on
+## itself, L (Settings: "ecology_tools", rebindable; main.gd) or /sandbox,
+## and away again the same way. The game goes on
 ## under them: what's put down is put down on the land where the view meets
 ## it, and lives there (a creature over the ground as it lies, by day and
 ## night, among the game's own trees), whether the tools are open or not.
 ## Nothing of it is saved.
 ##
 ## Open, the mouse is free: the list (right), then a left click on the
-## ground puts one there, and again; right click or Esc: done. A left click
-## on a creature (not placing) selects it (Shift: more). The right button
-## held: looking round, as ever; the keys move you, as ever. What the
-## selected do (none: everything put down): the panel's buttons, or Alt
-## with the toolkit's own key (Alt + E eat, Alt + H hunt, ...). Delete: the
-## selected gone.
+## ground puts one there, and again; right click or the panel's Done:
+## stop. A left click on a creature (not placing) selects it (Shift: more).
+## The right button held: looking round, as ever; the keys are the game's,
+## as ever: the tools have none of their own. What the selected do (none:
+## everything put down), taking them away: the panel's buttons.
 ##
 ## The toolkit's own space is the drawn one (Origin's: its creatures go by
 ## where things are drawn), so the floating origin is held where it is
@@ -26,7 +26,6 @@ extends Node
 ## scene, tools/creatures/ecology_demo.tscn.
 
 const DEMO := preload("res://tools/creatures/ecology_demo.gd")
-const KEY := KEY_F9
 const HOLD := 3072.0 ## m: how far past its step the origin's held for what's put down
 
 var main: Node ## (main.gd: its world, its player, its chat)
@@ -90,25 +89,12 @@ func _process(_dt: float) -> void:
 
 
 ## Open: the mouse's buttons are the tools' (none gets to the game: the axe,
-## the hands), but over the panel, which takes its own; Alt with a key, what
-## the selected do. Everything else is the game's.
+## the hands), but over the panel, which takes its own. The keys are all
+## the game's.
 func _input(event: InputEvent) -> void:
 	if not is_open or get_tree().paused or main.player.typing:
 		return
-	if event is InputEventKey and event.pressed and not event.echo:
-		var k := event as InputEventKey
-		if k.keycode == KEY:
-			close()
-		elif k.alt_pressed and DEMO.KEYS.has(k.keycode):
-			_demo.call("do_act", DEMO.KEYS[k.keycode])
-		elif k.keycode == KEY_DELETE:
-			_demo.call("_delete_selected")
-		elif k.keycode == KEY_ESCAPE and _demo.call("placing"):
-			_demo.call("_stop_placing")
-		else:
-			return
-		get_viewport().set_input_as_handled()
-	elif event is InputEventMouseMotion and _looking:
+	if event is InputEventMouseMotion and _looking:
 		_looked += (event as InputEventMouseMotion).relative.length()
 	elif event is InputEventMouseButton:
 		var mb := event as InputEventMouseButton

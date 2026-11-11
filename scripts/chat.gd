@@ -50,7 +50,7 @@ func _ready() -> void:
 		"zoom": [_zoom, "/zoom <1-8>: magnify"],
 		"aurora": [_aurora, "/aurora: toggle an aurora every night"],
 		"pos": [_pos, "/pos: where you are"],
-		"sandbox": [_sandbox, "/sandbox: the ecology tools, to put creatures and plants down in the world (debug mode; F9 too)"],
+		"sandbox": [_sandbox, "/sandbox: the ecology tools, to put creatures and plants down in the world (debug mode; L too)"],
 		"pop": [_pop, "/pop: what is living near by (trees, rocks, animals: Population)"],
 		"clear": [_clear, "/clear: clear the chat"],
 	}
