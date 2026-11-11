@@ -422,6 +422,8 @@ func fresh_stump() -> Array:
 func _builder() -> TreeBuilder:
 	var tb := TreeBuilder.new()
 	tb.card_size = card_size
+	if leaf_tex != "":
+		tb.fit_to(leaf_tex)
 	return tb
 
 

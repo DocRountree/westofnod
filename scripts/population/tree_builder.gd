@@ -30,7 +30,15 @@ var rng := RandomNumberGenerator.new()
 # dressing
 var bark_tile := 0.6 ## m of bark per texture repeat (round and along)
 var card_size := 0.7 ## m, a sprig card's width
-var card_crop := 0.25 ## the top of each sprig tile that is empty (cropped off)
+var card_crop := 0.0 ## the top of each sprig tile that is empty (cropped off), when it isn't measured (fit_to)
+## Each sprig tile's fit, measured off its texture (fit_to): [the share of
+## its height empty at its top (cropped off: none of the sprig, so nothing
+## of it clipped), the share at its foot that's bare twig before the leaves
+## (the card drawn that far back down the real twig, so the painted twig
+## lies over it and the leaves sit at the twig's end, not out beyond it)].
+var leaf_fit: Array = []
+static var _fits := {}
+static var _fit_lock := Mutex.new()
 var sprig_tiles := 4 ## atlas tiles 0..sprig_tiles-1 are sprigs; the next ones clumps
 var clump_tiles := 4
 var atlas := Vector2i(4, 2)
@@ -396,9 +404,55 @@ func _tint_at(y: float) -> Color:
 var _thin_from := 12.0
 
 
+## Its sprig tiles fitted to the leaf texture at path (each measured once:
+## leaf_fit).
+func fit_to(path: String) -> void:
+	_fit_lock.lock()
+	if not _fits.has(path):
+		_fits[path] = _measure(path, atlas, sprig_tiles)
+	leaf_fit = _fits[path]
+	_fit_lock.unlock()
+
+
+## (Each sprig tile's [empty top, bare foot], shares of its height: read off
+## the texture shrunk to 64 px a tile. Its top: the first row with anything
+## in it, a row's margin above. Its foot: from the bottom up, the first row
+## wide with leaf (a tenth of the tile across), not the twig's thin line;
+## a little less, so the twig's end still shows under the leaves.)
+static func _measure(path: String, at: Vector2i, tiles: int) -> Array:
+	var out := []
+	var tex: Texture2D = load(path)
+	var img: Image = tex.get_image() if tex else null
+	if img == null:
+		return out
+	if img.is_compressed():
+		img.decompress()
+	const N := 64
+	img.resize(at.x * N, at.y * N, Image.INTERPOLATE_BILINEAR)
+	for t in tiles:
+		var x0 := (t % at.x) * N
+		var y0 := (t / at.x) * N
+		var top := N
+		var foot := N
+		for y in N:
+			var wide := 0
+			for x in N:
+				if img.get_pixel(x0 + x, y0 + y).a > 0.3:
+					wide += 1
+			if wide > 0 and top == N:
+				top = y
+			if wide >= N / 10:
+				foot = y # (the lowest wide row so far)
+		var crop := clampf(float(top - 1) / N, 0.0, 0.5)
+		var tuck := clampf(float(N - 1 - foot) / N * 0.8, 0.0, 0.35)
+		out.append([crop, tuck])
+	return out
+
+
 ## A leaf card: its foot at p, up along d, turned round d by spin. Sprig
-## tiles are anchored at the bottom middle (the twig) and cropped at the top;
-## clumps are centred.
+## tiles are anchored at the bottom middle (the twig), drawn back down the
+## twig by their bare foot and cropped at the top only where they're empty
+## (leaf_fit); clumps are centred.
 ##
 ## For thinning with distance (leaves.gdshader) each card carries a random
 ## rank (UV2.x) and, per corner, its offset from the card's middle and the
@@ -409,14 +463,16 @@ func _card(st: SurfaceTool, p: Vector3, d: Vector3, spin: float, size: float, ti
 	var side0 := d.cross(Vector3.UP if absf(d.y) < 0.95 else Vector3.RIGHT).normalized()
 	var side := side0.rotated(d, spin)
 	var up := d
-	var h := size * (1.0 if centred else 1.0 - card_crop)
-	var foot := p - up * h * 0.5 if centred else p
+	var fit: Array = leaf_fit[tile] if not centred and tile < leaf_fit.size() else [card_crop, 0.0]
+	var crop := float(fit[0])
+	var h := size * (1.0 if centred else 1.0 - crop)
+	var foot := p - up * h * 0.5 if centred else p - up * size * float(fit[1])
 	var corners := [foot - side * size * 0.5, foot + side * size * 0.5, foot + side * size * 0.5 + up * h, foot - side * size * 0.5 + up * h]
 	var tx := float(tile % atlas.x) / atlas.x
 	var ty := float(tile / atlas.x) / atlas.y
 	var tw := 1.0 / atlas.x
 	var th := 1.0 / atlas.y
-	var v_top := ty + (0.0 if centred else card_crop * th)
+	var v_top := ty + (0.0 if centred else crop * th)
 	var uvs := [Vector2(tx, ty + th), Vector2(tx + tw, ty + th), Vector2(tx + tw, v_top), Vector2(tx, v_top)]
 	var face := side.cross(up).normalized()
 	var mid := foot + up * h * 0.5

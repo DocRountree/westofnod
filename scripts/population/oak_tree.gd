@@ -955,6 +955,7 @@ static func grow(v: int) -> TreeBuilder:
 
 static func _grow_tree(P: Dictionary) -> TreeBuilder:
 	var tb := TreeBuilder.new()
+	tb.fit_to("res://data/population/textures/oak_leaves.png")
 	tb.rng.seed = P.seed
 	var rng := tb.rng
 	tb.flare = 0.45 + P.trunk_r * 0.3
