@@ -60,7 +60,7 @@ func _shape() -> Dictionary:
 		"hip": Vector3(2.9, 16.5, 4.0), "knee": Vector3(3.3, 12.5, 0.5), "ankle": Vector3(2.9, 6.5, 1.5), "foot": Vector3(2.9, 1.2, 0.0),
 		"thigh_r": [3.6, 2.4], "leg_r": 0.42, "toes": [4.6, 3.3, 2.4], "claw": 0.33, "claw_r": 0.5, "tuck": Vector3(0.0, -0.05, 0.0),
 		"tail": Vector3(0.0, 14.0, 12.0),
-		"shoulder": Vector3(5.0, 25.5, 4.6), "wing": Vector3(7.5, 9.0, 6.0), "coverts": [2.0, 4.6, 3.6, 2.0], "fold_fan": Vector3(0.3, 0.4, 0.08), "fold_tuck": 0.12, "wing_thick": [1.0, 0.75, 0.5, 0.25],
+		"shoulder": Vector3(5.0, 25.5, 4.6), "wing": Vector3(7.5, 9.0, 6.0), "coverts": [2.0, 4.6, 3.6, 2.0], "fold_fan": Vector3(0.3, 0.4, 0.08), "fold_tuck": 0.12, "fold_tuck_front": 3.0, "wing_thick": [1.0, 0.75, 0.5, 0.25],
 		"primaries": [11.0, 12.0, 13.0, 14.0, 15.0, 16.0, 16.5, 16.5, 15.5, 13.0], "secondaries": [11, 13.0, 11.5], "tertials": [3, 10.0, 8.5], "feather_w": 4.4,
 		"tail_feathers": [12, 21.0, 4.0], "tail_coverts": [[10, 8.0, 3.5, 0.5, 0.9]],
 	}

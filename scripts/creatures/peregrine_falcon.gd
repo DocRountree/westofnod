@@ -60,7 +60,7 @@ func _shape() -> Dictionary:
 		"tail": Vector3(0.0, 14.5, 12.0),
 		# (its folded wing broad, from its neck's base down over its side to its tail's tip)
 		"shoulder": Vector3(5.6, 26.3, 4.9), "wing": Vector3(8.5, 10.5, 7.5), "coverts": [2.0, 5.0, 4.0, 2.0], "wing_thick": [1.1, 0.8, 0.5, 0.25],
-		"fold_fan": Vector3(0.3, 0.42, 0.1), "fold_tuck": 0.12,
+		"fold_fan": Vector3(0.3, 0.42, 0.1), "fold_tuck": 0.12, "fold_tuck_front": 3.0,
 		"primaries": [13.0, 14.0, 15.0, 16.5, 18.0, 19.5, 21.0, 22.5, 23.5, 22.0], "secondaries": [12, 14.0, 12.0], "tertials": [3, 11.0, 9.0], "feather_w": 4.2,
 		"tail_feathers": [12, 16.0, 3.8], "tail_coverts": [[10, 9.0, 3.5, 0.5, 0.9]],
 	}

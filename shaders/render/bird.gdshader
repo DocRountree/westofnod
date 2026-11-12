@@ -198,7 +198,7 @@ void raptor(int pt, float u, float v, vec3 view, float ndv, vec3 vtx, vec3 nrm0,
 		float edge = (1.0 - smoothstep(0.04, 0.16, f.x)) * fade;
 		// the back (over its back, the wing's coverts from above): dark, each
 		// feather edged pale, barred darker
-		float bf = back_from_hi < 0.0 ? back_from : mix(back_from, back_from_hi, smoothstep(0.42, 0.62, u) * (1.0 - smoothstep(0.78, 0.84, u)));
+		float bf = back_from_hi < 0.0 ? back_from : mix(back_from, back_from_hi, smoothstep(0.3, 0.5, u) * (1.0 - smoothstep(0.78, 0.84, u)));
 		float back = pt == 0 ? smoothstep(bf, bf + 0.06, v) * (1.0 - smoothstep(1.0 - bf - 0.06, 1.0 - bf, v)) : (pt == 10 ? mix(1.0, 1.0 - step(0.5, fc.z), smoothstep(0.3, 0.7, wing_open)) : 0.0); // (a wing's coverts: its upper surface the back's colour, its under the underwing's)
 		vec3 bk = back_color * (0.88 + 0.24 * f.y);
 		float bbar = smoothstep(0.38, 0.44, f.x) * (1.0 - smoothstep(0.52, 0.6, f.x)) * back_bars * fade;

@@ -33,7 +33,8 @@ uniform float feather_load = 0.0; // the flight feathers bent up by the air
 uniform float wing_droop = 0.0;  // the primaries let down (strutting: dragging)
 uniform float fold_chord = 0.3;  // folded, how much of its arm's and hand's coverts still show
 uniform float fold_pitch = 0.0;
-uniform float fold_tuck = 0.0; // folded, its tips drawn in toward each other over its tail (rad)
+uniform float fold_tuck = 0.0; // folded, its tips drawn in toward each other over its tail
+uniform float fold_tuck_front = 0.6; // and its wrist, its forearm, ahead of the shoulder: drawn in under the breast's, the shoulder's feathers
 uniform vec3 fold_fan = vec3(0.0); // folded, each bone's feathers (tertials, secondaries, primaries) fanned down over the flank (rad)  // folded, the wing tipped down along the back (an upright bird's: a hawk's)
 
 mat4 joint(int i) {
@@ -126,7 +127,7 @@ void bird_pose(vec4 c1, vec4 c2, inout vec3 v, inout vec3 n) {
 	nn = r * nn;
 	// (folded, drawn in against the body: the more, the further it is from the shoulder,
 	// behind it (its tips over the tail) or ahead of it (its wrist under the breast's feathers))
-	q.x -= fold_tuck * (1.0 - e) * (max(q.z, 0.0) + 0.6 * max(-q.z, 0.0) + 0.3 * max(-q.y, 0.0));
+	q.x -= fold_tuck * (1.0 - e) * (max(q.z, 0.0) + fold_tuck_front * max(-q.z, 0.0) + 0.3 * max(-q.y, 0.0));
 	q.x *= side;
 	nn.x *= side;
 	mat4 body = joint(0);
