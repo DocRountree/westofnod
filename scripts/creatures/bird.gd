@@ -737,13 +737,14 @@ static func _tube(st: SurfaceTool, pts: Array, part: float, ring := 10, cap := t
 ## A feather: a card, its outline cut in it (len, wide: m; round: where
 ## along it its tip begins to round). c1: how it's posed (bird_rig); root:
 ## its root's reach along its bone (or out from the tail's joint).
-static func _feather(st: SurfaceTool, part: float, idx: float, c1: Color, root: float, len: float, wide: float, lift: float, round_from := 0.8) -> void:
+static func _feather(st: SurfaceTool, part: float, idx: float, c1: Color, root: float, len: float, wide: float, lift: float, round_from := 0.8, finger := 0.0) -> void:
 	var us := [0.0, 0.1, 0.26, 0.45, 0.64, 0.8, 0.9, 0.96, 1.0]
 	var rows := []
 	for u: float in us:
 		var wp := lerpf(0.22, 1.0, smoothstep(0.0, 0.26, u))
 		if u > round_from:
 			wp *= sqrt(maxf(1.0 - pow((u - round_from) / (1.0 - round_from), 2.0), 0.0))
+		wp *= 1.0 - finger * smoothstep(0.4, 0.62, u) # (emarginated: narrowed past a notch to a finger, an eagle's outer primaries)
 		var row := []
 		for k in 5:
 			var v := -1.0 + 0.5 * k
@@ -1002,9 +1003,11 @@ func _make_mesh() -> Array:
 			span0 += L
 		var prim: Array = S.primaries
 		var np := prim.size()
+		var fingers := int(S.get("fingers", 0)) # (how many outer primaries are fingers)
 		for i in np:
 			var f := float(i) / maxf(np - 1, 1)
-			_feather(st, 11.0, i + (0.0 if side > 0.0 else 40.0), Color(2, 2, side, lerpf(0.2, 1.2, pow(f, 1.1))), wl.z * (0.04 + 0.96 * f), float(prim[i]) * CM, float(S.feather_w) * CM, -0.004 - 0.0012 * i, 0.72)
+			_feather(st, 11.0, i + (0.0 if side > 0.0 else 40.0), Color(2, 2, side, lerpf(0.2, 1.2, pow(f, 1.1))), wl.z * (0.04 + 0.96 * f), float(prim[i]) * CM, float(S.feather_w) * CM, -0.004 - 0.0012 * i, 0.72,
+					0.5 if i >= np - fingers else 0.0)
 		var sec: Array = S.secondaries # [how many, the outermost's length, the innermost's]
 		var ns := int(sec[0])
 		for i in ns:

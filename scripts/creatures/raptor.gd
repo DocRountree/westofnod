@@ -64,6 +64,8 @@ var egg_colors := [Color(0.62, 0.36, 0.25), Color(0.36, 0.14, 0.08)] ## ground, 
 var feather_cm := 3.2 ## its body feathers' size
 var prey_scripts := ["mouse.gd", "fox_squirrel.gd", "grey_squirrel.gd", "wild_turkey.gd"]
 var grow_secs := 200.0 ## s an eyas takes to fledge
+var eyas_scale := 1.0 ## (its eyas's size, of a hawk's: an eaglet's twice)
+var nest_scale := 1.0 ## (its stick nest's size, of a hawk's: an eagle's great platform)
 var hunger := 0.0 ## (0 fed .. 1 hunting)
 var perch_at := Vector3.INF ## (where it's standing, up off the ground: its perch's top)
 var home_perch := Vector3.INF
@@ -102,8 +104,8 @@ func _init(young_ := false, juvenile_ := false) -> void:
 func _build() -> void:
 	if young:
 		shape = _eyas()
-		if size >= 0.99 or size <= 0.0:
-			size = 0.22
+		if size >= 0.99 * eyas_scale or size <= 0.0:
+			size = 0.22 * eyas_scale
 		colors = _plumage("juvenile", male)
 		colors["down"] = 1.0
 		colors["iris"] = Color(0.06, 0.05, 0.05)
@@ -359,7 +361,7 @@ func _ensure_nest() -> void:
 	nest = _make_nest_site()
 	get_parent().add_child(nest)
 	nest.position = at
-	nest_top = at + Vector3(0.0, nest_height + (0.04 if nest_style == "sticks" else 0.03), 0.0)
+	nest_top = at + Vector3(0.0, nest_height + (0.04 * nest_scale if nest_style == "sticks" else 0.03), 0.0)
 
 
 ## Her eggs opening: an eyas from each, hers.
@@ -921,12 +923,16 @@ func _strike() -> void:
 			sz = 0.07 + 0.2 * float(prey.get("size"))
 		"mouse.gd":
 			sz = 0.08
+		"hare.gd":
+			sz = 0.4 if not prey.get("young") else 0.18
 	var col := Color(0.45, 0.37, 0.28)
 	match path:
 		"fox_squirrel.gd":
 			col = Color(0.6, 0.4, 0.22)
 		"grey_squirrel.gd":
 			col = Color(0.46, 0.44, 0.42)
+		"hare.gd":
+			col = Color(0.55, 0.45, 0.33)
 		"wild_turkey.gd":
 			col = Color(0.62, 0.5, 0.32)
 	var at := _prey_pos()
@@ -1224,7 +1230,7 @@ func _eyas_ways(dt: float) -> void:
 func _grow(dt: float) -> void:
 	_age += dt
 	var g := clampf(_age / grow_secs, 0.0, 1.0)
-	size = lerpf(0.22, 0.85, g)
+	size = lerpf(0.22, 0.85, g) * eyas_scale
 	if _mat:
 		_mat.set_shader_parameter("down", 1.0 - smoothstep(0.45, 0.95, g))
 
@@ -1265,8 +1271,8 @@ func _make_nest_site() -> Node3D:
 		_wood.roughness = 0.95
 	var pole := MeshInstance3D.new()
 	var cm := CylinderMesh.new()
-	cm.top_radius = 0.07
-	cm.bottom_radius = 0.1
+	cm.top_radius = 0.07 * sqrt(nest_scale)
+	cm.bottom_radius = 0.1 * sqrt(nest_scale)
 	cm.height = nest_height
 	pole.mesh = cm
 	pole.material_override = _wood
@@ -1295,17 +1301,18 @@ func _make_nest_site() -> Node3D:
 		var st := SurfaceTool.new()
 		st.begin(Mesh.PRIMITIVE_TRIANGLES)
 		var stick := CylinderMesh.new()
-		stick.top_radius = 0.007
-		stick.bottom_radius = 0.009
+		var nsc := nest_scale
+		stick.top_radius = 0.007 * sqrt(nsc) * 1.4 if nsc > 1.0 else 0.007
+		stick.bottom_radius = 0.009 * sqrt(nsc) * 1.4 if nsc > 1.0 else 0.009
 		stick.height = 1.0
 		stick.radial_segments = 5
 		stick.rings = 1
 		var sa := stick.get_mesh_arrays()
-		for k in 70:
+		for k in int(70 * nsc * nsc):
 			var a := rng.randf() * TAU
-			var r := rng.randf_range(0.04, 0.26)
-			var c := Vector3(cos(a) * r, rng.randf_range(0.0, 0.08) + (0.04 if r > 0.15 else 0.0), sin(a) * r)
-			var b := Basis(Vector3.UP, rng.randf() * TAU) * Basis(Vector3.RIGHT, PI * 0.5 + rng.randf_range(-0.25, 0.25)) * Basis.from_scale(Vector3(1.0, rng.randf_range(0.3, 0.6), 1.0))
+			var r := rng.randf_range(0.04, 0.26) * nsc
+			var c := Vector3(cos(a) * r, (rng.randf_range(0.0, 0.08) + (0.04 if r > 0.15 * nsc else 0.0)) * nsc - (rng.randf_range(0.0, 0.2) * (nsc - 1.0) * (1.0 - r / (0.26 * nsc)) if nsc > 1.0 else 0.0), sin(a) * r)
+			var b := Basis(Vector3.UP, rng.randf() * TAU) * Basis(Vector3.RIGHT, PI * 0.5 + rng.randf_range(-0.25, 0.25)) * Basis.from_scale(Vector3(1.0, rng.randf_range(0.3, 0.6) * nsc, 1.0))
 			var vs: PackedVector3Array = sa[Mesh.ARRAY_VERTEX]
 			var ns: PackedVector3Array = sa[Mesh.ARRAY_NORMAL]
 			for i: int in sa[Mesh.ARRAY_INDEX]:

@@ -44,7 +44,16 @@ uniform vec3 fl_top : source_color = vec3(0.16, 0.17, 0.2);
 uniform vec3 fl_pale : source_color = vec3(0.86, 0.85, 0.82);
 uniform vec3 fl_dark : source_color = vec3(0.2, 0.2, 0.22);
 uniform float fl_bars = 12.0;
-uniform float fl_top_bars = 0.25; // (how dark its bars from above: an owl's plain to see)
+uniform float fl_top_bars = 0.25;
+uniform float tail_under = 0.55;   // (its tail from below: this much paler, as its flight feathers; a white tail none)
+uniform float hood_u = -1.0;       // (an eagle's) from here along it up, all its head and neck the cap's colour (a bald eagle's white), its edge ragged
+uniform vec3 nape_color : source_color = vec3(0.7, 0.5, 0.25);
+uniform float nape_u = -1.0;       // from here along it up, its nape and hind neck this colour (a golden eagle's hackles)
+uniform vec4 tail_cov = vec4(0.0); // its tail coverts' own colour (w: how much; a bald eagle's white)
+uniform float fl_patch = 0.0;      // a pale patch at the flight feathers' bases, this far along them (a juvenile golden eagle's)
+uniform vec3 fl_patch_color : source_color = vec3(0.95, 0.94, 0.9);
+uniform vec4 trouser = vec4(0.0);  // its feathered legs' own colour (w: how much)
+uniform float under_blotch = 0.0;        // (under pattern 6, a juvenile bald eagle's: white blotched through the brown) how much // (how dark its bars from above: an owl's plain to see)
 uniform vec3 tail_color : source_color = vec3(0.3, 0.32, 0.36);
 uniform vec3 tail_band : source_color = vec3(0.07, 0.07, 0.08);
 uniform float tail_bands = 7.0;
@@ -256,6 +265,8 @@ void raptor(int pt, float u, float v, vec3 view, float ndv, vec3 vtx, vec3 nrm0,
 		}
 		else if (under_pattern == 4) { // (a barn owl's: small dark spots, sparse)
 			mk = (1.0 - smoothstep(0.07, 0.12, length(vec2(f.z * 0.5, f.x - 0.3)))) * step(0.5, f.y);
+		} else if (under_pattern == 6) { // (a juvenile bald eagle's: white in blotches through the brown, each feather's base pale)
+			mk = smoothstep(0.45, 0.65, vnoise(p * 0.55 + 3.1)) * under_blotch * (0.6 + 0.4 * smoothstep(0.2, 0.6, f.x));
 		} else if (under_pattern == 5) { // (a screech owl's: a dark streak down each shaft, fine bars across it)
 			float st5 = (1.0 - smoothstep(0.07, 0.17, abs(f.z))) * smoothstep(0.08, 0.2, f.x) * (1.0 - smoothstep(0.75, 0.95, f.x));
 			float b5 = fract(f.x * 3.5 + 0.15 * abs(f.z));
@@ -265,6 +276,8 @@ void raptor(int pt, float u, float v, vec3 view, float ndv, vec3 vtx, vec3 nrm0,
 		if (pt == 7)
 			mk *= 0.8;
 		un = mix(un, under_mark, mk);
+		if (pt == 7)
+			un = mix(un, trouser.rgb * (0.9 + 0.15 * f.y), trouser.w);
 		un *= 0.94 + 0.08 * f.y;
 		c = mix(un, bk, back);
 		// the head: its cap (and a falcon's hood down the nape), the
@@ -313,6 +326,15 @@ void raptor(int pt, float u, float v, vec3 view, float ndv, vec3 vtx, vec3 nrm0,
 			c = mix(c, mix(cheek_color, c, 0.25), head * cheek * (1.0 - hood));
 			c = mix(c, cap_color * (0.9 + 0.2 * f.y), max(hood, mous));
 		}
+		if (pt == 0 && nape_u >= 0.0) { // (the hackles: down the back of its head and neck)
+			float nap = smoothstep(nape_u, nape_u + 0.1, u) * (1.0 - smoothstep(0.12, 0.24, abs(v - 0.5) + 0.04 * (vnoise(vec2(u * 40.0, v * 9.0)) - 0.5)));
+			nap *= mix(1.0, smoothstep(eye_at.z + 0.006, eye_at.z + 0.02, rest.z), smoothstep(0.74, 0.8, u)); // (on its head, behind its eye: its face dark)
+			c = mix(c, nape_color * (0.85 + 0.3 * f.y) * mix(0.7, 1.0, smoothstep(0.0, 0.3, f.x)), nap * smoothstep(0.0, 0.05, f.x + 0.04));
+		}
+		if (pt == 0 && hood_u >= 0.0) { // (all its head and neck)
+			float hd = smoothstep(hood_u - 0.01, hood_u + 0.02, u + 0.03 * (vnoise(vec2(v * 30.0, u * 9.0)) - 0.5) + 0.05 * f.x * (1.0 - f.x));
+			c = mix(c, cap_color * (0.93 + 0.1 * f.y), hd);
+		}
 		rough = 0.72;
 		spec = 0.35;
 		nrm = bump(nrm, vtx, smoothstep(0.0, 0.4, f.x) * feather_cm * 0.0008 * fade, 1.0);
@@ -332,11 +354,11 @@ void raptor(int pt, float u, float v, vec3 view, float ndv, vec3 vtx, vec3 nrm0,
 			float b = fract(u * tail_bands + 0.04 * sin(v * 5.0 + seed * 9.0));
 			float band = smoothstep(1.0 - tail_band_w - 0.05, 1.0 - tail_band_w, b) * (1.0 - smoothstep(0.96, 1.0, b));
 			band *= 1.0 - smoothstep(1.0 - tail_tip_w - 0.12, 1.0 - tail_tip_w - 0.06, u) * 0.0;
-			vec3 tc = top ? tail_color : mix(tail_color, fl_pale, 0.55);
+			vec3 tc = top ? tail_color : mix(tail_color, fl_pale, tail_under);
 			c = mix(tc, tail_band, band * (top ? 1.0 : 0.85));
 			c = mix(c, tail_tip_r, smoothstep(1.0 - tail_tip_w - 0.02, 1.0 - tail_tip_w, u));
 		} else if (pt == 15) {
-			c = back_color * (0.9 + 0.2 * seed);
+			c = mix(back_color, tail_cov.rgb, tail_cov.w) * (0.9 + 0.2 * seed);
 		} else {
 			// a flight feather: from above dark, faintly barred; from below
 			// pale, barred dark, its tip dusky
@@ -348,6 +370,7 @@ void raptor(int pt, float u, float v, vec3 view, float ndv, vec3 vtx, vec3 nrm0,
 				c = mix(fl_pale, fl_dark, b * 0.9);
 				c = mix(c, fl_dark, smoothstep(0.82, 0.96, u) * (pt == 11 ? 0.7 : 0.3));
 			}
+			c = mix(c, fl_patch_color * (0.92 + 0.1 * seed), (1.0 - smoothstep(fl_patch - 0.12, fl_patch, u + 0.05 * sin(v * 3.0 + seed * 7.0))) * step(0.01, fl_patch));
 		}
 		c *= 0.92 + 0.08 * sin(u * 160.0 - abs(v) * 30.0);
 		c = mix(c, c * 0.6 + vec3(0.3) * 0.4, shaft * 0.5);

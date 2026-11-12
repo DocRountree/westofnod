@@ -51,6 +51,8 @@ const OWL_SCRIPTS := {
 	"barn_owl": preload("res://scripts/creatures/barn_owl.gd"),
 	"horned_owl": preload("res://scripts/creatures/great_horned_owl.gd"),
 	"screech_owl": preload("res://scripts/creatures/eastern_screech_owl.gd"),
+	"bald_eagle": preload("res://scripts/creatures/bald_eagle.gd"),
+	"golden_eagle": preload("res://scripts/creatures/golden_eagle.gd"),
 }
 const DeerTickScript := preload("res://scripts/creatures/blacklegged_ticks.gd")
 const LoneStarScript := preload("res://scripts/creatures/lone_star_ticks.gd")
@@ -188,6 +190,8 @@ const CATALOGUE := [
 	["Birds", "wild turkey (tom; hen; poult)", "turkey", ["adult", "young"]],
 	["Birds", "peregrine falcon (on a perch; young: an eyas, in its nest)", "peregrine", ["adult", "juvenile", "young"]],
 	["Birds", "Cooper's hawk (on a perch; young: an eyas, in its nest)", "coopers", ["adult", "juvenile", "young"]],
+	["Birds", "bald eagle (on a snag; H fishes a pond, E to a carcass; young: an eaglet, in its nest)", "bald_eagle", ["adult", "juvenile", "young"]],
+	["Birds", "golden eagle (on a snag; H stoops on a hare, E to a carcass; young: an eaglet, in its nest)", "golden_eagle", ["adult", "juvenile", "young"]],
 	["Birds", "barn owl (dozing by day, awake at dusk and by night: T; young: an owlet, in its nest)", "barn_owl", ["adult", "young"]],
 	["Birds", "great horned owl (dozing by day, awake at dusk and by night: T; young: an owlet, in its nest)", "horned_owl", ["adult", "young"]],
 	["Birds", "eastern screech owl (grey or rufous; dozing by day, awake at dusk and by night: T; young: an owlet, in its nest)", "screech_owl", ["adult", "young"]],
@@ -1327,7 +1331,7 @@ func _spawn_animal(key: String, at: Vector3, stage: String, male: bool, young: b
 			_org(tc, at, true)
 			tc.setup_stages(8 if not young else 14, Vector3.ZERO, 0.08, [Ticks.MALE, Ticks.FEMALE] if not young else [Ticks.LARVA, Ticks.LARVA, Ticks.NYMPH])
 			return tc
-		"peregrine", "coopers", "barn_owl", "horned_owl", "screech_owl":
+		"peregrine", "coopers", "barn_owl", "horned_owl", "screech_owl", "bald_eagle", "golden_eagle":
 			var rs: GDScript = OWL_SCRIPTS[key] if OWL_SCRIPTS.has(key) else (FalconScript if key == "peregrine" else HawkScript)
 			var r: Raptor = rs.new(young, stage == "juvenile")
 			r.male = (male and not young) if not young else randf() < 0.5
@@ -1343,7 +1347,7 @@ func _spawn_animal(key: String, at: Vector3, stage: String, male: bool, young: b
 				var a := randf() * TAU
 				r.nest_top = host.nest_top
 				r.perch_at = host.nest_top
-				r.place(host.nest_top + Vector3(cos(a), 0.0, sin(a)) * 0.09, a + PI)
+				r.place(host.nest_top + Vector3(cos(a), 0.0, sin(a)) * 0.09 * float(host.nest_scale), a + PI)
 				r.set("_mother", mom)
 				r.call("_to", "eyas")
 				if mom:
@@ -1352,11 +1356,12 @@ func _spawn_animal(key: String, at: Vector3, stage: String, male: bool, young: b
 			# (its perch: a dead snag's stub, a pole)
 			var post := Node3D.new()
 			post.set_meta("prop", true)
-			var ph := randf_range(1.6, 2.3) if key in ["coopers", "screech_owl", "barn_owl"] else randf_range(2.4, 3.0)
+			var big := r is Eagle # (an eagle's: a tall dead snag, stout)
+			var ph := randf_range(1.6, 2.3) if key in ["coopers", "screech_owl", "barn_owl"] else (randf_range(3.5, 4.5) if big else randf_range(2.4, 3.0))
 			var pm := MeshInstance3D.new()
 			var cm := CylinderMesh.new()
-			cm.top_radius = 0.05
-			cm.bottom_radius = 0.09
+			cm.top_radius = 0.1 if big else 0.05
+			cm.bottom_radius = 0.2 if big else 0.09
 			cm.height = ph
 			pm.mesh = cm
 			var wm := StandardMaterial3D.new()
@@ -2598,6 +2603,22 @@ func _raptor_do(r: Raptor, act_: String) -> void:
 			r.set("_beg", 3.0)
 		elif act_ == "unusual":
 			r.die()
+		return
+	if r is Eagle and act_ in ["eat", "hunt"]:
+		var e := r as Eagle
+		if act_ == "eat": # (to a carcass: the one here, or a deer's put down)
+			var cc: Node3D = null
+			for o in get_children():
+				if o.has_meta("carcass") and int(o.get_meta("carcass")) <= 2 and (o as Node3D).position.distance_to(p) < 40.0:
+					cc = o
+			if cc == null:
+				cc = spawn("carcass_deer", _on(p + Vector3(cos(a), 0.0, sin(a)) * 7.0), "adult", false) as Node3D
+			e.scavenge(cc)
+		elif e.fishes: # (a fish from a pond: the one here with its trout, or one dug and stocked)
+			var q := _pond_for(p + Vector3(cos(a), 0.0, sin(a)) * 6.0, "large_pond")
+			e.fish(_school_in(q))
+		else:
+			e.hunt(_prey(r, ["hare", "leveret", "squirrel"], 12.0, 40.0))
 		return
 	match act_:
 		"eat", "hunt":

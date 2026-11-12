@@ -854,6 +854,26 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   flap-flap-glide; dashes low off its perch; a stick nest, pale bluish eggs; the juvenile brown, streaked, yellow-eyed.
   In the sandbox under Birds (adult, juvenile, or young: an eyas in its nest): E / H hunt, B soar, F fly, X alarm, D
   call, G preen, A rouse, Z sleep, K mate, 1 lay, 2 hatch, N brood, U die.
+  `eagle.gd` (`Eagle`): a Raptor twice a hawk's size (`eagle_shape`: the hawk's lines made over, bulkier, a heavier
+  bill, shorter stouter legs, long broad wings whose six outer primaries are fingers, emarginated and spread soaring;
+  the bird body's `fingers` key). Its own: `fish(school)` (a fish of a `FishSchool` brought up, a long low glide down
+  at it, the feet swung forward, the fish snatched from the surface and carried off head first to its perch and eaten
+  there); `scavenge(carcass)` (down beside a `Carcass`, tearing at it a long while, mantling over it now and then);
+  hungry, it goes for whatever's near (a fish school if it fishes, a carcass, its prey); a great platform of sticks
+  for a nest (`nest_scale`) on a tall snag, two eggs, the eaglets in grey down growing to near its size (`eyas_scale`).
+  The shader's additions for them: a whole head and neck in the cap's colour with a ragged edge (`hood_u`), golden
+  hackles down the nape behind the eye (`nape_color`, `nape_u`), white tail coverts (`tail_cov`), a white tail seen
+  white from below (`tail_under`), pale patches at the flight feathers' bases (`fl_patch`), feathered legs their own
+  colour (`trouser`), white blotched through brown (under pattern 6). `bald_eagle.gd` (`BaldEagle`): dark chocolate
+  brown, its head, neck and tail white, the great bill, cere and feet yellow, the eye pale yellow under a heavy brow;
+  fishes, scavenges, takes a hare or a poult; calls with its head thrown back, chattering; dull white eggs; the
+  juvenile brown blotched white, dark billed, brown eyed. `golden_eagle.gd` (`GoldenEagle`): dark brown, the crown and
+  hackles golden, the face dark, a pale tawny bar on the folded wing, a grey-brown tail dark tipped, legs feathered
+  tawny to yellow feet, a dark bill blue grey at its root, amber eyes; stoops on hares and squirrels from high, its
+  display a sky dance; white eggs blotched reddish brown; the juvenile with white patches in its wings and a white
+  tail broadly tipped black. In the sandbox under Birds (adult, juvenile, or young: an eaglet in its nest), on a tall
+  snag: H the bald eagle fishes (a pond dug and stocked with trout if there's none), the golden stoops on a hare; E to
+  a carcass (a deer's put down if there's none); the rest as the hawks.
   `owl.gd` (`Owl`): a Raptor made upright and round headed (the body's own additions for it: a big round head, its face a
   flat plate, sharp rimmed (a barn owl's narrowed to a heart), set forward over its breast with no neck showing; a
   feathered ridge down between its eyes to a bill half hidden in it; ear tufts, tapering blades at the head's top
