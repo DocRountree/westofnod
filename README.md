@@ -295,6 +295,36 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   hunts nothing: `visit_flowers(heads)` (from flower to flower, hovering, drinking nectar) and, a female's,
   `lay_on_leaf(edge)` (down on a leaf, along its margin, the gaster curled to the edge, rows of tiny dark eggs left
   there: they would hatch only inside a caterpillar that ate them, so here they don't). In the ecology sandbox, with what it uses there: a female and a male, fleabane, leaves to lay along (E nectar, 1 lay, G land, W / F fly about, K mate).
+  `ichneumon.gd` (`Ichneumon`, a female of the Ichneumoninae, about 13 mm, drawn at the paper wasp's size) wears the
+  model again in its own colours and proportions: its head orange red, its thorax black with the mesoscutum red and the
+  scutellum and tegulae cream, a long slender orange-red gaster on a narrow waist, orange legs (the hind coxae black),
+  long curving black antennae with a broad cream band past their middle, smoky brownish-violet wings. It drinks nectar
+  as the trigonalid does (`visit_flowers`) and lays in living caterpillars (`lay_in_caterpillar(caterpillar)`: to it,
+  hovering beside it facing its middle, drumming it with her antennae, her gaster swung under and forward and the
+  ovipositor driven in, pumping; the caterpillar thrashes, then goes on as it was, stung). In the ecology sandbox
+  (Insects: ichneumon wasp): E nectar, 1 lay (in the nearest caterpillar not yet stung; one put down if there's none),
+  G land, W / F fly about.
+  Their life cycles, each closed in the sandbox:
+  - The paper wasp: an egg laid in each empty cell of her comb (1; `Wasp.comb`, `lay_eggs`), filling it; hatching (2)
+    into a curled white grub in the cell (the sandbox's young stage puts one in the next empty cell); the grub
+    pupating (3) under a white dome of silk capping its cell; out of it (2) a new wasp, the cap chewed open, up out of
+    the cell and down beside it. She hunts caterpillars for her grubs (E / H: a monarch's or a clearwing's, pounced on
+    and chewed). Mating: K pairs a male with her.
+  - The trigonalid (a parasitoid of a parasitoid): her eggs left in rows along leaf margins (1), to be eaten with the
+    leaf by a caterpillar; the paper wasp catches that caterpillar and feeds it to a grub, and the trigonalid's larva
+    lives on in the grub. So here one paper wasp cell in three (`Pupa.parasitoid`, chosen when the pupa's made) gives no
+    paper wasp but a trigonalid, out through the chewed cap in the wasp's place. Her own eggs are only left (none
+    followed or hatched); some milkweeds carry rows of them (one in ten, near: GroundCover's `egg_share`).
+  - The ichneumon: her egg laid in a caterpillar (1); the caterpillar feeds on and pupates as ever (3), stung
+    (`Larva.parasitized`), and her larva, having eaten it from within, kills the pupa: it dulls and darkens, dead,
+    brown to black, no wings showing through, and an ichneumon chews a round hole in its front (the monarch's
+    chrysalis at its widest, a moth's up out of its cocoon), rests on it a while and flies off, the dead case left
+    holed (2). Every stung caterpillar's pupa gives one, and one butterfly or moth pupa in three anyway (any of the
+    seven lepidopterans: monarch, clearwing, swallowtail, luna, mourning cloak, cecropia, polyphemus).
+  - The bumble bee: a worker (the adult stage) forages and stings but never mates; a new queen (the queen stage,
+    `Bumblebee.new(true)`: a third again a worker's size) and a drone (his face a tuft of yellow pile) mate on K: he
+    after her, onto her back gripping her, the two down together, joined 40 s, his wings buzzing now and then; then
+    both off.
   `bumblebee.gd` (`Bumblebee`, *Bombus impatiens*, a common eastern bumble bee) makes the model over as a bee: stout
   and round, no wasp waist, its gaster short and blunt, all of it in dense short pile (`shaders/render/bee_fur.gdshader`:
   shells of hairs, darker at their roots), the thorax yellow above with a small bare black spot between the wings,
@@ -745,7 +775,8 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   tail); the grubs curling tighter, still, then their pupae: the June bug's on its back in its cell, the wasp's under
   its cell's white silk cap, the carpenter ant's in a tan cocoon, the harvester's bare and white. Out of them
   (`Pupa.eclose`): the lady beetles and June bugs into their colony (`AntColony.add`), the ants' new workers into a
-  colony of their own, the wasp up out of its cell, the lepidopterans as before. The nymphs' moult (`molt.gd`,
+  colony of their own, the wasp up out of its cell (or, one cell in three, a trigonalid), the lepidopterans as before
+  (or, one pupa in three and every stung caterpillar's, an ichneumon chewing out of it dead: the wasps' cycles above). The nymphs' moult (`molt.gd`,
   `Molt.begin`: one moult to grown, not the several a real one takes): the nymph still, gripping, swelling; its skin
   splitting, the adult backing up and out of it nose first, swelling to full size as it walks off; the cast skin left
   pale and see-through (the grasshoppers', the mantis'; the darner's own climbing out of the water as before). Demo:
