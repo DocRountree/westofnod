@@ -132,7 +132,7 @@ func _build() -> void:
 ## Folded flat to its sides, drawn in against its body, down along its back.
 func fold_wings() -> void:
 	for s: String in ["l", "r"]:
-		want["w%s_up" % s] = -1.66
+		want["w%s_up" % s] = -1.58
 		want["w%s_sweep" % s] = 0.0
 		want["w%s_twist" % s] = 0.0
 		want["w%s_spread" % s] = 0.0

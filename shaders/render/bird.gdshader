@@ -27,7 +27,8 @@ uniform vec3 back_color : source_color = vec3(0.2, 0.22, 0.26);
 uniform vec3 back_edge : source_color = vec3(0.42, 0.45, 0.5);
 uniform vec3 back_bar : source_color = vec3(0.1, 0.11, 0.13);
 uniform float back_bars = 0.4;
-uniform float back_from = 0.3;   // round its ring, where its back's colour begins (0.5 its spine)   // dark bars across the back's feathers
+uniform float back_from = 0.3;   // round its ring, where its back's colour begins (0.5 its spine)
+uniform float back_from_hi = -1.0; // (over its shoulders, if lower: the back's colour down its sides to its folded wing)   // dark bars across the back's feathers
 uniform vec3 cap_color : source_color = vec3(0.08, 0.09, 0.11);
 uniform vec3 cheek_color : source_color = vec3(0.95, 0.93, 0.88);
 uniform float cheek = 0.0;       // the cheeks their own colour (a Cooper's hawk's rosy grey)
@@ -197,7 +198,8 @@ void raptor(int pt, float u, float v, vec3 view, float ndv, vec3 vtx, vec3 nrm0,
 		float edge = (1.0 - smoothstep(0.04, 0.16, f.x)) * fade;
 		// the back (over its back, the wing's coverts from above): dark, each
 		// feather edged pale, barred darker
-		float back = pt == 0 ? smoothstep(back_from, back_from + 0.07, v) * (1.0 - smoothstep(1.0 - back_from - 0.07, 1.0 - back_from, v)) : (pt == 10 ? mix(1.0, 1.0 - step(0.5, fc.z), smoothstep(0.3, 0.7, wing_open)) : 0.0); // (a wing's coverts: its upper surface the back's colour, its under the underwing's)
+		float bf = back_from_hi < 0.0 ? back_from : mix(back_from, back_from_hi, smoothstep(0.42, 0.62, u) * (1.0 - smoothstep(0.78, 0.84, u)));
+		float back = pt == 0 ? smoothstep(bf, bf + 0.06, v) * (1.0 - smoothstep(1.0 - bf - 0.06, 1.0 - bf, v)) : (pt == 10 ? mix(1.0, 1.0 - step(0.5, fc.z), smoothstep(0.3, 0.7, wing_open)) : 0.0); // (a wing's coverts: its upper surface the back's colour, its under the underwing's)
 		vec3 bk = back_color * (0.88 + 0.24 * f.y);
 		float bbar = smoothstep(0.38, 0.44, f.x) * (1.0 - smoothstep(0.52, 0.6, f.x)) * back_bars * fade;
 		bk = mix(bk, back_bar, bbar);

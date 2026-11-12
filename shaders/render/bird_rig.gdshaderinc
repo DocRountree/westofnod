@@ -121,9 +121,12 @@ void bird_pose(vec4 c1, vec4 c2, inout vec3 v, inout vec3 n) {
 		q = bone_root(k, e) + dir * c2.x + along * l + across * c2.z + up * (c2.w + bend);
 		nn = across * n.x + up * n.y + along * n.z;
 	}
-	mat3 r = rot_y(-fold_tuck * (1.0 - e)) * rot_x(fold_pitch * (1.0 - e)) * rot_y(-w.y) * rot_z(w.x) * rot_x(w.z); // (swept about the body's upright: back in flight, its tip tucked in, folded)
+	mat3 r = rot_x(fold_pitch * (1.0 - e)) * rot_y(-w.y) * rot_z(w.x) * rot_x(w.z); // (swept about the body's upright: back in flight, its tip tucked in, folded)
 	q = r * q;
 	nn = r * nn;
+	// (folded, drawn in against the body: the more, the further it is from the shoulder,
+	// behind it (its tips over the tail) or ahead of it (its wrist under the breast's feathers))
+	q.x -= fold_tuck * (1.0 - e) * (max(q.z, 0.0) + 0.6 * max(-q.z, 0.0) + 0.3 * max(-q.y, 0.0));
 	q.x *= side;
 	nn.x *= side;
 	mat4 body = joint(0);

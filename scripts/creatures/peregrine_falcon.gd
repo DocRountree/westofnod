@@ -45,8 +45,8 @@ func _shape() -> Dictionary:
 	return {
 		"tilt_rings": true,
 		# (sat low, leaning forward, its head on its shoulders)
-		"spine": [[14.0, 13.0, 1.0, 1.0, 0.0], [15.0, 11.0, 4.0, 3.5, 0.0], [16.5, 8.0, 5.2, 6.0, 0.0], [19.5, 4.8, 5.8, 7.4, 0.0], [23.5, 2.0, 6.0, 7.8, 0.0],
-				[27.5, 0.0, 5.6, 7.0, 0.0], [30.5, -1.0, 4.6, 5.6, 0.2], [32.6, -1.5, 3.7, 3.9, 1.0], [34.2, -2.0, 3.1, 3.3, 2.0], [35.5, -2.7, 2.8, 3.0, 3.0],
+		"spine": [[14.0, 13.0, 1.0, 1.0, 0.0], [15.0, 11.0, 4.0, 3.5, 0.0], [16.5, 8.0, 4.8, 6.0, 0.0], [19.5, 4.8, 5.3, 7.4, 0.0], [23.5, 2.0, 5.5, 7.8, 0.0],
+				[27.5, 0.0, 5.2, 7.0, 0.0], [30.5, -1.0, 4.4, 5.6, 0.2], [32.6, -1.5, 3.7, 3.9, 1.0], [34.2, -2.0, 3.1, 3.3, 2.0], [35.5, -2.7, 2.8, 3.0, 3.0],
 				[36.5, -3.6, 2.6, 2.9, 4.0], [37.1, -4.8, 2.5, 2.7, 4.5], [36.8, -6.4, 2.1, 2.3, 4.85], [36.1, -7.5, 1.3, 1.5, 5.0],
 				[35.7, -8.1, 1.0, 1.1, 5.05], [35.1, -8.8, 0.7, 0.75, 5.5], [34.2, -9.2, 0.3, 0.3, 5.85], [33.5, -9.05, 0.08, 0.08, 6.0]],
 		"pivot": Vector3(0.0, 21.0, 4.0),
@@ -59,8 +59,8 @@ func _shape() -> Dictionary:
 		"thigh_r": [4.4, 3.2], "leg_r": 0.6, "toes": [5.0, 3.6, 2.6], "claw": 0.36, "claw_r": 0.55, "tuck": Vector3(0.0, -0.05, 0.0),
 		"tail": Vector3(0.0, 14.5, 12.0),
 		# (its folded wing broad, from its neck's base down over its side to its tail's tip)
-		"shoulder": Vector3(6.2, 30.0, 1.0), "wing": Vector3(8.5, 10.5, 7.5), "coverts": [2.0, 5.0, 4.0, 2.0], "wing_thick": [1.1, 0.8, 0.5, 0.25],
-		"fold_fan": Vector3(0.3, 0.42, 0.1), "fold_tuck": 0.2,
+		"shoulder": Vector3(5.6, 26.3, 4.9), "wing": Vector3(8.5, 10.5, 7.5), "coverts": [2.0, 5.0, 4.0, 2.0], "wing_thick": [1.1, 0.8, 0.5, 0.25],
+		"fold_fan": Vector3(0.3, 0.42, 0.1), "fold_tuck": 0.12,
 		"primaries": [13.0, 14.0, 15.0, 16.5, 18.0, 19.5, 21.0, 22.5, 23.5, 22.0], "secondaries": [12, 14.0, 12.0], "tertials": [3, 11.0, 9.0], "feather_w": 4.2,
 		"tail_feathers": [12, 16.0, 3.8], "tail_coverts": [[10, 9.0, 3.5, 0.5, 0.9]],
 	}
@@ -69,7 +69,7 @@ func _shape() -> Dictionary:
 func _plumage(stage: String, male_: bool) -> Dictionary:
 	if stage == "juvenile":
 		return {
-			"back_color": Color(0.26, 0.2, 0.15), "back_edge": Color(0.62, 0.46, 0.3), "back_bar": Color(0.2, 0.15, 0.11), "back_bars": 0.0, "back_from": 0.22,
+			"back_color": Color(0.26, 0.2, 0.15), "back_edge": Color(0.62, 0.46, 0.3), "back_bar": Color(0.2, 0.15, 0.11), "back_bars": 0.0, "back_from": 0.22, "back_from_hi": 0.13,
 			"cap_color": Color(0.2, 0.15, 0.11), "cheek_color": Color(0.85, 0.74, 0.58), "hood_low": 0.0, "hood_nape": 0.6, "malar": 1.0,
 			"under_color": Color(0.86, 0.74, 0.56), "breast_wash": Color(0.84, 0.7, 0.5), "under_mark": Color(0.26, 0.18, 0.12), "under_pattern": 3, "throat_clean": 0.76,
 			"fl_top": Color(0.22, 0.18, 0.14), "fl_pale": Color(0.78, 0.68, 0.54), "fl_dark": Color(0.25, 0.19, 0.14), "fl_bars": 11.0,
@@ -78,7 +78,7 @@ func _plumage(stage: String, male_: bool) -> Dictionary:
 			"leg_color": Color(0.8, 0.82, 0.55),
 		}
 	return {
-		"back_color": Color(0.25, 0.28, 0.33) if male_ else Color(0.22, 0.24, 0.28), "back_edge": Color(0.5, 0.54, 0.6), "back_bar": Color(0.11, 0.12, 0.14), "back_bars": 0.7, "back_from": 0.22,
+		"back_color": Color(0.25, 0.28, 0.33) if male_ else Color(0.22, 0.24, 0.28), "back_edge": Color(0.5, 0.54, 0.6), "back_bar": Color(0.11, 0.12, 0.14), "back_bars": 0.7, "back_from": 0.22, "back_from_hi": 0.13,
 		"cap_color": Color(0.06, 0.065, 0.08), "cheek_color": Color(0.96, 0.95, 0.92), "hood_low": 0.002, "hood_nape": 1.0, "malar": 1.0,
 		"under_color": Color(0.95, 0.94, 0.9) if male_ else Color(0.93, 0.88, 0.8), "breast_wash": Color(0.97, 0.95, 0.9) if male_ else Color(0.92, 0.84, 0.72),
 		"under_mark": Color(0.1, 0.1, 0.12), "under_pattern": 1, "throat_clean": 0.7,
