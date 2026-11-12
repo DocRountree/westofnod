@@ -837,6 +837,26 @@ func _make_mesh() -> Array:
 			var bw: Array = S.brow
 			var bo: Vector3 = (bw[0] as Vector3) * CM
 			_ball(st, Vector3(bo.x * side, bo.y, bo.z), (bw[1] as Vector3) * CM, 0.0, J_HEAD, Basis(Vector3.RIGHT, -0.15), false, Vector2(0.95, 0.5))
+	if S.has("head_ball"): # (an owl's big round head, its face flattened: [centre, radii, how flat its front]; its poles fore and aft, its feathers lying back)
+		var hb: Array = S.head_ball
+		var hc: Vector3 = (hb[0] as Vector3) * CM
+		var hr: Vector3 = (hb[1] as Vector3) * CM
+		var hrows := []
+		for i in 13:
+			var la := PI * i / 12.0
+			var row := []
+			for k in 21:
+				var lo := TAU * k / 20.0
+				var d := Vector3(sin(la) * sin(lo), -sin(la) * cos(lo), -cos(la)) # (its seam under its chin)
+				var rr := hr * Vector3(1.0, 1.0, float(hb[2]) if d.z < 0.0 else 1.0)
+				row.append([hc + d * rr, (d / rr).normalized(), Color(0, 0.93, 0.5, 0), Color(0, J_HEAD, J_HEAD, 0), Color(0, 0, 0, 0), Vector2(lo * hr.x * 0.6, -la * hr.z * 1.3)])
+			hrows.append(row)
+		_grid(st, hrows)
+	for tf: Array in S.get("tufts", []): # (ear tufts: [root, radii, leaning out, leaning back])
+		for side: float in [-1.0, 1.0]:
+			var tb := Basis(Vector3.RIGHT, float(tf[3])) * Basis(Vector3.FORWARD, float(tf[2]) * side)
+			var t0: Vector3 = (tf[0] as Vector3) * CM * Vector3(side, 1.0, 1.0)
+			_ball(st, t0 + tb.y * float((tf[1] as Vector3).y) * CM * 0.75, (tf[1] as Vector3) * CM, 0.0, J_HEAD, tb, false, Vector2(0.93, 0.5))
 	if S.has("cere"): # (the bare waxy skin at the bill's root, the nostrils in it)
 		var ce: Array = S.cere
 		_ball(st, (ce[0] as Vector3) * CM, (ce[1] as Vector3) * CM, 1.0, J_HEAD)
@@ -891,7 +911,7 @@ func _make_mesh() -> Array:
 		_tube(st, [[hip * m, float(tr[0]) * CM, j, j, 0.0], [hip.lerp(knee, 0.6) * m, float(tr[0]) * CM, j, j, 0.0], [knee * m, float(tr[1]) * CM, j, j + 1, 0.5],
 				[knee.lerp(ank, 0.4) * m, float(tr[1]) * CM * 0.85, j + 1, j + 1, 0.0], [knee.lerp(ank, 0.85) * m, lr * 1.5, j + 1, j + 1, 0.0], [knee.lerp(ank, 0.93) * m, lr * 1.1, j + 1, j + 1, 0.0]], 7.0, 12)
 		_tube(st, [[knee.lerp(ank, 0.82) * m, lr * 1.05, j + 1, j + 1, 0.0], [ank * m, lr * 1.25, j + 1, j + 2, 0.5], [ank.lerp(foot, 0.3) * m, lr, j + 2, j + 2, 0.0],
-				[ank.lerp(foot, 0.85) * m, lr, j + 2, j + 2, 0.0], [foot * m, lr * 1.3, j + 2, j + 2, 0.0]], 8.0, 9)
+				[ank.lerp(foot, 0.85) * m, lr, j + 2, j + 2, 0.0], [foot * m, lr * 1.3, j + 2, j + 2, 0.0]], float(S.get("leg_part", 8.0)), 9) # (an owl's: feathered to its toes)
 		# the toes: three forward, one back, a claw on each
 		var toes: Array = S.toes # [middle, side, back] (cm)
 		for td: Array in [[0.0, toes[0]], [0.62, toes[1]], [-0.62, toes[1]], [PI, toes[2]]]:

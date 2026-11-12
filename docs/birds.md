@@ -6,7 +6,7 @@ Built so far: `scripts/creatures/bird_flight.gd` (the flight arithmetic), `tools
 you asked for the turkey before the robin, so it was built first. Then the peregrine falcon and Cooper's hawk (`raptor.gd` and its two
 species), with the stoop, the dash, soaring and perching. Not built yet: the flock tier (compute shader,
 low-detail meshes), bounding, hovering, soaring, perching. This is what the first bird should be built to, so
-that the second through the fiftieth are a page of numbers each.
+that the second through the fiftieth are a page of numbers each. Then three owls (`owl.gd`: a Raptor with a round head ball, ear tufts, a facial disc and feathered legs; the barn owl, great horned owl and eastern screech owl on it), still the one skeleton.
 
 Sized by five birds that span the range: ruby-throated hummingbird (3 g), house finch (21 g), American robin (77 g),
 red-tailed hawk (1.1 kg), wild turkey (6 kg).

@@ -44,6 +44,7 @@ uniform vec3 fl_top : source_color = vec3(0.16, 0.17, 0.2);
 uniform vec3 fl_pale : source_color = vec3(0.86, 0.85, 0.82);
 uniform vec3 fl_dark : source_color = vec3(0.2, 0.2, 0.22);
 uniform float fl_bars = 12.0;
+uniform float fl_top_bars = 0.25; // (how dark its bars from above: an owl's plain to see)
 uniform vec3 tail_color : source_color = vec3(0.3, 0.32, 0.36);
 uniform vec3 tail_band : source_color = vec3(0.07, 0.07, 0.08);
 uniform float tail_bands = 7.0;
@@ -54,8 +55,25 @@ uniform vec3 cere_color : source_color = vec3(0.95, 0.75, 0.1);
 uniform vec3 bill_tip : source_color = vec3(0.08, 0.08, 0.1);
 uniform vec3 iris : source_color = vec3(0.12, 0.07, 0.04);
 uniform vec3 down_white : source_color = vec3(0.95, 0.94, 0.9); // an eyas's down
+uniform vec3 eye_dir = vec3(0.62, 0.06, -0.78); // where the right eye looks (an owl's: forward)
+uniform vec3 lid_color : source_color = vec3(0.5, 0.48, 0.45);
+uniform float under_bar_n = 2.0;   // (pattern 2: bars to a feather, how wide)
+uniform float under_bar_w = 0.62;
+uniform float mottle = 0.0;        // an owl's back: vermiculated, blotched pale
+uniform float back_streak = 0.0;   // a dark streak down each back feather's shaft
+uniform float back_spot = 0.0;     // a white spot, black above it, at each back feather's tip (a barn owl's)
+uniform float disc = 0.0;          // an owl's facial disc
+uniform float disc_r = 0.03;       // m, round each eye
+uniform float disc_heart = 0.0;    // (a barn owl's: drawn down to a point at its chin)
+uniform vec3 disc_color : source_color = vec3(0.6, 0.45, 0.3);
+uniform vec3 disc_rim : source_color = vec3(0.05, 0.04, 0.03);
+uniform vec3 disc_mid : source_color = vec3(0.9, 0.88, 0.82); // the brows, the bristles between its eyes
+uniform float disc_mid_a = 1.0;
+uniform vec3 disc_eye : source_color = vec3(0.3, 0.2, 0.12);   // (shading in toward the eye)
 
 uniform float puff = 0.0;      // the body's feathers raised (strutting)
+uniform float puff_cm = 4.5;   // (how far, cm)
+uniform float puff_head = 1.0; // (an owl's head: not, its eyes kept clear)
 uniform float flush = 0.0;     // the bare head's colours up (strutting: white crown, blue face, scarlet wattles)
 uniform float snood = 0.0;     // the snood let down over the bill (0: a short horn)
 uniform float eye_shut = 0.0;
@@ -112,7 +130,7 @@ void vertex() {
 	if (part == 0 && int(round(CUSTOM1.x)) == 0) {
 		// the body's feathers raised: fuller, most over its back and breast
 		float body = 1.0 - smoothstep(bare_from - 0.25, bare_from, CUSTOM0.y);
-		v += n * puff * 0.045 * body * (0.55 + 0.45 * sin(CUSTOM0.z * 6.2832 - 1.5708));
+		v += n * puff * puff_cm * 0.01 * mix(1.0, puff_head, smoothstep(0.84, 0.88, CUSTOM0.y)) * body * (0.55 + 0.45 * sin(CUSTOM0.z * 6.2832 - 1.5708));
 	}
 	if (part == 4) {
 		// the snood: a short horn, or let down, long, over the bill and past it
@@ -204,6 +222,16 @@ void raptor(int pt, float u, float v, vec3 view, float ndv, vec3 vtx, vec3 nrm0,
 		float bbar = smoothstep(0.38, 0.44, f.x) * (1.0 - smoothstep(0.52, 0.6, f.x)) * back_bars * fade;
 		bk = mix(bk, back_bar, bbar);
 		bk = mix(bk, back_edge, edge * 0.8);
+		if (mottle > 0.0 || back_streak > 0.0 || back_spot > 0.0) {
+			float verm = smoothstep(0.42, 0.58, vnoise(vec2(p.x * 5.0, p.y * 13.0)));
+			float blotch = smoothstep(0.5, 0.72, vnoise(p * 0.9 + 7.0));
+			bk = mix(bk, back_bar, mottle * 0.55 * verm * fade);
+			bk = mix(bk, back_edge, mottle * 0.8 * blotch);
+			bk = mix(bk, back_bar, back_streak * (1.0 - smoothstep(0.05, 0.16, abs(f.z))) * smoothstep(0.05, 0.2, f.x) * fade);
+			float sd = length(vec2(f.z * 0.5, f.x - 0.2));
+			bk = mix(bk, vec3(0.04), back_spot * (1.0 - smoothstep(0.07, 0.11, length(vec2(f.z * 0.5, f.x - 0.34)))) * fade);
+			bk = mix(bk, vec3(0.95), back_spot * (1.0 - smoothstep(0.07, 0.11, sd)) * fade);
+		}
 		// the underparts: their marks by the pattern; the throat clean
 		vec3 un = mix(under_color, breast_wash, smoothstep(0.3, 0.6, u) * (1.0 - smoothstep(0.7, 0.85, u)));
 		float mk = 0.0;
@@ -214,10 +242,17 @@ void raptor(int pt, float u, float v, vec3 view, float ndv, vec3 vtx, vec3 nrm0,
 			float spot = 1.0 - smoothstep(0.16, 0.24, length(vec2(f.z * 0.4, f.x - 0.33)));
 			mk = mix(bar, spot, smoothstep(0.5, 0.6, u));
 		} else if (under_pattern == 2) {
-			float b2 = fract(f.x * 2.0 + 0.1 * f.z * f.z);
-			mk = smoothstep(0.02, 0.08, b2) * (1.0 - smoothstep(0.62, 0.7, b2)) * smoothstep(0.0, 0.25, wc) * (0.85 + 0.15 * f.y);
+			float b2 = fract(f.x * under_bar_n + 0.1 * f.z * f.z);
+			mk = smoothstep(0.02, 0.08, b2) * (1.0 - smoothstep(under_bar_w, under_bar_w + 0.08, b2)) * smoothstep(0.0, 0.25, wc) * (0.85 + 0.15 * f.y);
 		} else if (under_pattern == 3) {
 			mk = (1.0 - smoothstep(0.12, 0.26, abs(f.z) * (1.0 + f.x))) * smoothstep(0.1, 0.22, f.x) * (1.0 - smoothstep(0.65, 0.85, f.x));
+		}
+		else if (under_pattern == 4) { // (a barn owl's: small dark spots, sparse)
+			mk = (1.0 - smoothstep(0.07, 0.12, length(vec2(f.z * 0.5, f.x - 0.3)))) * step(0.5, f.y);
+		} else if (under_pattern == 5) { // (a screech owl's: a dark streak down each shaft, fine bars across it)
+			float st5 = (1.0 - smoothstep(0.07, 0.17, abs(f.z))) * smoothstep(0.08, 0.2, f.x) * (1.0 - smoothstep(0.75, 0.95, f.x));
+			float b5 = fract(f.x * 3.5 + 0.15 * abs(f.z));
+			mk = max(st5, 0.75 * smoothstep(0.0, 0.08, b5) * (1.0 - smoothstep(0.26, 0.34, b5)) * smoothstep(0.0, 0.3, wc));
 		}
 		mk *= fade * (1.0 - smoothstep(throat_clean - 0.03, throat_clean + 0.02, u)) * (pt == 0 ? smoothstep(0.06, 0.16, u) : 1.0);
 		if (pt == 7)
@@ -227,7 +262,29 @@ void raptor(int pt, float u, float v, vec3 view, float ndv, vec3 vtx, vec3 nrm0,
 		c = mix(un, bk, back);
 		// the head: its cap (and a falcon's hood down the nape), the
 		// moustache, the cheeks
-		if (pt == 0) {
+		if (pt == 0 && disc > 0.0) {
+			// an owl's head: the back's colour over it, a disc of fine
+			// feathers round each eye, a dark rim to it, pale brows and
+			// bristles down between; white under its chin
+			float head = smoothstep(0.86, 0.9, u);
+			vec3 r = rest;
+			float ax = abs(r.x);
+			float qy = r.y - eye_at.y;
+			float low = clamp(-qy / disc_r, 0.0, 2.5);
+			float cx = eye_at.x * (1.0 - disc_heart * 0.42 * low);
+			float d = length(vec2(ax - cx, qy * (qy < 0.0 ? mix(1.0, 0.5, disc_heart) : mix(1.0, 1.25, disc_heart)))) / disc_r;
+			float front = smoothstep(-0.05, -0.35, rest_n.z) * head;
+			float ang = atan(qy, ax - cx);
+			float wob = 0.015 * sin(ang * 60.0);
+			c = mix(c, bk, head);
+			c = mix(c, under_color, front * (1.0 - smoothstep(-1.25, -1.05, qy / disc_r)) * (1.0 - disc_heart));
+			vec3 dc = disc_color * (0.9 + 0.12 * sin(ang * 46.0) * smoothstep(0.3, 0.6, d));
+			dc = mix(disc_eye, dc, smoothstep(0.3, 0.75, d + 0.25 * smoothstep(0.0, 1.2, -ang + 0.6) * step(ang, 2.0)));
+			c = mix(c, dc, front * (1.0 - smoothstep(0.93, 1.0, d + wob)));
+			c = mix(c, disc_rim, front * smoothstep(0.84, 0.93, d + wob) * (1.0 - smoothstep(1.0, 1.1, d + wob)));
+			float mid = (1.0 - smoothstep(0.2, 0.42, (ax + max(qy, 0.0) * -0.35 + max(-qy, 0.0) * 0.5) / eye_at.x)) * smoothstep(-1.0, -0.6, qy / disc_r) * (1.0 - smoothstep(0.9, 1.2, qy / disc_r));
+			c = mix(c, disc_mid, front * mid * disc_mid_a);
+		} else if (pt == 0) {
 			float head = smoothstep(0.76, 0.83, u);
 			vec3 r = rest;
 			float ax = abs(r.x);
@@ -269,7 +326,7 @@ void raptor(int pt, float u, float v, vec3 view, float ndv, vec3 vtx, vec3 nrm0,
 			// pale, barred dark, its tip dusky
 			float b = 1.0 - bars(u, v, fl_bars, 0.45, seed);
 			if (top) {
-				c = mix(fl_top, fl_top * 0.6, b * 0.5);
+				c = mix(fl_top, fl_top * (1.0 - 0.8 * fl_top_bars), b);
 				c = mix(c, back_edge, (1.0 - smoothstep(0.0, 0.05, 1.0 - u)) * 0.5);
 			} else {
 				c = mix(fl_pale, fl_dark, b * 0.9);
@@ -297,7 +354,13 @@ void raptor(int pt, float u, float v, vec3 view, float ndv, vec3 vtx, vec3 nrm0,
 	}
 	if (pt == 3) { // the eye: its iris, its pupil, wet
 		vec3 rn = normalize(rest_n * vec3(sign(rest.x), 1.0, 1.0));
-		float k = dot(rn, normalize(vec3(0.62, 0.06, -0.78)));
+		if (eye_shut > 0.5) { // (its lid down: feathered)
+			c = lid_color;
+			rough = 0.8;
+			spec = 0.2;
+			return;
+		}
+		float k = dot(rn, normalize(eye_dir));
 		c = mix(vec3(0.0), iris, smoothstep(0.84, 0.86, -k + 1.7));
 		c = mix(c, vec3(0.005), smoothstep(0.86, 0.9, k));
 		c = mix(iris * 0.5, c, smoothstep(0.35, 0.45, k));

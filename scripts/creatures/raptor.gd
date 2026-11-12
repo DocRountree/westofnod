@@ -61,6 +61,7 @@ var nest_height := 2.6
 var clutch := 4
 var egg_size := Vector2(0.052, 0.041)
 var egg_colors := [Color(0.62, 0.36, 0.25), Color(0.36, 0.14, 0.08)] ## ground, blotches
+var feather_cm := 3.2 ## its body feathers' size
 var prey_scripts := ["mouse.gd", "fox_squirrel.gd", "grey_squirrel.gd", "wild_turkey.gd"]
 var grow_secs := 200.0 ## s an eyas takes to fledge
 var hunger := 0.0 ## (0 fed .. 1 hunting)
@@ -114,7 +115,7 @@ func _build() -> void:
 		colors = _plumage("juvenile" if juvenile else "adult", male)
 	colors["plumage"] = 1
 	colors["bare_from"] = 2.0
-	colors["feather_cm"] = 3.2
+	colors["feather_cm"] = feather_cm
 	var m := mass_of()
 	mass = m.x
 	span = m.y

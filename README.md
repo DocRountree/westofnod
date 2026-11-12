@@ -823,6 +823,18 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   flap-flap-glide; dashes low off its perch; a stick nest, pale bluish eggs; the juvenile brown, streaked, yellow-eyed.
   In the sandbox under Birds (adult, juvenile, or young: an eyas in its nest): E / H hunt, B soar, F fly, X alarm, D
   call, G preen, A rouse, Z sleep, K mate, 1 lay, 2 hatch, N brood, U die.
+  `owl.gd` (`Owl`): a Raptor made upright and round headed (the body's own additions for it: a round head ball with a
+  flattened face, ear tufts, legs feathered to the toes; the shader's: forward eyes, a facial disc with its rim and
+  brows, a mottled, streaked or spotted back, sparse-spotted and streaked-and-barred underparts, lids). By day dozing
+  on its perch, puffed, an eye opened now and then; at dusk and by night (T) awake: its head turned far round and
+  weaving, hooting (leaned forward, throat swelled, tail cocked), casting a pellet, quartering low and slow, dropping
+  on its prey; its threat wings spread and turned forward, puffed, swaying, bill clacking. White eggs, downy owlets.
+  `great_horned_owl.gd` (`GreatHornedOwl`): big, tufted, mottled grey brown, a rusty disc rimmed black, yellow eyes, a
+  white bib, finely barred below; takes squirrels and poults too; two eggs in a stick nest. `barn_owl.gd` (`BarnOwl`):
+  slim, long legged, golden buff spotted white, a white heart face with small black eyes, white below (the female
+  buff), long wings; five eggs on a bare floor. `eastern_screech_owl.gd` (`EasternScreechOwl`): small, tufted, grey
+  or (one in three: `red`) rufous, streaked and barred like bark; four eggs. In the sandbox under Birds (adult or
+  young): as the hawks, but X its threat, D its hoot, M a pellet cast, B quartering.
   `wild_turkey.gd` (`WildTurkey`, *Meleagris gallopavo*): the tom bronze, copper and green, every feather edged
   black, flight feathers barred white, the fan brown with a black band and buff tip, the bare head red and blue,
   snood, wattle, caruncles, beard, spurs; the hen browner, edged buff; the poult downy, striped. Foraging (walking,

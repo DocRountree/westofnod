@@ -127,7 +127,8 @@ void bird_pose(vec4 c1, vec4 c2, inout vec3 v, inout vec3 n) {
 	nn = r * nn;
 	// (folded, drawn in against the body: the more, the further it is from the shoulder,
 	// behind it (its tips over the tail) or ahead of it (its wrist under the breast's feathers))
-	q.x -= fold_tuck * (1.0 - e) * (max(q.z, 0.0) + fold_tuck_front * max(-q.z, 0.0) + 0.3 * max(-q.y, 0.0));
+	// (never through to its other side: a slim body's)
+	q.x = max(q.x - fold_tuck * (1.0 - e) * (max(q.z, 0.0) + fold_tuck_front * max(-q.z, 0.0) + 0.3 * max(-q.y, 0.0)), min(q.x, -0.8 * shoulder.x)); // (q: from its shoulder)
 	q.x *= side;
 	nn.x *= side;
 	mat4 body = joint(0);
