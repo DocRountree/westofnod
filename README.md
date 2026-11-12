@@ -308,8 +308,8 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   - The paper wasp: an egg laid in each empty cell of her comb (1; `Wasp.comb`, `lay_eggs`), filling it; hatching (2)
     into a curled white grub in the cell (the sandbox's young stage puts one in the next empty cell); the grub
     pupating (3) under a white dome of silk capping its cell; out of it (2) a new wasp, the cap chewed open, up out of
-    the cell and down beside it. She hunts caterpillars for her grubs (E / H: a monarch's or a clearwing's, pounced on
-    and chewed). Mating: K pairs a male with her.
+    the cell and down beside it. She hunts caterpillars (E / H: a monarch's or a clearwing's, pounced on and chewed; the
+    grubs aren't yet fed with them). Mating: K pairs a male with her.
   - The trigonalid (a parasitoid of a parasitoid): her eggs left in rows along leaf margins (1), to be eaten with the
     leaf by a caterpillar; the paper wasp catches that caterpillar and feeds it to a grub, and the trigonalid's larva
     lives on in the grub. So here one paper wasp cell in three (`Pupa.parasitoid`, chosen when the pupa's made) gives no
