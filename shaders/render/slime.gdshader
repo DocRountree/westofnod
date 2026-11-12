@@ -21,10 +21,11 @@ void fragment() {
 	vec2 q = UV * 2.0 - 1.0;
 	// (an oval, its edges wavering)
 	float edge = 1.0 - smoothstep(0.55, 1.0, length(vec2(q.x * (1.0 + 0.15 * sin(q.y * 7.0 + rnd * 30.0)), q.y * 0.7)));
-	float fresh = 1.0 - smoothstep(dries * 0.3, dries, age);
-	ALBEDO = vec3(0.75, 0.78, 0.8);
-	ROUGHNESS = mix(0.35, 0.04, fresh);
-	SPECULAR = 0.9;
-	METALLIC = 0.15;
-	ALPHA = edge * (0.12 + 0.16 * fresh) * step(0.0, age) * step(age, dries);
+	float fresh = 1.0 - smoothstep(dries * 0.15, dries * 0.6, age);
+	// (wet: the ground darkened under it, glinting; dried: a faint silvery film)
+	float streak = 0.75 + 0.25 * sin(q.x * 9.0 + rnd * 40.0);
+	ALBEDO = mix(vec3(0.62, 0.64, 0.66), vec3(0.06, 0.06, 0.055), fresh);
+	ROUGHNESS = mix(0.3, 0.05, fresh);
+	SPECULAR = mix(0.6, 0.9, fresh);
+	ALPHA = edge * mix(0.1 * streak, 0.3, fresh) * step(0.0, age) * (1.0 - smoothstep(dries * 0.7, dries, age));
 }

@@ -16,17 +16,17 @@ extends "res://scripts/creatures/snails.gd" # (by path: found whether or not the
 func _init() -> void:
 	super()
 	top_speed = 0.0009
-	reach = 2.2
+	reach = 1.9
 	apart = 3.2
 	egg_kind = "grass_snail"
 	clutch = 3
 	self_rate = 1.0
 	grow_secs = 180.0
 	colors = {
-		"body_color": Color(0.84, 0.84, 0.82),
+		"body_color": Color(0.87, 0.85, 0.8),
 		"body_dark": Color(0.62, 0.62, 0.62),
 		"sole_color": Color(0.9, 0.9, 0.88),
-		"tentacle_color": Color(0.58, 0.58, 0.62),
+		"tentacle_color": Color(0.74, 0.74, 0.78),
 		"tubercles": 0.3,
 		"body_sss": 0.6,
 		"shell_base": Color(0.87, 0.85, 0.78),
@@ -34,7 +34,7 @@ func _init() -> void:
 		"shell_inner": Color(0.9, 0.88, 0.82),
 		"lip_color": Color(0.98, 0.97, 0.94),
 		"flames": 0.0,
-		"ribs": 26.0,
+		"ribs": 44.0,
 		"rib_depth": 0.15,
 		"shell_gloss": 0.88,
 		"glassy": 1.0,
@@ -42,11 +42,13 @@ func _init() -> void:
 		"glide_hz": 0.7,
 	}
 	shape = {
-		"shell": {"diam": 2.5, "whorls": 3.3, "grow": 2.25, "tube": 0.42, "round": 0.8, "spire": 0.4, "lip": 0.45, "descend": 0.12,
-				"apex": Vector3(-0.4, 0.9, 0.1), "mouth_side": Vector3(-0.55, -0.6, 0.2), "mouth": Vector3(0.12, 0.0, -0.2)},
-		"body": [[2.15, 0.01, 0.04], [2.1, 0.05, 0.1], [1.5, 0.25, 0.3], [0.6, 0.36, 0.42], [0.0, 0.4, 0.48], [-0.7, 0.38, 0.52], [-1.3, 0.33, 0.56],
-				[-1.75, 0.27, 0.52], [-2.1, 0.18, 0.4], [-2.25, 0.07, 0.24], [-2.29, 0.01, 0.14]],
-		"neck": -1.0,
-		"upper": [Vector3(0.11, 0.5, -1.65), Vector3(0.3, 0.7, -0.65), 0.75, 0.06],
-		"lower": [Vector3(0.13, 0.25, -2.08), Vector3(0.4, -0.25, -0.85), 0.2, 0.045],
+		"shell": {"diam": 2.5, "whorls": 3.3, "grow": 1.95, "tube": 0.44, "round": 0.82, "spire": 0.36, "lip": 0.4, "descend": 0.16, "oblique": 0.11,
+				"apex": Vector3(0.14, 0.98, 0.04), "mouth_side": Vector3(0.0, -0.1, -1.0), "mouth": Vector3(-0.02, 0.37, -0.92)},
+		"body": [[1.0, 0.008, 0.005, 0.03], [0.92, 0.08, 0.04, 0.07], [0.6, 0.24, 0.14, 0.17], [0.1, 0.33, 0.2, 0.22], [-0.45, 0.36, 0.24, 0.27],
+				[-0.85, 0.34, 0.27, 0.42], [-1.2, 0.31, 0.27, 0.5], [-1.55, 0.26, 0.26, 0.5, 0.02], [-1.82, 0.17, 0.22, 0.47, 0.08],
+				[-1.95, 0.07, 0.13, 0.41, 0.16], [-1.99, 0.004, 0.006, 0.33, 0.24]],
+		"neck": -1.05,
+		"skin_cell": 0.09,
+		"upper": [Vector3(0.11, 0.46, -1.74), Vector3(0.34, 0.55, -0.76), 1.05, 0.07],
+		"lower": [Vector3(0.11, 0.25, -1.88), Vector3(0.45, -0.3, -0.8), 0.12, 0.035],
 	}

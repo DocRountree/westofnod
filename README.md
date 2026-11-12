@@ -790,15 +790,18 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   lays a dozen eggs, which glow faintly. Its larva (a glowworm: flat, dark plates edged pink, two lanterns pulsing
   under its tail, bright when disturbed) hunts snails (H: to the nearest, bitten, eaten at its shell's mouth); its pupa
   lies on its back in a ring of soil, its lantern glowing now and then. T in the sandbox: day, dusk, night.
-  `snails.gd` (`Snails`, on the same GPU colony, `snail.gdshader`): land snails, each a smooth foot and head with two
-  pairs of tentacles (eyes on the upper), the mantle's collar and breathing pore, and a coiled shell built as a tube
-  along a growing spiral (dextral), carried on edge with its spire out to the left; gliding (the sole's waves, the head
+  `snails.gd` (`Snails`, on the same GPU colony, `snail.gdshader`): land snails, each one skin from tail to snout (a flat
+  sole, the foot's fringe rippling round it, the back rising inside it in rows of tubercles, dark bands along the
+  neck, the head a lifted lobe), two pairs of smooth tapering tentacles (an eye in the bulb of each upper one), the
+  mantle up into the shell's mouth with its collar and breathing pore, and a coiled shell built as a tube along a
+  growing spiral (dextral), each whorl lapping the last (the sutures shaded), close sharp growth ribs, its mouth cut
+  slanting so it opens down onto the back; carried as a dextral snail's is, spire up and to the right; gliding (the sole's waves, the head
   swaying, the tentacles feeling and dabbing) and leaving a glistening slime trail that dries away (`slime.gdshader`);
   feeding (E), withdrawing into the shell (X: tentacles first), asleep sealed behind a dried film (Z); mating (K: both
   hermaphrodites, head to head, reared up, then both carrying eggs) or, alone, selfing (1 lays anyway: its eggs its
   own); a clutch of white eggs left in a hole its head made, hatching on their own into tiny snails that grow. The
-  flamed tigersnail (`flamed_tigersnails.gd`, *Anguispira alternata*): a low ribbed cone, horn yellow with slanting
-  red-brown flames, a tan body; the lovely grass snail (`grass_snails.gd`, *Vallonia pulchella*): tiny, a glassy
+  flamed tigersnail (`flamed_tigersnails.gd`, *Anguispira alternata*): a low ribbed dome, horn brown with rows of ragged
+  red-brown flames, an orange-tan body; the lovely grass snail (`grass_snails.gd`, *Vallonia pulchella*): tiny, a glassy
   white disc with a flared white lip, mostly selfing.
   `ticks.gd` (`Ticks`, on the GPU colony, `tick.gdshader`): hard ticks with eight legs (the larva six), at each stage
   (larva, nymph, male, female) and engorged (the soft back swelling up to a grape, the shield left small at its
