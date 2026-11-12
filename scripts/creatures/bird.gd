@@ -837,26 +837,65 @@ func _make_mesh() -> Array:
 			var bw: Array = S.brow
 			var bo: Vector3 = (bw[0] as Vector3) * CM
 			_ball(st, Vector3(bo.x * side, bo.y, bo.z), (bw[1] as Vector3) * CM, 0.0, J_HEAD, Basis(Vector3.RIGHT, -0.15), false, Vector2(0.95, 0.5))
-	if S.has("head_ball"): # (an owl's big round head, its face flattened: [centre, radii, how flat its front]; its poles fore and aft, its feathers lying back)
+	if S.has("head_ball"): # (an owl's big round head: [centre, radii, how deep its face, how flat (a power: 1 round, less a flatter plate, its rim the sharper), how narrowed to its chin (a heart)]; its poles fore and aft, its feathers lying back)
 		var hb: Array = S.head_ball
 		var hc: Vector3 = (hb[0] as Vector3) * CM
 		var hr: Vector3 = (hb[1] as Vector3) * CM
-		var hrows := []
-		for i in 13:
-			var la := PI * i / 12.0
-			var row := []
-			for k in 21:
-				var lo := TAU * k / 20.0
+		var fpow: float = float(hb[3]) if hb.size() > 3 else 1.0
+		var taper: float = float(hb[4]) if hb.size() > 4 else 0.0
+		var NI := 17
+		var NK := 25
+		var pts := []
+		for i in NI:
+			var la := PI * i / (NI - 1)
+			var prow := []
+			for k in NK:
+				var lo := TAU * k / (NK - 1)
 				var d := Vector3(sin(la) * sin(lo), -sin(la) * cos(lo), -cos(la)) # (its seam under its chin)
-				var rr := hr * Vector3(1.0, 1.0, float(hb[2]) if d.z < 0.0 else 1.0)
-				row.append([hc + d * rr, (d / rr).normalized(), Color(0, 0.93, 0.5, 0), Color(0, J_HEAD, J_HEAD, 0), Color(0, 0, 0, 0), Vector2(lo * hr.x * 0.6, -la * hr.z * 1.3)])
+				var q := d * hr
+				if d.z < 0.0: # (its face: flattened to a plate, its rim sharp)
+					q.z = -float(hb[2]) * hr.z * pow(-d.z, fpow)
+				q.x *= 1.0 - taper * pow(maxf(-d.y, 0.0), 1.5)
+				prow.append(hc + q)
+			pts.append(prow)
+		var hrows := []
+		for i in NI:
+			var row := []
+			for k in NK:
+				var p: Vector3 = pts[i][k]
+				var nn: Vector3
+				if i == 0 or i == NI - 1:
+					nn = Vector3(0.0, 0.0, -1.0 if i == 0 else 1.0)
+				else:
+					var ta: Vector3 = (pts[i][(k + 1) % (NK - 1)] as Vector3) - (pts[i][(k + NK - 2) % (NK - 1)] as Vector3)
+					var tb: Vector3 = (pts[i + 1][k] as Vector3) - (pts[i - 1][k] as Vector3)
+					nn = tb.cross(ta).normalized()
+					if nn.dot(p - hc) < 0.0:
+						nn = -nn
+				row.append([p, nn, Color(0, 0.93, 0.5, 0), Color(0, J_HEAD, J_HEAD, 0), Color(0, 0, 0, 0), Vector2(TAU * k / (NK - 1) * hr.x * 0.6, -PI * i / (NI - 1) * hr.z * 1.3)])
 			hrows.append(row)
 		_grid(st, hrows)
-	for tf: Array in S.get("tufts", []): # (ear tufts: [root, radii, leaning out, leaning back])
+	if S.has("ridge"): # (the feathered ridge down an owl's face between its eyes to its bill: [centre, radii])
+		var rg: Array = S.ridge
+		_ball(st, (rg[0] as Vector3) * CM, (rg[1] as Vector3) * CM, 0.0, J_HEAD, Basis(), false, Vector2(0.93, 0.5))
+	for tf: Array in S.get("tufts", []): # (ear tufts, blades of feathers tapering to a point: [root, [width, length, thickness], leaning out, leaning back])
 		for side: float in [-1.0, 1.0]:
 			var tb := Basis(Vector3.RIGHT, float(tf[3])) * Basis(Vector3.FORWARD, float(tf[2]) * side)
 			var t0: Vector3 = (tf[0] as Vector3) * CM * Vector3(side, 1.0, 1.0)
-			_ball(st, t0 + tb.y * float((tf[1] as Vector3).y) * CM * 0.75, (tf[1] as Vector3) * CM, 0.0, J_HEAD, tb, false, Vector2(0.93, 0.5))
+			var tr: Vector3 = (tf[1] as Vector3) * CM
+			var trows := []
+			for i in 9:
+				var t := i / 8.0
+				var wv := tr.x * pow(1.0 - t, 0.7) * (0.75 + 0.25 * sin(minf(t * 5.0, PI * 0.5)))
+				var dv := tr.z * (1.0 - t * 0.8)
+				var c0 := t0 + tb.y * tr.y * t + tb.z * tr.y * 0.18 * t * t
+				var row := []
+				for k in 13:
+					var a := TAU * k / 12.0
+					row.append([c0 + tb.x * cos(a) * wv * side + tb.z * sin(a) * dv, (tb.x * cos(a) * side / maxf(wv, 1e-4) + tb.z * sin(a) / maxf(dv, 1e-4)).normalized(),
+							Color(0, 0.93, 0.5 + 0.5 * cos(a), 2.0 + t), Color(0, J_HEAD, J_HEAD, 0), Color(0, 0, 0, 0), Vector2(cos(a) * tr.x, t * tr.y)])
+				trows.append(row)
+			_grid(st, trows)
 	if S.has("cere"): # (the bare waxy skin at the bill's root, the nostrils in it)
 		var ce: Array = S.cere
 		_ball(st, (ce[0] as Vector3) * CM, (ce[1] as Vector3) * CM, 1.0, J_HEAD)

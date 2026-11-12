@@ -32,16 +32,16 @@ func mass_of() -> Vector3:
 
 
 func _shape() -> Dictionary:
-	return owl_shape(0.66, 0.76, 1.08, 4.0, 0.0, 0.85, 19.0, 1.28, 1.0)
+	return owl_shape(0.66, 0.76, 1.08, 4.0, 0.0, 0.95, 19.0, 1.28, 1.0)
 
 
 func _plumage(_stage: String, male_: bool) -> Dictionary:
 	var under := Color(0.97, 0.96, 0.93) if male_ else Color(0.93, 0.84, 0.68)
-	return owl_face(3.0, {
+	return owl_face(3.3, {
 		"disc_heart": 1.0, "eye_dir": Vector3(0.1, 0.0, -1.0),
 		"back_color": Color(0.74, 0.55, 0.3), "back_edge": Color(0.6, 0.6, 0.6), "back_bar": Color(0.42, 0.4, 0.4), "back_bars": 0.0, "mottle": 0.7, "back_spot": 1.0,
 		"cap_color": Color(0.74, 0.55, 0.3),
-		"disc_color": Color(0.97, 0.96, 0.94), "disc_rim": Color(0.6, 0.4, 0.22), "disc_mid": Color(0.97, 0.96, 0.94), "disc_mid_a": 0.0, "disc_eye": Color(0.5, 0.34, 0.24),
+		"disc_color": Color(0.93, 0.91, 0.88), "disc_rim": Color(0.62, 0.46, 0.3), "disc_mid": Color(0.95, 0.93, 0.9), "disc_mid_a": 0.0, "disc_eye": Color(0.78, 0.7, 0.66), "disc_rim_w": 0.07,
 		"under_color": under, "breast_wash": under, "under_mark": Color(0.2, 0.16, 0.14), "under_pattern": 4, "throat_clean": 0.84,
 		"fl_top": Color(0.72, 0.56, 0.34), "fl_pale": Color(0.97, 0.96, 0.93), "fl_dark": Color(0.6, 0.56, 0.5), "fl_bars": 5.0,
 		"tail_color": Color(0.8, 0.64, 0.4), "tail_band": Color(0.42, 0.36, 0.3), "tail_bands": 4.5, "tail_band_w": 0.22, "tail_tip_r": Color(0.95, 0.93, 0.88),

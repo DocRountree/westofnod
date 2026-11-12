@@ -32,17 +32,18 @@ func mass_of() -> Vector3:
 
 
 func _shape() -> Dictionary:
-	return owl_shape(1.0, 1.0, 1.0, 0.0, 7.0, 1.3, 21.0, 1.0)
+	return owl_shape(1.0, 1.0, 1.0, 0.0, 6.0, 1.55, 21.0, 1.0)
 
 
 func _plumage(_stage: String, _male: bool) -> Dictionary:
 	return owl_face(3.7, {
 		"back_color": Color(0.3, 0.24, 0.18), "back_edge": Color(0.62, 0.55, 0.44), "back_bar": Color(0.1, 0.08, 0.06), "back_bars": 0.7, "mottle": 1.0, "back_streak": 0.3,
 		"cap_color": Color(0.3, 0.24, 0.18),
-		"disc_color": Color(0.56, 0.42, 0.3), "disc_rim": Color(0.04, 0.03, 0.03), "disc_mid": Color(0.9, 0.88, 0.82), "disc_eye": Color(0.42, 0.26, 0.14),
+		"disc_color": Color(0.7, 0.55, 0.38), "disc_rim": Color(0.06, 0.05, 0.04), "disc_mid": Color(0.93, 0.91, 0.86), "disc_eye": Color(0.55, 0.4, 0.26),
+		"disc_rim_w": 0.2, "disc_low": 0.7, "disc_brow": 1.0, "disc_rim_sides": 1.0, "eye_lid": 0.12, "tuft_dark": Color(0.08, 0.06, 0.05), "tuft_pale": Color(0.8, 0.72, 0.58),
 		"under_color": Color(0.93, 0.9, 0.84), "breast_wash": Color(0.84, 0.72, 0.56), "under_mark": Color(0.2, 0.14, 0.1), "under_pattern": 2, "under_bar_n": 4.0, "under_bar_w": 0.3, "throat_clean": 0.7,
 		"fl_top": Color(0.34, 0.27, 0.2), "fl_pale": Color(0.84, 0.76, 0.64), "fl_dark": Color(0.24, 0.18, 0.13), "fl_bars": 7.0,
 		"tail_color": Color(0.46, 0.38, 0.28), "tail_band": Color(0.14, 0.1, 0.08), "tail_bands": 6.5, "tail_band_w": 0.4, "tail_tip_r": Color(0.7, 0.62, 0.5),
-		"bill_color": Color(0.1, 0.1, 0.1), "cere_color": Color(0.3, 0.28, 0.26), "iris": Color(0.98, 0.8, 0.1),
+		"bill_color": Color(0.2, 0.2, 0.22), "cere_color": Color(0.3, 0.28, 0.26), "iris": Color(0.98, 0.8, 0.1),
 		"leg_color": Color(0.62, 0.55, 0.45), "lid_color": Color(0.6, 0.5, 0.4), "down_white": Color(0.86, 0.84, 0.78),
 	})

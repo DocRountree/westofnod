@@ -854,9 +854,11 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   flap-flap-glide; dashes low off its perch; a stick nest, pale bluish eggs; the juvenile brown, streaked, yellow-eyed.
   In the sandbox under Birds (adult, juvenile, or young: an eyas in its nest): E / H hunt, B soar, F fly, X alarm, D
   call, G preen, A rouse, Z sleep, K mate, 1 lay, 2 hatch, N brood, U die.
-  `owl.gd` (`Owl`): a Raptor made upright and round headed (the body's own additions for it: a round head ball with a
-  flattened face, ear tufts, legs feathered to the toes; the shader's: forward eyes, a facial disc with its rim and
-  brows, a mottled, streaked or spotted back, sparse-spotted and streaked-and-barred underparts, lids). By day dozing
+  `owl.gd` (`Owl`): a Raptor made upright and round headed (the body's own additions for it: a big round head, its face a
+  flat plate, sharp rimmed (a barn owl's narrowed to a heart), set forward over its breast with no neck showing; a
+  feathered ridge down between its eyes to a bill half hidden in it; ear tufts, tapering blades at the head's top
+  corners, dark edged; legs feathered to the toes; the shader's: forward eyes under a heavy upper lid, a facial disc
+  with its rim (a horned owl's only down its sides), pale brows rising outward, a mottled, streaked or spotted back, sparse-spotted and streaked-and-barred underparts, lids). By day dozing
   on its perch, puffed, an eye opened now and then; at dusk and by night (T) awake: its head turned far round and
   weaving, hooting (leaned forward, throat swelled, tail cocked), casting a pellet, quartering low and slow, dropping
   on its prey; its threat wings spread and turned forward, puffed, swaying, bill clacking. White eggs, downy owlets.

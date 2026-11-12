@@ -32,32 +32,37 @@ func _init(young_ := false, juvenile_ := false) -> void:
 ## tufts' length (0 none), eye_r its eye, tail and wing their lengths'
 ## share.
 func owl_shape(k: float, g: float, h: float, lift: float, tuft: float, eye_r: float, tail_len: float, wing: float, heart := 0.0) -> Dictionary:
-	var hc := Vector3(0.0, 38.0 + 6.2 * h, -2.2 - 1.3 * heart)
-	var hr := Vector3(7.6 - 1.1 * heart, 6.5 + 0.8 * heart, 6.4) * h
-	var flat := 0.6
+	# its head: big, broad, flat topped; its face a plate (a barn owl's flatter, narrowed to a heart at its chin), forward of its breast
+	var hc := Vector3(0.0, 38.0 + 6.2 * h, -3.6 - 1.2 * heart)
+	var hr := Vector3(7.6 - 1.1 * heart, 6.2 + 0.9 * heart, 6.4) * h
+	var flat := 0.55 - 0.1 * heart
+	var fpow := 0.55 - 0.2 * heart
+	var taper := 0.32 * heart
 	var sg := maxf(g, 0.92) # (its shoulders: broad enough to carry its folded wings, however slim it is)
 	var bones := Vector3(12.0, 14.0, 9.0) * lerpf(1.0, wing, 0.3)
 	wing *= lerpf(1.0, wing, 0.3) # (a long wing's length in its feathers more than its bones: folded, its wrist kept behind its breast)
 	var face := func(x: float, y: float) -> float:
-		return hc.z - flat * hr.z * sqrt(maxf(1.0 - pow(x / hr.x, 2.0) - pow((y - hc.y) / hr.y, 2.0), 0.0))
+		var dy := (y - hc.y) / hr.y
+		var dx := x / (hr.x * (1.0 - taper * pow(maxf(-dy, 0.0), 1.5)))
+		return hc.z - flat * hr.z * pow(sqrt(maxf(1.0 - dx * dx - dy * dy, 0.0)), fpow)
 	var ex := 2.75 * h * (1.0 - 0.25 * heart)
 	var ey := hc.y + 0.7 * h
 	var by := hc.y - (1.3 + 1.2 * heart) * h
 	var bz: float = face.call(0.0, by)
-	var b := 0.9 * minf(h, 1.0) * (1.0 + 0.1 * heart)
+	var b := minf(h, 1.0) * (0.72 + 0.28 * heart) # (its bill: a horned owl's short, all but hidden in its bristles; a barn owl's long)
 	var S := {
 		"tilt_rings": true,
 		"leg_part": 7.0,
 		# (folded: its wrist forward of its shoulder, its feathers fanned back and down over its side, drawn in over its rump)
 		# (upright: its tail's root, up its body, its neck lost in its feathers; then forward, hidden in its head, to the bill)
 		"spine": [[7.5, 7.0, 1.0, 1.0, 0.0], [8.5, 5.8, 6.5 * g, 5.5 * g, 0.0], [12.5, 4.0, 8.6 * g, 8.6 * g, 0.0], [19.0, 2.4, 9.2 * g, 9.0 * g, 0.0], [26.0, 1.3, 9.0 * sg, 8.8 * g, 0.0],
-				[31.5, 0.9, 8.6 * sg, 7.6 * g, 0.2], [35.0, 0.8, 8.2 * sg, 6.4 * g, 1.0], [37.0, 0.6, 7.4 * g, 5.8 * g, 2.0], [38.8, 0.3, 6.8 * g, 5.4 * g, 3.0],
-				[40.5, -0.2, 6.0 * g, 5.0 * g, 4.0], [hc.y, hc.z, 3.0, 3.0, 4.5], [lerpf(hc.y, by, 0.6), lerpf(hc.z, bz, 0.6), 2.0, 2.0, 4.9], [by + 0.2 * b, bz + 0.4 * b, 1.0 * b, 1.15 * b, 5.0],
+				[31.5, 0.9, 8.6 * sg, 7.6 * g, 0.2], [35.0, 1.3, 8.0 * sg, 6.1 * g, 1.0], [37.0, 1.6, 7.2 * g, 5.3 * g, 2.0], [38.8, 1.7, 6.6 * g, 4.6 * g, 3.0],
+				[40.5, 1.4, 6.0 * g, 4.0 * g, 4.0], [hc.y, hc.z, 3.0, 3.0, 4.5], [lerpf(hc.y, by, 0.6), lerpf(hc.z, bz, 0.6), 2.0, 2.0, 4.9], [by + 0.2 * b, bz + 0.4 * b, 1.0 * b, 1.15 * b, 5.0],
 				[by - 0.3 * b, bz - 0.35 * b, 0.85 * b, 0.95 * b, 5.05], [by - 1.3 * b, bz - 0.95 * b, 0.6 * b, 0.66 * b, 5.5], [by - 2.3 * b, bz - 0.85 * b, 0.28 * b, 0.28 * b, 5.85], [by - 2.9 * b, bz - 0.45 * b, 0.07, 0.07, 6.0]],
 		"pivot": Vector3(0.0, 20.0, 2.5),
 		"jaw": Vector3(0.0, by - 0.9 * b, bz + 0.2 * b),
 		"lower_bill": [[by - 1.0 * b, bz - 0.1 * b, 0.6 * b], [by - 1.6 * b, bz - 0.5 * b, 0.42 * b], [by - 2.1 * b, bz - 0.55 * b, 0.12 * b]],
-		"head_ball": [hc, hr, flat],
+		"head_ball": [hc, hr, flat, fpow, taper],
 		"eye": Vector3(ex, ey, float(face.call(ex, ey)) + eye_r * 0.62), "eye_r": eye_r,
 		"hip": Vector3(4.2 * g, 13.0, 3.0), "knee": Vector3(4.6 * g, 9.5, -0.5), "ankle": Vector3(4.2 * g, 5.0, 1.6), "foot": Vector3(4.2 * g, 1.3, 0.0),
 		"thigh_r": [5.2 * g, 3.0], "leg_r": 0.9, "toes": [4.6, 3.6, 3.0], "claw": 0.4, "claw_r": 0.5, "tuck": Vector3(0.0, -0.05, 0.0),
@@ -68,8 +73,11 @@ func owl_shape(k: float, g: float, h: float, lift: float, tuft: float, eye_r: fl
 		"secondaries": [12, 19.0 * wing, 18.0 * wing], "tertials": [3, 14.0 * wing, 12.0 * wing], "feather_w": 6.6 * wing,
 		"tail_feathers": [12, tail_len, 6.5], "tail_coverts": [[10, 8.0, 4.0, 0.5, 0.9]],
 	}
-	if tuft > 0.0:
-		S["tufts"] = [[Vector3(hr.x * 0.6, hc.y + hr.y * 0.62, hc.z - 0.8 * h), Vector3(1.05 * h, tuft * 0.5, 0.55 * h), 0.5, 0.15]]
+	# the ridge down between its eyes to the bill, feathered (a barn owl's long and sharp)
+	var ry := lerpf(ey, by, 0.45)
+	S["ridge"] = [Vector3(0.0, ry, float(face.call(0.0, ry)) + 0.25 * h), Vector3(0.75 * h * (0.7 + 0.3 * heart), (ey - by) * 0.55 + 0.6 * h, 0.75 * h)]
+	if tuft > 0.0: # (at the top corners of its head, leaning out a little, back a little)
+		S["tufts"] = [[Vector3(hr.x * 0.62, hc.y + hr.y * 0.72, hc.z - 0.5 * h), Vector3(1.5 * h, tuft, 0.35 * h), 0.32, 0.25]]
 	return _fit(S, k, lift)
 
 
@@ -90,6 +98,9 @@ func _fit(S: Dictionary, k: float, lift: float) -> Dictionary:
 	var hb: Array = S.head_ball
 	hb[0] = ((hb[0] as Vector3) + Vector3(0.0, lift, 0.0)) * k
 	hb[1] = (hb[1] as Vector3) * k
+	var rg: Array = S.ridge
+	rg[0] = ((rg[0] as Vector3) + Vector3(0.0, lift, 0.0)) * k
+	rg[1] = (rg[1] as Vector3) * k
 	for tf: Array in S.get("tufts", []):
 		tf[0] = ((tf[0] as Vector3) + Vector3(0.0, lift, 0.0)) * k
 		tf[1] = (tf[1] as Vector3) * k

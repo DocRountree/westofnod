@@ -70,6 +70,13 @@ uniform vec3 disc_rim : source_color = vec3(0.05, 0.04, 0.03);
 uniform vec3 disc_mid : source_color = vec3(0.9, 0.88, 0.82); // the brows, the bristles between its eyes
 uniform float disc_mid_a = 1.0;
 uniform vec3 disc_eye : source_color = vec3(0.3, 0.2, 0.12);   // (shading in toward the eye)
+uniform float disc_rim_w = 0.12;
+uniform float disc_low = 1.0;      // (below its eyes, how far less it reaches: the less, the further down)
+uniform float disc_brow = 0.0;     // pale brows over its eyes, rising outward (a horned owl's V)   // the rim's width (of the disc's reach)
+uniform float disc_rim_sides = 0.0; // the rim only down its outer sides (a great horned owl's brackets)
+uniform vec3 tuft_dark : source_color = vec3(0.08, 0.06, 0.05); // an ear tuft's dark outer edge and tip
+uniform vec3 tuft_pale : source_color = vec3(0.75, 0.66, 0.52); // and its pale inner edge
+uniform float eye_lid = 0.0;       // the upper lid down over the eye (a horned owl's stare): 0 open .. 1 shut
 
 uniform float puff = 0.0;      // the body's feathers raised (strutting)
 uniform float puff_cm = 4.5;   // (how far, cm)
@@ -272,18 +279,27 @@ void raptor(int pt, float u, float v, vec3 view, float ndv, vec3 vtx, vec3 nrm0,
 			float qy = r.y - eye_at.y;
 			float low = clamp(-qy / disc_r, 0.0, 2.5);
 			float cx = eye_at.x * (1.0 - disc_heart * 0.42 * low);
-			float d = length(vec2(ax - cx, qy * (qy < 0.0 ? mix(1.0, 0.5, disc_heart) : mix(1.0, 1.25, disc_heart)))) / disc_r;
+			float d = length(vec2(ax - cx, qy * (qy < 0.0 ? mix(disc_low, 0.5, disc_heart) : mix(1.0, 1.25, disc_heart)))) / disc_r;
 			float front = smoothstep(-0.05, -0.35, rest_n.z) * head;
 			float ang = atan(qy, ax - cx);
 			float wob = 0.015 * sin(ang * 60.0);
 			c = mix(c, bk, head);
-			c = mix(c, under_color, front * (1.0 - smoothstep(-1.25, -1.05, qy / disc_r)) * (1.0 - disc_heart));
+			c = mix(c, under_color, front * (1.0 - smoothstep(-1.25, -1.05, qy * disc_low / disc_r)) * (1.0 - disc_heart));
 			vec3 dc = disc_color * (0.9 + 0.12 * sin(ang * 46.0) * smoothstep(0.3, 0.6, d));
 			dc = mix(disc_eye, dc, smoothstep(0.3, 0.75, d + 0.25 * smoothstep(0.0, 1.2, -ang + 0.6) * step(ang, 2.0)));
 			c = mix(c, dc, front * (1.0 - smoothstep(0.93, 1.0, d + wob)));
-			c = mix(c, disc_rim, front * smoothstep(0.84, 0.93, d + wob) * (1.0 - smoothstep(1.0, 1.1, d + wob)));
-			float mid = (1.0 - smoothstep(0.2, 0.42, (ax + max(qy, 0.0) * -0.35 + max(-qy, 0.0) * 0.5) / eye_at.x)) * smoothstep(-1.0, -0.6, qy / disc_r) * (1.0 - smoothstep(0.9, 1.2, qy / disc_r));
+			float rimw = mix(1.0, smoothstep(-0.25, 0.45, cos(ang)) * (1.0 - smoothstep(0.55, 0.95, sin(ang))), disc_rim_sides);
+			c = mix(c, disc_rim, front * rimw * smoothstep(1.0 - disc_rim_w, 1.0 - disc_rim_w * 0.4, d + wob) * (1.0 - smoothstep(1.0, 1.08, d + wob)));
+			float mid = (1.0 - smoothstep(0.2, 0.42, (ax + max(qy, 0.0) * -0.35 + max(-qy, 0.0) * 0.5) / eye_at.x)) * smoothstep(-1.0, -0.6, qy * disc_low / disc_r) * (1.0 - smoothstep(0.15, 0.45, qy / disc_r));
 			c = mix(c, disc_mid, front * mid * disc_mid_a);
+			float bl = (qy - disc_r * (0.38 + 0.3 * clamp(ax / eye_at.x, 0.0, 1.6))) / disc_r;
+			c = mix(c, disc_mid, front * disc_brow * (1.0 - smoothstep(0.06, 0.16, abs(bl))) * (1.0 - smoothstep(1.2, 1.6, ax / eye_at.x)));
+			if (fc.z > 1.5) { // an ear tuft: the back's colour, dark down its outer edge and to its tip, pale along its inner
+				float tt = fc.z - 2.0;
+				vec3 tc = mix(bk, tuft_dark, clamp(smoothstep(0.55, 0.95, v) + smoothstep(0.55, 1.0, tt) * 0.8, 0.0, 1.0));
+				tc = mix(tc, tuft_pale, smoothstep(0.3, 0.05, v) * (1.0 - tt) * 0.8);
+				c = tc * (0.9 + 0.2 * vnoise(vec2(v * 12.0, tt * 30.0)));
+			}
 		} else if (pt == 0) {
 			float head = smoothstep(0.76, 0.83, u);
 			vec3 r = rest;
@@ -361,6 +377,16 @@ void raptor(int pt, float u, float v, vec3 view, float ndv, vec3 vtx, vec3 nrm0,
 			return;
 		}
 		float k = dot(rn, normalize(eye_dir));
+		if (eye_lid > 0.0) { // (the upper lid over it, feathered, its edge dark)
+			float ly = 0.55 - 0.9 * eye_lid;
+			float lyy = dot(rn, normalize(cross(normalize(eye_dir), vec3(1.0, 0.0, 0.0)))) * -1.0;
+			if (lyy > ly) {
+				c = mix(vec3(0.03), lid_color, smoothstep(ly + 0.03, ly + 0.12, lyy));
+				rough = 0.8;
+				spec = 0.2;
+				return;
+			}
+		}
 		c = mix(vec3(0.0), iris, smoothstep(0.84, 0.86, -k + 1.7));
 		c = mix(c, vec3(0.005), smoothstep(0.86, 0.9, k));
 		c = mix(iris * 0.5, c, smoothstep(0.35, 0.45, k));

@@ -40,7 +40,7 @@ func _mesh_key() -> String:
 
 
 func _shape() -> Dictionary:
-	return owl_shape(0.4, 1.04, 1.14, 0.0, 4.2, 1.35, 15.0, 1.0)
+	return owl_shape(0.4, 1.04, 1.14, 0.0, 3.2, 1.5, 15.0, 1.0)
 
 
 func _plumage(_stage: String, _male: bool) -> Dictionary:
@@ -51,6 +51,7 @@ func _plumage(_stage: String, _male: bool) -> Dictionary:
 		"back_color": back, "back_edge": pale, "back_bar": mark, "back_bars": 0.0 if red else 0.5, "mottle": 0.35 if red else 0.8, "back_streak": 0.9,
 		"cap_color": back,
 		"disc_color": Color(0.84, 0.56, 0.36) if red else Color(0.7, 0.68, 0.65), "disc_rim": Color(0.05, 0.04, 0.04), "disc_mid": Color(0.92, 0.9, 0.86), "disc_eye": Color(0.5, 0.3, 0.18) if red else Color(0.4, 0.38, 0.36),
+		"disc_rim_w": 0.16, "disc_low": 0.72, "disc_brow": 0.8, "disc_rim_sides": 0.75, "eye_lid": 0.08, "tuft_dark": mark, "tuft_pale": pale,
 		"under_color": Color(0.94, 0.93, 0.9), "breast_wash": Color(0.92, 0.8, 0.68) if red else Color(0.86, 0.85, 0.82), "under_mark": Color(0.5, 0.2, 0.08) if red else Color(0.1, 0.09, 0.09), "under_pattern": 5, "throat_clean": 0.8,
 		"fl_top": back * 0.85, "fl_pale": Color(0.86, 0.82, 0.76), "fl_dark": Color(0.3, 0.26, 0.22), "fl_bars": 6.0,
 		"tail_color": back, "tail_band": mark.lerp(back, 0.4), "tail_bands": 7.0, "tail_band_w": 0.35, "tail_tip_r": pale,
