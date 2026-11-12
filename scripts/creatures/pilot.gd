@@ -101,6 +101,43 @@ func stop() -> void:
 	_call("_p_hold")
 
 
+## Its behaviours that eat: given no target, the nearest real food of its
+## diet (Diet.find) is found for them; none, the act fails (false): nothing
+## is ever made for it to eat.
+const FEEDING := ["eat", "hunt", "strike", "catch", "fish", "browse", "feed", "feed_on_insect", "forage", "visit_flowers", "feed_on_flower"]
+const TARGETS := ["prey", "food", "seed", "stick", "bush", "school", "heads", "florets", "at", "centre", "carcass"]
+
+
+func _has_target(args: Dictionary) -> bool:
+	for k: String in TARGETS:
+		if args.has(k):
+			return true
+	return false
+
+
+# (args with its food in them, under every name a creature might read it by;
+# {} if there's none. What it eats from under it (grass, leaves, the
+# litter): args as they were.)
+func _with_food(args: Dictionary) -> Dictionary:
+	if not (creature is Node3D) or Diet.of(creature).is_empty():
+		return args
+	var f := Diet.find(creature as Node3D, 30.0)
+	if f == null:
+		return {}
+	if f == creature:
+		return args
+	f.set_meta("hunted", creature)
+	var out := args.duplicate()
+	var at: Vector3 = Diet._at(f as Node3D)
+	for k: String in ["prey", "food", "seed", "stick", "bush", "school", "carcass"]:
+		out[k] = f
+	out["at"] = at
+	out["centre"] = at
+	out["heads"] = f.get_meta("heads", [])
+	out["florets"] = f.get_meta("florets", [])
+	return out
+
+
 func act(name: String, args := {}) -> bool:
 	if name == "mate": # (everyone's that mates: mate(partner, seconds) -> bool, is_mating())
 		if not creature.has_method("mate") or args.get("partner") == null:
@@ -116,6 +153,10 @@ func act(name: String, args := {}) -> bool:
 		return true
 	if not (_call("_p_behaviours") as PackedStringArray).has(name):
 		return false
+	if name in FEEDING and not _has_target(args): # (eating: what's really there, never made for it)
+		args = _with_food(args)
+		if args.is_empty():
+			return false
 	_cancel()
 	if not _call("_p_act", [name, args]):
 		_finish(name, false)

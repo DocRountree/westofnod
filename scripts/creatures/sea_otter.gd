@@ -19,9 +19,11 @@ extends "res://scripts/creatures/otter.gd" # (by path: found whether or not the 
 ## - swim(centre, radius): about its water: travelling belly down, its hind
 ##   flippers sculling; long whiles resting on its back, drifting, its
 ##   forepaws on its chest, its flippers out of the water
-## - forage(): a dive to the bottom, nosing and digging there with its
-##   forepaws; up with a clam or an urchin, and a rock tucked under its
-##   arm; over onto its back, the rock laid on its chest and the clam
+## - forage(): to a clam or an urchin on the bottom (a real one: one of
+##   SeaOtter.clam(), urchin() lying there, meta "shellfish"; none, it
+##   doesn't), a dive to it, nosing and digging there with its forepaws; up
+##   with it, and a rock tucked under its arm if one lies by it (meta
+##   "otter_rock"); over onto its back, the rock laid on its chest and the clam
 ##   hammered on it, two-handed, till it cracks; eaten off its chest,
 ##   bit by bit; the shells let go, sinking, the rock kept a while, then
 ##   dropped
@@ -86,6 +88,7 @@ var _nursing := false # (a pup's: at her belly)
 var _rock: Node3D
 var _shells: Array[Node3D] = []
 var _clam := true # (what it's brought up: a clam, or an urchin)
+var _shell: Node3D # (the one it's after, on the bottom)
 var _wrap: Array[MeshInstance3D] = []
 var _raft: Node3D # (another asleep by it, holding paws)
 var _pound := 0.0
@@ -271,10 +274,21 @@ static func kelp(depth := 1.0) -> Node3D:
 
 # --- its ways ------------------------------------------------------------------------
 
-func forage() -> void:
+## False if there's no clam or urchin on the bottom near (within 40 m).
+func forage() -> bool:
+	_shell = null
+	var bd := 40.0
+	for o in get_parent().get_children():
+		if o is Node3D and o.has_meta("shellfish") and not o.has_meta("taken") and (o as Node3D).global_position.distance_to(global_position) < bd:
+			bd = (o as Node3D).global_position.distance_to(global_position)
+			_shell = o
+	if _shell == null:
+		return false
+	_shell.set_meta("taken", true)
 	_mode = "forage"
 	_stage = 0
 	_st = 0.0
+	return true
 
 
 func alarm() -> void:
@@ -414,7 +428,14 @@ func _forage(dt: float) -> void:
 				if _target == _pos:
 					wander(_pos, 1.0)
 				return
-			_target = _water_point(_pos, 1.2)
+			if not is_instance_valid(_shell):
+				wander(_pos, 1.0)
+				return
+			var over := _shell.position
+			_target = Vector3(over.x, _pos.y, over.z) # (over it)
+			if Vector2(over.x - _pos.x, over.z - _pos.z).length() > 0.3:
+				_pace = float(S.swim)
+				return
 			_stage = 1
 			_st = 0.0
 		1: # (a dive: its rump up, its flippers last, down)
@@ -431,13 +452,19 @@ func _forage(dt: float) -> void:
 			_neck_to = Vector2(-0.7, 0.4 * sin(_st * 1.5))
 			_sniff = 1.0
 			if _st > 3.5:
-				_clam = rng.randf() < 0.65
-				_food = clam() if _clam else urchin()
-				get_parent().add_child(_food)
+				if not is_instance_valid(_shell):
+					_stage = 4
+					_dive_to = 0.0
+					return
+				_clam = String(_shell.get_meta("shellfish")) == "clam"
+				_food = _shell # (the one it dove for: taken up)
 				_food_s = _food.scale
-				if _clam:
-					_rock = rock()
-					get_parent().add_child(_rock)
+				_rock = null
+				if _clam: # (a rock lying by it, if there is one)
+					for o in get_parent().get_children():
+						if o is Node3D and o.has_meta("otter_rock") and (o as Node3D).position.distance_to(_food.position) < 2.0:
+							_rock = o
+							break
 				_stage = 3
 				_st = 0.0
 		3: # (up with them)
@@ -832,7 +859,7 @@ func _p_behaviours() -> PackedStringArray:
 func _p_act(name: String, args: Dictionary) -> bool:
 	match name:
 		"forage":
-			forage()
+			return forage()
 		"alarm":
 			alarm()
 		_:

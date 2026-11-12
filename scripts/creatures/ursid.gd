@@ -440,6 +440,10 @@ func _forage(dt: float) -> void:
 				_hole.material_override = _mat(Color(0.2, 0.15, 0.1), 1.0)
 				get_parent().add_child(_hole)
 				_hole.position = Vector3(hole.x, _ground(hole.x, hole.z) + 0.002, hole.z)
+				var tw := _hole.create_tween() # (left a while, then filled in, gone)
+				tw.tween_interval(150.0)
+				tw.tween_property(_hole, "scale", Vector3(0.001, 0.004, 0.001), 8.0)
+				tw.tween_callback(_hole.queue_free)
 			_hole.scale = Vector3(0.35, 0.004, 0.35) * maxf(_dig, 0.05) * size / 0.5
 			if _st > 6.0: # (eating what it's found)
 				_chew = 1.0

@@ -302,7 +302,7 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   as the trigonalid does (`visit_flowers`) and lays in living caterpillars (`lay_in_caterpillar(caterpillar)`: to it,
   hovering beside it facing its middle, drumming it with her antennae, her gaster swung under and forward and the
   ovipositor driven in, pumping; the caterpillar thrashes, then goes on as it was, stung). In the ecology sandbox
-  (Insects: ichneumon wasp): E nectar, 1 lay (in the nearest caterpillar not yet stung; one put down if there's none),
+  (Insects: ichneumon wasp): E nectar, 1 lay (in the nearest caterpillar here not yet stung),
   G land, W / F fly about.
   Their life cycles, each closed in the sandbox:
   - The paper wasp: an egg laid in each empty cell of her comb (1; `Wasp.comb`, `lay_eggs`), filling it; hatching (2)
@@ -715,14 +715,17 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   nothing's selected: 1 lay eggs / give birth, 2 hatch / come out / moult, 3 pupate, E eat, H hunt, U an unusual
   meal, K mate (each male with the nearest female of his kind), G groom, Z sleep / rest, F fly / hop / climb, X alarm
   (flee, roll up, coil, sting, play dead, scatter), D display / call, V the young play, N nurse, B forage (home,
-  gather, swim, cache, wade), S spin a web, M mark, A sit, W back to their own ways, Space slow motion. What a creature
-  needs and isn't there is put down for it, close by, the first time it needs it (a den, a nest, a comb, a web's
-  moorings, a pond, a sapling, its food), and what's there already is used first: a hunter goes for prey that's in
-  the scene (a fox put down by mice hunts those mice), a butterfly or a bee for the flowers there, a frog to the pond
+  gather, swim, cache, wade), S spin a web, M mark, A sit, W back to their own ways, Space slow motion. A home a
+  creature needs and isn't there is put down for it, close by, the first time it needs it (a den, a nest, a comb, a
+  web's moorings, a pond), and what's there already is used first. Its food never is: E / H / U / R eat only what's in
+  the scene, of its diet (`scripts/creatures/diet.gd`, `Diet`), the nearest within reach: a hunter goes for prey
+  that's in the scene (a fox put down by mice hunts those mice), a butterfly or a bee for the flowers there (none,
+  and it doesn't eat: the status line says how many found nothing; put down what it eats from the catalogue: an
+  animal, a plant, a carcass, the game's items, the Sea floor's clams, urchins and rocks), a frog to the pond
   there; a young deer, moose or bison put down by a grown female of its kind follows her. The water creatures dig
   their pond beside them if there's none (sunk in the plain, the game's own water over it, reeds in it), and the
   plain's grass is kept off it and round the small creatures. U: the mammals' rarer meals, plausible if seldom
-  seen, each another of the game's own animals (one in the scene first, or set out for it): the fox a newborn
+  seen, each another of the game's own animals (one that's in the scene): the fox a newborn
   fawn, a beaver kit, a bobcat kitten, a June grub, a grasshopper; the bobcat a fawn, a grown deer, a fox; the coyote
   a fawn, a fox, a beaver; the wolf a deer, a moose or bison calf, a beaver, a coyote; the bears a fawn, a calf, a
   beaver, grubs, the grizzly a black bear cub or a wolf pup; the deer a mouse pup; the deer mouse a grasshopper
@@ -772,6 +775,14 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   A grown male's external genitals as seen on him standing (`Carnivore._build_male`, each species' `male_parts`): the
   prepuce along his belly, furred as the belly is (a bison bull's and a buck's tufted at the tip), and the scrotum
   between and behind his thighs (a bobcat's high under his tail, a bull's hanging).
+- Diet (`scripts/creatures/diet.gd`, `Diet`): what every creature eats, by its script (`Diet.EATS`, `Diet.of`), each
+  thing in the world named as food (`Diet.kind_of`: an animal by its kind and age, a dead one, a carcass, a fish
+  school, the game's items, a plant by what it gives, an ant colony, a wasp comb, a clam or urchin on the sea floor),
+  and `Diet.find(creature, reach)`: the nearest real food of its diet there, never anything made for it (those that
+  eat what's always under them, grass, leaves, litter, algae, blood: the creature itself). A creature told to eat
+  with no target (the pilot's act eat, hunt, strike, catch, fish, browse, feed, forage, visit_flowers) is given what
+  `Diet.find` finds; nothing there, the act fails. The sea otter's clams and urchins are real now (on the bottom:
+  forage() dives for one that's there, false if none; a rock by it its anvil, if one lies there).
 - Steering, for a future state machine (`scripts/creatures/pilot.gd`): every creature (`Wasp`, the
   lepidopterans, `Grasshopper`, `Mantis`, `Snake`, `Larva`; one of a colony: `AntColony.member(i)`) has the same
   calls: `go(direction, speed, seconds)`, `go_to(point, speed)`, `face(direction)`, `stop()`, `act(name, args)`
@@ -809,7 +820,7 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   wriggle, split, and are left empty skins; the adult pushes out (the monarch head first, down; the clearwing out of
   its cocoon), turns or climbs to hang, its abdomen swollen, its crumpled wings hanging down and pumped out to full
   size, dried, opened and closed (`Lepidoptera.emerge`); then flies. In the ecology sandbox (`tools/creatures/ecology_demo.tscn`) the clearwing goes
-  to the flowers there (a coneflower put down for it, if there are none): it hovers at them, its tongue in one floret after another (E; its
+  to the flowers there (those here): it hovers at them, its tongue in one floret after another (E; its
   searching flights, W and F, stop at them too).
 - `scripts/creatures/lepidoptera.gd` (`Lepidoptera`): a butterfly or moth at twice life size, not yet in the game: built
   from parts (furred where the species is), its wings cut to their real outlines and painted, veins, borders and
@@ -902,8 +913,8 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   `cov_bar`, `cov_lead`, `under_cov_var`, `fl_bar_wave`, `fl_bar_to`, `fl_trail`, `fl_top_tip`, `fl_prim_dark`); stoops on hares and squirrels from high, its
   display a sky dance; white eggs blotched reddish brown; the juvenile with white patches in its wings and a white
   tail broadly tipped black. In the sandbox under Birds (adult, juvenile, or young: an eaglet in its nest), on a tall
-  snag: H the bald eagle fishes (a pond dug and stocked with trout if there's none), the golden stoops on a hare; E to
-  a carcass (a deer's put down if there's none); the rest as the hawks.
+  snag: H the bald eagle fishes (a pond here with fish in it), the golden stoops on a hare; E to a carcass
+  that's here; the rest as the hawks.
   `owl.gd` (`Owl`): a Raptor made upright and round headed (the body's own additions for it: a big round head, its face a
   flat plate, sharp rimmed (a barn owl's narrowed to a heart), set forward over its breast with no neck showing; a
   feathered ridge down between its eyes to a bill half hidden in it; ear tufts, tapering blades at the head's top
