@@ -637,6 +637,17 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   (watching, creeping, a dash and a snap, chewing); the female digging a hole with her snout and laying one leathery
   egg in it, covered over (`Anole.AnoleEgg`: a slit, the hatchling out); mating (his display, then on her, his jaws
   on her nape, his tail twisted under hers).
+  `gila_monster.gd` (`GilaMonster`, *Heloderma suspectum*): the anole's make made a Gila monster (the anole's body frame
+  now per species, `Anole.set_frame`; its girth, `_girth`, its own; its eggs' size and clutch, `egg_scale`, `clutch`;
+  its hatchlings growing to its own size, `adult_size`): about 50 cm, heavy and low slung, its legs short and stout,
+  its toes thick and clawed, its head broad and blunt, its eyes small and beady, its tail short and fat. Its hide
+  beaded (`shaders/render/gila.gdshader`: each bead a dome, each its own colour), black in a broken net of peach,
+  salmon and orange, its tail ringed, its head black speckled peach on the crown; a hatchling banded clean across.
+  An amble, its forked tongue flicking out and in as it goes; its burrow (`GilaMonster.burrow()`): sleep takes it in,
+  out of sight, a while, and out again; it eats nestlings and young mice (bitten, held, chewed, swallowed); its
+  threat a gape, hissing, its forequarters up (display); a clutch of five eggs buried by its burrow, hatching. In the
+  sandbox under Amphibians and reptiles, by its burrow: E / H a nestling or a young mouse, D / X its gape, Z into its
+  burrow, G shedding, 1 a clutch laid, 2 hatching, U dead.
 - `scripts/creatures/scorpion.gd` (`Scorpion`, on `hexapod.gd`'s eight-legged gait, twice life size): an Arizona
   bark scorpion (*Centruroides sculpturatus*): straw yellow, slender, its cuticle glossy and a little translucent; the
   carapace a low trapezoid, notched before, furrowed, its eyes; the mesosoma's seven tergites overlapping, keeled, the

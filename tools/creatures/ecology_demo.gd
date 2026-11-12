@@ -85,6 +85,7 @@ const UrsidScript := preload("res://scripts/creatures/ursid.gd")
 const BlackBearScript := preload("res://scripts/creatures/black_bear.gd")
 const BrownBearScript := preload("res://scripts/creatures/brown_bear.gd")
 const AnoleScript := preload("res://scripts/creatures/anole.gd")
+const GilaScript := preload("res://scripts/creatures/gila_monster.gd")
 const ScorpionScript := preload("res://scripts/creatures/scorpion.gd")
 const BisonScript := preload("res://scripts/creatures/bison.gd")
 const DeerScript := preload("res://scripts/creatures/deer.gd")
@@ -186,6 +187,7 @@ const CATALOGUE := [
 	["Amphibians and reptiles", "northern leopard frog", "frog", ["adult", "young"]],
 	["Amphibians and reptiles", "American toad", "toad", ["adult", "young"]],
 	["Amphibians and reptiles", "green anole", "anole", ["adult", "young"]],
+	["Amphibians and reptiles", "Gila monster (by its burrow; E / H eggs or a nestling, Z into its burrow, D gaping; young: a hatchling)", "gila", ["adult", "young"]],
 	["Amphibians and reptiles", "eastern diamondback rattlesnake", "rattler", ["adult", "young"]],
 	["Amphibians and reptiles", "eastern milk snake", "milk", ["adult", "young"]],
 	["Amphibians and reptiles", "eastern box turtle", "box_turtle", ["adult", "young"]],
@@ -1205,6 +1207,21 @@ func _spawn_animal(key: String, at: Vector3, stage: String, male: bool, young: b
 			an.place(at, randf() * TAU)
 			an.wander(at, 0.2)
 			return an
+		"gila": # (by its burrow)
+			var gm: Node3D = GilaScript.new(young)
+			gm.set("male", male and not young)
+			_org(gm, at, false)
+			var bur: Node3D = _kit(gm, "burrow", func() -> Node3D:
+				var b: Node3D = GilaScript.burrow(1.0 if not young else 0.6)
+				b.position = _on(at + Vector3(0.35, 0.0, -0.3))
+				b.rotation.y = randf() * TAU
+				b.set_meta("prop", true)
+				add_child(b)
+				return b)
+			gm.set("burrow_at", bur.position)
+			gm.call("place", at, randf() * TAU)
+			gm.call("wander", at, 0.6 if not young else 0.3)
+			return gm
 		"rattler", "milk":
 			var sn := SnakeScript.new(key, young)
 			sn.male = male and not young
@@ -2672,6 +2689,35 @@ func _raptor_do(r: Raptor, act_: String) -> void:
 
 
 
+
+## A Gila monster's ways (GilaMonster): E / H to a nestling or a young
+## mouse (one put down if none), bitten, held, chewed, swallowed; D / X
+## gaping, hissing; Z into its burrow a while; G shedding; 1 a clutch laid
+## by its burrow, 2 her eggs hatching; U dead; the rest wandering.
+func _gila_do(g: Node, act_: String, young: bool, p: Vector3, near: Vector3) -> void:
+	var home: Vector3 = g.get("burrow_at")
+	match act_:
+		"eat", "hunt":
+			g.call("hunt", _prey(g, ["mouse_pup", "leveret", "poult"] if not young else ["mouse_pup"], 0.4, 1.5))
+		"display", "alarm":
+			g.call("display")
+		"sleep", "sit":
+			g.call("sleep", 20.0)
+		"groom":
+			g.call("shed")
+		"lay":
+			if not young and not bool(g.get("male")):
+				g.call("lay", _on((home if home != Vector3.INF else p) + near * 0.3))
+		"hatch":
+			for e in g.get("eggs"):
+				if is_instance_valid(e):
+					e.call("hatch")
+		"unusual":
+			if g.has_method("die"):
+				g.call("die")
+		_:
+			g.call("wander", home if home != Vector3.INF else p, 0.6 if not young else 0.3)
+
 ## A dog's own (Dog): V a ball thrown for it (fetched, brought back), or a
 ## play bow and the zoomies; D / X barking (at the camera); B digging; E its
 ## bowl of food. False: the wolf's ways for the rest.
@@ -2860,6 +2906,9 @@ func _do(c: Node, act_: String) -> void:
 		_crayfish_do(c, act_, young, p)
 		return
 	if c is Dog and not young and _dog_do(c as Dog, act_, p, near):
+		return
+	if c is GilaScript:
+		_gila_do(c, act_, young, p, near)
 		return
 	if c is OtterScript: # (its own: in and by its water)
 		_otter_do(c, act_, young, p)

@@ -47,6 +47,18 @@ const FORE := {"hip": Vector3(4.5, -1.5, SHOULDER), "f": 9.0, "t": 8.5, "s": 5.0
 const HIND := {"hip": Vector3(5.0, -1.5, PELVIS), "f": 13.0, "t": 12.0, "s": 8.0, "home": Vector2(20.0, 22.0), "dangle": Vector3(10.0, -6.0, 26.0), "pole": Vector3(0.3, 1.0, -0.5), "r": 1.5, "femur_r": 1.4}
 
 var young := false
+## its body's frame (mm along it: the neck, the shoulders, the hips, the
+## vent, the tail's tip; seg each spine point's spacing): the anole's, or
+## a species' own (set_frame)
+var zn := Z0
+var zs := SHOULDER
+var zp := PELVIS
+var zv := VENT
+var zt := Z1
+var seg := SEG
+var adult_size := 0.5 ## (its grown size: a hatchling grows to it)
+var egg_scale := 1.0 ## (its eggs' size, of an anole's)
+var clutch := 1 ## (eggs laid at a time)
 var eggs: Array[Node3D] = [] ## the eggs it's laid (in its parent)
 var _mode := "idle"
 var _shut: Array[MeshInstance3D] = [] # (its eyelids, shut: asleep)
@@ -111,19 +123,29 @@ func _init(young_ := false) -> void:
 	_sy.resize(SPINE)
 
 
+## (A species' own body: its frame, mm.)
+func set_frame(neck: float, shoulder: float, pelvis: float, vent: float, tip: float) -> void:
+	zn = neck
+	zs = shoulder
+	zp = pelvis
+	zv = vent
+	zt = tip
+	seg = (zt - zn) / (SPINE - 1)
+
+
 ## The body's half width and half height at z (mm along it).
-static func _girth(z: float) -> Vector2:
-	if z < SHOULDER:
-		var k := (z - Z0) / (SHOULDER - Z0)
+func _girth(z: float) -> Vector2:
+	if z < zs:
+		var k := (z - zn) / (zs - zn)
 		return Vector2(lerpf(4.0, 5.4, k), lerpf(4.2, 5.2, k))
-	if z < PELVIS:
-		var k := (z - SHOULDER) / (PELVIS - SHOULDER)
+	if z < zp:
+		var k := (z - zs) / (zp - zs)
 		var bulge := sin(PI * k)
 		return Vector2(5.4 + 1.6 * bulge, 5.2 + 1.0 * bulge)
-	if z < VENT + 2.0:
-		var k := (z - PELVIS) / (VENT + 2.0 - PELVIS)
+	if z < zv + 2.0:
+		var k := (z - zp) / (zv + 2.0 - zp)
 		return Vector2(lerpf(5.4, 4.4, k), lerpf(5.2, 4.4, k))
-	var t := (z - VENT - 2.0) / (Z1 - VENT - 2.0)
+	var t := (z - zv - 2.0) / (zt - zv - 2.0)
 	var w := lerpf(4.4, 0.35, pow(t, 0.7))
 	return Vector2(w, w * 1.05)
 
@@ -210,7 +232,7 @@ func _tube() -> ArrayMesh:
 	var rings := (SPINE - 1) * PER + 1
 	var vert := func(k: int, a_i: int) -> Array:
 		var s := float(k) / PER
-		var z := Z0 + s * SEG
+		var z := zn + s * seg
 		var g := _girth(z)
 		var a := TAU * float(a_i % ROUND) / ROUND
 		var hy := 0.8 if cos(a) < 0.0 else 1.0 # (round = 0 its back: up; the belly flatter)
@@ -437,7 +459,7 @@ func _lay(dt: float) -> void:
 			_target = _pos
 			_look_to = Vector2(0.0, -0.75 + 0.2 * sin(_st * 7.0))
 			_dig = clampf(_st / 4.0, 0.0, 1.0)
-			_hole_at(_out(Vector3(0.0, -body_h, Z0 - 14.0)))
+			_hole_at(_out(Vector3(0.0, -body_h, zn - 14.0)))
 			if _st > 4.0:
 				_stage = 2
 				_st = 0.0
@@ -447,7 +469,7 @@ func _lay(dt: float) -> void:
 			_look_to = Vector2.ZERO
 			if _turn_to == INF:
 				var h := _hole.position if _hole else _pos
-				var vent := _out(Vector3(0.0, -body_h, VENT))
+				var vent := _out(Vector3(0.0, -body_h, zv))
 				_target = _pos + (h - vent) * Vector3(1.0, 0.0, 1.0)
 				if Vector2(h.x - vent.x, h.z - vent.z).length() < 0.004 or _st > 3.0:
 					_stage = 3
@@ -456,13 +478,16 @@ func _lay(dt: float) -> void:
 			_target = _pos
 			_crouch = minf(_crouch + dt, 0.6)
 			if _st > 2.0:
-				var e := AnoleEgg.new()
-				e.maker = get_script()
-				get_parent().add_child(e)
 				var h := _hole.position if _hole else _pos
-				e.position = h + Vector3.DOWN * 0.002
-				e.rotation.y = _yaw
-				eggs.append(e)
+				for k in clutch: # (her clutch: one, an anole's; a few, together, a bigger lizard's)
+					var e := AnoleEgg.new()
+					e.maker = get_script()
+					e.scale = Vector3.ONE * egg_scale
+					get_parent().add_child(e)
+					var ka := TAU * k / maxf(clutch, 1) + 0.4
+					e.position = h + Vector3.DOWN * 0.002 * egg_scale + (Vector3(cos(ka), 0.0, sin(ka)) * 0.009 * egg_scale if clutch > 1 else Vector3.ZERO)
+					e.rotation.y = _yaw + ka
+					eggs.append(e)
 				_stage = 4
 				_st = 0.0
 				_turn_to = _yaw + PI
@@ -492,7 +517,7 @@ func _hole_at(p: Vector3) -> void:
 		_hole.material_override = _mat(Color(0.22, 0.16, 0.1), 0.95)
 		get_parent().add_child(_hole)
 		_hole.position = Vector3(p.x, _ground(p.x, p.z) + 0.0002, p.z)
-	_hole.scale = Vector3(0.014, 0.0004, 0.014) * maxf(_dig, 0.05)
+	_hole.scale = Vector3(0.014, 0.0004, 0.014) * maxf(_dig, 0.05) * Vector3(egg_scale * (1.6 if clutch > 1 else 1.0), 1.0, egg_scale * (1.6 if clutch > 1 else 1.0))
 
 
 # --- mating -------------------------------------------------------------------
@@ -549,7 +574,7 @@ func _walk(dt: float) -> void:
 	var want := 0.0
 	# (going, it turns only as its tail can follow: at most TAIL_BEND a
 	# tail segment's length gone; standing, slowly, its tail swinging round)
-	var can := maxf(TAIL_BEND / maxf(SEG * MM * size, 1e-5) * _speed * 0.9, TURN_IN_PLACE) * dt
+	var can := maxf(TAIL_BEND / maxf(seg * MM * size, 1e-5) * _speed * 0.9, TURN_IN_PLACE) * dt
 	if _turn_to != INF:
 		var tt := wrapf(_turn_to - _yaw, -PI, PI)
 		_yaw += clampf(tt, -can, can)
@@ -635,30 +660,30 @@ func _spine(_dt: float) -> void:
 	var curve := clampf(_turn_rate, -4.0, 4.0) * 0.0009
 	var to_world := transform * _body.transform
 	var inv := to_world.affine_inverse()
-	var mid := (SHOULDER + PELVIS) * 0.5
-	var L := PELVIS - SHOULDER
+	var mid := (zs + zp) * 0.5
+	var L := zp - zs
 	# (where its hips have been: the trail its tail lies along; not while
 	# it's carried on her, mating, nor in the air)
 	var trailing := _twist <= 0.01 and not airborne and not (_mate_role == "male" and _mate_stage in ["mount", "joined", "part"])
-	var vent := to_world * Vector3(A * sin(_phase) * sin(PI * (VENT - mid) / L), 0.0, VENT)
+	var vent := to_world * Vector3(A * sin(_phase) * sin(PI * (zv - mid) / L), 0.0, zv)
 	if trailing:
 		_lay_trail(vent, to_world)
 	else:
 		_trail.clear()
 	for i in SPINE:
-		var z := Z0 + i * SEG
+		var z := zn + i * seg
 		var x := 0.0
 		var y := 0.0
-		if z <= VENT:
+		if z <= zv:
 			x = A * sin(_phase) * sin(PI * (z - mid) / L)
 		else:
-			var base := A * sin(_phase) * sin(PI * (VENT - mid) / L)
-			var u := (z - VENT) / (Z1 - VENT)
+			var base := A * sin(_phase) * sin(PI * (zv - mid) / L)
+			var u := (z - zv) / (zt - zv)
 			x = base + (2.5 + 9.0 * moving) * u * sin(_phase * 0.5 - u * TAU * 1.2 + 0.4 * sin(_t * 0.7)) + 2.0 * sin(_t * 0.5 + u * 4.0) * u
 		x -= curve * (z - mid) * absf(z - mid) # (curved into its turn: the tail swung out)
-		if z > VENT:
+		if z > zv:
 			# (its tail down off its hips to lie along the ground)
-			y = lerpf(0.0, -body_h + _girth(z).y * 0.9, smoothstep(VENT, VENT + 30.0, z))
+			y = lerpf(0.0, -body_h + _girth(z).y * 0.9, smoothstep(zv, zv + 30.0, z))
 			if _twist > 0.0: # (twisted down under hers, to her side)
 				var bell := exp(-pow((z - 32.0) / 12.0, 2.0)) * _twist
 				x -= 6.0 * bell
@@ -667,27 +692,27 @@ func _spine(_dt: float) -> void:
 		# (its tail laid along where its hips have been, on the ground, as a
 		# snake's body follows its head: not swung round with it as it
 		# turns; a little wave along it, swimming its way)
-		if z > VENT and trailing:
-			var d := (z - VENT) * MM * size
+		if z > zv and trailing:
+			var d := (z - zv) * MM * size
 			var tr := _along_trail(d)
 			var q: Vector3 = tr[0]
 			var way: Vector3 = tr[1]
 			var side := way.cross(Vector3.UP).normalized()
-			var u := (z - VENT) / (Z1 - VENT)
+			var u := (z - zv) / (zt - zv)
 			q += side * (1.5 + 3.0 * moving) * u * sin(_phase * 0.5 - u * TAU * 1.2) * MM * size
 			q.y = _ground(q.x, q.z) + _girth(z).y * 0.9 * MM * size
-			var w := smoothstep(VENT, VENT + 22.0, z)
+			var w := smoothstep(zv, zv + 22.0, z)
 			p = p.lerp(inv * q, w)
-		elif z > VENT + 20.0 and _twist <= 0.5:
+		elif z > zv + 20.0 and _twist <= 0.5:
 			var q := to_world * p
 			var g := _ground(q.x, q.z) + _girth(z).y * 0.9 * MM * size
-			q.y = lerpf(q.y, g, smoothstep(VENT + 20.0, VENT + 45.0, z))
+			q.y = lerpf(q.y, g, smoothstep(zv + 20.0, zv + 45.0, z))
 			p = inv * q
 		_sp[i] = p
 	# no tail joint bent more than TAIL_BEND: each segment laid on from the
 	# one before it, its way turned no further than that from that one's (so
 	# it curves smoothly from its hips, never kinked; as a caterpillar's)
-	var iv := int(ceil((VENT - Z0) / SEG))
+	var iv := int(ceil((zv - zn) / seg))
 	var tway := Vector2(_sp[iv - 1].x - _sp[iv - 2].x, _sp[iv - 1].z - _sp[iv - 2].z)
 	tway = tway.normalized() if tway.length() > 1e-5 else Vector2(0.0, 1.0)
 	for i in range(iv, SPINE):
@@ -697,8 +722,8 @@ func _spine(_dt: float) -> void:
 		var ang := tway.angle_to(dn)
 		if absf(ang) > TAIL_BEND:
 			dn = tway.rotated(signf(ang) * TAIL_BEND)
-		var dy := clampf(d.y, -SEG * 0.95, SEG * 0.95)
-		var flat := sqrt(maxf(SEG * SEG - dy * dy, 0.0))
+		var dy := clampf(d.y, -seg * 0.95, seg * 0.95)
+		var flat := sqrt(maxf(seg * seg - dy * dy, 0.0))
 		_sp[i] = Vector3(_sp[i - 1].x + dn.x * flat, _sp[i - 1].y + dy, _sp[i - 1].z + dn.y * flat)
 		tway = dn
 	for i in SPINE:
@@ -718,26 +743,26 @@ var _trail: Array[Vector3] = [] # (where its hips have been: its parent's space,
 ## Its hips' trail: begun straight out behind it; a point more each time
 ## they've gone a little way.
 func _lay_trail(vent: Vector3, to_world: Transform3D) -> void:
-	var step := SEG * MM * size * 0.5
-	if not _trail.is_empty() and _trail[0].distance_to(vent) > (Z1 - VENT) * MM * size: # (put somewhere new: begun again)
+	var step := seg * MM * size * 0.5
+	if not _trail.is_empty() and _trail[0].distance_to(vent) > (zt - zv) * MM * size: # (put somewhere new: begun again)
 		_trail.clear()
 	if _trail.is_empty():
 		var back := (to_world.basis * Vector3.BACK).normalized()
 		back.y = 0.0
 		back = back.normalized()
-		for k in int((Z1 - VENT) / (SEG * 0.5)) + 4:
+		for k in int((zt - zv) / (seg * 0.5)) + 4:
 			_trail.append(vent + back * step * k)
 		return
 	if _trail[0].distance_to(vent) > step:
 		_trail.push_front(vent)
-		while _trail.size() > int((Z1 - VENT) / (SEG * 0.5)) + 8:
+		while _trail.size() > int((zt - zv) / (seg * 0.5)) + 8:
 			_trail.pop_back()
 
 
 ## The point d (m) back along the trail from its hips, and the way it runs
 ## there (toward the tail).
 func _along_trail(d: float) -> Array:
-	var vent: Vector3 = (transform * _body.transform) * Vector3(0.0, 0.0, VENT)
+	var vent: Vector3 = (transform * _body.transform) * Vector3(0.0, 0.0, zv)
 	var prev := vent
 	var left := d
 	var way := (transform.basis * Vector3.BACK).normalized()
@@ -754,7 +779,7 @@ func _along_trail(d: float) -> Array:
 
 ## A point along the spine at z (the body's mm), and its frame's right.
 func _spine_at(z: float) -> Array:
-	var s := clampf((z - Z0) / SEG, 0.0, SPINE - 1.001)
+	var s := clampf((z - zn) / seg, 0.0, SPINE - 1.001)
 	var i := int(s)
 	var f := s - i
 	return [_sp[i].lerp(_sp[i + 1], f), _sx[i].lerp(_sx[i + 1], f).normalized(), _sy[i].lerp(_sy[i + 1], f).normalized()]
@@ -899,9 +924,9 @@ class AnoleEgg extends Node3D:
 			var h: Node3D = maker.new(true)
 			get_parent().add_child(h)
 			var fwd := (global_transform.basis * Vector3.FORWARD)
-			h.call("place", position + Vector3(fwd.x, 0.0, fwd.z).normalized() * 0.012, atan2(-fwd.x, -fwd.z))
-			h.call("grow", 0.5, 240.0)
-			h.call("wander", position, 0.12)
+			h.call("place", position + Vector3(fwd.x, 0.0, fwd.z).normalized() * 0.012 * scale.x, atan2(-fwd.x, -fwd.z))
+			h.call("grow", float(h.get("adult_size")), 240.0)
+			h.call("wander", position, 0.12 * scale.x)
 			hatchling = h
 		if _t > 4.0: # (the empty shell, collapsing)
 			_shell.scale.y = lerpf(_shell.scale.y, 0.0015, 1.0 - exp(-dt * 0.6))
