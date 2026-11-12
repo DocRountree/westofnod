@@ -45,6 +45,8 @@ const FireflyScript := preload("res://scripts/creatures/fireflies.gd")
 const TigerSnailScript := preload("res://scripts/creatures/flamed_tigersnails.gd")
 const GrassSnailScript := preload("res://scripts/creatures/grass_snails.gd")
 const TurkeyScript := preload("res://scripts/creatures/wild_turkey.gd")
+const FalconScript := preload("res://scripts/creatures/peregrine_falcon.gd")
+const HawkScript := preload("res://scripts/creatures/coopers_hawk.gd")
 const DeerTickScript := preload("res://scripts/creatures/blacklegged_ticks.gd")
 const LoneStarScript := preload("res://scripts/creatures/lone_star_ticks.gd")
 const LarvaScript := preload("res://scripts/creatures/larva.gd")
@@ -179,6 +181,8 @@ const CATALOGUE := [
 	["Amphibians and reptiles", "western painted turtle", "painted", ["adult", "young"]],
 	["Amphibians and reptiles", "green sea turtle", "sea_turtle", ["adult", "young"]],
 	["Birds", "wild turkey (tom; hen; poult)", "turkey", ["adult", "young"]],
+	["Birds", "peregrine falcon (on a perch; young: an eyas, in its nest)", "peregrine", ["adult", "juvenile", "young"]],
+	["Birds", "Cooper's hawk (on a perch; young: an eyas, in its nest)", "coopers", ["adult", "juvenile", "young"]],
 	["Mammals", "deer mouse", "mouse", ["adult", "young"]],
 	["Mammals", "snowshoe hare", "hare", ["adult", "young"]],
 	["Mammals", "eastern fox squirrel", "fox_squirrel", ["adult"]],
@@ -1315,6 +1319,50 @@ func _spawn_animal(key: String, at: Vector3, stage: String, male: bool, young: b
 			_org(tc, at, true)
 			tc.setup_stages(8 if not young else 14, Vector3.ZERO, 0.08, [Ticks.MALE, Ticks.FEMALE] if not young else [Ticks.LARVA, Ticks.LARVA, Ticks.NYMPH])
 			return tc
+		"peregrine", "coopers":
+			var rs: GDScript = FalconScript if key == "peregrine" else HawkScript
+			var r: Raptor = rs.new(young, stage == "juvenile")
+			r.male = (male and not young) if not young else randf() < 0.5
+			r.height = _height
+			_org(r, at, false)
+			if young: # (an eyas: in its mother's nest, if she's here; else a nest of its own)
+				var mom: Raptor = null
+				for o in get_children():
+					if o is Raptor and o != r and o.get_script() == rs and not o.male and not o.young and not o.juvenile and not o.dead and (o as Node3D).position.distance_to(at) < 10.0:
+						mom = o
+				var host: Raptor = mom if mom else r
+				host.call("_ensure_nest")
+				var a := randf() * TAU
+				r.nest_top = host.nest_top
+				r.perch_at = host.nest_top
+				r.place(host.nest_top + Vector3(cos(a), 0.0, sin(a)) * 0.09, a + PI)
+				r.set("_mother", mom)
+				r.call("_to", "eyas")
+				if mom:
+					mom.young_ones.append(r)
+				return r
+			# (its perch: a dead snag's stub, a pole)
+			var post := Node3D.new()
+			post.set_meta("prop", true)
+			var ph := randf_range(1.6, 2.3) if key == "coopers" else randf_range(2.4, 3.0)
+			var pm := MeshInstance3D.new()
+			var cm := CylinderMesh.new()
+			cm.top_radius = 0.05
+			cm.bottom_radius = 0.09
+			cm.height = ph
+			pm.mesh = cm
+			var wm := StandardMaterial3D.new()
+			wm.albedo_color = Color(0.42, 0.38, 0.33)
+			wm.roughness = 0.95
+			pm.material_override = wm
+			pm.position = Vector3(0.0, ph * 0.5, 0.0)
+			post.add_child(pm)
+			add_child(post)
+			post.position = at
+			r.set_meta("kit", {"perch": post})
+			r.set_perch(at + Vector3(0.0, ph, 0.0), randf() * TAU)
+			r.call("perch")
+			return r
 		"turkey":
 			var tk: Node3D = TurkeyScript.new(young)
 			tk.set("male", male and not young)
@@ -2527,6 +2575,57 @@ func _turkey_do(t: WildTurkey, act_: String) -> void:
 			t.die()
 
 
+## A raptor's ways: E / H hunting (prey that's here, the nearest; else a
+## mouse or a squirrel put down for it): the falcon's stoop, the hawk's
+## dash; carried home, plucked, eaten (or fed to its eyases); an eyas
+## begging. B soaring, F flying off to another perch, X alarm (calling, off
+## and away), D calling, G preening, A rousing, Z asleep on one leg, 1 a
+## female's clutch laid in her nest (made close by), 2 her eggs hatching,
+## N brooding, U dead, W its own ways (back to its perch).
+func _raptor_do(r: Raptor, act_: String) -> void:
+	var p: Vector3 = r.get("_pos")
+	var a := randf() * TAU
+	if r.young:
+		if act_ in ["eat", "hunt", "display"]:
+			r.set("_beg", 3.0)
+		elif act_ == "unusual":
+			r.die()
+		return
+	match act_:
+		"eat", "hunt":
+			var prey: Node3D = _prey_here(r, ["poult", "mouse", "squirrel"], 30.0)
+			if prey == null:
+				prey = _prey(r, ["mouse", "squirrel"] if r is CoopersHawk else ["mouse"], 9.0)
+			r.hunt(prey)
+		"forage":
+			r.soar(40.0)
+		"fly":
+			r.fly(p + Vector3(cos(a), 0.0, sin(a)) * 18.0)
+		"alarm":
+			r.fly_off(cam.global_position if cam else p + Vector3(5.0, 0.0, 0.0))
+		"display", "mark":
+			r.call_out(3.0)
+		"groom":
+			r.preen(10.0)
+		"sit":
+			r.rouse()
+		"sleep":
+			r.sleep()
+		"lay":
+			r.lay()
+		"hatch":
+			r.hatch()
+		"nurse":
+			r.brood(25.0)
+		"unusual":
+			r.die()
+		"wander":
+			if r.home_perch != Vector3.INF and r.perch_at.distance_to(r.home_perch) > 0.3:
+				r.perch_on(r.home_perch)
+			else:
+				r.perch()
+
+
 ## A tick colony's ways: E / H questing, 1 the engorged females laying, 2
 ## the engorged young moulting and the egg masses hatching, X still, W
 ## walking about (then questing again).
@@ -2740,6 +2839,9 @@ func _do(c: Node, act_: String) -> void:
 		return
 	if c is WildTurkey:
 		_turkey_do(c as WildTurkey, act_)
+		return
+	if c is Raptor:
+		_raptor_do(c as Raptor, act_)
 		return
 	if c is Ticks:
 		_tick_do(c as Ticks, act_)

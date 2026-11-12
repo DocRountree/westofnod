@@ -80,6 +80,9 @@ var head_point := Vector3.INF # (the world: its bill's tip reached to here, if s
 var look_yaw := 0.0
 var foot_off: Array[Vector3] = [Vector3.ZERO, Vector3.ZERO] # (each foot moved from where it's planted: scratching, treading; m)
 var lift_y := 0.0 # (m: stood on something, hopping)
+var beat_amp := 1.0 ## how deep its wingbeat (a falcon's shallow, quick)
+var air_foot := Vector3.ZERO ## (in the air: its feet thrust this far from their place, body m: striking, landing)
+var talon_open := 0.0 ## its toes spread, reaching (0 .. 1)
 
 var _mi: MeshInstance3D
 var _mat: ShaderMaterial
@@ -105,7 +108,7 @@ static var _meshes := {}
 func _init() -> void:
 	rng.randomize()
 	for k: String in ["pitch", "drop", "roll", "head_pitch", "jaw", "tail_up", "tail_yaw", "tail_spread", "tail_arch", "puff", "flush", "snood",
-			"load", "droop", "crouch", "legs_tuck", "sway", "eye_shut"]:
+			"load", "droop", "crouch", "legs_tuck", "sway", "eye_shut", "fold_pitch"]:
 		cur[k] = 0.0
 		want[k] = 0.0
 	for s: String in ["l", "r"]:
@@ -470,8 +473,8 @@ func _solve(dt: float) -> void:
 		var tuck: float = cur.legs_tuck
 		if _air or dead:
 			# (in the air: drawn up under its tail, or let down forward to land; dead: stiff)
-			var down_p := _xb(foot0 * m + Vector3(0.0, 0.0, -0.05 * sz))
-			var up_p := _xb((knee0 + Vector3(0.0, -0.03, 0.2) * sz) * m)
+			var down_p := _xb(foot0 * m + Vector3(0.0, 0.0, -0.05 * sz) + air_foot)
+			var up_p := _xb((knee0 + (shape.get("tuck", Vector3(0.0, -0.03, 0.2)) as Vector3) * sz) * m)
 			foot = down_p.lerp(up_p, tuck)
 			lifted = tuck
 		var kd := foot - knee
@@ -487,7 +490,7 @@ func _solve(dt: float) -> void:
 		_g[j] = Transform3D(Basis(Quaternion(((knee0 - hip0) * m).normalized(), (knee - hip).normalized())), hip)
 		_g[j + 1] = Transform3D(Basis(Quaternion(((ank0 - knee0) * m).normalized(), (ank - knee).normalized())), knee)
 		_g[j + 2] = Transform3D(Basis(Quaternion(((foot0 - ank0) * m).normalized(), (ft - ank).normalized())), ank)
-		var tb := Basis(Vector3.RIGHT, -(0.9 * lifted + 0.5 * tuck))
+		var tb := Basis(Vector3.RIGHT, -(0.9 * lifted + 0.5 * tuck) * (1.0 - talon_open) + 0.5 * talon_open)
 		if dead:
 			tb = b * Basis(Vector3.RIGHT, -0.7)
 		_g[j + 3] = Transform3D(tb, ft)
@@ -508,11 +511,11 @@ func _solve(dt: float) -> void:
 		var sn := sin(_phase)
 		var cs := cos(_phase)
 		var upstroke := smoothstep(-0.3, 0.8, cs)
-		var beat := Vector4(0.12 + 0.95 * sn, 0.12 + 0.28 * upstroke, 0.3 * cs, lerpf(1.0, 0.62, upstroke))
+		var beat := Vector4(0.12 + 0.95 * beat_amp * sn, 0.12 + 0.28 * upstroke, 0.3 * cs, lerpf(1.0, lerpf(1.0, 0.62, beat_amp), upstroke))
 		wl = wl.lerp(beat, _flap)
 		wr = wr.lerp(beat, _flap)
 	_mat.set_shader_parameter("wing", PackedVector4Array([wl, wr]))
-	for k: String in ["tail_spread", "tail_arch", "puff", "flush", "snood", "sway", "eye_shut"]:
+	for k: String in ["tail_spread", "tail_arch", "puff", "flush", "snood", "sway", "eye_shut", "fold_pitch"]:
 		_mat.set_shader_parameter(k, cur[k])
 	_mat.set_shader_parameter("feather_load", cur.load)
 	_mat.set_shader_parameter("wing_droop", cur.droop)
@@ -619,6 +622,14 @@ func _mesh_key() -> String:
 	return "%s:%s:%s" % [(get_script() as Script).resource_path, male, young]
 
 
+## Its mesh made again (a new shape: a chick fledged).
+func _rebuild() -> void:
+	if _mi:
+		_mi.queue_free()
+		_mi = null
+	_build()
+
+
 func _build() -> void:
 	var key := _mesh_key()
 	if not _meshes.has(key):
@@ -638,6 +649,8 @@ func _build() -> void:
 	_mat.set_shader_parameter("wing_len", (S.wing as Vector3) * CM)
 	_mat.set_shader_parameter("tail_at", (S.tail as Vector3) * CM)
 	_mat.set_shader_parameter("snood_at", (S.get("snood", Vector3.ZERO) as Vector3) * CM)
+	_mat.set_shader_parameter("eye_at", (S.eye as Vector3) * CM)
+	_mat.set_shader_parameter("fold_chord", float(S.get("fold_chord", 0.3)))
 	for k: String in colors:
 		_mat.set_shader_parameter(k, colors[k])
 	_g.resize(16)
@@ -670,7 +683,7 @@ static func _grid(st: SurfaceTool, rows: Array) -> void:
 
 
 ## A ball (radii r, turned by basis) at c, rigid to joint j.
-static func _ball(st: SurfaceTool, c: Vector3, r: Vector3, part: float, j: int, basis := Basis(), along_y := false) -> void:
+static func _ball(st: SurfaceTool, c: Vector3, r: Vector3, part: float, j: int, basis := Basis(), along_y := false, uv := Vector2(-1.0, -1.0)) -> void:
 	var rows := []
 	for i in 7:
 		var la := PI * i / 6.0
@@ -678,7 +691,8 @@ static func _ball(st: SurfaceTool, c: Vector3, r: Vector3, part: float, j: int, 
 		for k in 11:
 			var lo := TAU * k / 10.0
 			var d := Vector3(sin(la) * cos(lo), cos(la), sin(la) * sin(lo))
-			row.append([c + basis * (d * r), (basis * (d / r)).normalized(), Color(part, (1.0 - d.y) * 0.5 if along_y else 0.5, 0.5, 0), Color(0, j, j, 0), Color(0, 0, 0, 0), Vector2.ZERO])
+			var cu := Color(part, (1.0 - d.y) * 0.5 if along_y else 0.5, 0.5, 0) if uv.x < 0.0 else Color(part, uv.x, uv.y, 0)
+			row.append([c + basis * (d * r), (basis * (d / r)).normalized(), cu, Color(0, j, j, 0), Color(0, 0, 0, 0), Vector2(lo * r.x, la * r.y)])
 		rows.append(row)
 	_grid(st, rows)
 
@@ -778,7 +792,8 @@ func _make_mesh() -> Array:
 		var t: Vector3 = (((line[mini(i + 1, line.size() - 1)] as Array)[0] as Vector3) - ((line[maxi(i - 1, 0)] as Array)[0] as Vector3)).normalized()
 		# (the body's big rings kept upright: tipped with the chain where it
 		# bends up into the neck they'd fold over each other on its inside)
-		t = Vector3(0.0, 0.0, -1.0).lerp(t, smoothstep(0.12, 0.06, maxf(float(e[1]), float(e[2])) / maxf(size, 0.01) * 1.0)).normalized()
+		if not S.get("tilt_rings", false): # (a raptor's: all tilted with it, its body leaning)
+			t = Vector3(0.0, 0.0, -1.0).lerp(t, smoothstep(0.12, 0.06, maxf(float(e[1]), float(e[2])) / maxf(size, 0.01) * 1.0)).normalized()
 		var dorsal := Vector3.RIGHT.cross(t).normalized()
 		skin_rings.append([p, dorsal, c, e[1], e[2]])
 		var ja := clampi(int(floorf(c)), 0, 5)
@@ -810,8 +825,18 @@ func _make_mesh() -> Array:
 	_tube(st, jl, 2.0, 8)
 	# the eyes
 	var eye: Vector3 = (S.eye as Vector3) * CM
+	var er: float = float(S.eye_r) * CM
 	for side: float in [-1.0, 1.0]:
-		_ball(st, Vector3(eye.x * side, eye.y, eye.z), Vector3.ONE * float(S.eye_r) * CM, 3.0, J_HEAD)
+		_ball(st, Vector3(eye.x * side, eye.y, eye.z), Vector3.ONE * er, 3.0, J_HEAD)
+		if S.has("eye_ring"): # (bare skin round it: a raptor's yellow ring)
+			_ball(st, Vector3((eye.x - er * 0.45) * side, eye.y, eye.z), Vector3(0.9, float(S.eye_ring), float(S.eye_ring)) * er, 1.0, J_HEAD)
+		if S.has("brow"): # (the bony shelf over the eye: a hawk's scowl)
+			var bw: Array = S.brow
+			var bo: Vector3 = (bw[0] as Vector3) * CM
+			_ball(st, Vector3(bo.x * side, bo.y, bo.z), (bw[1] as Vector3) * CM, 0.0, J_HEAD, Basis(Vector3.RIGHT, -0.15), false, Vector2(0.95, 0.5))
+	if S.has("cere"): # (the bare waxy skin at the bill's root, the nostrils in it)
+		var ce: Array = S.cere
+		_ball(st, (ce[0] as Vector3) * CM, (ce[1] as Vector3) * CM, 1.0, J_HEAD)
 	# the snood (a horn over the bill's root), the wattle under the chin,
 	# the caruncles at the bare neck's foot
 	if S.has("snood"):
@@ -873,7 +898,10 @@ func _make_mesh() -> Array:
 			var a1 := a0 + dir * ln
 			a1.y = maxf(a1.y, lr * 0.5) if float(td[0]) < 3.0 else a1.y
 			_tube(st, [[a0, lr * 0.9, j + 3, j + 3, 0.0], [a0.lerp(a1, 0.5) + Vector3(0.0, lr * 0.3, 0.0), lr * 0.75, j + 3, j + 3, 0.0], [a1, lr * 0.55, j + 3, j + 3, 0.0]], 8.0, 7)
-			_tube(st, [[a1, lr * 0.45, j + 3, j + 3, 0.0], [a1 + dir * ln * 0.22 + Vector3(0.0, -lr * 0.3, 0.0), lr * 0.08, j + 3, j + 3, 0.0]], 9.0, 5)
+			var cl: float = float(S.get("claw", 0.22))
+			var cr: float = float(S.get("claw_r", 0.45))
+			_tube(st, [[a1, lr * cr, j + 3, j + 3, 0.0], [a1 + dir * ln * cl * 0.6 + Vector3(0.0, lr * 0.15, 0.0), lr * cr * 0.7, j + 3, j + 3, 0.0],
+					[a1 + dir * ln * cl + Vector3(0.0, -ln * cl * 0.55, 0.0), lr * 0.06, j + 3, j + 3, 0.0]], 9.0, 6)
 		if S.has("spur"):
 			var sp0 := ank.lerp(foot, 0.55) * m
 			_tube(st, [[sp0, lr * 0.7, j + 2, j + 2, 0.0], [sp0 + Vector3(-0.2 * side, 0.25, 1.0).normalized() * float(S.spur) * CM, lr * 0.08, j + 2, j + 2, 0.0]], 9.0, 6)

@@ -17,6 +17,43 @@ render_mode cull_disabled;
 
 #include "res://shaders/render/bird_rig.gdshaderinc"
 
+// Which plumage: 0 a turkey's (metal-banded body feathers, bare head); 1 a
+// raptor's (feathered head with its cap, cheeks, moustache; the back
+// scaled with pale edges; the underparts barred, spotted, rufous-barred or
+// streaked; barred flight feathers, banded tail; yellow cere, legs).
+uniform int plumage = 0;
+uniform vec3 eye_at;          // the right eye's centre (rest, m)
+uniform vec3 back_color : source_color = vec3(0.2, 0.22, 0.26);
+uniform vec3 back_edge : source_color = vec3(0.42, 0.45, 0.5);
+uniform vec3 back_bar : source_color = vec3(0.1, 0.11, 0.13);
+uniform float back_bars = 0.4;
+uniform float back_from = 0.3;   // round its ring, where its back's colour begins (0.5 its spine)   // dark bars across the back's feathers
+uniform vec3 cap_color : source_color = vec3(0.08, 0.09, 0.11);
+uniform vec3 cheek_color : source_color = vec3(0.95, 0.93, 0.88);
+uniform float cheek = 0.0;       // the cheeks their own colour (a Cooper's hawk's rosy grey)
+uniform float hood_low = 0.002;  // m below the eye the cap reaches
+uniform float hood_nape = 1.0;   // the cap down the nape (a falcon's hood: 1)
+uniform float malar = 0.0;       // the moustache (a falcon's)
+uniform vec3 under_color : source_color = vec3(0.93, 0.9, 0.84);
+uniform vec3 under_mark : source_color = vec3(0.1, 0.1, 0.11);
+uniform vec3 breast_wash : source_color = vec3(0.95, 0.88, 0.76);
+uniform int under_pattern = 1;   // 0 plain, 1 bars and spots (falcon), 2 rufous bars (adult hawk), 3 streaks (juvenile)
+uniform float throat_clean = 0.78; // above this along it, the throat unmarked
+uniform vec3 fl_top : source_color = vec3(0.16, 0.17, 0.2);
+uniform vec3 fl_pale : source_color = vec3(0.86, 0.85, 0.82);
+uniform vec3 fl_dark : source_color = vec3(0.2, 0.2, 0.22);
+uniform float fl_bars = 12.0;
+uniform vec3 tail_color : source_color = vec3(0.3, 0.32, 0.36);
+uniform vec3 tail_band : source_color = vec3(0.07, 0.07, 0.08);
+uniform float tail_bands = 7.0;
+uniform float tail_band_w = 0.35;
+uniform vec3 tail_tip_r : source_color = vec3(0.92, 0.9, 0.86);
+uniform float tail_tip_w = 0.04;
+uniform vec3 cere_color : source_color = vec3(0.95, 0.75, 0.1);
+uniform vec3 bill_tip : source_color = vec3(0.08, 0.08, 0.1);
+uniform vec3 iris : source_color = vec3(0.12, 0.07, 0.04);
+uniform vec3 down_white : source_color = vec3(0.95, 0.94, 0.9); // an eyas's down
+
 uniform float puff = 0.0;      // the body's feathers raised (strutting)
 uniform float flush = 0.0;     // the bare head's colours up (strutting: white crown, blue face, scarlet wattles)
 uniform float snood = 0.0;     // the snood let down over the bill (0: a short horn)
@@ -49,6 +86,8 @@ varying vec3 fc; // (CUSTOM0.yzw)
 varying vec3 rest;
 varying vec3 rest_n;
 varying vec2 suv;
+varying float wing_open; // (a wing's: how far spread)
+varying vec3 vn; // (its normal as posed, the view's: which side of a feather is seen)
 
 float hash(vec2 p) {
 	return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
@@ -87,9 +126,11 @@ void vertex() {
 		v.x += 0.03 * sway * CUSTOM0.y * CUSTOM0.y;
 	if (part == 5)
 		v.x += 0.006 * sway * CUSTOM0.y;
+	wing_open = int(round(CUSTOM1.x)) == 1 || int(round(CUSTOM1.x)) == 2 ? clamp((CUSTOM1.z < 0.0 ? wing[0] : wing[1]).w, 0.0, 1.0) : 1.0;
 	bird_pose(CUSTOM1, CUSTOM2, v, n);
 	VERTEX = v;
 	NORMAL = n;
+	vn = (MODELVIEW_MATRIX * vec4(n, 0.0)).xyz;
 }
 
 vec3 bump(vec3 nrm, vec3 pos, float h, float k) {
@@ -134,6 +175,147 @@ vec3 sheen(float t) {
 float bars(float u, float v, float n, float w, float seed) {
 	float x = u * n + 0.25 * abs(v) + 0.06 * sin(v * 9.0 + seed * 20.0);
 	return smoothstep(w, w + 0.12, abs(fract(x) - 0.5) * 2.0);
+}
+
+// A raptor's feathers and bare parts: c, rough, metal, spec, nrm set for
+// its part.
+void raptor(int pt, float u, float v, vec3 view, float ndv, vec3 vtx, vec3 nrm0, inout vec3 c, inout float rough, inout float metal, inout float spec, inout vec3 nrm) {
+	metal = 0.0;
+	spec = 0.4;
+	bool top = dot(normalize(vn), view) > 0.0; // (the side a feather's upper face is: its upper side seen)
+	if (pt == 0 || pt == 7 || pt == 10) {
+		vec2 p;
+		float region = 0.0;
+		if (pt == 0) {
+			region = smoothstep(0.62, 0.82, u);
+			p = vec2(suv.x, -suv.y) / (feather_cm * 0.01 * mix(1.0, 0.45, region)) * vec2(1.0, 1.3);
+		} else {
+			p = suv / (feather_cm * 0.01 * 0.6) * vec2(1.0, 1.3);
+		}
+		vec3 f = shingle(p);
+		float fade = clamp(1.0 - length(fwidth(p)) * 0.8, 0.0, 1.0);
+		float edge = (1.0 - smoothstep(0.04, 0.16, f.x)) * fade;
+		// the back (over its back, the wing's coverts from above): dark, each
+		// feather edged pale, barred darker
+		float back = pt == 0 ? smoothstep(back_from, back_from + 0.07, v) * (1.0 - smoothstep(1.0 - back_from - 0.07, 1.0 - back_from, v)) : (pt == 10 ? mix(1.0, 1.0 - step(0.5, fc.z), smoothstep(0.3, 0.7, wing_open)) : 0.0); // (a wing's coverts: its upper surface the back's colour, its under the underwing's)
+		vec3 bk = back_color * (0.88 + 0.24 * f.y);
+		float bbar = smoothstep(0.38, 0.44, f.x) * (1.0 - smoothstep(0.52, 0.6, f.x)) * back_bars * fade;
+		bk = mix(bk, back_bar, bbar);
+		bk = mix(bk, back_edge, edge * 0.8);
+		// the underparts: their marks by the pattern; the throat clean
+		vec3 un = mix(under_color, breast_wash, smoothstep(0.3, 0.6, u) * (1.0 - smoothstep(0.7, 0.85, u)));
+		float mk = 0.0;
+		float wc = 1.0 - abs(f.z);
+		if (under_pattern == 1) {
+			float chev = f.x + abs(f.z) * 0.18;
+			float bar = smoothstep(0.18, 0.23, chev) * (1.0 - smoothstep(0.42, 0.48, chev)) * smoothstep(0.05, 0.3, wc);
+			float spot = 1.0 - smoothstep(0.16, 0.24, length(vec2(f.z * 0.4, f.x - 0.33)));
+			mk = mix(bar, spot, smoothstep(0.5, 0.6, u));
+		} else if (under_pattern == 2) {
+			float b2 = fract(f.x * 2.0 + 0.1 * f.z * f.z);
+			mk = smoothstep(0.02, 0.08, b2) * (1.0 - smoothstep(0.62, 0.7, b2)) * smoothstep(0.0, 0.25, wc) * (0.85 + 0.15 * f.y);
+		} else if (under_pattern == 3) {
+			mk = (1.0 - smoothstep(0.12, 0.26, abs(f.z) * (1.0 + f.x))) * smoothstep(0.1, 0.22, f.x) * (1.0 - smoothstep(0.65, 0.85, f.x));
+		}
+		mk *= fade * (1.0 - smoothstep(throat_clean - 0.03, throat_clean + 0.02, u)) * (pt == 0 ? smoothstep(0.06, 0.16, u) : 1.0);
+		if (pt == 7)
+			mk *= 0.8;
+		un = mix(un, under_mark, mk);
+		un *= 0.94 + 0.08 * f.y;
+		c = mix(un, bk, back);
+		// the head: its cap (and a falcon's hood down the nape), the
+		// moustache, the cheeks
+		if (pt == 0) {
+			float head = smoothstep(0.76, 0.83, u);
+			vec3 r = rest;
+			float ax = abs(r.x);
+			float above = smoothstep(eye_at.y - hood_low - 0.003, eye_at.y - hood_low + 0.001, r.y);
+			float nape = hood_nape * smoothstep(eye_at.z + 0.011, eye_at.z + 0.016, r.z) * smoothstep(0.32, 0.4, v) * (1.0 - smoothstep(0.6, 0.68, v));
+			float napeb = hood_nape * smoothstep(eye_at.z + 0.018, eye_at.z + 0.024, r.z);
+			float hood = head * clamp(above + nape + napeb, 0.0, 1.0);
+			float mz = r.z - eye_at.z - 0.002;
+			float mous = head * malar * smoothstep(eye_at.y - 0.034, eye_at.y - 0.028, r.y) * (1.0 - smoothstep(0.007, 0.012, abs(mz + (eye_at.y - r.y) * 0.18))) * smoothstep(0.004, 0.009, ax);
+			c = mix(c, mix(cheek_color, c, 0.25), head * cheek * (1.0 - hood));
+			c = mix(c, cap_color * (0.9 + 0.2 * f.y), max(hood, mous));
+		}
+		rough = 0.72;
+		spec = 0.35;
+		nrm = bump(nrm, vtx, smoothstep(0.0, 0.4, f.x) * feather_cm * 0.0008 * fade, 1.0);
+		if (down > 0.0) { // an eyas's down: white, woolly
+			float fl = vnoise(rest.xz * 1400.0) * 0.5 + vnoise(rest.xy * 2600.0) * 0.5;
+			c = mix(c, down_white * (0.86 + 0.16 * fl), down);
+			rough = mix(rough, 0.97, down);
+			nrm = normalize(mix(nrm, nrm0, down));
+		}
+		return;
+	}
+	if (pt >= 11 && pt <= 15) {
+		float seed = hash(vec2(fc.z * 17.0, float(pt)));
+		float shaft = 1.0 - smoothstep(0.02, 0.07, abs(v));
+		if (pt == 14) {
+			// the tail: banded dark across, its tip pale; from below paler
+			float b = fract(u * tail_bands + 0.04 * sin(v * 5.0 + seed * 9.0));
+			float band = smoothstep(1.0 - tail_band_w - 0.05, 1.0 - tail_band_w, b) * (1.0 - smoothstep(0.96, 1.0, b));
+			band *= 1.0 - smoothstep(1.0 - tail_tip_w - 0.12, 1.0 - tail_tip_w - 0.06, u) * 0.0;
+			vec3 tc = top ? tail_color : mix(tail_color, fl_pale, 0.55);
+			c = mix(tc, tail_band, band * (top ? 1.0 : 0.85));
+			c = mix(c, tail_tip_r, smoothstep(1.0 - tail_tip_w - 0.02, 1.0 - tail_tip_w, u));
+		} else if (pt == 15) {
+			c = back_color * (0.9 + 0.2 * seed);
+		} else {
+			// a flight feather: from above dark, faintly barred; from below
+			// pale, barred dark, its tip dusky
+			float b = 1.0 - bars(u, v, fl_bars, 0.45, seed);
+			if (top) {
+				c = mix(fl_top, fl_top * 0.6, b * 0.5);
+				c = mix(c, back_edge, (1.0 - smoothstep(0.0, 0.05, 1.0 - u)) * 0.5);
+			} else {
+				c = mix(fl_pale, fl_dark, b * 0.9);
+				c = mix(c, fl_dark, smoothstep(0.82, 0.96, u) * (pt == 11 ? 0.7 : 0.3));
+			}
+		}
+		c *= 0.92 + 0.08 * sin(u * 160.0 - abs(v) * 30.0);
+		c = mix(c, c * 0.6 + vec3(0.3) * 0.4, shaft * 0.5);
+		c = mix(c, down_white, down);
+		rough = 0.6;
+		spec = 0.3;
+		return;
+	}
+	if (pt == 1) { // the cere, the ring round the eye: bare, yellow
+		c = cere_color * (0.9 + 0.1 * vnoise(rest.xy * 3000.0));
+		rough = 0.45;
+		spec = 0.4;
+		return;
+	}
+	if (pt == 2) { // the bill: blue grey, dark at its hooked tip
+		c = mix(mix(cere_color, bill_color, smoothstep(0.0, 0.15, u)), bill_tip, smoothstep(0.35, 0.85, u));
+		rough = 0.3;
+		spec = 0.5;
+		return;
+	}
+	if (pt == 3) { // the eye: its iris, its pupil, wet
+		vec3 rn = normalize(rest_n * vec3(sign(rest.x), 1.0, 1.0));
+		float k = dot(rn, normalize(vec3(0.62, 0.06, -0.78)));
+		c = mix(vec3(0.0), iris, smoothstep(0.84, 0.86, -k + 1.7));
+		c = mix(c, vec3(0.005), smoothstep(0.86, 0.9, k));
+		c = mix(iris * 0.5, c, smoothstep(0.35, 0.45, k));
+		rough = 0.04;
+		spec = 0.9;
+		return;
+	}
+	if (pt == 8) { // the legs, the toes: yellow, scaled
+		float sc = fract(rest.y * 260.0 + 0.5 * step(0.5, fract(v * 5.0)));
+		float line = smoothstep(0.0, 0.15, sc) * smoothstep(0.0, 0.12, fract(v * 5.0));
+		c = leg_color * mix(0.7, 1.0, line);
+		c = mix(c, down_white, down * 0.4);
+		rough = 0.5;
+		return;
+	}
+	if (pt == 9) {
+		c = vec3(0.03);
+		rough = 0.25;
+		spec = 0.6;
+	}
 }
 
 void fragment() {
@@ -301,6 +483,8 @@ void fragment() {
 		// (cupped across its shaft)
 		nrm = normalize(nrm + cross(nrm, vec3(0.0, 0.0, 1.0)) * v * 0.0);
 	}
+	if (plumage == 1)
+		raptor(part, u, v, view, ndv, VERTEX, NORMAL, c, rough, metal, spec, nrm);
 	NORMAL = nrm;
 	ALBEDO = c;
 	ROUGHNESS = rough;

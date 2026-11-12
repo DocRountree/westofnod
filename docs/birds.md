@@ -3,7 +3,8 @@
 Built so far: `scripts/creatures/bird_flight.gd` (the flight arithmetic), `tools/creatures/bird_flight_table.gd`
 (prints the table below), and the near-bird tier of the rig and motors (`scripts/creatures/bird.gd`,
 `shaders/render/bird_rig.gdshaderinc`, `bird.gdshader`) with its first bird, the wild turkey (`wild_turkey.gd`):
-you asked for the turkey before the robin, so it was built first. Not built yet: the flock tier (compute shader,
+you asked for the turkey before the robin, so it was built first. Then the peregrine falcon and Cooper's hawk (`raptor.gd` and its two
+species), with the stoop, the dash, soaring and perching. Not built yet: the flock tier (compute shader,
 low-detail meshes), bounding, hovering, soaring, perching. This is what the first bird should be built to, so
 that the second through the fiftieth are a page of numbers each.
 

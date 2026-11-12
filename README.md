@@ -809,6 +809,20 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   or stacked by the shader; the motors: walking and running with planted feet, the head held still between thrusts
   (the bob), pecking to a point, flight (a crouch, a leap, beating up, a glide, a flare, landing at a run) by
   `BirdFlight` (`bird_flight.gd`: beat rate, stall, glide, sink, turn radius from mass, span and wing area).
+  `raptor.gd` (`Raptor`): birds of prey on the same body (the shader's raptor plumage: the cap, a falcon's hood and
+  moustache, cheeks, the back's feathers edged pale, the underparts barred, spotted, rufous-barred or streaked, barred
+  flight feathers, a banded tail; yellow cere, eye ring and feet; hooked bills, talons). Stood upright on a perch,
+  watching (its head turning, bobbing), rousing, preening, feaking, sleeping on one leg, calling; soaring, flying
+  between perches, flying off alarmed; hunting what's here when hungry (`hunt`): caught, mantled over, carried home,
+  plucked (tufts drifting off) and eaten; courting (the male's display flight, then on her back); a female's nest close
+  by on a pole, her clutch laid and sat, the eyases hatching (white down), brooded, fed morsels bill to bill, begging,
+  growing, flapping, fledging as juveniles; falling dead from the air. `peregrine_falcon.gd` (`PeregrineFalcon`):
+  slate above, black hood and moustache, white below barred black, pointed wings; rings up over its prey and stoops; a
+  gravel ledge, four red-brown blotched eggs; the juvenile brown, streaked. `coopers_hawk.gd` (`CoopersHawk`): blue grey
+  above, dark cap, barred rufous below, red-orange eye under a bony brow, short rounded wings, a long banded tail;
+  flap-flap-glide; dashes low off its perch; a stick nest, pale bluish eggs; the juvenile brown, streaked, yellow-eyed.
+  In the sandbox under Birds (adult, juvenile, or young: an eyas in its nest): E / H hunt, B soar, F fly, X alarm, D
+  call, G preen, A rouse, Z sleep, K mate, 1 lay, 2 hatch, N brood, U die.
   `wild_turkey.gd` (`WildTurkey`, *Meleagris gallopavo*): the tom bronze, copper and green, every feather edged
   black, flight feathers barred white, the fan brown with a black band and buff tip, the bare head red and blue,
   snood, wattle, caruncles, beard, spurs; the hen browner, edged buff; the poult downy, striped. Foraging (walking,

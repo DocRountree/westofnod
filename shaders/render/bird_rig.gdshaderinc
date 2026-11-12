@@ -31,6 +31,8 @@ uniform float tail_spread = 0.2; // rad: the outermost feather's angle out
 uniform float tail_arch = 0.0;   // the fan cupped forward (a strutting tom's)
 uniform float feather_load = 0.0; // the flight feathers bent up by the air
 uniform float wing_droop = 0.0;  // the primaries let down (strutting: dragging)
+uniform float fold_chord = 0.3;  // folded, how much of its arm's and hand's coverts still show
+uniform float fold_pitch = 0.0;  // folded, the wing tipped down along the back (an upright bird's: a hawk's)
 
 mat4 joint(int i) {
 	vec4 a = jm[i * 3];
@@ -102,7 +104,7 @@ void bird_pose(vec4 c1, vec4 c2, inout vec3 v, inout vec3 n) {
 	vec3 nn;
 	if (kind == 1) {
 		// (folded, the upper arm's and the hand's coverts drawn in: the forearm's are the folded wing's face)
-		float chord = c2.y * (k == 1 ? 1.0 : mix(0.3, 1.0, e));
+		float chord = c2.y * (k == 1 ? 1.0 : mix(fold_chord, 1.0, e));
 		q = bone_root(k, e) + dir * c2.x + perp * chord + up * c2.z;
 		nn = dir * n.x + up * n.y + perp * n.z;
 	} else {
@@ -117,7 +119,7 @@ void bird_pose(vec4 c1, vec4 c2, inout vec3 v, inout vec3 n) {
 		q = bone_root(k, e) + dir * c2.x + along * l + across * c2.z + up * (c2.w + bend);
 		nn = across * n.x + up * n.y + along * n.z;
 	}
-	mat3 r = rot_y(-w.y) * rot_z(w.x) * rot_x(w.z); // (swept about the body's upright: back in flight, its tip tucked in, folded)
+	mat3 r = rot_x(fold_pitch * (1.0 - e)) * rot_y(-w.y) * rot_z(w.x) * rot_x(w.z); // (swept about the body's upright: back in flight, its tip tucked in, folded)
 	q = r * q;
 	nn = r * nn;
 	q.x *= side;
