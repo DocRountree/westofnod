@@ -28,6 +28,11 @@ render_mode diffuse_lambert_wrap, specular_schlick_ggx;
 // its coat darker, glossy, gathered into spiky wet locks.
 
 uniform int species = 0;
+uniform int dog_pat = 0;          // (a dog's coat: 0 solid, 1 black and tan, 2 tricolour)
+uniform vec3 dog_base = vec3(0.8, 0.62, 0.38);
+uniform vec3 dog_dark = vec3(0.05, 0.045, 0.04);
+uniform float dog_belly = 1.1;
+uniform float dog_saddle_ny = 0.35; // (its saddle down its sides to here)
 uniform int part = 0;
 uniform bool skin = false;
 uniform bool young = false;
@@ -616,6 +621,58 @@ void fragment() {
 			c = mix(c, head * 0.7, 0.5);
 		if (pt == 6.0)
 			c = dark * (1.0 + 0.3 * gz);
+	} else if (species == 17) {
+		// a dog: its breed's coat (Dog: dog_pat). 0 solid (a Labrador's:
+		// yellow, black or chocolate, the yellow paler beneath); 1 black and
+		// tan (a German shepherd's: tan, a black saddle over its back, its
+		// tail black above, its muzzle black, its ears black backed); 2
+		// tricolour (a beagle's: tan head and ears, a black saddle, white
+		// legs, belly, chest, muzzle, a blaze up its face and its tail's tip)
+		float gz = vn(rp * vec3(0.05, 0.05, 0.02));
+		vec3 base = dog_base * (0.93 + 0.12 * gz);
+		vec3 dark = dog_dark * (0.9 + 0.2 * gz);
+		c = countershade(base * (dog_pat == 0 ? 0.94 : 1.0), base, base * dog_belly, ny, -0.35);
+		if (dog_pat >= 1 && pt == 0.0 && fw < 0.5) { // (the saddle: over its back, its withers to its rump)
+			float sad = smoothstep(dog_saddle_ny - 0.12, dog_saddle_ny + 0.08, ny + 0.2 * (vn(rp * 0.012) - 0.5)) * smoothstep(0.02, 0.1, a) * (1.0 - smoothstep(0.55, 0.66, a));
+			c = mix(c, dark, sad);
+		}
+		if (dog_pat == 2 && pt == 0.0 && fw < 0.5) { // (white beneath: its belly, chest and throat)
+			float wh = max(1.0 - smoothstep(-0.5, -0.2, ny), smoothstep(0.52, 0.62, a) * (1.0 - smoothstep(-0.15, 0.3, ny)));
+			c = mix(c, white, wh);
+		}
+		if (fw > 0.0) {
+			vec3 face = base;
+			if (dog_pat == 1) // (its mask: its muzzle black, darkening up over its forehead)
+				face = mix(face, dark, max(snout * 0.95, smoothstep(0.55, 0.95, ny) * 0.45));
+			if (dog_pat == 2) { // (its muzzle, chin and a blaze up between its eyes white)
+				float ahead = smoothstep(bare_b.z + bare_r, bare_b.z - bare_r * 1.5, hp.z);
+				float bl = (1.0 - smoothstep(bare_r * 0.35, bare_r * 0.8, abs(hp.x))) * smoothstep(-0.1, 0.4, ny) * smoothstep(bare_b.z + bare_r * 3.0, bare_b.z, hp.z);
+				face = mix(face, white, clamp(snout * 1.3 + chin + bl + ahead * (1.0 - smoothstep(-0.2, 0.3, ny)), 0.0, 1.0));
+			}
+			c = mix(c, face, fw);
+		}
+		if (leg) {
+			c = dog_pat == 1 ? base * 1.04 : base;
+			if (dog_pat == 2)
+				c = mix(c, white, max(smoothstep(0.2, 0.45, a), 1.0 - smoothstep(-0.3, 0.1, ny)));
+		}
+		if (pt == 4.0)
+			c = dog_pat == 2 ? white : base;
+		if (pt == 5.0) {
+			if (dog_pat == 1)
+				c = rn.z < 0.0 ? dark : mix(base * 1.15, dark, 0.35);
+			else
+				c = mix(base, dog_pat == 2 ? base * 0.75 : base * 0.9, smoothstep(ear_len * 0.6, ear_len, rp.y));
+		}
+		if (pt == 6.0) {
+			c = base;
+			if (dog_pat >= 1)
+				c = mix(c, dark, smoothstep(-0.3, 0.3, ny) * (dog_pat == 2 ? 1.0 - smoothstep(0.6, 0.72, a) : 1.0));
+			if (dog_pat == 1)
+				c = mix(c, dark, smoothstep(0.75, 0.9, a));
+			if (dog_pat == 2)
+				c = mix(c, white, max(smoothstep(0.66, 0.76, a), 1.0 - smoothstep(-0.5, -0.1, ny)));
+		}
 	} else {
 		// a white-tailed deer: summer red brown, darker down its spine;
 		// winter grey brown; white beneath and inside its legs, its chin, a

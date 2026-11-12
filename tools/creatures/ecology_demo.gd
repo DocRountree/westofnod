@@ -76,6 +76,11 @@ const BobcatScript := preload("res://scripts/creatures/bobcat.gd")
 const CanidScript := preload("res://scripts/creatures/canid.gd")
 const CoyoteScript := preload("res://scripts/creatures/coyote.gd")
 const WolfScript := preload("res://scripts/creatures/grey_wolf.gd")
+const DOG_SCRIPTS := {
+	"dog_gsd": preload("res://scripts/creatures/german_shepherd.gd"),
+	"dog_lab": preload("res://scripts/creatures/labrador_retriever.gd"),
+	"dog_beagle": preload("res://scripts/creatures/beagle.gd"),
+}
 const UrsidScript := preload("res://scripts/creatures/ursid.gd")
 const BlackBearScript := preload("res://scripts/creatures/black_bear.gd")
 const BrownBearScript := preload("res://scripts/creatures/brown_bear.gd")
@@ -207,6 +212,9 @@ const CATALOGUE := [
 	["Mammals", "bobcat", "bobcat", ["adult", "young"]],
 	["Mammals", "coyote", "coyote", ["adult", "young"]],
 	["Mammals", "grey wolf", "wolf", ["adult", "young"]],
+	["Mammals", "dog: German shepherd (V fetch, D bark, B dig, X bark at you; young: a pup)", "dog_gsd", ["adult", "young"]],
+	["Mammals", "dog: Labrador retriever (yellow, black or chocolate; V fetch, D bark, B dig)", "dog_lab", ["adult", "young"]],
+	["Mammals", "dog: beagle (V fetch, D bay, B dig; young: a pup)", "dog_beagle", ["adult", "young"]],
 	["Mammals", "American black bear", "black_bear", ["adult", "young"]],
 	["Mammals", "brown bear (grizzly)", "brown_bear", ["adult", "young"]],
 	["Mammals", "white-tailed deer (summer)", "deer", ["adult", "young"]],
@@ -1297,8 +1305,8 @@ func _spawn_animal(key: String, at: Vector3, stage: String, male: bool, young: b
 				op.set("size", 0.13)
 			op.call("wander", at, 0.7)
 			return op
-		"fox", "bobcat", "coyote", "wolf":
-			var sc: Script = {"fox": FoxScript, "bobcat": BobcatScript, "coyote": CoyoteScript, "wolf": WolfScript}[key]
+		"fox", "bobcat", "coyote", "wolf", "dog_gsd", "dog_lab", "dog_beagle":
+			var sc: Script = DOG_SCRIPTS[key] if DOG_SCRIPTS.has(key) else {"fox": FoxScript, "bobcat": BobcatScript, "coyote": CoyoteScript, "wolf": WolfScript}[key]
 			var hn: Node3D = sc.new(young)
 			hn.set("male", male and not young)
 			_org(hn, at, false)
@@ -1714,7 +1722,9 @@ func _den_of(n: Node3D, at: Vector3) -> Node3D:
 	return _kit(n, "den", func() -> Node3D:
 		var d: Node3D
 		var sc: Script = n.get_script()
-		if sc == BobcatScript:
+		if n is Dog: # (a whelping box)
+			d = Dog.bed(lerpf(0.6, 1.2, float((n as Dog).S.body_len) / 700.0))
+		elif sc == BobcatScript:
 			d = BobcatScript.den()
 		elif sc == OpossumScript:
 			d = OpossumScript.den()
@@ -2661,6 +2671,44 @@ func _raptor_do(r: Raptor, act_: String) -> void:
 				r.perch()
 
 
+
+## A dog's own (Dog): V a ball thrown for it (fetched, brought back), or a
+## play bow and the zoomies; D / X barking (at the camera); B digging; E its
+## bowl of food. False: the wolf's ways for the rest.
+func _dog_do(d: Dog, act_: String, p: Vector3, near: Vector3) -> bool:
+	match act_:
+		"play":
+			if randf() < 0.7:
+				var to := _on(p + near * randf_range(5.0, 9.0))
+				d.fetch(Dog.ball(self, p, to))
+			else:
+				d.play_bow()
+		"display", "alarm":
+			d.bark(cam.global_position if cam else p + near * 5.0, 6.0)
+		"forage":
+			d.dig(8.0)
+		"eat":
+			var bowl: Node3D = _kit(d, "bowl", func() -> Node3D:
+				var b := MeshInstance3D.new()
+				var cm := CylinderMesh.new()
+				cm.top_radius = 0.11
+				cm.bottom_radius = 0.09
+				cm.height = 0.06
+				b.mesh = cm
+				var m := StandardMaterial3D.new()
+				m.albedo_color = Color(0.7, 0.12, 0.1)
+				m.metallic = 0.4
+				m.roughness = 0.4
+				b.material_override = m
+				b.set_meta("prop", true)
+				add_child(b)
+				b.position = _on(p + near * 0.8) + Vector3(0.0, 0.03, 0.0)
+				return b)
+			d.eat_at(bowl.position, 10.0)
+		_:
+			return false
+	return true
+
 ## A tick colony's ways: E / H questing, 1 the engorged females laying, 2
 ## the engorged young moulting and the egg masses hatching, X still, W
 ## walking about (then questing again).
@@ -2810,6 +2858,8 @@ func _do(c: Node, act_: String) -> void:
 		return
 	if c is CrayScript: # (its own: in its pond)
 		_crayfish_do(c, act_, young, p)
+		return
+	if c is Dog and not young and _dog_do(c as Dog, act_, p, near):
 		return
 	if c is OtterScript: # (its own: in and by its water)
 		_otter_do(c, act_, young, p)

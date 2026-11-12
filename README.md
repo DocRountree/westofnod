@@ -493,6 +493,17 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   lupus*: big, deep chested, long legged, big footed, a broad head and deep muzzle, shorter rounder ears; grizzled
   grey, a darker saddle, pale buff legs and flanks, a pale underside and face mask; its tail carried low and straight,
   dark tipped); their pups born dark (a wolf's near black), blind, in the den, growing, playing.
+  `dog.gd` (`Dog`, *Canis familiaris*): the wolf's make cut to a breed (`Dog.make_spec`: the wolf's measures made over,
+  its size, legs, build and muzzle; ears pricked or hanging, the make's `ear.drop`; its tail's carriage) and its coat
+  (`carnivore.gdshader`'s dog, species 17: solid, black and tan, tricolour). Its own ways besides the wolf's: `bark`
+  (braced, facing it, ears and tail up, in bursts), `fetch` (after a thrown `Dog.ball()`, picked up, brought back,
+  dropped, sitting and wagging), `play_bow` (forequarters down, rump up, wagging; then the zoomies), `dig` (forepaws
+  scraping in turn, earth flung back, a hole left), `greet` (nose to nose, then round to sniff under its tail); its
+  pups whelped in a box (`Dog.bed()`). The breeds: `german_shepherd.gd` (tan, a black saddle and mask, big pricked
+  ears, a bushy low tail), `labrador_retriever.gd` (sturdy, broad headed, hanging ears, an otter's tail; yellow, black
+  or chocolate), `beagle.gd` (a small hound, short legged, long hanging ears, its white-tipped tail up; tricolour).
+  In the sandbox under Mammals: V a ball thrown (or a play bow), D / X barking at you, B digging, E its bowl; the rest
+  as the wolf's.
 - `scripts/creatures/ursid.gd`, the bears' ways on the hunters' make, plantigrade (on the whole sole, the heel
   down, lifting first; the claws out before the toes), heavy, the head low, an ambling walk and a lumbering gallop;
   their coats by colour phase. Foraging (nose down, sniffing; digging, the forepaws raking the earth back by turns,
