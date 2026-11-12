@@ -45,7 +45,17 @@ uniform vec3 fl_pale : source_color = vec3(0.86, 0.85, 0.82);
 uniform vec3 fl_dark : source_color = vec3(0.2, 0.2, 0.22);
 uniform float fl_bars = 12.0;
 uniform float fl_top_bars = 0.25;
-uniform float tail_under = 0.55;   // (its tail from below: this much paler, as its flight feathers; a white tail none)
+uniform float tail_under = 0.55;
+uniform float cov_bar = 0.0;       // the upperwing's coverts over the arm, a pale bar: each feather fringed broad and pale, some pale through (a golden eagle's tawny bar)
+uniform vec3 cov_bar_color : source_color = vec3(0.68, 0.52, 0.32);
+uniform vec4 cov_lead = vec4(0.0); // the wing's leading edge, its small coverts, their own colour (w: how much; a golden eagle's golden)
+uniform float under_cov_var = 0.0; // the underwing's coverts: here and there one fringed paler
+uniform float fl_trail = 0.3;      // the secondaries from below: a dark band at their ends, how dark
+uniform float fl_trail_from = 0.82; // (where along them it begins)
+uniform float fl_bar_wave = 0.0;   // the flight feathers' bars irregular, wavering, broken
+uniform float fl_bar_to = 1.2;     // and fading out this far along them (an eagle's: on their bases only)
+uniform float fl_top_tip = 0.0;    // from above, their ends darker, the bars gone from them
+uniform float fl_prim_dark = 0.0;  // the primaries darker than the rest (an eagle's black fingers)   // (its tail from below: this much paler, as its flight feathers; a white tail none)
 uniform float hood_u = -1.0;       // (an eagle's) from here along it up, all its head and neck the cap's colour (a bald eagle's white), its edge ragged
 uniform vec3 nape_color : source_color = vec3(0.7, 0.5, 0.25);
 uniform float nape_u = -1.0;       // from here along it up, its nape and hind neck this colour (a golden eagle's hackles)
@@ -238,6 +248,17 @@ void raptor(int pt, float u, float v, vec3 view, float ndv, vec3 vtx, vec3 nrm0,
 		float bbar = smoothstep(0.38, 0.44, f.x) * (1.0 - smoothstep(0.52, 0.6, f.x)) * back_bars * fade;
 		bk = mix(bk, back_bar, bbar);
 		bk = mix(bk, back_edge, edge * 0.8);
+		if (pt == 10 && (cov_bar > 0.0 || cov_lead.w > 0.0)) {
+			// the upperwing's coverts: over the arm, short of the wrist, a
+			// bar of feathers dark centred, fringed broad and pale, a few
+			// pale through; its leading edge its own colour
+			float bar = smoothstep(0.04, 0.2, v) * (1.0 - smoothstep(0.62, 0.86, v)) * (1.0 - smoothstep(0.5, 0.72, u)) * cov_bar;
+			float fringe = (1.0 - smoothstep(0.08, 0.42, f.x + 0.12 * vnoise(p * 3.0 + f.y * 9.0))) * fade;
+			float pale = max(fringe, 0.75 * step(0.66, f.y) * smoothstep(0.0, 0.3, f.x) * (1.0 - smoothstep(0.65, 0.9, f.x)));
+			bk *= mix(1.0, 0.72, bar * (1.0 - fringe));
+			bk = mix(bk, cov_bar_color * (0.82 + 0.3 * f.y), bar * pale);
+			bk = mix(bk, cov_lead.rgb * (0.85 + 0.25 * f.y), cov_lead.w * (1.0 - smoothstep(0.05, 0.3, v + 0.1 * f.y)) * (1.0 - smoothstep(0.7, 0.9, u)));
+		}
 		if (mottle > 0.0 || back_streak > 0.0 || back_spot > 0.0) {
 			float verm = smoothstep(0.42, 0.58, vnoise(vec2(p.x * 5.0, p.y * 13.0)));
 			float blotch = smoothstep(0.5, 0.72, vnoise(p * 0.9 + 7.0));
@@ -276,6 +297,8 @@ void raptor(int pt, float u, float v, vec3 view, float ndv, vec3 vtx, vec3 nrm0,
 		if (pt == 7)
 			mk *= 0.8;
 		un = mix(un, under_mark, mk);
+		if (pt == 10 && under_cov_var > 0.0) // (the underwing's coverts, here and there one fringed paler)
+			un = mix(un, cov_bar_color * 0.8, under_cov_var * step(0.62, f.y) * (1.0 - smoothstep(0.1, 0.4, f.x)) * fade);
 		if (pt == 7)
 			un = mix(un, trouser.rgb * (0.9 + 0.15 * f.y), trouser.w);
 		un *= 0.94 + 0.08 * f.y;
@@ -362,14 +385,20 @@ void raptor(int pt, float u, float v, vec3 view, float ndv, vec3 vtx, vec3 nrm0,
 		} else {
 			// a flight feather: from above dark, faintly barred; from below
 			// pale, barred dark, its tip dusky
-			float b = 1.0 - bars(u, v, fl_bars, 0.45, seed);
+			float uw = u + fl_bar_wave * (vnoise(vec2(v * 1.5 + seed * 13.0, u * 2.5)) - 0.5) * 0.22;
+			float b = 1.0 - bars(uw, v, fl_bars, 0.45 + 0.3 * fl_bar_wave * (vnoise(vec2(u * 3.0, seed * 5.0 + v * 0.6)) - 0.5), seed);
+			b *= 1.0 - smoothstep(fl_bar_to - 0.12, fl_bar_to, u + 0.06 * sin(v * 4.0 + seed * 11.0));
 			if (top) {
+				b *= 1.0 - smoothstep(0.55, 0.75, u) * fl_top_tip;
 				c = mix(fl_top, fl_top * (1.0 - 0.8 * fl_top_bars), b);
-				c = mix(c, back_edge, (1.0 - smoothstep(0.0, 0.05, 1.0 - u)) * 0.5);
+				c = mix(c, fl_top * 0.55, smoothstep(0.65, 0.9, u) * fl_top_tip);
+				c = mix(c, back_edge, (1.0 - smoothstep(0.0, 0.05, 1.0 - u)) * 0.5 * (1.0 - fl_top_tip));
 			} else {
 				c = mix(fl_pale, fl_dark, b * 0.9);
-				c = mix(c, fl_dark, smoothstep(0.82, 0.96, u) * (pt == 11 ? 0.7 : 0.3));
+				c = mix(c, fl_dark, smoothstep(fl_trail_from, fl_trail_from + 0.12, u + 0.03 * sin(v * 5.0 + seed * 9.0)) * (pt == 11 ? 0.7 : fl_trail));
 			}
+			if (pt == 11)
+				c = mix(c, fl_dark * 0.7, fl_prim_dark * smoothstep(0.45, 0.75, u));
 			c = mix(c, fl_patch_color * (0.92 + 0.1 * seed), (1.0 - smoothstep(fl_patch - 0.12, fl_patch, u + 0.05 * sin(v * 3.0 + seed * 7.0))) * step(0.01, fl_patch));
 		}
 		c *= 0.92 + 0.08 * sin(u * 160.0 - abs(v) * 30.0);

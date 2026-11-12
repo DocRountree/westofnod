@@ -99,8 +99,8 @@ func eagle_shape(bill: float, head: float, tail_len: float, feathered: bool) -> 
 		"thigh_r": [3.6 * K * B * 1.15, 2.4 * K * B * 1.25], "leg_r": 0.42 * K * 1.4 * (1.25 if feathered else 1.0), "toes": [4.6 * K * 0.95, 3.3 * K * 0.95, 2.6 * K * 0.95], "claw": 0.42, "claw_r": 0.62,
 		"tuck": Vector3(0.0, -0.05, 0.0),
 		"tail": Vector3(0.0, 14.0 + dy, 12.0) * K,
-		"shoulder": Vector3(5.0 * B, 25.5 + dy, 4.6) * K, "wing": Vector3(7.5, 9.0, 6.0) * K * 1.1, "coverts": [2.0 * K * 1.15, 4.6 * K * 1.2, 3.6 * K * 1.2, 2.0 * K * 1.15],
-		"fold_fan": Vector3(0.3, 0.4, 0.08), "fold_tuck": 0.12, "fold_tuck_front": 3.0, "wing_thick": [1.0 * K, 0.75 * K, 0.5 * K, 0.25 * K],
+		"shoulder": Vector3(5.0 * B, 25.5 + dy, 4.6) * K, "wing": Vector3(7.5, 9.0, 6.0) * K * 1.1, "coverts": [3.0 * K * 1.3, 11.0 * K * 1.2, 8.0 * K * 1.2, 3.0 * K * 1.15], # (its coverts deep: half the arm's chord)
+		"fold_fan": Vector3(0.3, 0.4, 0.08), "fold_tuck": 0.12, "fold_tuck_front": 3.0, "wing_thick": [1.7 * K, 1.5 * K, 1.0 * K, 0.4 * K], # (the coverts lying thick over the flight feathers' bases)
 		"primaries": [12.0, 13.0, 14.5, 15.5, 16.5, 17.5, 18.0, 17.5, 16.5, 14.5].map(func(x: float) -> float: return x * K * 1.1), "fingers": 6,
 		"secondaries": [13, 14.0 * K * 1.2, 12.5 * K * 1.2], "tertials": [3, 11.0 * K * 1.1, 9.0 * K * 1.1], "feather_w": 4.4 * K * 1.25,
 		"tail_feathers": [12, tail_len, 4.0 * K * 1.15], "tail_coverts": [[10, 8.0 * K, 3.5 * K, 0.5, 0.9]],

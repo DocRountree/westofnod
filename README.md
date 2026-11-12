@@ -869,7 +869,11 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   fishes, scavenges, takes a hare or a poult; calls with its head thrown back, chattering; dull white eggs; the
   juvenile brown blotched white, dark billed, brown eyed. `golden_eagle.gd` (`GoldenEagle`): dark brown, the crown and
   hackles golden, the face dark, a pale tawny bar on the folded wing, a grey-brown tail dark tipped, legs feathered
-  tawny to yellow feet, a dark bill blue grey at its root, amber eyes; stoops on hares and squirrels from high, its
+  tawny to yellow feet, a dark bill blue grey at its root, amber eyes; its wings above with a tawny bar over the arm's deep coverts (each
+  dark centred, fringed broad and pale, a few pale through), the leading edge golden, the flight feathers grey brown
+  barred on their bases and dark at their ends, the primaries blackish; below, the coverts dark with a few fringed
+  tawny, the flight feathers grey, irregularly barred near their bases, a broad dark band at their ends (the shader's
+  `cov_bar`, `cov_lead`, `under_cov_var`, `fl_bar_wave`, `fl_bar_to`, `fl_trail`, `fl_top_tip`, `fl_prim_dark`); stoops on hares and squirrels from high, its
   display a sky dance; white eggs blotched reddish brown; the juvenile with white patches in its wings and a white
   tail broadly tipped black. In the sandbox under Birds (adult, juvenile, or young: an eaglet in its nest), on a tall
   snag: H the bald eagle fishes (a pond dug and stocked with trout if there's none), the golden stoops on a hare; E to
