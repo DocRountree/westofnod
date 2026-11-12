@@ -118,10 +118,13 @@ func _has_target(args: Dictionary) -> bool:
 # (args with its food in them, under every name a creature might read it by;
 # {} if there's none. What it eats from under it (grass, leaves, the
 # litter): args as they were.)
-func _with_food(args: Dictionary) -> Dictionary:
+func _with_food(args: Dictionary, act := "eat") -> Dictionary:
 	if not (creature is Node3D) or Diet.of(creature).is_empty():
 		return args
-	var f := Diet.find(creature as Node3D, 30.0)
+	var kinds := Diet.for_act(creature, act) # (hunting: its prey; eating: any of its food)
+	if kinds.is_empty():
+		return {}
+	var f := Diet.find_one(creature as Node3D, 30.0, kinds)
 	if f == null:
 		return {}
 	if f == creature:
@@ -154,7 +157,7 @@ func act(name: String, args := {}) -> bool:
 	if not (_call("_p_behaviours") as PackedStringArray).has(name):
 		return false
 	if name in FEEDING and not _has_target(args): # (eating: what's really there, never made for it)
-		args = _with_food(args)
+		args = _with_food(args, name)
 		if args.is_empty():
 			return false
 	_cancel()

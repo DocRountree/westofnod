@@ -45,8 +45,8 @@ const EATS := {
 	"wild_turkey.gd": ["acorn", "walnut", "berries", "grasshopper", "nymph", "grub", "caterpillar"],
 	"peregrine_falcon.gd": ["mouse", "squirrel", "poult"],
 	"coopers_hawk.gd": ["mouse", "squirrel", "poult"],
-	"barn_owl.gd": ["mouse", "grasshopper", "grub", "spider"],
-	"eastern_screech_owl.gd": ["mouse", "mouse_pup", "grasshopper", "grub", "caterpillar", "frog", "crayfish", "fish", "anole", "snails"],
+	"barn_owl.gd": ["mouse", "grasshopper", "nymph", "grub", "spider"],
+	"eastern_screech_owl.gd": ["mouse", "mouse_pup", "grasshopper", "nymph", "grub", "caterpillar", "frog", "crayfish", "fish", "anole", "snails"],
 	"great_horned_owl.gd": ["mouse", "squirrel", "poult", "hare", "leveret"],
 	"bald_eagle.gd": ["fish", "carcass", "hare", "leveret", "poult"],
 	"golden_eagle.gd": ["hare", "leveret", "squirrel", "poult", "carcass"],
@@ -88,6 +88,19 @@ const EATS := {
 	"fish_school.gd": ["crayfish", "fish", "nymph", "grasshopper", "mollies"],
 }
 
+## (A kind that stands for several: "snails", any snail.)
+const ALIASES := {"snails": ["snails", "grass_snail", "tigersnail"]}
+
+## Kinds that live as colonies, eaten one at a time (one_of: the nearest
+## taken out of its colony, a body of its own to be eaten).
+const ONE_AT_A_TIME := ["snails", "grass_snail", "tigersnail", "firefly"]
+
+## What isn't hunted (no animal to run down: carrion, plants, the game's
+## items, a colony eaten whole where it is, what's always under it).
+const NOT_PREY := ["carcass", "dead_mouse", "dead_fish", "berries", "forbs", "flowers", "sapling", "stick", "ants", "wasp_comb",
+		"fish", "mollies", "clam", "urchin", "acorn", "walnut", "pawpaw", "crabapple", "morel", "fly_agaric", "chicken_of_the_woods",
+		"little_brown", "graze", "leaf", "litter", "algae", "blood"]
+
 ## (Those that eat from what's always under them: no finding.)
 const EVERYWHERE := ["graze", "leaf", "litter", "algae", "blood"]
 const FORBS := ["yampah", "fleabane", "susan"]
@@ -105,12 +118,35 @@ static func of(c: Node) -> Array:
 	return []
 
 
+## What c hunts (its diet's animals, run down, caught).
+static func prey_of(c: Node) -> Array:
+	return of(c).filter(func(k: String) -> bool: return k not in NOT_PREY)
+
+
+## Its diet for an act: hunting (hunt, strike, catch) its prey; else all
+## of it.
+static func for_act(c: Node, act: String) -> Array:
+	return prey_of(c) if act in ["hunt", "strike", "catch", "feed_on_insect"] else of(c)
+
+
+## (Kinds, the aliases opened out.)
+static func expand(kinds: Array) -> Array:
+	var out := []
+	for k: String in kinds:
+		for e: String in ALIASES.get(k, [k]):
+			if not out.has(e):
+				out.append(e)
+	return out
+
+
 ## A thing named as food (or "", nothing to eat).
 static func kind_of(n: Node) -> String:
 	if n == null or not is_instance_valid(n):
 		return ""
 	if n.has_meta("carcass"):
 		return "carcass" if int(n.get_meta("carcass")) <= 2 else ""
+	if n.has_meta("from_colony"):
+		return String(n.get_meta("from_colony"))
 	if n.has_meta("shellfish"):
 		return String(n.get_meta("shellfish"))
 	if n.has_meta("comb_cells"):
@@ -187,9 +223,23 @@ static func kind_of(n: Node) -> String:
 			k = "mollies"
 		"trigonalid.gd", "ichneumon.gd", "wasp.gd":
 			k = "flier"
+		"bumblebee.gd":
+			k = "bee"
+		"monarch.gd":
+			k = "monarch"
+		"swallowtail.gd":
+			k = "swallowtail"
+		"spider.gd":
+			k = "spider"
+		"fireflies.gd":
+			k = "firefly"
 		"ant_colony.gd", "harvester_ants.gd":
 			k = "ants"
-		"snails.gd", "grass_snails.gd", "flamed_tigersnails.gd":
+		"grass_snails.gd":
+			k = "grass_snail"
+		"flamed_tigersnails.gd":
+			k = "tigersnail"
+		"snails.gd":
 			k = "snails"
 	if k != "" and n.get("dead") == true:
 		return "dead_" + k
@@ -202,7 +252,7 @@ static func kind_of(n: Node) -> String:
 static func find(c: Node3D, r := 30.0, kinds: Array = []) -> Node:
 	if c == null or c.get_parent() == null:
 		return null
-	var want: Array = kinds if not kinds.is_empty() else of(c)
+	var want: Array = expand(kinds if not kinds.is_empty() else of(c))
 	for k: String in want:
 		if k in EVERYWHERE:
 			return c
@@ -224,6 +274,56 @@ static func find(c: Node3D, r := 30.0, kinds: Array = []) -> Node:
 			bd = d
 			best = o
 	return best
+
+
+## As find, but one of a colony (a snail of its band, a firefly of its
+## swarm) taken out of it: a body of its own where it was, to be eaten.
+static func find_one(c: Node3D, r := 30.0, kinds: Array = []) -> Node:
+	var f := find(c, r, kinds)
+	if f != null and f != c and kind_of(f) in ONE_AT_A_TIME:
+		return one_of(f as Node3D, _at(c))
+	return f
+
+
+## The member of colony nearest p taken out of it: dead to it (Snails.die;
+## moved off, out of sight), and a body of its own in its place (its mesh,
+## its look, where it was), to be eaten. Null if none's left.
+static func one_of(colony: Node3D, p: Vector3) -> Node3D:
+	var mm: MultiMesh = (colony as MultiMeshInstance3D).multimesh if colony is MultiMeshInstance3D else null
+	var ps: Variant = colony.get("pos")
+	if mm == null or not (ps is PackedVector3Array):
+		return null
+	var pos: PackedVector3Array = ps
+	var lp := colony.to_local(colony.get_parent().to_global(p)) if colony.is_inside_tree() else p
+	var best := -1
+	var bd := INF
+	for i in pos.size():
+		if colony.has_method("is_dead") and bool(colony.call("is_dead", i)):
+			continue
+		if pos[i].y < -100.0:
+			continue
+		var d := pos[i].distance_to(lp)
+		if d < bd:
+			bd = d
+			best = i
+	if best < 0:
+		return null
+	var body := MeshInstance3D.new()
+	body.name = "%s_one" % kind_of(colony)
+	body.mesh = mm.mesh
+	body.material_override = (colony as MultiMeshInstance3D).material_override
+	colony.get_parent().add_child(body)
+	body.global_transform = colony.global_transform * mm.get_instance_transform(best)
+	body.set_meta("from_colony", kind_of(colony))
+	if colony.has_method("die"):
+		colony.call("die", best)
+	pos[best] = Vector3(pos[best].x, -500.0, pos[best].z) # (out of its colony: gone from it)
+	colony.set("pos", pos)
+	if colony.get("target") is PackedVector3Array:
+		var t: PackedVector3Array = colony.get("target")
+		t[best] = pos[best]
+		colony.set("target", t)
+	return body
 
 
 static func _at(n: Node3D) -> Vector3:

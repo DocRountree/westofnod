@@ -777,11 +777,14 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   between and behind his thighs (a bobcat's high under his tail, a bull's hanging).
 - Diet (`scripts/creatures/diet.gd`, `Diet`): what every creature eats, by its script (`Diet.EATS`, `Diet.of`), each
   thing in the world named as food (`Diet.kind_of`: an animal by its kind and age, a dead one, a carcass, a fish
-  school, the game's items, a plant by what it gives, an ant colony, a wasp comb, a clam or urchin on the sea floor),
+  school, the game's items, a plant by what it gives, an ant colony, a wasp comb, a clam or urchin on the sea floor, a
+  spider, a bee, a monarch or a swallowtail, a firefly, a grass snail or a tigersnail; a colony's member, a snail or a
+  firefly, eaten one at a time: `Diet.find_one` takes the nearest out of its colony, a body of its own),
   and `Diet.find(creature, reach)`: the nearest real food of its diet there, never anything made for it (those that
   eat what's always under them, grass, leaves, litter, algae, blood: the creature itself). A creature told to eat
   with no target (the pilot's act eat, hunt, strike, catch, fish, browse, feed, forage, visit_flowers) is given what
-  `Diet.find` finds; nothing there, the act fails. The sea otter's clams and urchins are real now (on the bottom:
+  `Diet.find` finds (hunting acts its prey only, `Diet.prey_of`); nothing there, the act fails. The sandbox's E / H
+  read every creature's diet from it (E the nearest of all it eats, H its prey). The sea otter's clams and urchins are real now (on the bottom:
   forage() dives for one that's there, false if none; a rock by it its anvil, if one lies there).
 - Steering, for a future state machine (`scripts/creatures/pilot.gd`): every creature (`Wasp`, the
   lepidopterans, `Grasshopper`, `Mantis`, `Snake`, `Larva`; one of a colony: `AntColony.member(i)`) has the same
