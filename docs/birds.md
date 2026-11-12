@@ -1,7 +1,10 @@
 # Birds: the plan
 
-Nothing here is built yet except `scripts/creatures/bird_flight.gd` (the flight arithmetic, no bird in it) and
-`tools/creatures/bird_flight_table.gd` (prints the table below). This is what the first bird should be built to, so
+Built so far: `scripts/creatures/bird_flight.gd` (the flight arithmetic), `tools/creatures/bird_flight_table.gd`
+(prints the table below), and the near-bird tier of the rig and motors (`scripts/creatures/bird.gd`,
+`shaders/render/bird_rig.gdshaderinc`, `bird.gdshader`) with its first bird, the wild turkey (`wild_turkey.gd`):
+you asked for the turkey before the robin, so it was built first. Not built yet: the flock tier (compute shader,
+low-detail meshes), bounding, hovering, soaring, perching. This is what the first bird should be built to, so
 that the second through the fiftieth are a page of numbers each.
 
 Sized by five birds that span the range: ruby-throated hummingbird (3 g), house finch (21 g), American robin (77 g),

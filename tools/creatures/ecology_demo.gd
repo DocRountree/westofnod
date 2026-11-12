@@ -44,6 +44,7 @@ const LadyScript := preload("res://scripts/creatures/lady_beetles.gd")
 const FireflyScript := preload("res://scripts/creatures/fireflies.gd")
 const TigerSnailScript := preload("res://scripts/creatures/flamed_tigersnails.gd")
 const GrassSnailScript := preload("res://scripts/creatures/grass_snails.gd")
+const TurkeyScript := preload("res://scripts/creatures/wild_turkey.gd")
 const DeerTickScript := preload("res://scripts/creatures/blacklegged_ticks.gd")
 const LoneStarScript := preload("res://scripts/creatures/lone_star_ticks.gd")
 const LarvaScript := preload("res://scripts/creatures/larva.gd")
@@ -177,6 +178,7 @@ const CATALOGUE := [
 	["Amphibians and reptiles", "common snapping turtle", "snapper", ["adult", "young"]],
 	["Amphibians and reptiles", "western painted turtle", "painted", ["adult", "young"]],
 	["Amphibians and reptiles", "green sea turtle", "sea_turtle", ["adult", "young"]],
+	["Birds", "wild turkey (tom; hen; poult)", "turkey", ["adult", "young"]],
 	["Mammals", "deer mouse", "mouse", ["adult", "young"]],
 	["Mammals", "snowshoe hare", "hare", ["adult", "young"]],
 	["Mammals", "eastern fox squirrel", "fox_squirrel", ["adult"]],
@@ -1313,6 +1315,23 @@ func _spawn_animal(key: String, at: Vector3, stage: String, male: bool, young: b
 			_org(tc, at, true)
 			tc.setup_stages(8 if not young else 14, Vector3.ZERO, 0.08, [Ticks.MALE, Ticks.FEMALE] if not young else [Ticks.LARVA, Ticks.LARVA, Ticks.NYMPH])
 			return tc
+		"turkey":
+			var tk: Node3D = TurkeyScript.new(young)
+			tk.set("male", male and not young)
+			tk.set("height", _height)
+			_org(tk, at, false)
+			tk.call("place", at, randf() * TAU)
+			var mom: Node3D = null
+			if young: # (to the nearest hen close by: hers to lead)
+				for o in get_children():
+					if o is WildTurkey and o != tk and not o.male and not o.young and not o.dead and (o as Node3D).position.distance_to(at) < 5.0:
+						mom = o
+				if mom:
+					(mom.get("young_ones") as Array).append(tk)
+					tk.call("follow", mom)
+			if mom == null:
+				tk.call("forage", at, 2.5)
+			return tk
 		"deer", "deer_winter":
 			var season := "winter" if key == "deer_winter" else "summer"
 			var d: Node3D = DeerScript.new(young, season)
@@ -1903,6 +1922,8 @@ func _kind_of(n: Node) -> String:
 			return "leveret" if young else "hare"
 		DeerScript:
 			return "fawn" if young else "deer"
+		TurkeyScript:
+			return "poult" if young else "turkey"
 		MooseScript:
 			return "moose_calf" if young else ""
 		BisonScript:
@@ -2457,6 +2478,55 @@ func _snail_do(sn: Snails, act_: String) -> void:
 				sn.wander(i, Vector3.ZERO, 0.06 if sn is FlamedTigersnails else 0.015)
 
 
+## A wild turkey's ways: E pecking about (a scratch, a peck), B foraging,
+## D a tom strutting (gobbling now and then), a hen's poults played with
+## (V), 1 a hen laying her clutch in a scrape and sitting it, 2 her eggs
+## hatching (poults, hers), N brooding them, X alarm (a poult runs; the
+## grown burst up and away), F flying, Z asleep, A sat, G preening, S
+## dust-bathing, H a gobble, U dead (a turkey's end), W its own ways.
+func _turkey_do(t: WildTurkey, act_: String) -> void:
+	var p := t.position
+	var a := randf() * TAU
+	match act_:
+		"eat":
+			t.eat(p + Vector3(cos(a), 0.0, sin(a)) * 0.6)
+		"forage", "wander":
+			t.forage(p, 2.5)
+		"display":
+			if t.male and not t.young:
+				t.strut(30.0)
+			else:
+				t.alert(4.0)
+		"hunt", "mark":
+			t.gobble()
+		"lay":
+			t.lay()
+		"hatch":
+			t.hatch()
+		"nurse":
+			t.brood(20.0)
+		"play":
+			t.play(12.0)
+		"alarm":
+			var from := cam.global_position if cam else p + Vector3(3.0, 0.0, 0.0)
+			if t.young:
+				t.flee(from)
+			else:
+				t.flush(from)
+		"fly":
+			t.fly(p + Vector3(cos(a), 0.0, sin(a)) * 16.0)
+		"sleep":
+			t.sleep()
+		"sit":
+			t.sit(15.0)
+		"groom":
+			t.preen(10.0)
+		"spin":
+			t.dust(12.0)
+		"unusual":
+			t.die()
+
+
 ## A tick colony's ways: E / H questing, 1 the engorged females laying, 2
 ## the engorged young moulting and the egg masses hatching, X still, W
 ## walking about (then questing again).
@@ -2667,6 +2737,9 @@ func _do(c: Node, act_: String) -> void:
 		return
 	if c is Snails:
 		_snail_do(c as Snails, act_)
+		return
+	if c is WildTurkey:
+		_turkey_do(c as WildTurkey, act_)
 		return
 	if c is Ticks:
 		_tick_do(c as Ticks, act_)

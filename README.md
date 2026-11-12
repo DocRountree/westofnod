@@ -803,8 +803,21 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   flamed tigersnail (`flamed_tigersnails.gd`, *Anguispira alternata*): a low ribbed dome, horn brown with rows of ragged
   red-brown flames, an orange-tan body; the lovely grass snail (`grass_snails.gd`, *Vallonia pulchella*): tiny, a glassy
   white disc with a flared white lip, mostly selfing.
-  `bird_flight.gd` (`BirdFlight`): no bird yet, only the arithmetic birds will fly by (beat rate, stall, glide, sink,
-  turn radius, bounding, from mass, span and wing area); the plan they'll be built to is `docs/birds.md`.
+  `bird.gd` (`Bird`, `bird.gdshader`, `bird_rig.gdshaderinc`): the make birds share (the plan: `docs/birds.md`), one
+  mesh posed in its shader, no `Skeleton3D`: one skin from tail to bill bending at four neck joints, the legs, each
+  wing a surface over three bones whose elbow and wrist fold together, every flight and tail feather a card fanned
+  or stacked by the shader; the motors: walking and running with planted feet, the head held still between thrusts
+  (the bob), pecking to a point, flight (a crouch, a leap, beating up, a glide, a flare, landing at a run) by
+  `BirdFlight` (`bird_flight.gd`: beat rate, stall, glide, sink, turn radius from mass, span and wing area).
+  `wild_turkey.gd` (`WildTurkey`, *Meleagris gallopavo*): the tom bronze, copper and green, every feather edged
+  black, flight feathers barred white, the fan brown with a black band and buff tip, the bare head red and blue,
+  snood, wattle, caruncles, beard, spurs; the hen browner, edged buff; the poult downy, striped. Foraging (walking,
+  looking about, scratching back the litter, pecking), the tom's strut (fan up, wings dragging, feathers raised,
+  head drawn back, snood let down, colours up, the drum's shiver) and gobble, alarm, running, flushing up and away,
+  sitting, sleeping, preening, dust-bathing; mating (he struts to her, she crouches, he treads her back); a hen's
+  scrape, a clutch of eleven speckled eggs, sitting them, the poults hatching and following her, brooded under her,
+  playing, feathering out as they grow; dying. In the sandbox under Birds: D strut, H gobble, X flush, F fly, G
+  preen, S dust-bathe, 1 lay, 2 hatch, N brood, V play.
   `ticks.gd` (`Ticks`, on the GPU colony, `tick.gdshader`): hard ticks with eight legs (the larva six), at each stage
   (larva, nymph, male, female) and engorged (the soft back swelling up to a grape, the shield left small at its
   front, tan to grey, marbled). They quest (front legs up, waving), cling to a mammal passing close (`tick_load.gd`:
