@@ -1,6 +1,6 @@
 # West of Nod
 
-A Godot 4 exploration game set in the Galapagos archipelago, built from real elevation
+A Godot 4 exploration game set in a fantasy reimagining of precolonial North America based on the coastlines of the Galapagos archipelago, built from real elevation
 data (Copernicus GLO-30), 281 km across, rendered as one continuous world with no
 popping. Walk, sprint, swim (as in Minecraft), climb and fly.
 
