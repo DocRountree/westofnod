@@ -49,6 +49,7 @@ var juvenile := false
 var male_size := 0.85 ## the male's size, the female's 1
 var flight_pitch := 1.05 ## rad: its body tipped forward, flying (it stands upright)
 var tail_rest := -1.1 ## rad: its tail in line with its body
+var fold_pitch := 0.75 ## rad: its folded wings tipped down along its back
 var cruise := 11.0 ## m/s
 var top_speed := 18.0 ## m/s (flapping hard: a dash)
 var stoop_speed := 0.0 ## m/s (0: it doesn't stoop)
@@ -123,8 +124,8 @@ func _build() -> void:
 	super()
 	want.tail_up = tail_rest
 	cur.tail_up = tail_rest
-	want.fold_pitch = 0.75
-	cur.fold_pitch = 0.75
+	want.fold_pitch = fold_pitch
+	cur.fold_pitch = fold_pitch
 	_plant_feet()
 
 
@@ -217,7 +218,7 @@ func _to(mode: String, sub := "") -> void:
 		fold_wings()
 		want.tail_up = tail_rest
 		want.tail_spread = 0.0
-		want.fold_pitch = 0.75
+		want.fold_pitch = fold_pitch
 
 
 ## Perched (or stood), watching: its own ways.
@@ -873,7 +874,7 @@ func _land(at: Vector3) -> void:
 	want.head_pitch = 0.0
 	want.puff = 0.0
 	fold_wings()
-	want.fold_pitch = 0.75
+	want.fold_pitch = fold_pitch
 	want.tail_up = tail_rest
 	want.tail_spread = 0.0
 	match _mode:

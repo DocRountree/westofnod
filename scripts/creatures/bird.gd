@@ -651,6 +651,8 @@ func _build() -> void:
 	_mat.set_shader_parameter("snood_at", (S.get("snood", Vector3.ZERO) as Vector3) * CM)
 	_mat.set_shader_parameter("eye_at", (S.eye as Vector3) * CM)
 	_mat.set_shader_parameter("fold_chord", float(S.get("fold_chord", 0.3)))
+	_mat.set_shader_parameter("fold_fan", S.get("fold_fan", Vector3.ZERO))
+	_mat.set_shader_parameter("fold_tuck", float(S.get("fold_tuck", 0.0)))
 	for k: String in colors:
 		_mat.set_shader_parameter(k, colors[k])
 	_g.resize(16)
