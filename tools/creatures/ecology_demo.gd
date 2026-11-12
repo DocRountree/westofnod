@@ -1368,6 +1368,7 @@ func _spawn_animal(key: String, at: Vector3, stage: String, male: bool, young: b
 					if o is Raptor and o != r and o.get_script() == rs and not o.male and not o.young and not o.juvenile and not o.dead and (o as Node3D).position.distance_to(at) < 10.0:
 						mom = o
 				var host: Raptor = mom if mom else r
+				_raptor_nest_site(host)
 				host.call("_ensure_nest")
 				var a := randf() * TAU
 				r.nest_top = host.nest_top
@@ -2674,6 +2675,7 @@ func _raptor_do(r: Raptor, act_: String) -> void:
 		"sleep":
 			r.sleep()
 		"lay":
+			_raptor_nest_site(r)
 			r.lay()
 		"hatch":
 			r.hatch()
@@ -2754,6 +2756,22 @@ func _dog_do(d: Dog, act_: String, p: Vector3, near: Vector3) -> bool:
 		_:
 			return false
 	return true
+
+
+## (A raptor's nest site, the world's to give it: here a pole stood near its
+## perch, a ledge on it for a falcon's scrape; given it once.)
+func _raptor_nest_site(r: Raptor) -> void:
+	if r.nest_site != Vector3.INF:
+		return
+	var site: Node3D = _kit(r, "nest_site", func() -> Node3D:
+		var base: Vector3 = r.home_perch if r.home_perch != Vector3.INF else r.get("_pos")
+		var a := randf() * TAU
+		var at := _on(base + Vector3(cos(a), 0.0, sin(a)) * 3.0)
+		var pole: Node3D = Raptor.nest_pole(r.nest_height, r.nest_style == "scrape", sqrt(r.nest_scale))
+		pole.position = at
+		add_child(pole)
+		return pole)
+	r.set_nest_site(site.position + (site.get_meta("site_top") as Vector3))
 
 ## A tick colony's ways: E / H questing, 1 the engorged females laying, 2
 ## the engorged young moulting and the egg masses hatching, X still, W

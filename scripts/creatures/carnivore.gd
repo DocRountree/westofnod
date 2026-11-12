@@ -1710,9 +1710,14 @@ func _pose(dt: float) -> void:
 		e.rotation = Vector3(back, turn - side * 0.6 * maxf(-_ears, 0.0), side * -float((S.ear as Dictionary).get("spread", 0.25)) * (1.0 + 0.8 * maxf(-_ears, 0.0)))
 		var drop := float((S.ear as Dictionary).get("drop", 0.0)) # (a hound's, a retriever's: hanging down beside its head, lifted a little alert, swinging as it moves)
 		if drop > 0.0:
-			var lift := 0.35 * maxf(_ears, 0.0)
-			var swing := 0.12 * sin(_t * 9.0 + side) * clampf(_speed * 3.0, 0.0, 1.0)
-			e.rotation = Vector3(0.25 + swing - 0.2 * maxf(-_ears, 0.0), turn * 0.2, side * -lerpf(float((S.ear as Dictionary).get("spread", 0.25)), 2.7 - lift, drop))
+			# (hanging flat against its cheek: its length down, its inside to its head, its width fore and aft;
+			# lifted at its root, alert; swinging as it goes)
+			var lift := 0.35 * maxf(_ears, 0.0) - 0.15 * maxf(-_ears, 0.0)
+			var swing := 0.15 * sin(_t * 9.0 + side) * clampf(_speed * 3.0, 0.0, 1.0)
+			var yy := Vector3(0.18 * side, -1.0, -0.12).normalized()
+			var zz := (Vector3(-side, 0.0, 0.0) - yy * yy.dot(Vector3(-side, 0.0, 0.0))).normalized()
+			var hang := Basis(yy.cross(zz), yy, zz)
+			e.basis = Basis(Vector3.FORWARD, -side * lift) * Basis(Vector3.RIGHT, swing + 0.1 * turn) * hang
 	# the tail
 	_pose_tail(dt)
 	# its prey in its jaws

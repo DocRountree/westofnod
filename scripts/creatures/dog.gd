@@ -3,8 +3,10 @@ extends "res://scripts/creatures/canid.gd" # (by path: found whether or not the 
 ## A domestic dog (Canis familiaris), life size: the wolf's make (Canid,
 ## Carnivore) cut to its breed: make_spec() takes the grey wolf's measures
 ## and makes them over (its size, its legs' length, its build, its muzzle's
-## length; ears pricked or hanging, drop: Carnivore's ears; its tail's
-## carriage), and its coat (carnivore.gdshader's dog: solid, black and tan,
+## length; its head sculpted, its own (the breed's SculptHead profile: its
+## skull's dome, its stop, its muzzle's depth and breadth, its lips); ears
+## pricked or hanging, drop: Carnivore's ears; its tail's carriage), and its
+## coat (carnivore.gdshader's dog: solid, black and tan,
 ## tricolour: S.coat). The breeds: GermanShepherd, LabradorRetriever,
 ## Beagle. A dog's ways, besides a wolf's (wandering, sniffing, marking,
 ## hunting what it can run down, grooming, sleeping curled, the tie;
@@ -24,6 +26,7 @@ extends "res://scripts/creatures/canid.gd" # (by path: found whether or not the 
 ## Steering (pilot.gd): act bark {at, seconds}, fetch {ball}, play_bow,
 ## dig {seconds}, greet {other}; and the wolf's.
 
+const HOLE_SECS := 120.0
 const WolfScript := preload("res://scripts/creatures/grey_wolf.gd")
 const NOT_MM := ["species", "neck_pitch", "mouth", "point", "tilt_back", "spread", "drop", "carry", "wrap", "walk", "trot", "run",
 		"stalk_from", "spring", "stalk_crouch", "stalk_neck", "eat_crouch", "sit_pitch", "tilt", "mate_secs", "howl", "yips",
@@ -46,9 +49,15 @@ func _init(young_ := false) -> void:
 
 ## The wolf's measures made over (k its size of the wolf's; legs their
 ## length of its; build its girth; muzzle its length ahead of the eyes;
-## more: keys set over the result, the ear's and the tail's merged).
-static func make_spec(k: float, legs_: float, build: float, muzzle: float, more: Dictionary) -> Dictionary:
-	var W: Dictionary = WolfScript.SPEC
+## head: its head's sculpting (SculptHead's P: the wolf's keys set over, in
+## the wolf's mm, made over with the rest); more: keys set over the result,
+## the ear's and the tail's merged).
+static func make_spec(k: float, legs_: float, build: float, muzzle: float, more: Dictionary, head := {}) -> Dictionary:
+	var W: Dictionary = WolfScript.SPEC.duplicate(true)
+	(W.sculpt as Dictionary).merge(head, true)
+	if head.has("eye"):
+		var E0: Dictionary = W.eye
+		E0.at = (head.eye as Vector3) + ((E0.at as Vector3) - ((WolfScript.SPEC.sculpt as Dictionary).eye as Vector3))
 	var S: Dictionary = _sc(W, "", k)
 	var eye_z: float = ((S.eye as Dictionary).at as Vector3).z
 	var mz := func(z: float) -> float: return eye_z + (z - eye_z) * muzzle if z < eye_z else z
@@ -61,10 +70,11 @@ static func make_spec(k: float, legs_: float, build: float, muzzle: float, more:
 	var zs: Array = sc.z
 	for i in zs.size():
 		zs[i] = mz.call(float(zs[i]))
-	for key: String in ["w", "wl"]:
-		var a: Array = sc[key]
-		for i in a.size():
-			a[i] = float(a[i]) * lerpf(1.0, build, 0.6)
+	if head.is_empty(): # (its head the wolf's, made broader with it; a breed's own sculpting its own)
+		for key: String in ["w", "wl"]:
+			var a: Array = sc[key]
+			for i in a.size():
+				a[i] = float(a[i]) * lerpf(1.0, build, 0.6)
 	S.mouth_z = float(S.mouth_z) - (1.0 - muzzle) * 140.0 * k
 	# (its build: its body broader and deeper)
 	for row: Array in S.body:
@@ -186,6 +196,12 @@ func _mouth() -> Vector3:
 
 
 func _think(dt: float) -> void:
+	if _mode != "dig" and (_hole != null or _dirt != null): # (called off its digging: the earth settles, the hole's left)
+		if _dirt:
+			_dirt.queue_free()
+			_dirt = null
+		_settle(_hole)
+		_hole = null
 	if _mode not in ["bark", "fetch", "bow", "dig", "greet"]:
 		super(dt)
 		_hold_ball()
@@ -324,8 +340,12 @@ func _think(dt: float) -> void:
 				_dirt.direction = Vector3(0.0, 0.7, 1.0)
 				_dirt.emitting = true
 			if _wait <= 0.0:
-				if _dirt:
+				if _dirt: # (its earth settled: the emitter gone after its last)
 					_dirt.emitting = false
+					var dd := _dirt
+					get_tree().create_timer(1.0).timeout.connect(func() -> void: if is_instance_valid(dd): dd.queue_free())
+					_dirt = null
+				_settle(_hole)
 				_hole = null
 				wander(_home_spot(), _radius)
 		"greet": # (nose to nose, then round to sniff under its tail)
@@ -347,6 +367,16 @@ func _think(dt: float) -> void:
 					if _stage >= 2:
 						wander(_home_spot(), _radius)
 	_hold_ball()
+
+
+## (A hole it dug: left a while, then filled in, gone.)
+func _settle(h: Node3D) -> void:
+	if h == null or not is_instance_valid(h):
+		return
+	var tw := h.create_tween()
+	tw.tween_interval(HOLE_SECS)
+	tw.tween_property(h, "scale", Vector3(0.001, 1.0, 0.001) * h.scale, 8.0)
+	tw.tween_callback(h.queue_free)
 
 
 func _pose(dt: float) -> void:

@@ -32,9 +32,11 @@ extends "res://scripts/creatures/bird.gd" # (by path: found whether or not the e
 ##   deep beats, its white undertail fluffed, circling high); then down by
 ##   her; she leans forward, he's on her back, wings beating for balance; a
 ##   while; she's carrying eggs
-## - nesting (lay(), a female's): to its nest site close by (the falcon's a
-##   gravel ledge high on a pole, a scrape scratched in it; the hawk's a
-##   stick nest), her clutch laid an egg at a time, sat on; hatch(): the
+## - nesting (lay(), a female's): to its nest site (set_nest_site: the
+##   world's, given it: a ledge, a tree's crotch; Raptor.nest_pole stands one
+##   in for a test bed; none, she can't nest: lay() false), her nest built
+##   there the first time (the falcon's a scrape in its gravel; the hawk's,
+##   the eagle's, a platform of sticks), her clutch laid an egg at a time, sat on; hatch(): the
 ##   eyases, hers; brood(): sat over them; she feeds them (food carried
 ##   home: torn, offered bill to bill); they beg (heads up, bills open,
 ##   wings quivering), grow, feather out, flap on the nest's edge, and
@@ -71,6 +73,7 @@ var perch_at := Vector3.INF ## (where it's standing, up off the ground: its perc
 var home_perch := Vector3.INF
 var nest: Node3D
 var nest_top := Vector3.INF
+var nest_site := Vector3.INF ## (where it nests: given, set_nest_site; none, it lays nowhere)
 var eggs_laid: Array[Node3D] = []
 var young_ones: Array = []
 var gravid := false
@@ -342,26 +345,37 @@ func is_mating() -> bool:
 	return _partner != null and is_instance_valid(_partner) and _mode in ["court", "mount"]
 
 
-## (A female's.) Her eggs laid in her nest, close by (made, the first time).
-func lay() -> void:
+## (A female's.) Her eggs laid in her nest, on her nest site (built there,
+## the first time). False if she has no site (set_nest_site: the world's
+## to give her: a ledge, a tree's crotch; she makes none).
+func lay() -> bool:
 	if male or young or juvenile or dead or _mode in ["nest", "incubate", "brood"]:
-		return
-	_ensure_nest()
+		return false
+	if not _ensure_nest():
+		return false
 	_to("nest", "go")
 	_take_off("go", nest_top, true)
+	return true
 
 
-func _ensure_nest() -> void:
+## Where it nests (its parent's space: a ledge's top, a tree's crotch).
+func set_nest_site(top: Vector3) -> void:
+	if top != nest_site and nest != null and is_instance_valid(nest):
+		nest.queue_free()
+		nest = null
+	nest_site = top
+
+
+func _ensure_nest() -> bool:
 	if nest != null and is_instance_valid(nest):
-		return
-	var base := (home_perch if home_perch != Vector3.INF else _pos)
-	var a := rng.randf() * TAU
-	var at := base + Vector3(cos(a), 0.0, sin(a)) * 3.0
-	at.y = super._ground(at.x, at.z)
-	nest = _make_nest_site()
+		return true
+	if nest_site == Vector3.INF:
+		return false
+	nest = _make_nest()
 	get_parent().add_child(nest)
-	nest.position = at
-	nest_top = at + Vector3(0.0, nest_height + (0.04 * nest_scale if nest_style == "sticks" else 0.03), 0.0)
+	nest.position = nest_site
+	nest_top = nest_site + Vector3(0.0, 0.04 * nest_scale if nest_style == "sticks" else 0.004, 0.0)
+	return true
 
 
 ## Her eggs opening: an eyas from each, hers.
@@ -1262,42 +1276,24 @@ static var _wood: StandardMaterial3D
 
 ## Its nest site: a pole (a cliff's ledge, a tree's crotch, stood in for),
 ## the falcon's gravel ledge or the hawk's stick nest on its top.
-func _make_nest_site() -> Node3D:
+## Its nest, built on its site (origin there): the falcon's scrape in the
+## gravel of its ledge, the hawk's (an eagle's: nest_scale) platform of
+## sticks, crisscrossed, a cup in the middle.
+func _make_nest() -> Node3D:
 	var n := Node3D.new()
 	n.set_meta("prop", true)
-	if _wood == null:
-		_wood = StandardMaterial3D.new()
-		_wood.albedo_color = Color(0.36, 0.3, 0.24)
-		_wood.roughness = 0.95
-	var pole := MeshInstance3D.new()
-	var cm := CylinderMesh.new()
-	cm.top_radius = 0.07 * sqrt(nest_scale)
-	cm.bottom_radius = 0.1 * sqrt(nest_scale)
-	cm.height = nest_height
-	pole.mesh = cm
-	pole.material_override = _wood
-	pole.position = Vector3(0.0, nest_height * 0.5, 0.0)
-	n.add_child(pole)
 	if nest_style == "scrape":
-		var tray := MeshInstance3D.new()
-		var bm := BoxMesh.new()
-		bm.size = Vector3(0.6, 0.06, 0.5)
-		tray.mesh = bm
-		tray.material_override = _wood
-		tray.position = Vector3(0.0, nest_height, 0.0)
-		n.add_child(tray)
 		var gravel := MeshInstance3D.new()
 		var gm := BoxMesh.new()
-		gm.size = Vector3(0.54, 0.008, 0.44)
+		gm.size = Vector3(0.4, 0.008, 0.32)
 		gravel.mesh = gm
 		var gmat := StandardMaterial3D.new()
 		gmat.albedo_color = Color(0.58, 0.54, 0.48)
 		gmat.roughness = 1.0
 		gravel.material_override = gmat
-		gravel.position = Vector3(0.0, nest_height + 0.032, 0.0)
+		gravel.position = Vector3(0.0, 0.002, 0.0)
 		n.add_child(gravel)
 	else:
-		# a platform of sticks, crisscrossed, a cup in the middle
 		var st := SurfaceTool.new()
 		st.begin(Mesh.PRIMITIVE_TRIANGLES)
 		var stick := CylinderMesh.new()
@@ -1315,7 +1311,7 @@ func _make_nest_site() -> Node3D:
 			var b := Basis(Vector3.UP, rng.randf() * TAU) * Basis(Vector3.RIGHT, PI * 0.5 + rng.randf_range(-0.25, 0.25)) * Basis.from_scale(Vector3(1.0, rng.randf_range(0.3, 0.6) * nsc, 1.0))
 			var vs: PackedVector3Array = sa[Mesh.ARRAY_VERTEX]
 			var ns: PackedVector3Array = sa[Mesh.ARRAY_NORMAL]
-			for i: int in sa[Mesh.ARRAY_INDEX]:
+			for i in sa[Mesh.ARRAY_INDEX]:
 				st.set_normal((b * ns[i]).normalized())
 				st.set_color(Color(0.33, 0.27, 0.2).lerp(Color(0.5, 0.43, 0.34), rng.randf()))
 				st.add_vertex(b * vs[i] + c)
@@ -1325,8 +1321,40 @@ func _make_nest_site() -> Node3D:
 		sm.vertex_color_use_as_albedo = true
 		sm.roughness = 0.95
 		nm.material_override = sm
-		nm.position = Vector3(0.0, nest_height - 0.04, 0.0)
+		nm.position = Vector3(0.0, -0.04, 0.0)
 		n.add_child(nm)
+	return n
+
+
+## A stand-in for a nest site (a cliff's ledge, a tree's crotch): a pole,
+## a ledge on its top for a scrape; its origin on the ground, the site at
+## its top (site_top). Not the bird's: the world's (a test bed's, here).
+static func nest_pole(height: float, scrape: bool, thick := 1.0) -> Node3D:
+	var n := Node3D.new()
+	n.set_meta("prop", true)
+	if _wood == null:
+		_wood = StandardMaterial3D.new()
+		_wood.albedo_color = Color(0.36, 0.3, 0.24)
+		_wood.roughness = 0.95
+	var pole := MeshInstance3D.new()
+	var cm := CylinderMesh.new()
+	cm.top_radius = 0.07 * thick
+	cm.bottom_radius = 0.1 * thick
+	cm.height = height
+	pole.mesh = cm
+	pole.material_override = _wood
+	pole.position = Vector3(0.0, height * 0.5, 0.0)
+	n.add_child(pole)
+	n.set_meta("site_top", Vector3(0.0, height, 0.0))
+	if scrape:
+		var tray := MeshInstance3D.new()
+		var bm := BoxMesh.new()
+		bm.size = Vector3(0.6, 0.06, 0.5)
+		tray.mesh = bm
+		tray.material_override = _wood
+		tray.position = Vector3(0.0, height, 0.0)
+		n.add_child(tray)
+		n.set_meta("site_top", Vector3(0.0, height + 0.03, 0.0))
 	return n
 
 
@@ -1404,7 +1432,7 @@ func _p_act(name: String, args: Dictionary) -> bool:
 		"lay":
 			if male or young or juvenile:
 				return false
-			lay()
+			return lay()
 		_:
 			return false
 	return true

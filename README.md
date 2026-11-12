@@ -495,10 +495,13 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   dark tipped); their pups born dark (a wolf's near black), blind, in the den, growing, playing.
   `dog.gd` (`Dog`, *Canis familiaris*): the wolf's make cut to a breed (`Dog.make_spec`: the wolf's measures made over,
   its size, legs, build and muzzle; ears pricked or hanging, the make's `ear.drop`; its tail's carriage) and its coat
-  (`carnivore.gdshader`'s dog, species 17: solid, black and tan, tricolour). Its own ways besides the wolf's: `bark`
+  (`carnivore.gdshader`'s dog, species 17: solid, black and tan, tricolour). Each breed's head sculpted its own (`make_spec`'s
+  head: the wolf's SculptHead profile made over: the shepherd's wedge, the Labrador's broad skull, marked stop and
+  level blunt muzzle, the beagle's domed skull and square muzzle, hanging lips), brown eyes; hanging ears lie flat
+  against the cheeks. Its own ways besides the wolf's: `bark`
   (braced, facing it, ears and tail up, in bursts), `fetch` (after a thrown `Dog.ball()`, picked up, brought back,
   dropped, sitting and wagging), `play_bow` (forequarters down, rump up, wagging; then the zoomies), `dig` (forepaws
-  scraping in turn, earth flung back, a hole left), `greet` (nose to nose, then round to sniff under its tail); its
+  scraping in turn, earth flung back, a hole left, filled in again after a while), `greet` (nose to nose, then round to sniff under its tail); its
   pups whelped in a box (`Dog.bed()`). The breeds: `german_shepherd.gd` (tan, a black saddle and mask, big pricked
   ears, a bushy low tail), `labrador_retriever.gd` (sturdy, broad headed, hanging ears, an otter's tail; yellow, black
   or chocolate), `beagle.gd` (a small hound, short legged, long hanging ears, its white-tipped tail up; tricolour).
@@ -867,8 +870,9 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   flight feathers, a banded tail; yellow cere, eye ring and feet; hooked bills, talons). Stood upright on a perch,
   watching (its head turning, bobbing), rousing, preening, feaking, sleeping on one leg, calling; soaring, flying
   between perches, flying off alarmed; hunting what's here when hungry (`hunt`): caught, mantled over, carried home,
-  plucked (tufts drifting off) and eaten; courting (the male's display flight, then on her back); a female's nest close
-  by on a pole, her clutch laid and sat, the eyases hatching (white down), brooded, fed morsels bill to bill, begging,
+  plucked (tufts drifting off) and eaten; courting (the male's display flight, then on her back); a female's nest on her nest site
+  (`set_nest_site`: the world's to give her, a ledge or a tree's crotch; none, she can't lay; the sandbox stands a
+  pole in for it, `Raptor.nest_pole`), built there the first time, her clutch laid and sat, the eyases hatching (white down), brooded, fed morsels bill to bill, begging,
   growing, flapping, fledging as juveniles; falling dead from the air. `peregrine_falcon.gd` (`PeregrineFalcon`):
   slate above, black hood and moustache, white below barred black, pointed wings; rings up over its prey and stoops; a
   gravel ledge, four red-brown blotched eggs; the juvenile brown, streaked. `coopers_hawk.gd` (`CoopersHawk`): blue grey
@@ -906,7 +910,7 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   corners, dark edged; legs feathered to the toes; the shader's: forward eyes under a heavy upper lid, a facial disc
   with its rim (a horned owl's only down its sides), pale brows rising outward, a mottled, streaked or spotted back, sparse-spotted and streaked-and-barred underparts, lids). By day dozing
   on its perch, puffed, an eye opened now and then; at dusk and by night (T) awake: its head turned far round and
-  weaving, hooting (leaned forward, throat swelled, tail cocked), casting a pellet, quartering low and slow, dropping
+  weaving, hooting (leaned forward, throat swelled, tail cocked), casting a pellet (it lies a while, then is gone), quartering low and slow, dropping
   on its prey; its threat wings spread and turned forward, puffed, swaying, bill clacking. White eggs, downy owlets.
   `great_horned_owl.gd` (`GreatHornedOwl`): big, tufted, mottled grey brown, a rusty disc rimmed black, yellow eyes, a
   white bib, finely barred below; takes squirrels and poults too; two eggs in a stick nest. `barn_owl.gd` (`BarnOwl`):

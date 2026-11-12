@@ -204,6 +204,7 @@ func _think(dt: float) -> void:
 
 
 static var _pellet_mat: StandardMaterial3D
+const PELLET_SECS := 180.0
 
 
 func _drop_pellet() -> void:
@@ -232,6 +233,9 @@ func _drop_pellet() -> void:
 	to.y = (float(height.call(to.x, to.z)) if height.is_valid() else ground_y) + 0.011 * size # (the ground under its perch)
 	var tw := pm.create_tween()
 	tw.tween_property(pm, "position", to, sqrt(maxf(from.y - to.y, 0.01) / 4.9)).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	tw.tween_interval(PELLET_SECS) # (left a while, then gone: broken up, rained away)
+	tw.tween_property(pm, "scale", Vector3.ONE * 0.01, 5.0)
+	tw.tween_callback(pm.queue_free)
 
 
 # on its perch: by day dozing; by night watching, listening
