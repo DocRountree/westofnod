@@ -803,6 +803,8 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   flamed tigersnail (`flamed_tigersnails.gd`, *Anguispira alternata*): a low ribbed dome, horn brown with rows of ragged
   red-brown flames, an orange-tan body; the lovely grass snail (`grass_snails.gd`, *Vallonia pulchella*): tiny, a glassy
   white disc with a flared white lip, mostly selfing.
+  `bird_flight.gd` (`BirdFlight`): no bird yet, only the arithmetic birds will fly by (beat rate, stall, glide, sink,
+  turn radius, bounding, from mass, span and wing area); the plan they'll be built to is `docs/birds.md`.
   `ticks.gd` (`Ticks`, on the GPU colony, `tick.gdshader`): hard ticks with eight legs (the larva six), at each stage
   (larva, nymph, male, female) and engorged (the soft back swelling up to a grape, the shield left small at its
   front, tan to grey, marbled). They quest (front legs up, waving), cling to a mammal passing close (`tick_load.gd`:
