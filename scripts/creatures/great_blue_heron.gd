@@ -114,6 +114,35 @@ func _shape() -> Dictionary:
 	}
 
 
+## Its nestling: pot-bellied, big-headed, its neck thick with down, a short
+## straight dagger of a bill already; grey down all over, a crest of long
+## hair-like down standing up off its crown, wild; its legs long, sat back on them.
+func _eyas() -> Dictionary:
+	var crest := []
+	for k in 11: # (its crest: tufts fanned up and back off its crown, each a few long filaments)
+		var a := (float(k) / 10.0 - 0.5) * 2.0
+		crest.append([Vector3(sin(a) * 2.6, 77.0 - absf(a) * 1.5, -15.5 + float(k % 4) * 1.4), Vector3(sin(a) * 1.1, 1.0, 0.45 + 0.2 * float(k % 3)), 12.0 - absf(a) * 3.0, 5, 5, 1.0])
+	return {
+		"tilt_rings": false,
+		"face_taper": true, "eye_c": 4.62,
+		"spine": [[30.0, 24.0, 2.0, 1.5, 0.0], [31.0, 20.0, 9.0, 8.0, 0.0], [32.0, 12.0, 15.0, 14.0, 0.0], [34.0, 3.0, 16.0, 16.0, 0.0], [37.0, -5.0, 14.0, 14.5, 0.1],
+				[42.0, -10.0, 9.5, 10.0, 0.4], [48.0, -12.0, 6.6, 7.0, 0.9], [54.0, -11.0, 5.8, 6.1, 1.5], [59.0, -8.5, 5.5, 5.8, 2.1], [63.0, -7.5, 5.5, 5.8, 2.7],
+				[67.0, -8.5, 5.7, 6.0, 3.3], [70.5, -11.0, 5.9, 6.1, 3.9], [72.0, -14.5, 5.6, 5.7, 4.4], [71.2, -18.0, 4.6, 4.7, 4.62], [70.0, -21.0, 3.0, 3.2, 4.85],
+				[69.4, -23.0, 1.9, 2.1, 5.0], [69.0, -26.0, 1.4, 1.6, 5.3], [68.6, -29.5, 0.9, 1.0, 5.6], [68.3, -32.5, 0.35, 0.4, 5.85], [68.2, -33.6, 0.06, 0.06, 6.0]],
+		"pivot": Vector3(0.0, 32.0, 4.0),
+		"jaw": Vector3(0.0, 68.6, -22.5),
+		"lower_bill": [[68.3, -24.0, 1.3], [68.0, -28.5, 0.7], [67.9, -33.0, 0.12]],
+		"eye": Vector3(3.6, 72.2, -17.0), "eye_r": 1.05,
+		"hip": Vector3(8.0, 30.0, 6.0), "knee": Vector3(9.0, 22.0, -4.0), "ankle": Vector3(8.5, 9.0, 5.0), "foot": Vector3(8.5, 1.5, 0.0),
+		"thigh_r": [5.5, 3.2], "shin_feathered": 0.5, "leg_r": 1.3, "leg_part": 8.0, "toes": [9.0, 7.0, 6.0], "claw": 0.25, "claw_r": 0.5,
+		"tail": Vector3(0.0, 30.0, 24.0),
+		"shoulder": Vector3(13.0, 40.0, -2.0), "wing": Vector3(9.0, 9.0, 7.0), "coverts": [7.0, 7.0, 6.0, 3.5], "wing_thick": [4.4, 3.5, 2.6, 1.4],
+		"primaries": [5.0, 5.0, 6.0, 6.0, 7.0, 7.0, 7.0], "secondaries": [6, 7.0, 6.0], "tertials": [0, 1.8, 1.8], "feather_w": 3.5,
+		"tail_feathers": [6, 3.0, 2.0],
+		"plumes": crest,
+	}
+
+
 func _plumage(stage: String, _male: bool) -> Dictionary:
 	var juv := stage == "juvenile"
 	var grey := Color(0.45, 0.5, 0.58)
@@ -141,6 +170,10 @@ func _build() -> void:
 	super()
 	walk_speed = 0.3
 	run_speed = 1.6
+	if young: # (its down grey, its crest paler; its eye pale; its bill dusky, yellow at its base)
+		for k: String in ["down_white", "plume_dark", "plume_color", "iris", "bill_color", "cere_color", "leg_color"]:
+			_mat.set_shader_parameter(k, {"down_white": Color(0.6, 0.61, 0.63), "plume_dark": Color(0.72, 0.73, 0.74), "plume_color": Color(0.5, 0.51, 0.53),
+					"iris": Color(0.82, 0.78, 0.45), "bill_color": Color(0.32, 0.31, 0.27), "cere_color": Color(0.72, 0.72, 0.42), "leg_color": Color(0.55, 0.56, 0.4)}[k])
 	if _mat and not young: # (the black and chestnut patch at the bend of its folded wing)
 		var sh: Vector3 = (shape.shoulder as Vector3) * 0.01
 		_mat.set_shader_parameter("patch_at", sh + Vector3(0.0, -0.04, 0.03))

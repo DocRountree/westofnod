@@ -500,8 +500,10 @@ void raptor(int pt, float u, float v, vec3 view, float ndv, vec3 vtx, vec3 nrm0,
 		spec = 0.35;
 		feather_shade(f, fade, feather_cm * 0.0008, vtx, c, nrm);
 		if (down > 0.0) { // an eyas's down: white, woolly
-			float fl = vnoise(rest.xz * 1400.0) * 0.5 + vnoise(rest.xy * 2600.0) * 0.5;
-			c = mix(c, down_white * (0.86 + 0.16 * fl), down);
+			float fl = vnoise(rest.xz * 1400.0) * 0.4 + vnoise(rest.xy * 2600.0) * 0.35 + vnoise(rest.yz * 5200.0 + vec2(rest.x * 900.0, 0.0)) * 0.25;
+			float tuft = vnoise(rest.xy * 260.0 + rest.z * 180.0); // (its down in tufts, wisps between)
+			float rim = pow(1.0 - ndv, 2.0); // (fuzz at its edges: lit through)
+			c = mix(c, down_white * (0.72 + 0.38 * fl) * mix(0.85, 1.08, tuft) + down_white * rim * 0.28, down);
 			rough = mix(rough, 0.97, down);
 			nrm = normalize(mix(nrm, nrm0, down));
 		}
