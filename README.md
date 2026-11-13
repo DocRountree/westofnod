@@ -4,6 +4,93 @@ A Godot 4 exploration game set in a fantasy reimagining of precolonial North Ame
 data (Copernicus GLO-30), 281 km across, rendered as one continuous world with no
 popping. Walk, sprint, swim (as in Minecraft), climb and fly.
 
+## The organisms
+
+Every kind of plant and animal in the ecology sandbox (`tools/creatures/ecology_demo.gd`; in debug mode in the game itself), each as it stands there, rendered by the game's own engine.
+
+### Plants
+
+<table>
+<tr><td align="center" width="33%"><img src="docs/organisms/milkweed.jpg" width="100%" alt="Common milkweed"><br><sub>Common milkweed</sub></td><td align="center" width="33%"><img src="docs/organisms/swamp_milkweed.jpg" width="100%" alt="Swamp milkweed"><br><sub>Swamp milkweed</sub></td><td align="center" width="33%"><img src="docs/organisms/coneflower.jpg" width="100%" alt="Purple coneflower"><br><sub>Purple coneflower</sub></td></tr>
+<tr><td align="center" width="33%"><img src="docs/organisms/susan.jpg" width="100%" alt="Black-eyed Susan"><br><sub>Black-eyed Susan</sub></td><td align="center" width="33%"><img src="docs/organisms/fleabane.jpg" width="100%" alt="Fleabane"><br><sub>Fleabane</sub></td><td align="center" width="33%"><img src="docs/organisms/aster.jpg" width="100%" alt="Aster"><br><sub>Aster</sub></td></tr>
+<tr><td align="center" width="33%"><img src="docs/organisms/yampah.jpg" width="100%" alt="Yampah"><br><sub>Yampah</sub></td><td align="center" width="33%"><img src="docs/organisms/nettle.jpg" width="100%" alt="Nettle"><br><sub>Nettle</sub></td><td align="center" width="33%"><img src="docs/organisms/tobacco.jpg" width="100%" alt="Baccy (wild tobacco)"><br><sub>Baccy (wild tobacco)</sub></td></tr>
+</table>
+
+### Insects
+
+<table>
+<tr><td align="center" width="33%"><img src="docs/organisms/monarch.jpg" width="100%" alt="Monarch"><br><sub>Monarch</sub></td><td align="center" width="33%"><img src="docs/organisms/moth.jpg" width="100%" alt="Hummingbird clearwing"><br><sub>Hummingbird clearwing</sub></td><td align="center" width="33%"><img src="docs/organisms/swallowtail.jpg" width="100%" alt="Old World swallowtail"><br><sub>Old World swallowtail</sub></td></tr>
+<tr><td align="center" width="33%"><img src="docs/organisms/luna.jpg" width="100%" alt="Luna moth"><br><sub>Luna moth</sub></td><td align="center" width="33%"><img src="docs/organisms/cloak.jpg" width="100%" alt="Mourning cloak"><br><sub>Mourning cloak</sub></td><td align="center" width="33%"><img src="docs/organisms/cecropia.jpg" width="100%" alt="Cecropia moth"><br><sub>Cecropia moth</sub></td></tr>
+<tr><td align="center" width="33%"><img src="docs/organisms/polyphemus.jpg" width="100%" alt="Polyphemus moth"><br><sub>Polyphemus moth</sub></td><td align="center" width="33%"><img src="docs/organisms/wasp.jpg" width="100%" alt="Paper wasp"><br><sub>Paper wasp</sub></td><td align="center" width="33%"><img src="docs/organisms/bee.jpg" width="100%" alt="Common eastern bumble bee"><br><sub>Common eastern bumble bee</sub></td></tr>
+<tr><td align="center" width="33%"><img src="docs/organisms/trig.jpg" width="100%" alt="Trigonalid wasp"><br><sub>Trigonalid wasp</sub></td><td align="center" width="33%"><img src="docs/organisms/ichneumon.jpg" width="100%" alt="Ichneumon wasp"><br><sub>Ichneumon wasp</sub></td><td align="center" width="33%"><img src="docs/organisms/carpenter.jpg" width="100%" alt="Carpenter ant (queen)"><br><sub>Carpenter ant (queen)</sub></td></tr>
+<tr><td align="center" width="33%"><img src="docs/organisms/harvester.jpg" width="100%" alt="Red harvester (queen)"><br><sub>Red harvester (queen)</sub></td><td align="center" width="33%"><img src="docs/organisms/june.jpg" width="100%" alt="June bugs (a pair)"><br><sub>June bugs (a pair)</sub></td><td align="center" width="33%"><img src="docs/organisms/lady.jpg" width="100%" alt="Convergent lady beetles (a pair)"><br><sub>Convergent lady beetles (a pair)</sub></td></tr>
+<tr><td align="center" width="33%"><img src="docs/organisms/firefly.jpg" width="100%" alt="Common eastern fireflies (a few)"><br><sub>Common eastern fireflies (a few)</sub></td><td align="center" width="33%"><img src="docs/organisms/hopper.jpg" width="100%" alt="Differential grasshopper"><br><sub>Differential grasshopper</sub></td><td align="center" width="33%"><img src="docs/organisms/blue_hopper.jpg" width="100%" alt="Blue-winged grasshopper"><br><sub>Blue-winged grasshopper</sub></td></tr>
+<tr><td align="center" width="33%"><img src="docs/organisms/mantis.jpg" width="100%" alt="Carolina mantis"><br><sub>Carolina mantis</sub></td><td align="center" width="33%"><img src="docs/organisms/darner.jpg" width="100%" alt="Common green darner"><br><sub>Common green darner</sub></td><td></td></tr>
+</table>
+
+### Spiders and kin
+
+<table>
+<tr><td align="center" width="33%"><img src="docs/organisms/wolf_spider.jpg" width="100%" alt="Carolina wolf spider"><br><sub>Carolina wolf spider</sub></td><td align="center" width="33%"><img src="docs/organisms/fishing_spider.jpg" width="100%" alt="Six-spotted fishing spider"><br><sub>Six-spotted fishing spider</sub></td><td align="center" width="33%"><img src="docs/organisms/funnel_spider.jpg" width="100%" alt="Grass spider (funnel weaver)"><br><sub>Grass spider (funnel weaver)</sub></td></tr>
+<tr><td align="center" width="33%"><img src="docs/organisms/scorpion.jpg" width="100%" alt="Arizona bark scorpion"><br><sub>Arizona bark scorpion</sub></td><td align="center" width="33%"><img src="docs/organisms/pillbug.jpg" width="100%" alt="Pill bug"><br><sub>Pill bug</sub></td><td align="center" width="33%"><img src="docs/organisms/deer_tick.jpg" width="100%" alt="Blacklegged (deer) ticks"><br><sub>Blacklegged (deer) ticks</sub></td></tr>
+<tr><td align="center" width="33%"><img src="docs/organisms/lone_star_tick.jpg" width="100%" alt="Lone star ticks"><br><sub>Lone star ticks</sub></td><td></td><td></td></tr>
+</table>
+
+### Snails
+
+<table>
+<tr><td align="center" width="33%"><img src="docs/organisms/tigersnail.jpg" width="100%" alt="Flamed tigersnails (a few)"><br><sub>Flamed tigersnails (a few)</sub></td><td align="center" width="33%"><img src="docs/organisms/grass_snail.jpg" width="100%" alt="Lovely grass snails (a few)"><br><sub>Lovely grass snails (a few)</sub></td><td></td></tr>
+</table>
+
+### Crustaceans
+
+<table>
+<tr><td align="center" width="33%"><img src="docs/organisms/red_crayfish.jpg" width="100%" alt="Red swamp crayfish"><br><sub>Red swamp crayfish</sub></td><td align="center" width="33%"><img src="docs/organisms/virile_crayfish.jpg" width="100%" alt="Virile crayfish"><br><sub>Virile crayfish</sub></td><td align="center" width="33%"><img src="docs/organisms/white_shrimp.jpg" width="100%" alt="White shrimp"><br><sub>White shrimp</sub></td></tr>
+<tr><td align="center" width="33%"><img src="docs/organisms/brown_shrimp.jpg" width="100%" alt="Brown shrimp"><br><sub>Brown shrimp</sub></td><td align="center" width="33%"><img src="docs/organisms/pink_shrimp.jpg" width="100%" alt="Pink shrimp"><br><sub>Pink shrimp</sub></td><td></td></tr>
+</table>
+
+### Fish
+
+<table>
+<tr><td align="center" width="33%"><img src="docs/organisms/mollies.jpg" width="100%" alt="Sailfin mollies (a school)"><br><sub>Sailfin mollies (a school)</sub></td><td align="center" width="33%"><img src="docs/organisms/chinook.jpg" width="100%" alt="Chinook salmon, at sea (a school)"><br><sub>Chinook salmon, at sea (a school)</sub></td><td align="center" width="33%"><img src="docs/organisms/chinook_spawning.jpg" width="100%" alt="Chinook salmon, spawning (a few)"><br><sub>Chinook salmon, spawning (a few)</sub></td></tr>
+<tr><td align="center" width="33%"><img src="docs/organisms/rainbow.jpg" width="100%" alt="Rainbow trout, in a stream (a few)"><br><sub>Rainbow trout, in a stream (a few)</sub></td><td align="center" width="33%"><img src="docs/organisms/steelhead.jpg" width="100%" alt="Steelhead, in a stream (a few)"><br><sub>Steelhead, in a stream (a few)</sub></td><td align="center" width="33%"><img src="docs/organisms/bluefin.jpg" width="100%" alt="Atlantic bluefin tuna (a school)"><br><sub>Atlantic bluefin tuna (a school)</sub></td></tr>
+</table>
+
+### Amphibians and reptiles
+
+<table>
+<tr><td align="center" width="33%"><img src="docs/organisms/frog.jpg" width="100%" alt="Northern leopard frog"><br><sub>Northern leopard frog</sub></td><td align="center" width="33%"><img src="docs/organisms/toad.jpg" width="100%" alt="American toad"><br><sub>American toad</sub></td><td align="center" width="33%"><img src="docs/organisms/anole.jpg" width="100%" alt="Green anole"><br><sub>Green anole</sub></td></tr>
+<tr><td align="center" width="33%"><img src="docs/organisms/gila.jpg" width="100%" alt="Gila monster"><br><sub>Gila monster</sub></td><td align="center" width="33%"><img src="docs/organisms/rattler.jpg" width="100%" alt="Eastern diamondback rattlesnake"><br><sub>Eastern diamondback rattlesnake</sub></td><td align="center" width="33%"><img src="docs/organisms/milk.jpg" width="100%" alt="Eastern milk snake"><br><sub>Eastern milk snake</sub></td></tr>
+<tr><td align="center" width="33%"><img src="docs/organisms/box_turtle.jpg" width="100%" alt="Eastern box turtle"><br><sub>Eastern box turtle</sub></td><td align="center" width="33%"><img src="docs/organisms/snapper.jpg" width="100%" alt="Common snapping turtle"><br><sub>Common snapping turtle</sub></td><td align="center" width="33%"><img src="docs/organisms/painted.jpg" width="100%" alt="Western painted turtle"><br><sub>Western painted turtle</sub></td></tr>
+<tr><td align="center" width="33%"><img src="docs/organisms/sea_turtle.jpg" width="100%" alt="Green sea turtle"><br><sub>Green sea turtle</sub></td><td></td><td></td></tr>
+</table>
+
+### Birds
+
+<table>
+<tr><td align="center" width="33%"><img src="docs/organisms/turkey.jpg" width="100%" alt="Wild turkey"><br><sub>Wild turkey</sub></td><td align="center" width="33%"><img src="docs/organisms/peregrine.jpg" width="100%" alt="Peregrine falcon"><br><sub>Peregrine falcon</sub></td><td align="center" width="33%"><img src="docs/organisms/coopers.jpg" width="100%" alt="Cooper's hawk"><br><sub>Cooper's hawk</sub></td></tr>
+<tr><td align="center" width="33%"><img src="docs/organisms/bald_eagle.jpg" width="100%" alt="Bald eagle"><br><sub>Bald eagle</sub></td><td align="center" width="33%"><img src="docs/organisms/golden_eagle.jpg" width="100%" alt="Golden eagle"><br><sub>Golden eagle</sub></td><td align="center" width="33%"><img src="docs/organisms/robin.jpg" width="100%" alt="American robin"><br><sub>American robin</sub></td></tr>
+<tr><td align="center" width="33%"><img src="docs/organisms/bluebird.jpg" width="100%" alt="Eastern bluebird"><br><sub>Eastern bluebird</sub></td><td align="center" width="33%"><img src="docs/organisms/pigeon.jpg" width="100%" alt="Passenger pigeon"><br><sub>Passenger pigeon</sub></td><td align="center" width="33%"><img src="docs/organisms/blackbird.jpg" width="100%" alt="Red-winged blackbird"><br><sub>Red-winged blackbird</sub></td></tr>
+<tr><td align="center" width="33%"><img src="docs/organisms/goldfinch.jpg" width="100%" alt="American goldfinch"><br><sub>American goldfinch</sub></td><td align="center" width="33%"><img src="docs/organisms/house_finch.jpg" width="100%" alt="House finch"><br><sub>House finch</sub></td><td align="center" width="33%"><img src="docs/organisms/hummingbird.jpg" width="100%" alt="Ruby-throated hummingbird"><br><sub>Ruby-throated hummingbird</sub></td></tr>
+<tr><td align="center" width="33%"><img src="docs/organisms/heron.jpg" width="100%" alt="Great blue heron"><br><sub>Great blue heron</sub></td><td align="center" width="33%"><img src="docs/organisms/goose.jpg" width="100%" alt="Canada goose"><br><sub>Canada goose</sub></td><td align="center" width="33%"><img src="docs/organisms/barn_owl.jpg" width="100%" alt="Barn owl"><br><sub>Barn owl</sub></td></tr>
+<tr><td align="center" width="33%"><img src="docs/organisms/horned_owl.jpg" width="100%" alt="Great horned owl"><br><sub>Great horned owl</sub></td><td align="center" width="33%"><img src="docs/organisms/screech_owl.jpg" width="100%" alt="Eastern screech owl"><br><sub>Eastern screech owl</sub></td><td></td></tr>
+</table>
+
+### Mammals
+
+<table>
+<tr><td align="center" width="33%"><img src="docs/organisms/mouse.jpg" width="100%" alt="Deer mouse"><br><sub>Deer mouse</sub></td><td align="center" width="33%"><img src="docs/organisms/hare.jpg" width="100%" alt="Snowshoe hare"><br><sub>Snowshoe hare</sub></td><td align="center" width="33%"><img src="docs/organisms/fox_squirrel.jpg" width="100%" alt="Eastern fox squirrel"><br><sub>Eastern fox squirrel</sub></td></tr>
+<tr><td align="center" width="33%"><img src="docs/organisms/grey_squirrel.jpg" width="100%" alt="Eastern grey squirrel"><br><sub>Eastern grey squirrel</sub></td><td align="center" width="33%"><img src="docs/organisms/beaver.jpg" width="100%" alt="North American beaver"><br><sub>North American beaver</sub></td><td align="center" width="33%"><img src="docs/organisms/river_otter.jpg" width="100%" alt="North American river otter"><br><sub>North American river otter</sub></td></tr>
+<tr><td align="center" width="33%"><img src="docs/organisms/sea_otter.jpg" width="100%" alt="Sea otter"><br><sub>Sea otter</sub></td><td align="center" width="33%"><img src="docs/organisms/opossum.jpg" width="100%" alt="Virginia opossum"><br><sub>Virginia opossum</sub></td><td align="center" width="33%"><img src="docs/organisms/porcupine.jpg" width="100%" alt="North American porcupine"><br><sub>North American porcupine</sub></td></tr>
+<tr><td align="center" width="33%"><img src="docs/organisms/armadillo.jpg" width="100%" alt="Nine-banded armadillo"><br><sub>Nine-banded armadillo</sub></td><td align="center" width="33%"><img src="docs/organisms/bat.jpg" width="100%" alt="Big brown bat"><br><sub>Big brown bat</sub></td><td align="center" width="33%"><img src="docs/organisms/fox.jpg" width="100%" alt="Red fox"><br><sub>Red fox</sub></td></tr>
+<tr><td align="center" width="33%"><img src="docs/organisms/bobcat.jpg" width="100%" alt="Bobcat"><br><sub>Bobcat</sub></td><td align="center" width="33%"><img src="docs/organisms/coyote.jpg" width="100%" alt="Coyote"><br><sub>Coyote</sub></td><td align="center" width="33%"><img src="docs/organisms/wolf.jpg" width="100%" alt="Grey wolf"><br><sub>Grey wolf</sub></td></tr>
+<tr><td align="center" width="33%"><img src="docs/organisms/dog_gsd.jpg" width="100%" alt="Dog: German shepherd"><br><sub>Dog: German shepherd</sub></td><td align="center" width="33%"><img src="docs/organisms/dog_lab.jpg" width="100%" alt="Dog: Labrador retriever"><br><sub>Dog: Labrador retriever</sub></td><td align="center" width="33%"><img src="docs/organisms/dog_beagle.jpg" width="100%" alt="Dog: beagle"><br><sub>Dog: beagle</sub></td></tr>
+<tr><td align="center" width="33%"><img src="docs/organisms/black_bear.jpg" width="100%" alt="American black bear"><br><sub>American black bear</sub></td><td align="center" width="33%"><img src="docs/organisms/brown_bear.jpg" width="100%" alt="Brown bear (grizzly)"><br><sub>Brown bear (grizzly)</sub></td><td align="center" width="33%"><img src="docs/organisms/deer.jpg" width="100%" alt="White-tailed deer (summer)"><br><sub>White-tailed deer (summer)</sub></td></tr>
+<tr><td align="center" width="33%"><img src="docs/organisms/deer_winter.jpg" width="100%" alt="White-tailed deer (winter)"><br><sub>White-tailed deer (winter)</sub></td><td align="center" width="33%"><img src="docs/organisms/deer_ticks.jpg" width="100%" alt="White-tailed deer, tick-infested"><br><sub>White-tailed deer, tick-infested</sub></td><td align="center" width="33%"><img src="docs/organisms/moose.jpg" width="100%" alt="Moose"><br><sub>Moose</sub></td></tr>
+<tr><td align="center" width="33%"><img src="docs/organisms/bison.jpg" width="100%" alt="American bison"><br><sub>American bison</sub></td><td></td><td></td></tr>
+</table>
+
+
 ## Running
 
 Open the folder in **Godot 4.5+** (Forward+ renderer; written for 4.5.1: 4.4 doesn't compile it, the ants' GPU readback uses `PackedByteArray.to_vector3_array`) and press Play. The start
