@@ -271,8 +271,9 @@ static func kind_of(n: Node) -> String:
 
 ## The nearest real food of c's diet (or of kinds) in its parent, within r
 ## m: alive (or a carcass), not another's quarry already; or null. (For
-## what's always under it, EVERYWHERE: c itself.)
-static func find(c: Node3D, r := 30.0, kinds: Array = []) -> Node:
+## what's always under it, EVERYWHERE: c itself.) any_: not the nearest but
+## any of it there, at random (a rarer meal as likely as its usual one).
+static func find(c: Node3D, r := 30.0, kinds: Array = [], any_ := false) -> Node:
 	if c == null or c.get_parent() == null:
 		return null
 	var want: Array = expand(kinds if not kinds.is_empty() else of(c))
@@ -282,6 +283,7 @@ static func find(c: Node3D, r := 30.0, kinds: Array = []) -> Node:
 	var p := _at(c)
 	var best: Node = null
 	var bd := r
+	var all := []
 	for o in c.get_parent().get_children():
 		if o == c or not (o is Node3D):
 			continue
@@ -293,16 +295,20 @@ static func find(c: Node3D, r := 30.0, kinds: Array = []) -> Node:
 		if o.has_meta("taken") and not o.has_meta("keep"):
 			continue
 		var d := _at(o as Node3D).distance_to(p)
+		if d < r:
+			all.append(o)
 		if d < bd:
 			bd = d
 			best = o
+	if any_ and not all.is_empty():
+		return all[randi() % all.size()]
 	return best
 
 
 ## As find, but one of a colony (a snail of its band, a firefly of its
 ## swarm) taken out of it: a body of its own where it was, to be eaten.
-static func find_one(c: Node3D, r := 30.0, kinds: Array = []) -> Node:
-	var f := find(c, r, kinds)
+static func find_one(c: Node3D, r := 30.0, kinds: Array = [], any_ := false) -> Node:
+	var f := find(c, r, kinds, any_)
 	if f != null and f != c and kind_of(f) in copies_for(c): # (one of them copied, to be eaten: the colony untouched)
 		return copy_of(f as Node3D, _at(c))
 	if f != null and f != c and kind_of(f) in ONE_AT_A_TIME:

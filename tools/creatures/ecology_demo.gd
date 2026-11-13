@@ -16,8 +16,8 @@ extends Node3D
 ##   ground; the wheel: nearer, further; C: to the selection.
 ##
 ## THE KEYS act on the selection (none selected: on everything): 1 lay eggs /
-## give birth, 2 hatch / come out / moult / shed, 3 pupate, E eat, H hunt, U an
-## unusual meal, K mate (each male with the nearest female of his kind),
+## give birth, 2 hatch / come out / moult / shed, 3 pupate, E eat, H hunt, U a
+## rarer meal (as E, any of its diet that's here, not the nearest), K mate (each male with the nearest female of his kind),
 ## G groom, Z sleep / rest, F fly / hop / climb, X alarm (flee, roll up,
 ## coil, sting, play dead, withdraw), D display / call (fireflies: flash), V the young play, N nurse, B
 ## forage (home, gather, swim, cache, wade), S spin a web, M mark, A sit, W
@@ -1965,68 +1965,15 @@ func _solid(at: Vector3, size: Vector3, col: Color) -> Node3D:
 
 
 
-## What kind of prey n is, as the diets say it (or "").
-func _kind_of(n: Node) -> String:
-	if not is_instance_valid(n) or _flag(n, "dead"):
-		return ""
-	var sc: Script = n.get_script()
-	var young := _flag(n, "young")
-	match sc:
-		MouseScript:
-			return "mouse_pup" if young else "mouse"
-		SquirrelScript, GreySqScript:
-			return "squirrel"
-		HareScript:
-			return "leveret" if young else "hare"
-		DeerScript:
-			return "fawn" if young else "deer"
-		TurkeyScript:
-			return "poult" if young else "turkey"
-		MooseScript:
-			return "moose_calf" if young else ""
-		BisonScript:
-			return "bison_calf" if young else ""
-		BeaverScript:
-			return "beaver_kit" if young else "beaver"
-		RiverOtterScript:
-			return "otter_pup" if young else ""
-		RedCrayScript, VirileCrayScript:
-			return "crayfish"
-		FoxScript:
-			return "fox_kit" if young else "fox"
-		CoyoteScript:
-			return "" if young else "coyote"
-		BobcatScript:
-			return "bobcat_kit" if young else ""
-		BlackBearScript:
-			return "black_cub" if young else ""
-		WolfScript:
-			return "wolf_pup" if young else ""
-		LarvaScript:
-			var k: String = n.get("kind")
-			return "grub" if k == "june" else ("caterpillar" if k in ["monarch", "hemaris"] else "")
-		HopperScript, BlueHopperScript:
-			return "nymph" if _flag(n, "nymph") else "grasshopper"
-		IsopodScript:
-			return "pillbug"
-		MantisScript:
-			return "mantis_nymph" if _flag(n, "nymph") else ""
-		FrogScript:
-			return "frog" if float(n.get("dev")) >= 1.0 or not young else ""
-		ToadScript:
-			return "toad" if float(n.get("dev")) >= 1.0 or not young else ""
-		AnoleScript:
-			return "anole"
-		SnakeScript:
-			return "snake_young" if young else "snake"
-	return ""
-
-
 ## Prey of one of kinds for hunter c: the nearest that's here (within r),
 ## within r; none, null (nothing's ever set out for it to eat).
+## (U: a rarer meal: what's found is any of its diet here, not the nearest.)
+var _any_meal := false
+
+
 func _prey(c: Node, kinds: Array, _d := 1.8, r := 30.0) -> Node3D:
 	# (only what's here, of its diet (Diet): nothing's ever set out for it; one of a colony, a snail, a firefly, taken out of it)
-	var best := Diet.find_one(c as Node3D, r, kinds) as Node3D
+	var best := Diet.find_one(c as Node3D, r, kinds, _any_meal) as Node3D
 	if best == null or best == c:
 		_no_food(c)
 		return null
@@ -2054,34 +2001,13 @@ func _name_of_node(c: Node) -> String:
 
 ## Real food of c's diet (Diet) within r, or null (and told).
 func _food(c: Node, kinds: Array = [], r := 30.0) -> Node:
-	var f := Diet.find_one(c as Node3D, r, kinds)
+	var f := Diet.find_one(c as Node3D, r, kinds, _any_meal)
 	if f == null or f == c and not kinds.is_empty() and not kinds.any(func(k): return k in Diet.EVERYWHERE):
 		_no_food(c)
 		return null
 	if f != c:
 		f.set_meta("hunted", c)
 	return f
-
-
-## The nearest prey of one of kinds for c that's here, within r (or null).
-func _prey_here(c: Node, kinds: Array, r: float) -> Node3D:
-	var p := _where(c)
-	var best: Node3D = null
-	for o in get_children():
-		if o == c or not (o is Node3D):
-			continue
-		var k := _kind_of(o)
-		if k == "" or not kinds.has(k):
-			continue
-		if o.has_meta("hunted") and is_instance_valid(o.get_meta("hunted")) and o.get_meta("hunted") != c:
-			continue
-		var q := _where(o)
-		if q.distance_to(p) <= r and (best == null or q.distance_to(p) < _where(best).distance_to(p)):
-			best = o
-	if best:
-		best.set_meta("hunted", c)
-	return best
-
 
 
 ## (An acorn for a mouse near p: one of its kit's, a new one if they're gone.)
@@ -3092,9 +3018,11 @@ func _do(c: Node, act_: String) -> void:
 				c.call("birth", 4, _den_of(c, st))
 		"eat", "hunt":
 			_feed(c, act_, young, p, st, near)
-		"unusual":
+		"unusual": # (a rarer meal: as E, its own diet (Diet), but any of it that's here, not the nearest)
 			if not young:
-				_unusual(c, p)
+				_any_meal = true
+				_feed(c, "eat", young, p, st, near)
+				_any_meal = false
 		"groom":
 			if c.has_method("groom"):
 				c.call("groom")
@@ -3493,7 +3421,7 @@ func _feed(c: Node, act_: String, young: bool, p: Vector3, st: Vector3, near: Ve
 	if not young and c.has_method("eat_at") and c.has_method("hunt") and Diet.of(c).size() > 0 and not Diet.of(c).any(func(k: String) -> bool: return k in Diet.EVERYWHERE):
 		# (the hunters' make: E the nearest of all it eats, H its prey; Diet's)
 		var kinds: Array = Diet.prey_of(c) if act_ == "hunt" else Diet.of(c).filter(func(k: String) -> bool: return k not in ["fish", "morel", "fly_agaric", "chicken_of_the_woods", "little_brown"])
-		var f := Diet.find_one(c as Node3D, 30.0, kinds)
+		var f := Diet.find_one(c as Node3D, 30.0, kinds, _any_meal)
 		if f == null or f == c:
 			_no_food(c)
 			return
@@ -3720,90 +3648,6 @@ func _carrion_near(p: Vector3, r: float) -> Node3D:
 		if q.distance_to(p) <= r and (best == null or q.distance_to(p) < (best.get("_pos") as Vector3).distance_to(p)):
 			best = o
 	return best
-
-
-## The mammals' (and the snakes') rarer meals (U), each plausible, if
-## seldom seen: one of the animals here (one that's here first), or set
-## out for it. The fox's fruit, ants, wasps; the opossum's fruit: eaten
-## where they are, its snout to them, nothing taken away.
-const UNUSUAL := {
-	"fox": ["fawn", "beaver_kit", "bobcat_kit", "grub", "grasshopper", "mouse_pup", "leveret", "snake_young", "fruit", "ants", "wasps"],
-	"bobcat": ["fawn", "deer", "fox", "fox_kit", "beaver_kit", "grasshopper", "snake"],
-	"coyote": ["fawn", "fox", "fox_kit", "bobcat_kit", "beaver", "otter_pup", "grub", "grasshopper", "snake"],
-	"rattler": ["frog", "toad", "anole"],
-	"milk": ["frog", "toad", "anole", "snake_young"],
-	"wolf": ["deer", "fawn", "moose_calf", "bison_calf", "beaver", "otter_pup", "coyote", "fox"],
-	"black_bear": ["fawn", "moose_calf", "beaver", "grub", "mouse_pup", "squirrel", "bobcat_kit"],
-	"brown_bear": ["moose_calf", "bison_calf", "fawn", "deer", "beaver", "grub", "black_cub", "wolf_pup"],
-	"deer": ["mouse_pup"],
-	"mouse": ["nymph", "caterpillar", "grub", "pillbug", "mantis_nymph"],
-	"squirrel": ["caterpillar", "grub", "mouse_pup"],
-	"hare": ["dead_mouse"],
-	"opossum": ["snake", "snake_young", "toad", "frog", "grub", "caterpillar", "mouse_pup", "anole", "fruit"],
-}
-
-
-func _unusual(c: Node, p: Vector3) -> void:
-	var sc: Script = c.get_script()
-	var who: String = {FoxScript: "fox", BobcatScript: "bobcat", CoyoteScript: "coyote", WolfScript: "wolf", BlackBearScript: "black_bear",
-			BrownBearScript: "brown_bear", DeerScript: "deer", MouseScript: "mouse", SquirrelScript: "squirrel", GreySqScript: "squirrel",
-			HareScript: "hare", OpossumScript: "opossum"}.get(sc, "")
-	if sc == SnakeScript:
-		who = String(c.get("kind"))
-	if who == "" or not UNUSUAL.has(who):
-		return
-	var kinds: Array = UNUSUAL[who]
-	var kind: String = kinds[randi() % kinds.size()]
-	var a := randf() * TAU
-	var dir := Vector3(cos(a), 0.0, sin(a))
-	var _dir := dir
-	# (one of them that's here: none set out)
-	var have := kinds.filter(func(k: String) -> bool:
-		if k == "fruit":
-			return not _windfall_near(p).is_empty() or (who == "fox" and _bush_near(p) != null)
-		if k in ["ants", "wasps"]:
-			return _fox_spot(c, k, p) != Vector3.INF
-		return _prey_here(c, [k], 30.0) != null)
-	if have.is_empty():
-		_no_food(c)
-		return
-	kind = have[randi() % have.size()]
-	if kind == "fruit" and (who == "opossum" or _bush_near(p) == null):
-		c.call("eat_at", _windfall_near(p)[0], 12.0)
-	elif kind in ["fruit", "ants", "wasps"]: # (the fox's: eaten where it is, nothing taken)
-		c.call("eat_at", _fox_spot(c, kind, p), 10.0)
-	elif sc == SnakeScript:
-		c.call("eat", _prey(c, [kind]))
-	elif c.has_method("hunt") and who != "deer":
-		c.call("hunt", _prey(c, [kind]))
-	else:
-		c.call("eat", _prey(c, [kind]))
-
-
-## The fox's foraging spots (made the first time): a berry bush, a harvester
-## ants' nest, a paper wasp comb fallen in the grass; a point to eat at.
-func _fox_spot(c: Node, kind: String, from: Vector3) -> Vector3:
-	# (a berry bush, an ant colony's nest, a wasp comb that's here: none made for it; INF, none)
-	var at: Vector3
-	match kind:
-		"fruit":
-			var b := _bush_near(from)
-			if b == null:
-				return Vector3.INF
-			at = b.position
-		_:
-			var n := Diet.find(c as Node3D, 30.0, ["ants"] if kind == "ants" else ["wasp_comb"])
-			if n == null:
-				return Vector3.INF
-			at = (n as Node3D).position
-	var a := randf() * TAU
-	match kind:
-		"fruit":
-			var toward := Vector3(from.x - at.x, 0.0, from.z - at.z).normalized()
-			return at + toward * 0.18 + Vector3(cos(a), 0.0, sin(a)) * 0.05 + Vector3.UP * randf_range(0.22, 0.4)
-		"ants":
-			return at + Vector3(cos(a), 0.0, sin(a)) * randf_range(0.0, 0.08) + Vector3.UP * 0.004
-	return at + Vector3.UP * 0.012
 
 
 ## A milkweed's lower and middle leaves near p (planted if there's none):

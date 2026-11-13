@@ -724,14 +724,9 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   animal, a plant, a carcass, the game's items, the Sea floor's clams, urchins and rocks), a frog to the pond
   there; a young deer, moose or bison put down by a grown female of its kind follows her. The water creatures dig
   their pond beside them if there's none (sunk in the plain, the game's own water over it, reeds in it), and the
-  plain's grass is kept off it and round the small creatures. U: the mammals' rarer meals, plausible if seldom
-  seen, each another of the game's own animals (one that's in the scene): the fox a newborn
-  fawn, a beaver kit, a bobcat kitten, a June grub, a grasshopper; the bobcat a fawn, a grown deer, a fox; the coyote
-  a fawn, a fox, a beaver; the wolf a deer, a moose or bison calf, a beaver, a coyote; the bears a fawn, a calf, a
-  beaver, grubs, the grizzly a black bear cub or a wolf pup; the deer a mouse pup; the deer mouse a grasshopper
-  nymph, a caterpillar, a grub, a pill bug, a mantis nymph; the squirrels a caterpillar, a grub, a mouse pup; the
-  snowshoe hare a dead mouse; the fox, the bobcat, the coyote, the opossum a snake; the snakes a leopard frog, a
-  toad, an anole, the milk snake a young rattler. A kill more than half the hunter's length isn't carried off or
+  plain's grass is kept off it and round the small creatures. U: a rarer meal, the same as E from the same diet (`Diet`: one
+  list, no second one for rarer meals), but any of what it eats that's in the scene, picked at random, not the nearest
+  (`Diet.find(..., any_)`): the fox's fawn or snake, the bear's calf or grubs, the deer's mouse pup. A kill more than half the hunter's length isn't carried off or
   lifted: it's eaten where it fell, longer. The fox's fruit, ants and wasps (a huckleberry bush, a harvester ants'
   nest, a fallen paper wasp comb), the opossum's fallen persimmons: eaten where they are (`eat_at(point, seconds)`,
   any of the four-legged make's), its snout brought to the point and kept there, licking, snapping, nosing about;
