@@ -630,6 +630,47 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   down to play (a stalk, a pounce, a tumble) and back on, she waiting for them; nursed at her belly, she on her
   side; mating: he clicks, mounts her gripping her neck fur, and they topple over together onto their sides. In the ecology sandbox, with what it uses there: a female and a male, her den, the branch, persimmons, leaf litter (1 birth, V
   play, N nurse, X play dead, D gape, F climb, B gather, E eat, H hunt, U a snake or a toad, K mate).
+- `scripts/creatures/porcupine.gd` (`Porcupine`, *Erethizon dorsatum*, on the bears' make, plantigrade, a climber): a
+  North American porcupine, life size; one skin, squat and round, its back humped highest over its rump, its legs
+  short and bowed, its head small and blunt, a big black nose pad, small black eyes, small round ears half hidden,
+  long whiskers, its incisors' faces orange; four long curved claws before, five behind, its soles bare, black and
+  pebbled (`carnivore.gdshader`'s species 18: dark brown black woolly underfur, grizzled). Its quills and guard
+  hairs grown on its skin (`scripts/creatures/strands.gd`, `Strands`: each a tapered tube weighted to the skin's
+  own bones, bending with its neck and tail; `shaders/render/strands.gdshader`): the quills cream with dark tips,
+  short over its shoulders and in a crest on its crown, longest and thickest over its rump and on its tail; its
+  guard hairs long, dark rooted and pale tipped, drooping; none on its face, legs or belly; raised (the mesh's
+  "erect" blend shape) they stand up and fan out. A plant's leaves nibbled (Diet's forbs, a maple sapling,
+  flowers): its mouth up or down to a leaf, a leaf bitten off (a copy: the plant as it was), sat back on its
+  haunches with it in its forepaws, eaten bite by bite, two or three; berries and fallen fruit as the bears eat
+  them; up a tree (as a black bear, hugging the trunk, its tail braced against the bark below it), gnawing its
+  bark a good while, a pale scar left on the trunk, down rump first. Its threat: quills up, its back turned to
+  the threat, its tail lashing, its teeth chattering, backing at it; a hunter that bites it (`Carnivore`'s hunt:
+  `bitten()`) gets a mouthful of quills, a dozen or so stuck in its muzzle, and backs off pawing at its face
+  (`Carnivore.hurt_face()`), then leaves; caught face to face, its quills down, it can be killed. Its whine;
+  courtship face to face, the two up on their hind legs, nose to nose, then she curls her tail up over her back
+  and he mounts her; one young (a porcupette), born in her den (`Porcupine.den()`, a hollow log) with its eyes
+  open and its quills soft, up and about at once, after her, nursed with her sat up over it; its play a hop, a
+  spin, its quills up at nothing. Hunted rarely (a bobcat's, a coyote's, a wolf's, the young an owl's). In the
+  ecology sandbox: E / B nibbling, F up a tree, X its threat, D whine, K courting, 1 its young, N nurse, V play.
+- `scripts/creatures/armadillo.gd` (`Armadillo`, *Dasypus novemcinctus*, on the bears' make): a nine-banded
+  armadillo, life size; its carapace one mesh over its back (`Armadillo._build_shell`, high domed, its sides
+  hanging straight down nearly to its elbows and knees, its ends arched down over its shoulders and its rump; each
+  band's rear edge raised over the next): its shoulder and hip shields a mosaic of small rounded scutes, its nine
+  bands rows of long scutes pointed behind, the pale pinkish skin folded between them, a few bristles out of it
+  (`shaders/render/armadillo_shell.gdshader`). Its head long and narrow, its snout a tapering tube to a small pink
+  nose, its head shield of scutes over its crown and down its snout, small dark eyes, big naked upright ears; its
+  tail long and tapering, ringed with scutes; its legs short and scaly, four toes before (the middle two clawed
+  long, for digging), five behind; its belly soft, pale pinkish grey, with long sparse yellowish hairs (Strands)
+  (`carnivore.gdshader`'s species 19). Rooting about in zigzags, nose down, its snout pushed into the litter; what
+  it eats smelled out only where it is (a grub, a beetle, a caterpillar, a pillbug, a snail, a spider): dug at, its
+  forefeet raking, its long sticky tongue out to it, licked up; an ants' nest licked at, left as it was; fallen
+  fruit. Startled, straight up half a metre and off at a run to its burrow and in; hunkered down under its shell,
+  pressed to the ground; up on its hind legs sniffing the air, its tail a prop; its burrow dug (`Armadillo.burrow()`,
+  a slanting hole, a fan of loose earth before it), slept in out of sight; mating with her on her back, belly to
+  belly; four young (identical quadruplets, from the one egg: always the same sex), their shells soft and pink.
+  (Not the three-banded armadillo, which rolls into a ball: the nine-banded can't.) Hunted by coyotes, bobcats,
+  bears, the young by foxes and owls. In the ecology sandbox: B rooting, E / H to what it eats, X startled, D up on
+  its hind legs, A hunkered, F its burrow dug, Z to its burrow, K mating, 1 its young.
 - `scripts/creatures/fox_squirrel.gd` (`FoxSquirrel`, *Sciurus niger*, on the hare's motor): an eastern fox squirrel,
   life size; one skin, a long supple body, round head, short blunt muzzle, big dark eyes ringed pale, short rounded
   ears, orange incisors, sharp claws; its long bushy tail a chain of bones carried up over its back in an S,

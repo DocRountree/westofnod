@@ -784,6 +784,24 @@ func groom() -> void:
 	_st = 0.0
 
 
+## Hurt in the face (a porcupine's quills in its muzzle): its hunt given up;
+## sat, pawing at its muzzle, shaking its head, a while (secs); then off,
+## away from where it was hurt (from).
+func hurt_face(from: Vector3, secs := 5.0) -> void:
+	if _prey and is_instance_valid(_prey) and _prey.has_meta("hunted") and _prey.get_meta("hunted") == self:
+		_prey.remove_meta("hunted")
+	_prey = null
+	_meal = null
+	_held = false
+	_mode = "hurt"
+	_st = 0.0
+	_wait = secs
+	_hurt_from = from
+
+
+var _hurt_from := Vector3.ZERO
+
+
 func sit(secs := 8.0) -> void:
 	_mode = "sit"
 	_st = 0.0
@@ -901,6 +919,21 @@ func _think(dt: float) -> void:
 			_hunt(dt)
 		"eat_at":
 			_eat_at(dt)
+		"hurt": # (pawing at its muzzle, its head shaking; then off, away)
+			_target = _pos
+			_sit_to = 0.8
+			_crouch = 0.0
+			_neck_to = Vector2(-0.35 + 0.15 * sin(_st * 4.0), 0.5 * sin(_st * 11.0) * (1.0 if fmod(_st, 2.0) < 1.0 else 0.2))
+			_jaw_to = 0.25
+			_ears_to = -0.8
+			_tail_mode = "low"
+			if _wait <= 0.0:
+				_sit_to = 0.0
+				var away := Vector3(_pos.x - _hurt_from.x, 0.0, _pos.z - _hurt_from.z)
+				away = away.normalized() if away.length() > 0.01 else Vector3.BACK
+				wander(_pos + away * 4.0, 1.5)
+				_target = _pos + away * 4.0
+				_wait = 4.0
 		"groom":
 			_target = _pos
 			_sit_to = 1.0
@@ -1064,6 +1097,8 @@ func _hunt(dt: float) -> void:
 			if not airborne and _st > 0.1:
 				var nose := _out(Vector3(0.0, -body_h, float(S.mouth_z)))
 				if Vector2(nose.x - p.x, nose.z - p.z).length() < 0.35 * size / 0.5 + 0.05:
+					if _prey.has_method("bitten") and bool(_prey.call("bitten", self)): # (its defence: a porcupine's quills in its face)
+						return
 					MealScript.subdue(_prey)
 					_held = false # (every kill eaten where it fell: not carried off in its jaws)
 					_stage = 5
@@ -1692,6 +1727,9 @@ func _pose(dt: float) -> void:
 	var tilt := float(S.get("tilt", 0.0)) * (1.0 if _mode == "hunt" and _stage == 2 else 0.0)
 	_head.rotation = Vector3(-float(S.neck_pitch) * 0.85 + _neck_now.x * lerpf(0.5, 0.2, _reach_k) + _look_now.x + sniff - lick, _neck_now.y * 0.45 + _look_now.y, tilt * sin(_t * 0.7))
 	_jaw.rotation.x = -(maxf(_jaw_to, 0.25 * _lick * maxf(sin(_t * 6.0), 0.0)) + 0.1 * _chew * maxf(sin(_t * 9.0), 0.0)) # (open: its jaw's tip down, away from its upper teeth)
+	if _mode == "hurt" and s > 0.4: # (a forepaw swiped down its muzzle, again and again)
+		var muz := _neck.transform * (_head.transform * Vector3(0.0, -30.0, float(S.mouth_z) * 0.25))
+		_pose_foot[0] = muz + Vector3(-12.0, -20.0 + 30.0 * sin(_t * 7.0), 25.0)
 	# its forepaw licked, its face washed (sitting)
 	if _mode == "groom" and s > 0.6:
 		var ph := fmod(_st, 9.0)

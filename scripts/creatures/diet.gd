@@ -26,20 +26,20 @@ extends RefCounted
 ## the biology has it: the most of its diet by bulk or by how often it's
 ## seen eating it, and how readily it goes for it when there's a choice).
 const EATS := {
-	"red_fox.gd": {"gosling": 0.4, "mouse": 1.0, "mouse_pup": 0.9, "hare": 0.6, "leveret": 0.7, "squirrel": 0.5, "grasshopper": 0.5, "grub": 0.4, "berries": 0.6, "pawpaw": 0.5,
+	"red_fox.gd": {"armadillo_pup": 0.2, "gosling": 0.4, "mouse": 1.0, "mouse_pup": 0.9, "hare": 0.6, "leveret": 0.7, "squirrel": 0.5, "grasshopper": 0.5, "grub": 0.4, "berries": 0.6, "pawpaw": 0.5,
 			"crabapple": 0.4, "carcass": 0.5, "dead_mouse": 0.6, "frog": 0.3, "toad": 0.1, "fawn": 0.15, "beaver_kit": 0.15, "bobcat_kit": 0.1, "snake_young": 0.2,
 			"ants": 0.2, "wasp_comb": 0.2},
-	"bobcat.gd": {"hare": 1.0, "leveret": 0.9, "squirrel": 0.7, "mouse": 0.7, "poult": 0.5, "fawn": 0.4, "deer": 0.2, "fox": 0.1, "fox_kit": 0.2, "beaver_kit": 0.2,
+	"bobcat.gd": {"porcupine": 0.05, "porcupette": 0.2, "armadillo": 0.15, "armadillo_pup": 0.3, "hare": 1.0, "leveret": 0.9, "squirrel": 0.7, "mouse": 0.7, "poult": 0.5, "fawn": 0.4, "deer": 0.2, "fox": 0.1, "fox_kit": 0.2, "beaver_kit": 0.2,
 			"grasshopper": 0.15, "snake": 0.2, "carcass": 0.25},
-	"coyote.gd": {"gosling": 0.4, "goose": 0.1, "mouse": 1.0, "mouse_pup": 0.8, "hare": 0.8, "leveret": 0.8, "squirrel": 0.5, "fawn": 0.6, "carcass": 0.7, "dead_mouse": 0.6, "berries": 0.5,
+	"coyote.gd": {"porcupine": 0.05, "porcupette": 0.15, "armadillo": 0.2, "armadillo_pup": 0.3, "gosling": 0.4, "goose": 0.1, "mouse": 1.0, "mouse_pup": 0.8, "hare": 0.8, "leveret": 0.8, "squirrel": 0.5, "fawn": 0.6, "carcass": 0.7, "dead_mouse": 0.6, "berries": 0.5,
 			"pawpaw": 0.5, "crabapple": 0.5, "grasshopper": 0.4, "grub": 0.3, "poult": 0.4, "frog": 0.2, "toad": 0.1, "snake": 0.2, "beaver": 0.2, "otter_pup": 0.1,
 			"fox": 0.1, "fox_kit": 0.2, "bobcat_kit": 0.1},
-	"grey_wolf.gd": {"deer": 1.0, "fawn": 0.9, "moose_calf": 0.8, "bison_calf": 0.6, "beaver": 0.6, "carcass": 0.6, "hare": 0.4, "mouse": 0.2, "otter_pup": 0.1,
+	"grey_wolf.gd": {"porcupine": 0.05, "deer": 1.0, "fawn": 0.9, "moose_calf": 0.8, "bison_calf": 0.6, "beaver": 0.6, "carcass": 0.6, "hare": 0.4, "mouse": 0.2, "otter_pup": 0.1,
 			"coyote": 0.1, "fox": 0.1},
 	"german_shepherd.gd": {"hare": 0.4, "leveret": 0.4, "mouse": 0.3, "squirrel": 0.3, "carcass": 0.6, "dead_mouse": 0.5},
 	"labrador_retriever.gd": {"hare": 0.3, "leveret": 0.3, "mouse": 0.2, "squirrel": 0.2, "carcass": 0.8, "dead_mouse": 0.7},
 	"beagle.gd": {"hare": 0.6, "leveret": 0.6, "mouse": 0.3, "squirrel": 0.3, "carcass": 0.7, "dead_mouse": 0.6},
-	"black_bear.gd": {"berries": 1.0, "acorn": 0.9, "walnut": 0.7, "grub": 0.7, "ants": 0.7, "pawpaw": 0.7, "crabapple": 0.6, "carcass": 0.6, "fawn": 0.4,
+	"black_bear.gd": {"armadillo": 0.05, "armadillo_pup": 0.1, "berries": 1.0, "acorn": 0.9, "walnut": 0.7, "grub": 0.7, "ants": 0.7, "pawpaw": 0.7, "crabapple": 0.6, "carcass": 0.6, "fawn": 0.4,
 			"fish": 0.3, "chicken_of_the_woods": 0.3, "morel": 0.3, "mouse_pup": 0.2, "squirrel": 0.1, "hare": 0.1, "mouse": 0.1, "moose_calf": 0.15, "beaver": 0.1,
 			"bobcat_kit": 0.05},
 	"brown_bear.gd": {"fish": 1.0, "berries": 1.0, "carcass": 0.8, "moose_calf": 0.6, "bison_calf": 0.4, "fawn": 0.5, "deer": 0.3, "grub": 0.5, "ants": 0.5,
@@ -48,6 +48,9 @@ const EATS := {
 	"opossum.gd": {"carcass": 0.9, "dead_mouse": 0.8, "grub": 0.8, "snails": 0.8, "pawpaw": 0.8, "crabapple": 0.7, "berries": 0.7, "grasshopper": 0.6, "nymph": 0.6,
 			"caterpillar": 0.6, "mouse": 0.4, "mouse_pup": 0.5, "frog": 0.4, "toad": 0.3, "anole": 0.2, "snake": 0.2, "snake_young": 0.3, "morel": 0.2,
 			"chicken_of_the_woods": 0.2, "nestling": 0.2},
+	"porcupine.gd": {"sapling": 1.0, "forbs": 0.8, "flowers": 0.5, "crabapple": 0.6, "acorn": 0.6, "berries": 0.4}, # (leaves, buds, a tree's bark (climbing it, Porcupine.climb: not food set out), fruit, mast)
+	"armadillo.gd": {"grub": 1.0, "beetle": 0.8, "ants": 0.8, "caterpillar": 0.7, "pillbug": 0.6, "snails": 0.5, "spider": 0.5, "nymph": 0.5, "grasshopper": 0.4,
+			"pawpaw": 0.2, "crabapple": 0.15, "frog": 0.1, "anole": 0.1, "mouse_pup": 0.05},
 	"deer.gd": {"graze": 1.0, "morel": 0.3, "chicken_of_the_woods": 0.3, "fly_agaric": 0.1, "mouse_pup": 0.05},
 	"moose.gd": {"graze": 1.0, "morel": 0.2, "fly_agaric": 0.1},
 	"bison.gd": {"graze": 1.0},
@@ -65,7 +68,7 @@ const EATS := {
 	"barn_owl.gd": {"mouse": 1.0, "grasshopper": 0.15, "nymph": 0.1, "grub": 0.1, "spider": 0.05},
 	"eastern_screech_owl.gd": {"mouse": 1.0, "mouse_pup": 0.8, "grasshopper": 0.7, "nymph": 0.6, "caterpillar": 0.5, "grub": 0.4, "crayfish": 0.4, "frog": 0.4,
 			"snails": 0.2, "anole": 0.2, "fish": 0.15, "bluebird": 0.15, "blackbird": 0.1, "finch": 0.2, "hummingbird": 0.05, "nestling": 0.15, "bat": 0.15},
-	"great_horned_owl.gd": {"gosling": 0.2, "hare": 1.0, "leveret": 0.9, "mouse": 0.8, "squirrel": 0.6, "poult": 0.4, "pigeon": 0.3, "blackbird": 0.1, "bat": 0.1},
+	"great_horned_owl.gd": {"porcupette": 0.05, "armadillo_pup": 0.1, "gosling": 0.2, "hare": 1.0, "leveret": 0.9, "mouse": 0.8, "squirrel": 0.6, "poult": 0.4, "pigeon": 0.3, "blackbird": 0.1, "bat": 0.1},
 	"bald_eagle.gd": {"fish": 1.0, "carcass": 0.8, "poult": 0.2, "hare": 0.2, "leveret": 0.2, "gosling": 0.3, "goose": 0.1},
 	"golden_eagle.gd": {"hare": 1.0, "leveret": 0.9, "squirrel": 0.7, "poult": 0.4, "carcass": 0.5},
 	"anole.gd": {"nymph": 0.8, "grasshopper": 0.7, "spider": 0.8, "caterpillar": 0.6, "grub": 0.3},
@@ -241,6 +244,10 @@ static func kind_of(n: Node) -> String:
 	match f:
 		"mouse.gd":
 			k = "mouse_pup" if young else "mouse"
+		"porcupine.gd":
+			k = "porcupette" if young else "porcupine"
+		"armadillo.gd":
+			k = "armadillo_pup" if young else "armadillo"
 		"fox_squirrel.gd", "grey_squirrel.gd":
 			k = "squirrel"
 		"hare.gd":

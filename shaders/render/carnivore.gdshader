@@ -621,6 +621,76 @@ void fragment() {
 			c = mix(c, head * 0.7, 0.5);
 		if (pt == 6.0)
 			c = dark * (1.0 + 0.3 * gz);
+	} else if (species == 18) {
+		// a porcupine: its underfur dark brown black, woolly, a little
+		// grizzled where its guard hairs' pale tips lie over it (its quills
+		// and guard hairs themselves: Strands); its face darker, near black,
+		// its cheeks with a few pale hairs; its legs black brown; its soles
+		// bare, black, pebbled; its ears dark; its tail dark above, its
+		// underside bristly brown. A porcupette brown, softer.
+		float gz = vn(rp * vec3(0.3, 0.3, 0.09)) * 0.55 + vn(rp * vec3(0.8, 0.8, 0.25) + 5.0) * 0.3 + vn(rp * 0.04) * 0.15;
+		vec3 base = young ? vec3(0.2, 0.14, 0.1) : vec3(0.12, 0.095, 0.075);
+		vec3 grizz = young ? vec3(0.36, 0.28, 0.2) : vec3(0.55, 0.5, 0.4);
+		c = mix(base, grizz, smoothstep(0.6, 0.95, gz) * 0.35 * smoothstep(-0.3, 0.5, ny));
+		c = mix(c, base * 0.85, 1.0 - smoothstep(-0.7, -0.3, ny)); // (its belly: coarse, dark)
+		if (fw > 0.0) {
+			vec3 face = base * 0.7;
+			face = mix(face, grizz * 0.7, smoothstep(0.75, 0.95, gz) * 0.4 * (1.0 - smoothstep(-0.2, 0.3, ny)));
+			c = mix(c, face, fw);
+		}
+		if (leg)
+			c = mix(c, base * 0.75, smoothstep(0.2, 0.5, a));
+		if (leg && a > 0.86) { // (its soles: bare, black, pebbled)
+			float peb = spots(rp * 1.0, 3.0, 0.9);
+			c = mix(vec3(0.06, 0.055, 0.055), vec3(0.14, 0.13, 0.13), peb);
+		}
+		if (pt == 4.0)
+			c = vec3(0.07, 0.065, 0.065);
+		if (pt == 5.0)
+			c = base * 0.8;
+		if (pt == 6.0)
+			c = mix(base * 0.9, base * 1.4, 1.0 - smoothstep(-0.5, 0.0, ny)); // (its tail's underside: bristly, browner)
+		if (pt == 7.0)
+			c = vec3(0.13, 0.11, 0.09);
+	} else if (species == 19) {
+		// a nine-banded armadillo's skin (its carapace its own: Armadillo):
+		// its belly, chest, the skin under its shell's edge pale pinkish grey,
+		// soft, finely wrinkled; its legs scaly, grey brown, small round
+		// scales; its head's shield (over its crown and down its snout)
+		// scutes, tan grey, and the sides of its face and its throat skin;
+		// its nose pinkish; its ears naked, leathery, brownish grey; its tail
+		// ringed with scutes, a row of them round it every centimetre
+		vec3 skin_c = young ? vec3(0.74, 0.62, 0.58) : vec3(0.66, 0.59, 0.54);
+		vec3 hornc = young ? vec3(0.76, 0.64, 0.58) : vec3(0.7, 0.64, 0.56);
+		vec3 grv = vec3(0.34, 0.29, 0.26);
+		float wr = vn(rp * vec3(0.5, 0.15, 0.5)) * 0.6 + vn(rp * 0.9 + 3.0) * 0.4; // (wrinkles)
+		c = skin_c * (0.88 + 0.18 * wr);
+		c = mix(c, c * 0.82, smoothstep(-0.2, 0.6, ny)); // (darker up under its shell)
+		if (fw > 0.0) {
+			// its head shield: over its crown and down its snout's top
+			float shield = smoothstep(0.0, 0.3, ny) * (1.0 - smoothstep(16.0, 28.0, hp.z)) * (1.0 - smoothstep(-104.0, -114.0, hp.z) * 0.7);
+			float cell = spots(hp * vec3(1.0, 0.6, 1.0), 3.2, 1.15);
+			vec3 sc = mix(grv, hornc * (0.9 + 0.2 * wr), smoothstep(0.05, 0.4, cell));
+			vec3 face = skin_c * mix(0.75, 0.95, wr);
+			c = mix(c, mix(face, sc, shield), fw);
+		}
+		if (leg) {
+			float scl = spots(rp * vec3(1.0, 0.7, 1.0), 2.6, 1.0);
+			c = mix(c, mix(grv * 1.2, vec3(0.5, 0.43, 0.38), smoothstep(0.1, 0.7, scl)), smoothstep(0.15, 0.35, a));
+		}
+		if (pt == 4.0)
+			c = vec3(0.45, 0.38, 0.34);
+		if (pt == 5.0) // (its ears: naked, leathery, brownish grey, a little paler inside)
+			c = vec3(0.42, 0.36, 0.33) * (0.9 + 0.2 * wr);
+		if (pt == 6.0) { // (its tail: rings of scutes)
+			float ring = fract(a * 34.0);
+			float cell = fract(atan(rp.x, rp.y) * 3.0);
+			float sc = smoothstep(0.0, 0.12, ring) * (1.0 - smoothstep(0.82, 0.95, ring)) * smoothstep(0.0, 0.1, cell) * (1.0 - smoothstep(0.9, 1.0, cell));
+			c = mix(grv, hornc * (0.9 + 0.15 * wr), sc);
+			c = mix(c, skin_c, 1.0 - smoothstep(0.0, 0.06, a)); // (its root: skin, under the hip shield)
+		}
+		if (pt == 7.0)
+			c = vec3(0.6, 0.53, 0.44); // (its claws: pale horn)
 	} else if (species == 17) {
 		// a dog: its breed's coat (Dog: dog_pat). 0 solid (a Labrador's:
 		// yellow, black or chocolate, the yellow paler beneath); 1 black and
@@ -866,7 +936,7 @@ void fragment() {
 		c = mix(c, weep, sore);
 		rot = max(rot, sore * 0.7);
 	}
-	bool bare = rot > 0.5 || slip > 0.5 || pt == 4.0 || pt == 7.0 || (species == 11 && ((pt == 6.0 && a > 0.12) || (leg && a > 0.7))) || (species == 14 && ((pt == 6.0 && a > 0.08) || (leg && a > 0.85) || pt == 5.0 || fur < 0.5)) || leather > 0.5;
+	bool bare = rot > 0.5 || slip > 0.5 || pt == 4.0 || pt == 7.0 || (species == 11 && ((pt == 6.0 && a > 0.12) || (leg && a > 0.7))) || (species == 14 && ((pt == 6.0 && a > 0.08) || (leg && a > 0.85) || pt == 5.0 || fur < 0.5)) || species == 19 || leather > 0.5;
 	float s = clamp(hair * 0.06, 0.3, 4.0); // (a strand's width, mm)
 	vec3 stretch = leg ? vec3(1.0, 4.0, 1.0) : vec3(1.0, 1.0, 4.0);
 	vec3 q = rp / (s * stretch);

@@ -117,6 +117,8 @@ const IchScript := preload("res://scripts/creatures/ichneumon.gd")
 const MealScript := preload("res://scripts/creatures/meal.gd")
 const MoltScript := preload("res://scripts/creatures/molt.gd")
 const OpossumScript := preload("res://scripts/creatures/opossum.gd")
+const PorcupineScript := preload("res://scripts/creatures/porcupine.gd")
+const ArmadilloScript := preload("res://scripts/creatures/armadillo.gd")
 const BeeScript := preload("res://scripts/creatures/bumblebee.gd")
 const CarcassScript := preload("res://scripts/creatures/carcass.gd")
 const CrayScript := preload("res://scripts/creatures/crayfish.gd")
@@ -232,6 +234,8 @@ const CATALOGUE := [
 	["Mammals", "North American river otter", "river_otter", ["adult", "young"]],
 	["Mammals", "sea otter (in the sea)", "sea_otter", ["adult", "young"]],
 	["Mammals", "Virginia opossum", "opossum", ["adult", "young"]],
+	["Mammals", "North American porcupine (E / B nibbling the plants that are here, a leaf held in its forepaws; F up a tree, gnawing its bark; X its quills up, its back to you, its tail lashing; D his whine; K courting, face to face; 1 her one young, in her den; V the young's play)", "porcupine", ["adult", "young"]],
+	["Mammals", "nine-banded armadillo (B rooting for what it eats that's here, digging to it, its tongue out; E / H to it; X startled: straight up, then off to its burrow; D up on its hind legs, sniffing; A hunkered down under its shell; F digging its burrow; Z to its burrow; K mating, she on her back; 1 her four identical young)", "armadillo", ["adult", "young"]],
 	["Mammals", "big brown bat (hanging under a snag's branch; out foraging at dusk and by night (T), hawking insects; young: a pup, at its mother's breast)", "bat", ["adult", "young"]],
 	["Mammals", "red fox", "fox", ["adult", "young"]],
 	["Mammals", "bobcat", "bobcat", ["adult", "young"]],
@@ -1353,6 +1357,15 @@ func _spawn_animal(key: String, at: Vector3, stage: String, male: bool, young: b
 			so.call("place", inn, randf() * TAU)
 			so.call("swim", c0, minf(float(q.hw), float(q.hd)) * 0.7)
 			return so
+		"porcupine", "armadillo":
+			var pa: Node3D = (PorcupineScript if key == "porcupine" else ArmadilloScript).new(young)
+			pa.set("male", male and not young)
+			_org(pa, at, false)
+			pa.call("place", at, randf() * TAU)
+			if young:
+				pa.set("size", 0.26 if key == "porcupine" else 0.24)
+			pa.call("wander", at, 0.8)
+			return pa
 		"opossum":
 			var op: Node3D = OpossumScript.new(young)
 			op.set("male", male and not young)
@@ -1847,6 +1860,12 @@ func _den_of(n: Node3D, at: Vector3) -> Node3D:
 			d = BobcatScript.den()
 		elif sc == OpossumScript:
 			d = OpossumScript.den()
+			d.rotation.y = randf() * TAU
+		elif sc == PorcupineScript:
+			d = PorcupineScript.den()
+			d.rotation.y = randf() * TAU
+		elif sc == ArmadilloScript:
+			d = ArmadilloScript.burrow()
 			d.rotation.y = randf() * TAU
 		elif sc == BlackBearScript or sc == BrownBearScript:
 			d = UrsidScript.den(1.0 if sc == BlackBearScript else 1.3)
@@ -3274,7 +3293,7 @@ func _do(c: Node, act_: String) -> void:
 				var lv := _leaves_round(c, st)
 				c.call("land", (lv[randi() % lv.size()] as Array)[0], Vector3.UP)
 		"sleep":
-			if sc in [OpossumScript, BlackBearScript, BrownBearScript] and not young: # (a bear in its den, out of sight)
+			if sc in [OpossumScript, BlackBearScript, BrownBearScript, PorcupineScript, ArmadilloScript] and not young: # (a bear in its den, out of sight)
 				_den_of(c, st)
 			if c.has_method("sleep"):
 				c.call("sleep", 20.0)
@@ -3285,7 +3304,9 @@ func _do(c: Node, act_: String) -> void:
 			elif sc == IsopodScript:
 				c.call("roll", 8.0)
 		"fly":
-			if sc == BlackBearScript and not young: # (F: up the nearest tree, a black bear's)
+			if sc == ArmadilloScript and not young: # (F: its burrow dug, near)
+				c.call("dig", st + near * 0.6 + Vector3(randf_range(-0.3, 0.3), 0.0, randf_range(-0.3, 0.3)))
+			elif (sc == BlackBearScript or sc == PorcupineScript) and not young: # (F: up the nearest tree, a black bear's, a porcupine's)
 				var tree := _tree_near(p, 8.0)
 				if tree == null:
 					tree = _plant_game("oak", p + Vector3(0.8, 0.0, 0.6), false)
@@ -3321,6 +3342,10 @@ func _do(c: Node, act_: String) -> void:
 				c.call("slap")
 			elif sc == OpossumScript:
 				c.call("play_dead", randf_range(14.0, 20.0))
+			elif sc == PorcupineScript: # (its quills up, its back to you)
+				c.call("bristle", p + near * 1.2, 10.0)
+			elif sc == ArmadilloScript:
+				c.call("leap")
 			elif sc == BeeScript or sc == Wasp:
 				c.call("sting", p * Vector3(1.0, 0.0, 1.0) + near * 0.1 + Vector3(0.0, 0.02, 0.0))
 			elif sc == HareScript or sc == SquirrelScript or sc == GreySqScript:
@@ -3338,6 +3363,8 @@ func _do(c: Node, act_: String) -> void:
 				c.call("display")
 			elif sc == OpossumScript:
 				c.call("gape", 6.0)
+			elif sc == PorcupineScript:
+				c.call("whine", 6.0)
 			elif sc == HareScript:
 				c.call("thump")
 			elif sc == SquirrelScript or sc == GreySqScript:
@@ -3365,6 +3392,8 @@ func _do(c: Node, act_: String) -> void:
 					var ns: Node3D = BeeScript.nest()
 					ns.position = st + Vector3(0.3, 0.0, 0.3)
 					return ns).position)
+			elif sc == PorcupineScript: # (nibbling the plants here)
+				_feed(c, "eat", young, p, st, near)
 			elif sc == OpossumScript and not young: # (leaves for the nest, in its tail, to its den)
 				var litter: Node3D = _kit(c, "litter", func() -> Node3D:
 					var h := Node3D.new()
@@ -3669,7 +3698,9 @@ func _feed(c: Node, act_: String, young: bool, p: Vector3, st: Vector3, near: Ve
 			return
 		var k := Diet.kind_of(f)
 		f.set_meta("hunted", c)
-		if k == "berries" and c.has_method("browse"): # (a bear: berries off the bush)
+		if k in ["forbs", "sapling", "flowers"] and c.has_method("nibble"): # (a porcupine: a leaf of it, a copy, in its forepaws)
+			c.call("nibble", f)
+		elif k == "berries" and c.has_method("browse"): # (a bear: berries off the bush)
 			c.call("browse", f)
 		elif k in ["berries", "pawpaw", "crabapple", "acorn", "walnut", "ants", "wasp_comb"]: # (eaten where it is: its snout to it)
 			var at := (f as Node3D).position
