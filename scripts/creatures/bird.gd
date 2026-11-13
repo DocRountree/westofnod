@@ -655,6 +655,7 @@ func _build() -> void:
 	_mat.set_shader_parameter("fold_fan", S.get("fold_fan", Vector3.ZERO))
 	_mat.set_shader_parameter("tail_count", float((S.tail_feathers as Array)[0]) if S.has("tail_feathers") else 12.0)
 	_mat.set_shader_parameter("fold_tuck", float(S.get("fold_tuck", 0.0)))
+	_mat.set_shader_parameter("tail_k", float(S.get("tail_k", 1.0)))
 	_mat.set_shader_parameter("fold_tuck_front", float(S.get("fold_tuck_front", 0.6)))
 	for k: String in colors:
 		_mat.set_shader_parameter(k, colors[k])
@@ -956,17 +957,36 @@ func _make_mesh() -> Array:
 				[ank.lerp(foot, 0.85) * m, lr, j + 2, j + 2, 0.0], [foot * m, lr * 1.3, j + 2, j + 2, 0.0]], float(S.get("leg_part", 8.0)), 9) # (an owl's: feathered to its toes)
 		# the toes: three forward, one back, a claw on each
 		var toes: Array = S.toes # [middle, side, back] (cm)
-		for td: Array in [[0.0, toes[0]], [0.62, toes[1]], [-0.62, toes[1]], [PI, toes[2]]]:
+		var front := {} # (each front toe's root and tip: for its web)
+		var spread_a := float(S.get("toe_spread", 0.62))
+		for td: Array in [[0.0, toes[0]], [spread_a, toes[1]], [-spread_a, toes[1]], [PI, toes[2]]]:
 			var dir := Vector3(sin(float(td[0])) * side, -0.1 if float(td[0]) < 3.0 else 0.12, -cos(float(td[0]))).normalized()
 			var ln: float = float(td[1]) * CM
 			var a0 := foot * m + Vector3(0.0, -foot.y * 0.25, 0.0)
 			var a1 := a0 + dir * ln
 			a1.y = maxf(a1.y, lr * 0.5) if float(td[0]) < 3.0 else a1.y
 			_tube(st, [[a0, lr * 0.9, j + 3, j + 3, 0.0], [a0.lerp(a1, 0.5) + Vector3(0.0, lr * 0.3, 0.0), lr * 0.75, j + 3, j + 3, 0.0], [a1, lr * 0.55, j + 3, j + 3, 0.0]], 8.0, 7)
+			if float(td[0]) < 3.0:
+				front[float(td[0])] = [a0, a1]
 			var cl: float = float(S.get("claw", 0.22))
 			var cr: float = float(S.get("claw_r", 0.45))
 			_tube(st, [[a1, lr * cr, j + 3, j + 3, 0.0], [a1 + dir * ln * cl * 0.6 + Vector3(0.0, lr * 0.15, 0.0), lr * cr * 0.7, j + 3, j + 3, 0.0],
 					[a1 + dir * ln * cl + Vector3(0.0, -ln * cl * 0.55, 0.0), lr * 0.06, j + 3, j + 3, 0.0]], 9.0, 6)
+		if float(S.get("web", 0.0)) > 0.0: # (a waterfowl's: webbed between its three front toes, out nearly to their tips)
+			var reach := float(S.web)
+			var wrows := []
+			for key: float in [-spread_a, 0.0, spread_a]:
+				var ends: Array = front[key]
+				var r0: Vector3 = ends[0]
+				var r1: Vector3 = ends[1]
+				var row := []
+				for q in 5:
+					var f := float(q) / 4.0 * reach
+					var pt := r0.lerp(r1, f) + Vector3(0.0, lr * 0.35, 0.0)
+					row.append([pt, Vector3.UP, Color(8.0, f, (key / spread_a + 1.0) * 0.5, 0), Color(0, j + 3, j + 3, 0), Color(0, 0, 0, 0), Vector2(key, f)])
+				wrows.append(row)
+			_grid(st, [wrows[0], wrows[1]])
+			_grid(st, [wrows[1], wrows[2]])
 		if S.has("spur"):
 			var sp0 := ank.lerp(foot, 0.55) * m
 			_tube(st, [[sp0, lr * 0.7, j + 2, j + 2, 0.0], [sp0 + Vector3(-0.2 * side, 0.25, 1.0).normalized() * float(S.spur) * CM, lr * 0.08, j + 2, j + 2, 0.0]], 9.0, 6)
@@ -1024,11 +1044,11 @@ func _make_mesh() -> Array:
 	var nt := int(tl[0])
 	for i in nt:
 		var t := lerpf(-1.0, 1.0, float(i) / maxf(nt - 1, 1))
-		_feather(st, 14.0, i, Color(3, 1.0, 0, t), 0.025, float(tl[1]) * CM * (1.0 - float(S.get("tail_grad", 0.07)) * t * t), float(tl[2]) * CM, 0.006 - 0.006 * absf(t), 0.93) # (tail_grad: the outer ones shorter: a dove's graduated, pointed tail)
+		_feather(st, 14.0, i, Color(3, 1.0, 0, t), float(S.get("tail_root", 0.025)), float(tl[1]) * CM * (1.0 - float(S.get("tail_grad", 0.07)) * t * t), float(tl[2]) * CM, (0.006 - 0.006 * absf(t)) * float(S.get("tail_k", 1.0)), 0.93) # (tail_grad: the outer ones shorter: a dove's graduated, pointed tail)
 	var ri := 0
 	for cr: Array in S.get("tail_coverts", []): # [how many, long, wide, lifted, its share of the spread]
 		for i in int(cr[0]):
 			var t := lerpf(-1.0, 1.0, float(i) / maxf(int(cr[0]) - 1, 1))
-			_feather(st, 15.0, i + ri * 30.0, Color(3, cr[4], 0, t), 0.01, float(cr[1]) * CM * (1.0 - 0.1 * t * t), float(cr[2]) * CM, float(cr[3]) * CM - 0.004 * absf(t), 0.9)
+			_feather(st, 15.0, i + ri * 30.0, Color(3, cr[4], 0, t), float(S.get("tail_root", 0.025)) * 0.4, float(cr[1]) * CM * (1.0 - 0.1 * t * t), float(cr[2]) * CM, float(cr[3]) * CM - 0.004 * absf(t) * float(S.get("tail_k", 1.0)), 0.9)
 		ri += 1
 	return [st.commit(), rest, neck]

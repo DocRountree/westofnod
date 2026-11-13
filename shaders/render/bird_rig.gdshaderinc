@@ -28,6 +28,7 @@ uniform vec3 shoulder;      // the right wing's root (the body at rest, m)
 uniform vec3 wing_len;      // its bones' lengths
 uniform vec3 tail_at;       // the tail's joint at rest
 uniform float tail_spread = 0.2; // rad: the outermost feather's angle out
+uniform float tail_k = 1.0; // (its tail's size, of a turkey's: the closed tail's roof pitched to it)
 uniform float tail_arch = 0.0;   // the fan cupped forward (a strutting tom's)
 uniform float feather_load = 0.0; // the flight feathers bent up by the air
 uniform float wing_droop = 0.0;  // the primaries let down (strutting: dragging)
@@ -87,7 +88,7 @@ void bird_pose(vec4 c1, vec4 c2, inout vec3 v, inout vec3 n) {
 		across = normalize(across - up * tent * c1.w);
 		up = normalize(cross(along, across));
 		if (up.y < 0.0) up = -up;
-		c2.w -= tent * abs(c1.w) * 0.02;
+		c2.w -= tent * abs(c1.w) * 0.02 * tail_k; // (its roof's pitch: its size's)
 		vec3 p = along * (c2.x + c2.y) + across * c2.z + up * c2.w;
 		vec3 nn = across * n.x + up * n.y + along * n.z;
 		mat4 t = joint(7);

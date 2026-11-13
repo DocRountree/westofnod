@@ -67,6 +67,10 @@ uniform vec4 tail_outer = vec4(0.0); // the outer tail feathers their own colour
 uniform float tail_count = 12.0;
 uniform float eye_rm = 0.005; // the eye's radius (m)
 uniform float bill_cere = 1.0; // (the bill's root the cere's colour: a raptor's; a songbird's, a pigeon's, none)
+uniform vec4 chin_strap = vec4(0.0); // a pale band from under its chin up each side of its head behind the eye (rgb; w: a Canada goose's white chinstrap)
+uniform vec4 strap_at = vec4(-0.02, 0.012, 0.028, 0.024); // (its middle from the eye: down, back; its half height, half length: m)
+uniform float iridescence = 0.0; // its back's and crown's feathers glittering metallic, their hue turning with the light (a hummingbird's green)
+uniform float gorget = 0.0; // its throat's colour iridescent: blazing where it faces you, near black glancing (a ruby-throat's gorget)
 uniform float mark_from = 0.06; // (its underparts marked from here along it up: below, its vent, plain)
 uniform vec2 wing_bar_fl = vec2(-1.0); // (the greater coverts' bar, seen on the folded wing across its flight feathers' bases: from, to along them)
 uniform float cap_back = 1.0; // (m behind the eye the cap reaches: a goldfinch's black forecap, short of its crown)
@@ -467,7 +471,30 @@ void raptor(int pt, float u, float v, vec3 view, float ndv, vec3 vtx, vec3 nrm0,
 			float arc = smoothstep(0.45, 0.7, abs(q.y) / max(r, 1e-5));
 			c = mix(c, eye_arcs.rgb, ring * arc * step(abs(eye_at.x) * 0.4, abs(rest.x)) * step(0.0, rest_n.x * sign(rest.x)));
 		}
-		rough = 0.72;
+		if (pt == 0 && chin_strap.w > 0.0) { // (the chinstrap: under the chin and up its cheeks behind the eye, never over the crown or the nape)
+			vec3 q = rest - eye_at;
+			vec2 e = vec2((q.y - strap_at.x) / strap_at.z, (q.z - strap_at.y) / strap_at.w);
+			float strap = 1.0 - smoothstep(0.85, 1.05, length(e) + 0.05 * (vnoise(rest.yz * 400.0) - 0.5));
+			strap *= smoothstep(0.84, 0.88, u) * (1.0 - smoothstep(eye_at.y - eye_rm * 0.5, eye_at.y + eye_rm * 0.5, rest.y));
+			c = mix(c, chin_strap.rgb * (0.95 + 0.06 * f.y), chin_strap.w * strap);
+		}
+		if (pt == 0 && gorget > 0.0 && throat_color.w > 0.0) { // (its gorget: each feather a tiny mirror, red where it faces you, black aside)
+			float frontv = 1.0 - smoothstep(0.26, 0.38, min(v, 1.0 - v)); // (its throat and up its sides)
+			float th = smoothstep(throat_from, throat_from + 0.03, u) * frontv * (1.0 - smoothstep(eye_at.y - eye_rm * 2.2, eye_at.y - eye_rm * 1.2, rest.y));
+			float glint = smoothstep(0.35, 0.9, ndv) * (0.75 + 0.5 * f.y);
+			c = mix(c, mix(vec3(0.03, 0.015, 0.012), throat_color.rgb * 1.25, glint), gorget * th * smoothstep(0.0, 0.25, f.x + 0.1));
+			metal = max(metal, 0.5 * gorget * th);
+		}
+		if (pt == 0 && iridescence > 0.0) { // (its back, its crown: metallic green, golden where the light's caught, blue glancing)
+			float back_ = smoothstep(back_from, back_from + 0.06, v) * (1.0 - smoothstep(1.0 - back_from - 0.06, 1.0 - back_from, v));
+			float crown = smoothstep(0.78, 0.84, u) * smoothstep(eye_at.y - eye_rm, eye_at.y + eye_rm, rest.y);
+			float ir = iridescence * max(back_, crown);
+			vec3 hue = mix(vec3(0.1, 0.55, 0.42), vec3(0.62, 0.62, 0.2), smoothstep(0.55, 0.95, ndv));
+			hue = mix(vec3(0.05, 0.28, 0.4), hue, smoothstep(0.1, 0.4, ndv));
+			c = mix(c, c * 0.5 + hue * (0.55 + 0.35 * f.y), ir * 0.8);
+			metal = max(metal, 0.65 * ir);
+		}
+		rough = 0.72 - 0.35 * max(iridescence, gorget);
 		spec = 0.35;
 		feather_shade(f, fade, feather_cm * 0.0008, vtx, c, nrm);
 		if (down > 0.0) { // an eyas's down: white, woolly

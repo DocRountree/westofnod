@@ -1040,6 +1040,39 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   into it, bill in bill; then on her back. Paired, they're mates (`_mate`): her eggs in a cup on her site, he feeds
   her on it; their young both of theirs, fed seed brought up from the crop (`crop`), bill in each gape in turn, his
   head pumping (no insects, even for them). Taken by the Cooper's hawk, the peregrine, the screech owl.
+  `ruby_throated_hummingbird.gd` (`RubyThroatedHummingbird`, *Archilochus colubris*): 9 cm with its bill, 3.2 g; the
+  songbird's make made tiny, its bill a straight fine needle, its legs short under it, its wings long narrow blades (a
+  short arm, a long hand), its tail of ten broad feathers (his forked, hers rounded, her outer ones banded black, tipped
+  white). The male's back and crown glittering green (`bird.gdshader`'s `iridescence`: metallic, its hue turning with
+  the light), his gorget ruby where it faces you and near black aside (`gorget`), black under his eye, a white collar;
+  the female green above, whitish below, buff at her flanks. Hovering is its own flight (`hover_at`): its body tipped
+  up, its wings beating fifty-odd times a second, their stroke a flat figure eight; held where it means to be, its bill
+  where it means it. At the flowers that are here (`forage`: coneflower, black-eyed Susan, fleabane, aster: their
+  heads), each in turn: hovering before it, its bill into it (a sip taken only with its bill in the flower), its
+  tongue licking in and out, swaying with the flower in the wind, backing off, on to the next; the flower as it was. A
+  small flying insect darted at and snapped up only with its bill on it (`hawk`). A rival male chased off (`display`);
+  for a female (`mate`) his pendulum dives, a wide U swung back and forth before her, then his shuttle, short quick arcs
+  close before her; then on her back. Her tiny cup of lichen and plant down, two white eggs; her young fed, her bill
+  deep in each gape. Torpor at night, puffed, its bill up. Taken by the screech owl, now and then a mantis. In the
+  sandbox under Birds: on a twig; E / H the flowers (or an insect), D a rival chased off, K courting, 1 lay, 2 hatch.
+  `canada_goose.gd` (`CanadaGoose`, *Branta canadensis*): 95 cm, 1.6 m across, 4.5 kg; its own body: deep and long,
+  carried level, its neck a long S, its head small and flat crowned sloping into a broad flat bill, its legs short and
+  set back, its feet webbed (`bird.gd`'s `web`). Its head and neck black, a white chinstrap from under its chin up
+  behind its eye (`chin_strap`), its back brown and scalloped pale, breast and flanks paler barred, white under and over
+  its tail, the tail black. It lives by its water (`water_y`, `pond`): grazing on the bank (a slow walk, its neck down,
+  a bite taken only with its bill at the grass, a tear, its head up now and then); swimming (floating, its belly under,
+  its feet paddling: its walk on a floor under the surface), upending (tail up, head and neck under), drinking (its
+  bill in the surface, its head up to swallow), out onto the bank again. Its honk (`call_out`); its threat
+  (`threaten`: neck out low and snaking, bill open, hissing, wings out at the wrists, a charge). Flying: a run up first
+  (on water pattering, spray thrown up), deep slow beats, its neck straight out, its feet back under its tail; down
+  onto the water feet first, skiing in; a flock in a V behind its leader (`skein`). Courting on the water (`mate`):
+  head dipping, both; then on her back; then his display, risen up, wings half raised, calling. Her nest a bowl of
+  grass on the bank (its site the world's), lined with down she plucks from her breast as she lays; five cream eggs;
+  the gander on guard near. The goslings yellow olive down, after her in a line on land and water, grazing by her,
+  under her wings when she sits, growing into juveniles. Grass and the water's weeds; its goslings taken by foxes,
+  coyotes, snapping turtles, owls; an adult now and then by an eagle or a coyote. In the sandbox under Birds: with its
+  pond (dug beside it; geese put down near share it); E graze or swim, D honk, X its threat, F off, V the geese here
+  off in a V, K courting, 1 her nest on the bank, 2 hatch, N brood; young: a gosling, after its mother.
   `american_goldfinch.gd` (`AmericanGoldfinch`, *Spinus tristis*): the male lemon yellow, a black forecap and black
   before his eye (`cap_back`, `cap_lore`), wings black with a yellow shoulder, two white bars (`wing_bars`,
   `wing_bar_fl`) and white edges to the tertials and secondaries (`fl_edge`), tail black, notched, white spots on its

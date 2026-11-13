@@ -59,7 +59,9 @@ const OWL_SCRIPTS := {
 	"blackbird": preload("res://scripts/creatures/red_winged_blackbird.gd"),
 	"goldfinch": preload("res://scripts/creatures/american_goldfinch.gd"),
 	"house_finch": preload("res://scripts/creatures/house_finch.gd"),
+	"hummingbird": preload("res://scripts/creatures/ruby_throated_hummingbird.gd"),
 }
+const GooseScript := preload("res://scripts/creatures/canada_goose.gd")
 const DeerTickScript := preload("res://scripts/creatures/blacklegged_ticks.gd")
 const LoneStarScript := preload("res://scripts/creatures/lone_star_ticks.gd")
 const LarvaScript := preload("res://scripts/creatures/larva.gd")
@@ -215,6 +217,8 @@ const CATALOGUE := [
 	["Birds", "red-winged blackbird (on a low post: D his song spread, or a rival male chased off; young: a nestling, in its nest in the reeds)", "blackbird", ["adult", "juvenile", "young"]],
 	["Birds", "American goldfinch (on a low post; E / H to the seed heads that are here: clinging, picking seeds, husking them; D his song, V his butterfly song flight, K courtship feeding; young: a nestling, in its cup in a fork)", "goldfinch", ["adult", "juvenile", "young"]],
 	["Birds", "house finch (on a low post; E / H to the seed heads or a berry bush that's here; D his warble, V his song flight, K courtship feeding; young: a nestling, in its cup on a ledge)", "house_finch", ["adult", "juvenile", "young"]],
+	["Birds", "ruby-throated hummingbird (on a twig; E / H hovering at the flowers that are here, its bill in each, licking; or a small insect snapped up in the air; D a rival male chased off; K his pendulum dives and shuttle for her; young: a nestling, in its tiny cup)", "hummingbird", ["adult", "juvenile", "young"]],
+	["Birds", "Canada goose (on the bank of its pond, grazing; to the water and swimming, upending, drinking; E graze / swim, D honk, X its threat, F fly off, V the geese here off in a V skein, K courting on the water, 1 her nest on the bank, 2 hatch, N brood; young: a gosling, after its mother)", "goose", ["adult", "juvenile", "young"]],
 	["Birds", "barn owl (dozing by day, awake at dusk and by night: T; young: an owlet, in its nest)", "barn_owl", ["adult", "young"]],
 	["Birds", "great horned owl (dozing by day, awake at dusk and by night: T; young: an owlet, in its nest)", "horned_owl", ["adult", "young"]],
 	["Birds", "eastern screech owl (grey or rufous; dozing by day, awake at dusk and by night: T; young: an owlet, in its nest)", "screech_owl", ["adult", "young"]],
@@ -260,7 +264,7 @@ const WET := ["puddle", "small_pond", "pond", "large_pond", "sea", "darner", "fi
 const PONDS := {
 	"puddle": [0.32, 0.24, 0.05], "small_pond": [0.5, 0.4, 0.2], "pond": [1.2, 0.9, 0.45],
 	"large_pond": [1.6, 1.0, 0.45], "sea": [3.2, 2.4, 1.1], "salmon": [3.0, 2.0, 1.4], "trout": [2.2, 0.7, 0.55], "ocean": [10.0, 6.0, 3.5], "darner": [0.6, 0.45, 0.09], "fishing": [0.42, 0.36, 0.3],
-	"beaver": [1.5, 2.0, 0.3], "otter": [1.8, 1.3, 0.6],
+	"beaver": [1.5, 2.0, 0.3], "otter": [1.8, 1.3, 0.6], "goose": [2.8, 2.2, 0.5],
 }
 
 ## (The acts' names on their buttons, in the game: where not the act's own.)
@@ -1390,7 +1394,32 @@ func _spawn_animal(key: String, at: Vector3, stage: String, male: bool, young: b
 			_org(tc, at, true)
 			tc.setup_stages(8 if not young else 14, Vector3.ZERO, 0.08, [Ticks.MALE, Ticks.FEMALE] if not young else [Ticks.LARVA, Ticks.LARVA, Ticks.NYMPH])
 			return tc
-		"peregrine", "coopers", "barn_owl", "horned_owl", "screech_owl", "bald_eagle", "golden_eagle", "robin", "bluebird", "pigeon", "blackbird", "goldfinch", "house_finch":
+		"goose":
+			var g: CanadaGoose = GooseScript.new(young, stage == "juvenile")
+			g.male = (male and not young) if not young else randf() < 0.5
+			g.height = _height
+			var gq := _pond_near(at, 6.0)
+			if gq.is_empty():
+				gq = _pond_for(at, "goose")
+			var gc: Vector3 = gq.c
+			g.water_y = POND
+			g.pond = Rect2(gc.x - float(gq.hw), gc.z - float(gq.hd), float(gq.hw) * 2.0, float(gq.hd) * 2.0)
+			_org(g, at, false)
+			if young: # (a gosling: after its mother, if she's here)
+				var gm: CanadaGoose = null
+				for o in get_children():
+					if o is CanadaGoose and o != g and not o.male and not o.young and not o.dead and (o as Node3D).position.distance_to(at) < 10.0:
+						gm = o
+				g.place(at, randf() * TAU)
+				g.call("_to", "eyas")
+				if gm:
+					g.set("_mother", gm)
+					gm.young_ones.append(g)
+				return g
+			g.place(at, randf() * TAU)
+			g.call("forage")
+			return g
+		"peregrine", "coopers", "barn_owl", "horned_owl", "screech_owl", "bald_eagle", "golden_eagle", "robin", "bluebird", "pigeon", "blackbird", "goldfinch", "house_finch", "hummingbird":
 			var rs: GDScript = OWL_SCRIPTS[key] if OWL_SCRIPTS.has(key) else (FalconScript if key == "peregrine" else HawkScript)
 			var r: Raptor = rs.new(young, stage == "juvenile")
 			r.male = (male and not young) if not young else randf() < 0.5
@@ -2468,6 +2497,43 @@ func _raptor_do(r: Raptor, act_: String) -> void:
 			if pr:
 				e.hunt(pr)
 		return
+	if r is CanadaGoose: # (a goose: grazing, swimming; its honk, its threat; off in a skein)
+		var gz := r as CanadaGoose
+		match act_:
+			"eat", "hunt", "forage", "wander":
+				gz.forage()
+				return
+			"display", "mark":
+				gz.call_out(6.0)
+				return
+			"alarm":
+				gz.threaten(_on(cam.global_position) if cam else p + Vector3(2.0, 0.0, 0.0))
+				return
+			"fly":
+				gz.fly_off(cam.global_position if cam else p + Vector3(5.0, 0.0, 0.0))
+				return
+			"play":
+				var flock := [gz]
+				for o in _creatures():
+					if o != gz and o is CanadaGoose and not o.young and not o.dead and (o as Node3D).position.distance_to(p) < 20.0:
+						flock.append(o)
+				var ga := randf() * TAU
+				var far := p + Vector3(cos(ga), 0.0, sin(ga)) * 30.0
+				CanadaGoose.skein(flock, _on(far))
+				return
+	if r is RubyThroatedHummingbird: # (a hummingbird: the flowers, an insect; a rival chased off)
+		var hb := r as RubyThroatedHummingbird
+		match act_:
+			"eat", "hunt", "forage":
+				hb.forage()
+				return
+			"display", "mark":
+				var rv: Node3D = null
+				for o in _creatures():
+					if o != hb and o is RubyThroatedHummingbird and o.male and not o.young and not o.dead and (o as Node3D).position.distance_to(p) < 15.0:
+						rv = o
+				hb.display(rv)
+				return
 	if r is Finch: # (a finch: its seeds, its song, its song flight)
 		var fi := r as Finch
 		match act_:
@@ -2648,6 +2714,12 @@ func _dog_do(d: Dog, act_: String, p: Vector3, near: Vector3) -> bool:
 ## perch, a ledge on it for a falcon's scrape; given it once.)
 func _raptor_nest_site(r: Raptor) -> void:
 	if r.nest_site != Vector3.INF:
+		return
+	if r is CanadaGoose: # (a goose's: on the ground on the bank, by the water)
+		var pd: Rect2 = r.get("pond")
+		var gp: Vector3 = r.get("_pos")
+		var at := Vector3(pd.end.x + 0.7, 0.0, clampf(gp.z, pd.position.y + 0.3, pd.end.y - 0.3)) if pd.has_area() else gp + Vector3(1.0, 0.0, 0.0)
+		r.set_nest_site(_on(at))
 		return
 	var site: Node3D = _kit(r, "nest_site", func() -> Node3D:
 		var base: Vector3 = r.home_perch if r.home_perch != Vector3.INF else r.get("_pos")
