@@ -53,6 +53,8 @@ const OWL_SCRIPTS := {
 	"screech_owl": preload("res://scripts/creatures/eastern_screech_owl.gd"),
 	"bald_eagle": preload("res://scripts/creatures/bald_eagle.gd"),
 	"golden_eagle": preload("res://scripts/creatures/golden_eagle.gd"),
+	"robin": preload("res://scripts/creatures/american_robin.gd"),
+	"bluebird": preload("res://scripts/creatures/eastern_bluebird.gd"),
 }
 const DeerTickScript := preload("res://scripts/creatures/blacklegged_ticks.gd")
 const LoneStarScript := preload("res://scripts/creatures/lone_star_ticks.gd")
@@ -202,6 +204,8 @@ const CATALOGUE := [
 	["Birds", "Cooper's hawk (on a perch; young: an eyas, in its nest)", "coopers", ["adult", "juvenile", "young"]],
 	["Birds", "bald eagle (on a snag; H fishes a pond, E to a carcass; young: an eaglet, in its nest)", "bald_eagle", ["adult", "juvenile", "young"]],
 	["Birds", "golden eagle (on a snag; H stoops on a hare, E to a carcass; young: an eaglet, in its nest)", "golden_eagle", ["adult", "juvenile", "young"]],
+	["Birds", "American robin (on the lawn, running, stopping, its head cocked; E / H what it eats that's here; young: a nestling, in its nest on a ledge)", "robin", ["adult", "juvenile", "young"]],
+	["Birds", "eastern bluebird (on a low post, dropping onto what moves below; young: a nestling, in its nest box)", "bluebird", ["adult", "juvenile", "young"]],
 	["Birds", "barn owl (dozing by day, awake at dusk and by night: T; young: an owlet, in its nest)", "barn_owl", ["adult", "young"]],
 	["Birds", "great horned owl (dozing by day, awake at dusk and by night: T; young: an owlet, in its nest)", "horned_owl", ["adult", "young"]],
 	["Birds", "eastern screech owl (grey or rufous; dozing by day, awake at dusk and by night: T; young: an owlet, in its nest)", "screech_owl", ["adult", "young"]],
@@ -1376,7 +1380,7 @@ func _spawn_animal(key: String, at: Vector3, stage: String, male: bool, young: b
 			_org(tc, at, true)
 			tc.setup_stages(8 if not young else 14, Vector3.ZERO, 0.08, [Ticks.MALE, Ticks.FEMALE] if not young else [Ticks.LARVA, Ticks.LARVA, Ticks.NYMPH])
 			return tc
-		"peregrine", "coopers", "barn_owl", "horned_owl", "screech_owl", "bald_eagle", "golden_eagle":
+		"peregrine", "coopers", "barn_owl", "horned_owl", "screech_owl", "bald_eagle", "golden_eagle", "robin", "bluebird":
 			var rs: GDScript = OWL_SCRIPTS[key] if OWL_SCRIPTS.has(key) else (FalconScript if key == "peregrine" else HawkScript)
 			var r: Raptor = rs.new(young, stage == "juvenile")
 			r.male = (male and not young) if not young else randf() < 0.5
@@ -1399,15 +1403,20 @@ func _spawn_animal(key: String, at: Vector3, stage: String, male: bool, young: b
 				if mom:
 					mom.young_ones.append(r)
 				return r
-			# (its perch: a dead snag's stub, a pole)
+			if key == "robin": # (on the ground, foraging)
+				r.place(at, randf() * TAU)
+				r.call("forage")
+				return r
+			# (its perch: a dead snag's stub, a pole; a bluebird's, a low post)
 			var post := Node3D.new()
 			post.set_meta("prop", true)
 			var big := r is Eagle # (an eagle's: a tall dead snag, stout)
-			var ph := randf_range(1.6, 2.3) if key in ["coopers", "screech_owl", "barn_owl"] else (randf_range(3.5, 4.5) if big else randf_range(2.4, 3.0))
+			var small := r is Thrush
+			var ph := randf_range(1.6, 2.3) if key in ["coopers", "screech_owl", "barn_owl"] else (randf_range(3.5, 4.5) if big else (randf_range(1.0, 1.4) if small else randf_range(2.4, 3.0)))
 			var pm := MeshInstance3D.new()
 			var cm := CylinderMesh.new()
-			cm.top_radius = 0.1 if big else 0.05
-			cm.bottom_radius = 0.2 if big else 0.09
+			cm.top_radius = 0.1 if big else (0.025 if small else 0.05)
+			cm.bottom_radius = 0.2 if big else (0.04 if small else 0.09)
 			cm.height = ph
 			pm.mesh = cm
 			var wm := StandardMaterial3D.new()
@@ -2516,7 +2525,9 @@ func _raptor_do(r: Raptor, act_: String) -> void:
 			else:
 				r.fly_off(cam.global_position if cam else p + Vector3(5.0, 0.0, 0.0))
 		"display", "mark":
-			if r is Owl and act_ == "mark":
+			if r is Thrush: # (its song)
+				r.call_out(10.0)
+			elif r is Owl and act_ == "mark":
 				(r as Owl).cast_pellet()
 			else:
 				r.call_out(6.0 if r is Owl else 3.0)
@@ -2607,7 +2618,7 @@ func _raptor_nest_site(r: Raptor) -> void:
 		var base: Vector3 = r.home_perch if r.home_perch != Vector3.INF else r.get("_pos")
 		var a := randf() * TAU
 		var at := _on(base + Vector3(cos(a), 0.0, sin(a)) * 3.0)
-		var pole: Node3D = Raptor.nest_pole(r.nest_height, r.nest_style == "scrape", sqrt(r.nest_scale))
+		var pole: Node3D = Raptor.nest_pole(r.nest_height, r.nest_style == "scrape", sqrt(r.nest_scale), {"cup": "shelf", "box": "box"}.get(r.nest_style, ""))
 		pole.position = at
 		add_child(pole)
 		return pole)

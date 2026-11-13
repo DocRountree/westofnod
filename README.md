@@ -778,9 +778,10 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
 - Diet (`scripts/creatures/diet.gd`, `Diet`): what every creature eats, by its script (`Diet.EATS`, `Diet.of`), each
   thing in the world named as food (`Diet.kind_of`: an animal by its kind and age, a dead one, a carcass, a fish
   school, the game's items, a plant by what it gives, an ant colony, a wasp comb, a clam or urchin on the sea floor, a
-  spider, a bee, a monarch or a swallowtail, a firefly, a grass snail or a tigersnail; a colony's member, a snail or a
-  firefly, eaten one at a time: `Diet.find_one` takes the nearest out of its colony, a body of its own; a toad's ant
-  a single copy of one at the nest, `Diet.copy_of`, the colony itself untouched),
+  spider, a bee, a monarch or a swallowtail, a firefly, a June bug (`beetle`; a lady beetle `lady_beetle`), a grass
+  snail or a tigersnail; a colony's member, a snail, a firefly or a June bug, eaten one at a time: `Diet.find_one`
+  takes the nearest out of its colony (`Beetles.die(i)`: a beetle gone from it for good), a body of its own; a toad's,
+  a robin's or a bluebird's ant a single copy of one at the nest, `Diet.copy_of`, the colony itself untouched),
   and `Diet.find(creature, reach)`: the nearest real food of its diet there, never anything made for it (those that
   eat what's always under them, grass, leaves, litter, algae, blood: the creature itself). A creature told to eat
   with no target (the pilot's act eat, hunt, strike, catch, fish, browse, feed, forage, visit_flowers) is given what
@@ -934,6 +935,31 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   buff), long wings; five eggs on a bare floor. `eastern_screech_owl.gd` (`EasternScreechOwl`): small, tufted, grey
   or (one in three: `red`) rufous, streaked and barred like bark; four eggs. In the sandbox under Birds (adult or
   young): as the hawks, but X its threat, D its hoot, M a pellet cast, B quartering.
+  `thrush.gd` (`Thrush`): a Raptor made a songbird (`thrush_shape`: the hawk's lines made small and plump, the head
+  round and big, the bill thin and straight, the wings short and rounded, a broken white eye ring by the shader's
+  `eye_arcs`; `body_k` scales the Raptor's poses to its size; it stands leaning forward, `stand_pitch`). Its own:
+  `forage()` on the ground, a run (a few quick steps), a stop, still and upright, its head cocked to look down one eye,
+  a peck; what it eats near enough, hunted; `hunt(prey)` (its diet: ants, a single copy of one at their nest, the
+  colony untouched; June bugs, taken one out of their group, and their grubs; caterpillars; spiders; snails): run to
+  it, short steps the last of the way, its head cocked, then tipped forward and its bill stabbed to it, and taken only
+  with its bill on it; a toss of its head and swallowed whole in one gulp (with nestlings, carried to the nest in its
+  bill instead, and put whole into one nestling's gape, its bill to the gape); a bluebird hunts from a low perch,
+  watching the ground and dropping onto what's there (`pounces`); singing (`call_out`: upright, head up, its bill
+  opening on each note, its throat swelling, phrase after phrase); courting on the ground (puffed, tail fanned and
+  pressed down, wings drooped and shivering, turning before her, then on her back); a cup of dry grass on its site, a
+  ledge (`Raptor.nest_pole(..., "shelf")`, the robin's, walled with mud) or a nest box (`"box"`, the bluebird's),
+  four blue eggs, naked grey-downed nestlings with yellow-flanged gapes (`_eyas`: a short wide bill), fledging
+  spotted. The shader's additions: the breast's wash between `wash_from` and `wash_to`, a throat its own colour
+  (`throat_color`, streaked with `throat_streak`), the vent and lower belly plain below `vent_to`, the juvenile's
+  spots (`under_spots`). `american_robin.gd` (`AmericanRobin`, *Turdus migratorius*): black head with white eye
+  arcs, white throat streaked black, grey-brown back, blackish tail with white corners, brick-orange breast, white
+  vent, yellow bill; the female paler, her head grey brown; the juvenile spotted; robin's-egg blue eggs; runs and
+  stops on the lawn. `eastern_bluebird.gd` (`EasternBluebird`, *Sialia sialis*): the male royal blue above (head,
+  back, wings, tail), rusty throat and breast, white belly, black bill and legs; the female grey brown, blue only in
+  her wings and tail, a white eye ring, a paler breast; the juvenile grey, spotted white; pale blue eggs in a box;
+  hunts from a low post. In the sandbox under Birds (adult, juvenile, or young: a nestling in its nest; the robin on
+  the ground, the bluebird on a low post): E / H what it eats that's here (none set out), B forage, D sing, K court
+  and mate, 1 lay (its site given it: a ledge, a box), 2 hatch, N brood; the rest as the hawks.
   `wild_turkey.gd` (`WildTurkey`, *Meleagris gallopavo*): the tom bronze, copper and green, every feather edged
   black, flight feathers barred white, the fan brown with a black band and buff tip, the bare head red and blue,
   snood, wattle, caruncles, beard, spurs; the hen browner, edged buff; the poult downy, striped. Foraging (walking,

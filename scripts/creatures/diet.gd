@@ -56,6 +56,8 @@ const EATS := {
 	"snake.gd": ["mouse", "mouse_pup", "frog", "toad", "anole", "snake_young"],
 	"snapping_turtle.gd": ["fish", "frog", "toad", "crayfish", "carcass", "dead_fish", "grass_snail", "tigersnail", "nymph"],
 	"painted_turtle.gd": ["crayfish", "fish", "dead_fish", "carcass", "grass_snail", "tigersnail", "nymph", "grasshopper"],
+	"american_robin.gd": ["ants", "beetle", "grub", "caterpillar", "spider", "snails"],
+	"eastern_bluebird.gd": ["ants", "beetle", "grub", "caterpillar", "spider", "snails"],
 	"american_toad.gd": ["ants", "spider", "grub", "caterpillar", "nymph", "grasshopper", "snails"],
 	"frog.gd": ["nymph", "grasshopper", "spider", "grub", "caterpillar", "snails"],
 	"turtle.gd": ["crabapple", "pawpaw", "pillbug", "nymph", "grasshopper", "grub", "snails", "berries", "morel", "fly_agaric", "little_brown"],
@@ -93,12 +95,12 @@ const ALIASES := {"snails": ["snails", "grass_snail", "tigersnail"]}
 
 ## Kinds that live as colonies, eaten one at a time (one_of: the nearest
 ## taken out of its colony, a body of its own to be eaten).
-const ONE_AT_A_TIME := ["snails", "grass_snail", "tigersnail", "firefly"]
+const ONE_AT_A_TIME := ["snails", "grass_snail", "tigersnail", "firefly", "beetle"]
 
 ## Colonies some eat a member of without touching the colony (a toad's
 ## ant: its tongue flicked at one at the nest's edge): copy_of, a single
 ## copy of one of them, eaten; the colony as it was. By the eater's script.
-const COPIES_FOR := {"american_toad.gd": ["ants"]}
+const COPIES_FOR := {"american_toad.gd": ["ants"], "american_robin.gd": ["ants"], "eastern_bluebird.gd": ["ants"]}
 
 ## What isn't hunted (no animal to run down: carrion, plants, the game's
 ## items, a colony eaten whole where it is, what's always under it).
@@ -252,6 +254,10 @@ static func kind_of(n: Node) -> String:
 			k = "firefly"
 		"ant_colony.gd", "harvester_ants.gd":
 			k = "ants"
+		"june_beetles.gd":
+			k = "beetle"
+		"lady_beetles.gd":
+			k = "lady_beetle"
 		"grass_snails.gd":
 			k = "grass_snail"
 		"flamed_tigersnails.gd":

@@ -67,6 +67,7 @@ var feather_cm := 3.2 ## its body feathers' size
 var prey_scripts := ["mouse.gd", "fox_squirrel.gd", "grey_squirrel.gd", "wild_turkey.gd"]
 var grow_secs := 200.0 ## s an eyas takes to fledge
 var eyas_scale := 1.0 ## (its eyas's size, of a hawk's: an eaglet's twice)
+var body_k := 1.0 ## (its length, of a hawk's: its poses' offsets in metres scaled by it; a thrush's, a half)
 var nest_scale := 1.0 ## (its stick nest's size, of a hawk's: an eagle's great platform)
 var hunger := 0.0 ## (0 fed .. 1 hunting)
 var perch_at := Vector3.INF ## (where it's standing, up off the ground: its perch's top)
@@ -112,8 +113,8 @@ func _build() -> void:
 		colors = _plumage("juvenile", male)
 		colors["down"] = 1.0
 		colors["iris"] = Color(0.06, 0.05, 0.05)
-		colors["leg_color"] = Color(0.92, 0.86, 0.62)
-		colors["cere_color"] = Color(0.8, 0.82, 0.78)
+		colors["leg_color"] = colors.get("young_legs", Color(0.92, 0.86, 0.62))
+		colors["cere_color"] = colors.get("gape", Color(0.8, 0.82, 0.78)) # (its bill's base, its gape: a songbird nestling's yellow flanges)
 	else:
 		shape = _shape()
 		size = male_size if male else 1.0
@@ -329,8 +330,8 @@ func mate(female: Node3D, secs := -1.0) -> bool:
 	if female.get("male") or female.get("young") or female.get("dead") or female.get("gravid") or female.get("_mode") in ["nest", "incubate", "brood"]:
 		return false
 	_partner = female
-	_secs = secs if secs > 0.0 else 8.0
 	_to("court")
+	_secs = secs if secs > 0.0 else 8.0
 	var fp: Vector3 = female.get("_pos")
 	_take_off("display", fp + Vector3(0.0, 8.0, 0.0), false)
 	if female.get("_air"): # (in the air: she's called down to her perch first)
@@ -374,7 +375,7 @@ func _ensure_nest() -> bool:
 	nest = _make_nest()
 	get_parent().add_child(nest)
 	nest.position = nest_site
-	nest_top = nest_site + Vector3(0.0, 0.04 * nest_scale if nest_style == "sticks" else 0.004, 0.0)
+	nest_top = nest_site + Vector3(0.0, {"sticks": 0.04 * nest_scale, "cup": 0.012, "box": 0.012}.get(nest_style, 0.004), 0.0)
 	return true
 
 
@@ -393,7 +394,7 @@ func hatch() -> void:
 		y.ground_y = ground_y
 		par.add_child(y)
 		var a := TAU * k / maxf(eggs_laid.size(), 1) + 0.3
-		var at := nest_top + Vector3(cos(a), 0.0, sin(a)) * 0.09
+		var at := nest_top + Vector3(cos(a), 0.0, sin(a)) * 0.09 * nest_scale
 		y.perch_at = nest_top
 		y.nest_top = nest_top
 		y.place(at, a + PI)
@@ -495,7 +496,7 @@ func _think(dt: float) -> void:
 		"mantle":
 			_mantle(dt)
 		"courted": # (a female, his display watched: turned to him, calling now and then)
-			if _partner == null or not is_instance_valid(_partner) or _partner.get("_mode") not in ["court", "mount"]:
+			if _partner == null or not is_instance_valid(_partner) or _partner.get("_mode") not in ["court", "court_g", "mount"]:
 				_partner = null
 				perch()
 			else:
@@ -508,7 +509,7 @@ func _think(dt: float) -> void:
 			want.pitch = 0.75
 			want.tail_up = tail_rest + 0.9
 			head_want = Vector3(0.0, -0.03, -0.02)
-			if _partner == null or not is_instance_valid(_partner) or _partner.get("_mode") not in ["court", "mount"]:
+			if _partner == null or not is_instance_valid(_partner) or _partner.get("_mode") not in ["court", "court_g", "mount"]:
 				_partner = null
 				perch()
 		"mount":
@@ -538,6 +539,10 @@ func _think(dt: float) -> void:
 			_eyas_ways(dt)
 		"fledge":
 			_fledge(dt)
+	if body_k != 1.0 and _mode in ["sleep", "call", "crouch", "incubate", "brood", "feed_young", "eyas", "eat", "mantle"]:
+		head_want *= body_k # (its poses' reaches, set this frame: in metres, a hawk's; its own size's)
+		want.drop = float(want.drop) * body_k
+		foot_off[1] = foot_off[1] * body_k
 
 
 # perched, watching: its head turning, bobbing; its tail flicked; now and
@@ -896,7 +901,9 @@ func _land(at: Vector3) -> void:
 	want.tail_spread = 0.0
 	match _mode:
 		"court":
+			var ms := _secs
 			_to("mount")
+			_secs = ms # (as long on her back as his display)
 		"nest":
 			if _carry:
 				_to("feed_young")
@@ -1105,9 +1112,9 @@ func _mount(dt: float) -> void:
 	var fy: float = f.get("_yaw")
 	_pos = _pos.lerp(fp, 1.0 - exp(-5.0 * dt))
 	_yaw = lerp_angle(_yaw, fy, 1.0 - exp(-5.0 * dt))
-	lift_y = move_toward(lift_y, 0.17 * float(f.get("size")), dt * 0.6)
+	lift_y = move_toward(lift_y, 0.17 * float(f.get("size")) * body_k, dt * 0.6)
 	for i in 2:
-		_feet[i] = _pos + _right() * (-0.04 if i == 0 else 0.04) + Vector3(0.0, lift_y, 0.0)
+		_feet[i] = _pos + _right() * (-0.04 if i == 0 else 0.04) * body_k + Vector3(0.0, lift_y, 0.0)
 	want.pitch = 0.4
 	want.tail_up = tail_rest - 0.2
 	set_wings(0.3, -0.1, 0.3, 0.9)
@@ -1121,7 +1128,7 @@ func _mount(dt: float) -> void:
 		_partner = null
 		_flap = 0.0
 		lift_y = 0.0
-		var off := _pos + _right() * 0.3
+		var off := _pos + _right() * 0.3 * body_k
 		off.y = _ground(off.x, off.z)
 		perch_at = Vector3.INF if off.y < super._ground(off.x, off.z) + 0.05 else perch_at
 		_to("fly")
@@ -1157,7 +1164,7 @@ func _nest(_dt: float) -> void:
 					nest.add_child(e)
 					var k := eggs_laid.size()
 					var a := k * 2.4
-					var r := 0.032 * sqrt(float(k))
+					var r := 0.032 * sqrt(float(k)) * minf(nest_scale, 1.0)
 					e.position = (nest_top - nest.position) + Vector3(cos(a) * r, egg_size.y * 0.5 - 0.01, sin(a) * r)
 					e.rotation = Vector3(rng.randf_range(-0.3, 0.3), rng.randf() * TAU, PI * 0.5 + rng.randf_range(-0.3, 0.3))
 					eggs_laid.append(e)
@@ -1282,6 +1289,49 @@ static var _wood: StandardMaterial3D
 func _make_nest() -> Node3D:
 	var n := Node3D.new()
 	n.set_meta("prop", true)
+	if nest_style in ["cup", "box"]: # (a thrush's: a cup of dry grass, the robin's walled with mud inside; in its box, the bluebird's)
+		var grass := StandardMaterial3D.new()
+		grass.albedo_color = Color(0.62, 0.53, 0.36)
+		grass.roughness = 1.0
+		var mud := StandardMaterial3D.new()
+		mud.albedo_color = Color(0.3, 0.24, 0.17) if nest_style == "cup" else Color(0.55, 0.47, 0.32)
+		mud.roughness = 1.0
+		var r := 0.075 * nest_scale / 0.35
+		var wall := MeshInstance3D.new()
+		var tm := TorusMesh.new()
+		tm.inner_radius = r * 0.55
+		tm.outer_radius = r
+		tm.rings = 18
+		tm.ring_segments = 8
+		wall.mesh = tm
+		wall.scale = Vector3(1.0, 1.6, 1.0)
+		wall.position = Vector3(0.0, r * 0.3, 0.0)
+		wall.material_override = grass
+		n.add_child(wall)
+		var bowl := MeshInstance3D.new()
+		var cm := CylinderMesh.new()
+		cm.top_radius = r * 0.62
+		cm.bottom_radius = r * 0.45
+		cm.height = r * 0.25
+		bowl.mesh = cm
+		bowl.position = Vector3(0.0, r * 0.12, 0.0)
+		bowl.material_override = mud
+		n.add_child(bowl)
+		for k in 14: # (loose stems, sticking out of it)
+			var st := MeshInstance3D.new()
+			var sm := CylinderMesh.new()
+			sm.top_radius = 0.0012
+			sm.bottom_radius = 0.0015
+			sm.height = r * rng.randf_range(0.6, 1.0)
+			sm.radial_segments = 4
+			sm.rings = 1
+			st.mesh = sm
+			var a := rng.randf() * TAU
+			st.position = Vector3(cos(a) * r * 0.85, r * 0.3, sin(a) * r * 0.85)
+			st.rotation = Vector3(PI * 0.5 + rng.randf_range(-0.4, 0.4), a + PI * 0.5 + rng.randf_range(-0.5, 0.5), 0.0)
+			st.material_override = grass
+			n.add_child(st)
+		return n
 	if nest_style == "scrape":
 		var gravel := MeshInstance3D.new()
 		var gm := BoxMesh.new()
@@ -1329,7 +1379,7 @@ func _make_nest() -> Node3D:
 ## A stand-in for a nest site (a cliff's ledge, a tree's crotch): a pole,
 ## a ledge on its top for a scrape; its origin on the ground, the site at
 ## its top (site_top). Not the bird's: the world's (a test bed's, here).
-static func nest_pole(height: float, scrape: bool, thick := 1.0) -> Node3D:
+static func nest_pole(height: float, scrape: bool, thick := 1.0, style := "") -> Node3D:
 	var n := Node3D.new()
 	n.set_meta("prop", true)
 	if _wood == null:
@@ -1346,6 +1396,35 @@ static func nest_pole(height: float, scrape: bool, thick := 1.0) -> Node3D:
 	pole.position = Vector3(0.0, height * 0.5, 0.0)
 	n.add_child(pole)
 	n.set_meta("site_top", Vector3(0.0, height, 0.0))
+	if style == "box": # (a nest box on its post: open topped, its roof lifted off it, a hole in its front)
+		var wood := StandardMaterial3D.new()
+		wood.albedo_color = Color(0.58, 0.47, 0.33)
+		wood.roughness = 0.9
+		var w := 0.13
+		var h := 0.16
+		for b: Array in [[Vector3(0.0, height + 0.006, 0.0), Vector3(w, 0.012, w)], [Vector3(w * 0.5, height + h * 0.5, 0.0), Vector3(0.012, h, w)],
+				[Vector3(-w * 0.5, height + h * 0.5, 0.0), Vector3(0.012, h, w)], [Vector3(0.0, height + h * 0.5, w * 0.5), Vector3(w, h, 0.012)],
+				[Vector3(0.0, height + h * 0.18, -w * 0.5), Vector3(w, h * 0.36, 0.012)], [Vector3(-w * 0.22, height + h * 0.68, -w * 0.5), Vector3(w * 0.56, h * 0.64, 0.012)],
+				[Vector3(w * 0.42, height + h * 0.68, -w * 0.5), Vector3(w * 0.16, h * 0.64, 0.012)]]:
+			var mi := MeshInstance3D.new()
+			var bm := BoxMesh.new()
+			bm.size = b[1]
+			mi.mesh = bm
+			mi.position = b[0]
+			mi.material_override = wood
+			n.add_child(mi)
+		n.set_meta("site_top", Vector3(0.0, height + 0.012, 0.0))
+		return n
+	if style == "shelf": # (a robin's: a ledge on its post, as under eaves, in a fork)
+		var shelf := MeshInstance3D.new()
+		var sb := BoxMesh.new()
+		sb.size = Vector3(0.2, 0.02, 0.18)
+		shelf.mesh = sb
+		shelf.material_override = _wood
+		shelf.position = Vector3(0.0, height, 0.0)
+		n.add_child(shelf)
+		n.set_meta("site_top", Vector3(0.0, height + 0.01, 0.0))
+		return n
 	if scrape:
 		var tray := MeshInstance3D.new()
 		var bm := BoxMesh.new()

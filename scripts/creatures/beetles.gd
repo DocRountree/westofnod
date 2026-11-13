@@ -62,6 +62,7 @@ var mate_t := PackedFloat32Array()
 var mate_for := PackedFloat32Array()
 var _was := PackedInt32Array()
 const MATING := 5
+const GONE := 9 ## (taken: eaten; out of sight, out of it)
 
 
 func _build_mesh() -> Array:
@@ -285,8 +286,15 @@ func _p_behaviours(i: int) -> PackedStringArray:
 	return PackedStringArray(["feed", "lay", "fly", "mate"]) if lays and males[i] == 0 else PackedStringArray(["feed", "fly", "mate"])
 
 
+func feed(i: int, f: Vector3) -> void:
+	if task[i] != GONE:
+		super(i, f)
+
+
 ## Beetle i laying (a female: the males don't).
 func lay(i: int, at: Vector3) -> void:
+	if task[i] == GONE:
+		return
 	if males[i] == 0:
 		super(i, at)
 
@@ -296,7 +304,7 @@ func lay(i: int, at: Vector3) -> void:
 func mate(i: int, j: int, secs := -1.0) -> bool:
 	if i == j or i < 0 or j < 0 or i >= pos.size() or j >= pos.size() or males[i] == males[j]:
 		return false
-	if partner[i] >= 0 or partner[j] >= 0 or alt[i] > 0.0 or alt[j] > 0.0:
+	if partner[i] >= 0 or partner[j] >= 0 or alt[i] > 0.0 or alt[j] > 0.0 or task[i] == GONE or task[j] == GONE:
 		return false
 	var him := i if males[i] == 1 else j
 	var her := j if him == i else i
@@ -338,7 +346,33 @@ func _end_mate(i: int) -> void:
 		wait[k] = rng.randf_range(0.5, 2.0)
 
 
+## Beetle i taken out of them (eaten: Diet.one_of), gone for good.
+func die(i: int) -> void:
+	if i < 0 or i >= pos.size():
+		return
+	if partner[i] >= 0:
+		_end_mate(i)
+	task[i] = GONE
+	alt[i] = 0.0
+	speed[i] = 0.0
+	pos[i] = Vector3(1.0e5 + i, -500.0, 1.0e5)
+	target[i] = pos[i]
+
+
+func is_dead(i: int) -> bool:
+	return task[i] == GONE
+
+
+func wander(i: int, c: Vector3, r: float) -> void:
+	if task[i] != GONE:
+		super(i, c, r)
+
+
 func _think(i: int, dt: float) -> void:
+	if task[i] == GONE:
+		target[i] = pos[i]
+		speed[i] = 0.0
+		return
 	if task[i] != MATING:
 		super(i, dt)
 		return
@@ -419,6 +453,8 @@ func _p_act_secs(i: int, name: String) -> float:
 
 ## Beetle i up and flying round c (within r), about h (m) over the ground.
 func fly(i: int, c: Vector3, r: float, h := 0.25) -> void:
+	if task[i] == GONE:
+		return
 	if partner[i] >= 0:
 		_end_mate(i)
 	task[i] = 2
@@ -436,6 +472,8 @@ func _fly_of(i: int) -> float:
 ## Flying, or coming down: moved here, not walking (true); on the ground,
 ## its elytra closing if they're open (false: it walks).
 func _air(i: int, dt: float) -> bool:
+	if task[i] == GONE:
+		return true
 	if task[i] == MATING and mate_stage[i] in [2, 3, 4] and partner[i] >= 0:
 		_ride(i, dt)
 		return true

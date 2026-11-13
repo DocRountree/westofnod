@@ -46,6 +46,14 @@ uniform vec3 fl_dark : source_color = vec3(0.2, 0.2, 0.22);
 uniform float fl_bars = 12.0;
 uniform float fl_top_bars = 0.25;
 uniform float tail_under = 0.55;
+uniform float wash_from = 0.3;     // the breast's wash: from here along it (0 the vent) ...
+uniform float wash_to = 0.85;      // ... to here
+uniform vec4 throat_color = vec4(0.0); // its throat its own colour (w: how much), from throat_from on up to its chin
+uniform float throat_from = 0.72;
+uniform float throat_streak = 0.0; // (streaked with the cap's colour: a robin's)
+uniform vec4 eye_arcs = vec4(0.0); // white arcs over and under the eye (a robin's broken eye ring): rgb, w its outer radius (m)
+uniform vec2 under_spots = vec2(0.12, 0.5); // (pattern 4) a spot's radius (of a feather), and on which feathers (above this of each's random: 0 all)
+uniform float vent_to = -1.0; // m along its body (its rest pose's height): below this, its vent, its lower belly, plain (under_color: a robin's white)
 uniform float cov_bar = 0.0;       // the upperwing's coverts over the arm, a pale bar: each feather fringed broad and pale, some pale through (a golden eagle's tawny bar)
 uniform vec3 cov_bar_color : source_color = vec3(0.68, 0.52, 0.32);
 uniform vec4 cov_lead = vec4(0.0); // the wing's leading edge, its small coverts, their own colour (w: how much; a golden eagle's golden)
@@ -270,7 +278,9 @@ void raptor(int pt, float u, float v, vec3 view, float ndv, vec3 vtx, vec3 nrm0,
 			bk = mix(bk, vec3(0.95), back_spot * (1.0 - smoothstep(0.07, 0.11, sd)) * fade);
 		}
 		// the underparts: their marks by the pattern; the throat clean
-		vec3 un = mix(under_color, breast_wash, smoothstep(0.3, 0.6, u) * (1.0 - smoothstep(0.7, 0.85, u)));
+		vec3 un = mix(under_color, breast_wash, smoothstep(wash_from, wash_from + 0.3, u + 0.04 * (vnoise(vec2(v * 12.0, u * 6.0)) - 0.5)) * (1.0 - smoothstep(wash_to - 0.15, wash_to, u)));
+		if (vent_to > 0.0)
+			un = mix(un, under_color, 1.0 - smoothstep(vent_to - 0.012, vent_to + 0.008, rest.y + 0.006 * (vnoise(rest.xz * 300.0) - 0.5)));
 		float mk = 0.0;
 		float wc = 1.0 - abs(f.z);
 		if (under_pattern == 1) {
@@ -285,7 +295,7 @@ void raptor(int pt, float u, float v, vec3 view, float ndv, vec3 vtx, vec3 nrm0,
 			mk = (1.0 - smoothstep(0.12, 0.26, abs(f.z) * (1.0 + f.x))) * smoothstep(0.1, 0.22, f.x) * (1.0 - smoothstep(0.65, 0.85, f.x));
 		}
 		else if (under_pattern == 4) { // (a barn owl's: small dark spots, sparse)
-			mk = (1.0 - smoothstep(0.07, 0.12, length(vec2(f.z * 0.5, f.x - 0.3)))) * step(0.5, f.y);
+			mk = (1.0 - smoothstep(under_spots.x * 0.6, under_spots.x, length(vec2(f.z * 0.5, f.x - 0.3)))) * step(under_spots.y, f.y);
 		} else if (under_pattern == 6) { // (a juvenile bald eagle's: white in blotches through the brown, each feather's base pale)
 			mk = smoothstep(0.45, 0.65, vnoise(p * 0.55 + 3.1)) * under_blotch * (0.6 + 0.4 * smoothstep(0.2, 0.6, f.x));
 		} else if (under_pattern == 5) { // (a screech owl's: a dark streak down each shaft, fine bars across it)
@@ -357,6 +367,20 @@ void raptor(int pt, float u, float v, vec3 view, float ndv, vec3 vtx, vec3 nrm0,
 		if (pt == 0 && hood_u >= 0.0) { // (all its head and neck)
 			float hd = smoothstep(hood_u - 0.01, hood_u + 0.02, u + 0.03 * (vnoise(vec2(v * 30.0, u * 9.0)) - 0.5) + 0.05 * f.x * (1.0 - f.x));
 			c = mix(c, cap_color * (0.93 + 0.1 * f.y), hd);
+		}
+		if (pt == 0 && throat_color.w > 0.0) { // (its throat, its own: a robin's white, streaked black; a bluebird's rust)
+			float frontv = 1.0 - smoothstep(0.12, 0.24, min(v, 1.0 - v));
+			float below = u > 0.84 ? 1.0 - smoothstep(eye_at.y - 0.009, eye_at.y - 0.004, rest.y) : 1.0;
+			float th = throat_color.w * smoothstep(throat_from, throat_from + 0.03, u) * frontv * below;
+			float stripe = throat_streak * (1.0 - smoothstep(0.18, 0.4, abs(fract(v * 34.0 + 0.3 * f.y) - 0.5) * 2.0)) * smoothstep(0.1, 0.3, f.x);
+			c = mix(c, mix(throat_color.rgb * (0.94 + 0.1 * f.y), cap_color, stripe), th);
+		}
+		if (pt == 0 && eye_arcs.w > 0.0) { // (its broken eye ring: arcs above and below, none fore and aft)
+			vec3 q = rest - vec3(sign(rest.x) * eye_at.x, eye_at.y, eye_at.z);
+			float r = length(q.yz);
+			float ring = smoothstep(eye_arcs.w * 0.55, eye_arcs.w * 0.62, r) * (1.0 - smoothstep(eye_arcs.w * 0.9, eye_arcs.w, r));
+			float arc = smoothstep(0.45, 0.7, abs(q.y) / max(r, 1e-5));
+			c = mix(c, eye_arcs.rgb, ring * arc * step(abs(eye_at.x) * 0.4, abs(rest.x)) * step(0.0, rest_n.x * sign(rest.x)));
 		}
 		rough = 0.72;
 		spec = 0.35;
