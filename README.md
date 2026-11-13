@@ -454,6 +454,31 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
 - `scripts/creatures/isopod.gd` (`Isopod`): a pill bug, overlapping plates over seven pairs of legs; walking, eating
   leaf litter, rolling into a ball; its eggs carried in a brood pouch that swells, its young (six pairs of legs) walking
   out from under it.
+- `scripts/creatures/bat.gd` (`Bat`, *Eptesicus fuscus*, its own make): a big brown bat, life size (115 mm head and
+  body, a 47 mm forearm, 33 cm across). Its body and head one furred skin (`MammalSkin`; carnivore.gdshader's species
+  18: glossy, oily brown above, paler tan beneath, its face and broad muzzle black); its wings and tail membrane plain
+  dark skin stretched between its bones and rebuilt as they move (only when they've moved): the arm, the thumb and its
+  claw at the wrist, the four long fingers, the membrane before the arm, between the fingers, from the fifth finger to
+  its side and ankle, between its legs round its tail with the calcar along its edge, every free edge scalloped; its
+  legs turned, knees back, its toes clawed and curled; its rounded black ears up and out, a short round tragus in each;
+  small black eyes; glandular swellings either side of its nose; long canines, its mouth pink inside. Hanging head down
+  under its roost (`set_roost(point, face)`: the world's to give it; `Bat.roost_snag()`, a dead snag with a branch to
+  hang under, stands in), looking about, yawning, stretching a wing; torpor (`sleep`: wrapped, eyes shut, ears laid
+  back, breathing slow); grooming (`groom`: hanging by one foot, combing with the other, licking a wing held out); its
+  threat (`alarm`: mouth wide, teeth bared, buzzing, wings half out; then off); crawling on the ground on its wrists
+  and feet; dropping from its roost into flight, springing off the ground; flying with its wings beating, folding
+  partway on each upstroke, banking, calling as it goes (its mouth opening on each call, the feeding buzz as it
+  closes); `forage()` beating round its patch at dusk and by night; `hunt(prey)`: a flying insect scooped into its
+  tail membrane curled forward, then taken from it in its mouth (only once each touches), chewed on the wing; one on
+  the ground gleaned, down beside it, its mouth to it; its diet (`Diet`): beetles (June bugs, taken out of their
+  group), moths (luna, cecropia, polyphemus), small flying wasps; `drink(at)`: skimming low over a pond, its lower
+  jaw in the water; landing: up under its roost, flipping over to hook its feet on; mating (a male's: on her back, his
+  teeth in her nape, his wings round her); `birth(n)`: turned head up, its pups born into its cupped tail membrane,
+  licked, clinging at her breast; left hanging at the roost while she's out, nursed when she's back; growing (their
+  fur coming in, their eyes opening), flapping where they hang, flying at last. Taken by owls. Steering (pilot.gd):
+  act hunt, forage, drink, sleep, groom, alarm, roost, mate, birth, nurse. In the sandbox under Mammals (adult, or
+  young: a pup at its mother's breast): E / H hunt what's here, B a drink at a pond near or forage, F fly, D / X its
+  threat, Z torpor, G groom, A back to its roost, K mate, 1 birth, N nurse, U dead; out of itself at dusk and night (T).
 - `scripts/creatures/mouse.gd` (`Mouse`, on `hexapod.gd`'s motor with four legs, trotting): a deer mouse
   (*Peromyscus maniculatus*), life size: brown above, grizzled, white beneath with the sharp line between, white feet,
   big black eyes, big round ears pink inside, whiskers, orange incisors, its long tail dark above and white below

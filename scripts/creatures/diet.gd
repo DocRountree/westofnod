@@ -64,8 +64,8 @@ const EATS := {
 	"coopers_hawk.gd": {"robin": 0.9, "pigeon": 0.8, "blackbird": 0.8, "bluebird": 0.7, "nestling": 0.5, "poult": 0.7, "squirrel": 0.6, "mouse": 0.4},
 	"barn_owl.gd": {"mouse": 1.0, "grasshopper": 0.15, "nymph": 0.1, "grub": 0.1, "spider": 0.05},
 	"eastern_screech_owl.gd": {"mouse": 1.0, "mouse_pup": 0.8, "grasshopper": 0.7, "nymph": 0.6, "caterpillar": 0.5, "grub": 0.4, "crayfish": 0.4, "frog": 0.4,
-			"snails": 0.2, "anole": 0.2, "fish": 0.15, "bluebird": 0.15, "blackbird": 0.1, "nestling": 0.15},
-	"great_horned_owl.gd": {"hare": 1.0, "leveret": 0.9, "mouse": 0.8, "squirrel": 0.6, "poult": 0.4, "pigeon": 0.3, "blackbird": 0.1},
+			"snails": 0.2, "anole": 0.2, "fish": 0.15, "bluebird": 0.15, "blackbird": 0.1, "nestling": 0.15, "bat": 0.15},
+	"great_horned_owl.gd": {"hare": 1.0, "leveret": 0.9, "mouse": 0.8, "squirrel": 0.6, "poult": 0.4, "pigeon": 0.3, "blackbird": 0.1, "bat": 0.1},
 	"bald_eagle.gd": {"fish": 1.0, "carcass": 0.8, "poult": 0.2, "hare": 0.2, "leveret": 0.2},
 	"golden_eagle.gd": {"hare": 1.0, "leveret": 0.9, "squirrel": 0.7, "poult": 0.4, "carcass": 0.5},
 	"anole.gd": {"nymph": 0.8, "grasshopper": 0.7, "spider": 0.8, "caterpillar": 0.6, "grub": 0.3},
@@ -78,6 +78,7 @@ const EATS := {
 	"eastern_bluebird.gd": {"caterpillar": 1.0, "beetle": 0.9, "grub": 0.6, "spider": 0.6, "ants": 0.4, "snails": 0.3},
 	"passenger_pigeon.gd": {"acorn": 1.0, "grub": 0.3, "caterpillar": 0.3, "snails": 0.25},
 	"red_winged_blackbird.gd": {"caterpillar": 1.0, "nymph": 0.9, "grasshopper": 0.8, "beetle": 0.7, "grub": 0.6, "spider": 0.6, "snails": 0.3},
+	"bat.gd": {"beetle": 1.0, "moth": 0.7, "flier": 0.5},
 	"american_toad.gd": {"ants": 1.0, "grub": 0.6, "spider": 0.7, "caterpillar": 0.6, "nymph": 0.6, "grasshopper": 0.4, "snails": 0.5},
 	"frog.gd": {"nymph": 0.8, "grasshopper": 1.0, "spider": 0.7, "caterpillar": 0.6, "grub": 0.4, "snails": 0.4},
 	"turtle.gd": {"snails": 1.0, "grub": 0.8, "berries": 0.9, "crabapple": 0.8, "pawpaw": 0.8, "morel": 0.7, "little_brown": 0.6, "fly_agaric": 0.4, "pillbug": 0.6,
@@ -297,6 +298,10 @@ static func kind_of(n: Node) -> String:
 			k = "firefly"
 		"ant_colony.gd", "harvester_ants.gd":
 			k = "ants"
+		"bat.gd":
+			k = "bat_pup" if young else "bat"
+		"luna_moth.gd", "cecropia_moth.gd", "polyphemus_moth.gd":
+			k = "moth"
 		"passenger_pigeon.gd":
 			k = "nestling" if young else "pigeon"
 		"red_winged_blackbird.gd":

@@ -76,6 +76,7 @@ const KrillScript := preload("res://scripts/creatures/krill.gd")
 const FishScript := preload("res://scripts/creatures/fish_school.gd")
 const HareScript := preload("res://scripts/creatures/hare.gd")
 const FoxScript := preload("res://scripts/creatures/red_fox.gd")
+const BatScript := preload("res://scripts/creatures/bat.gd")
 const BobcatScript := preload("res://scripts/creatures/bobcat.gd")
 const CanidScript := preload("res://scripts/creatures/canid.gd")
 const CoyoteScript := preload("res://scripts/creatures/coyote.gd")
@@ -221,6 +222,7 @@ const CATALOGUE := [
 	["Mammals", "North American river otter", "river_otter", ["adult", "young"]],
 	["Mammals", "sea otter (in the sea)", "sea_otter", ["adult", "young"]],
 	["Mammals", "Virginia opossum", "opossum", ["adult", "young"]],
+	["Mammals", "big brown bat (hanging under a snag's branch; out foraging at dusk and by night (T), hawking insects; young: a pup, at its mother's breast)", "bat", ["adult", "young"]],
 	["Mammals", "red fox", "fox", ["adult", "young"]],
 	["Mammals", "bobcat", "bobcat", ["adult", "young"]],
 	["Mammals", "coyote", "coyote", ["adult", "young"]],
@@ -1435,6 +1437,28 @@ func _spawn_animal(key: String, at: Vector3, stage: String, male: bool, young: b
 			r.set_perch(at + Vector3(0.0, ph, 0.0), randf() * TAU)
 			r.call("perch")
 			return r
+		"bat":
+			var bt: Bat = BatScript.new(young)
+			bt.height = _height
+			bt.male = male and not young
+			var mom: Bat = null
+			if young: # (to its mother at her roost, if she's here)
+				for o in get_children():
+					if o is Bat and o != bt and not o.male and not o.young and not o.dead and (o as Node3D).position.distance_to(at) < 6.0:
+						mom = o
+			_org(bt, at, false)
+			if mom:
+				bt.set("_mother", mom)
+				mom.pups.append(bt)
+				bt.place(mom.get("_pos"), 0.0)
+				return bt
+			# (its roost: a dead snag, a branch out from it to hang under; none: put down, given one)
+			var snag: Node3D = BatScript.roost_snag(randf_range(2.2, 2.8))
+			snag.position = at + Vector3(-0.42, 0.0, 0.0)
+			add_child(snag)
+			bt.set_meta("kit", {"roost": snag})
+			bt.set_roost(snag.position + (snag.get_meta("roost") as Vector3), snag.get_meta("roost_face"))
+			return bt
 		"turkey":
 			var tk: Node3D = TurkeyScript.new(young)
 			tk.set("male", male and not young)
@@ -2503,6 +2527,48 @@ func _raptor_do(r: Raptor, act_: String) -> void:
 
 
 
+## A big brown bat's ways (Bat): E / H out after what it eats that's here
+## (a flying insect hawked, a beetle on the ground gleaned; none set out);
+## B a drink at a pond near (skimming it), or out foraging; F out flying; D /
+## X its threat, mouth wide; Z torpor; G grooming; A back to its roost; 1
+## (a female) her pups born; N nursing them; U dead; W its own ways. Out at
+## dusk and by night (T) of itself.
+func _bat_do(b: Bat, act_: String) -> void:
+	var p: Vector3 = b.get("_pos")
+	if b.young:
+		return
+	match act_:
+		"eat", "hunt":
+			var f := _prey(b, Diet.prey_of(b), 0.0, 30.0)
+			if f:
+				b.hunt(f)
+		"forage":
+			var pond := _pond_near(p, 15.0)
+			if not pond.is_empty() and randf() < 0.6:
+				var c0: Vector3 = pond.c
+				b.drink(Vector3(c0.x, POND, c0.z))
+			else:
+				b.forage(60.0)
+		"fly":
+			b.forage(30.0)
+		"display", "alarm":
+			b.alarm(3.0)
+		"sleep":
+			b.sleep(30.0)
+		"groom":
+			b.groom(10.0)
+		"sit":
+			b.roost()
+		"lay":
+			b.birth(2)
+		"nurse":
+			b.nurse(20.0)
+		"unusual":
+			b.die()
+		"wander":
+			b.wander()
+
+
 ## A Gila monster's ways (GilaMonster): E / H to a nestling or a young
 ## mouse that's here (none set out), bitten, held, chewed, swallowed; D / X
 ## gaping, hissing; Z into its burrow a while; G shedding; 1 a clutch laid
@@ -2850,6 +2916,9 @@ func _do(c: Node, act_: String) -> void:
 		return
 	if c is Raptor:
 		_raptor_do(c as Raptor, act_)
+		return
+	if c is Bat:
+		_bat_do(c as Bat, act_)
 		return
 	if c is Ticks:
 		_tick_do(c as Ticks, act_)
