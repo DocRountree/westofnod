@@ -34,9 +34,10 @@ func mass_of() -> Vector3:
 
 
 func _shape() -> Dictionary:
-	var S := thrush_shape(0.68, 0.88, 0.8, 0.6, 22.0, 1.3, 0.82, 2.1, 0.5, 2.4, 1.35, 0.72)
+	var S := thrush_shape(0.68, 0.88, 0.82, 0.6, 22.0, 1.3, 0.82, 1.3, 0.5, 1.0, 1.35, 0.8)
 	S.erase("eye_ring") # (its bare ring flush, the shader's: no raised rim)
-	S.eye_r = float(S.eye_r) * 0.85
+	S.eye_r = float(S.eye_r) * 0.52
+	S.eye = (S.eye as Vector3) * Vector3(1.16, 1.0, 1.0) + Vector3(0.0, 0.15, -0.35) * 0.68 # (out on its rounder head's side, a little forward)
 	return S
 
 

@@ -410,18 +410,6 @@ void fragment() {
 			c = mix(brown * 0.95, vec3(0.78, 0.64, 0.55), rn.z > 0.0 ? 0.55 : 0.0);
 			c = mix(c, vec3(0.05, 0.045, 0.04), smoothstep(ear_len * 0.78, ear_len * 0.86, rp.y));
 		}
-	} else if (species == 18) {
-		// a big brown bat: a rich, glossy, oily brown above, its hair's tips
-		// lighter; paler, tanner beneath; its face, its broad muzzle black, the
-		// fur short round its eyes; a pup pink grey and naked (fur: 0) as born
-		vec3 back = vec3(0.4, 0.26, 0.14);
-		vec3 belly = vec3(0.6, 0.45, 0.29);
-		c = mix(belly, back, smoothstep(-0.45, 0.25, ny));
-		c *= 0.86 + 0.28 * vn(rp * 0.45);
-		c = mix(c, c * 1.25 + vec3(0.03, 0.02, 0.0), smoothstep(0.6, 0.95, vn(rp * 1.7 + 3.0)) * 0.4); // (the glossy tips)
-		float muz = fw * (1.0 - smoothstep(bare_a.z - bare_r * 1.8, bare_a.z + bare_r * 0.6, hp.z)); // (its muzzle, ahead of its eyes)
-		c = mix(c, vec3(0.07, 0.05, 0.045), max(muz, fw * 0.25 * smoothstep(-0.2, 0.4, -ny)));
-		c = mix(vec3(0.55, 0.42, 0.42), c, fur);
 	} else if (species == 9) {
 		// a deer mouse: rich brown above (back), sharply white beneath and
 		// on its feet; its tail two-toned, dark above, white below; a pup

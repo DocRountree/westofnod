@@ -1,24 +1,33 @@
 class_name Bat
 extends Node3D
-## A big brown bat (Eptesicus fuscus), life size: its head and body about
-## 115 mm, its forearm 47 mm, 33 cm across its spread wings, 18 g. Its
+## A big brown bat (Eptesicus fuscus), life size: nose to rump 68 mm, its
+## tail 40 more, its forearm 47 mm, 33 cm across its spread wings, 18 g. Its
 ## model in mm (its body: -z its nose, +y its back, +x its right).
 ##
-## How it's made: its body and head one furred skin (MammalSkin; its coat
-## carnivore.gdshader's species 18: a rich, glossy, oily brown above, paler
-## tan beneath, its face, muzzle, ears and every bit of bare skin black);
-## its wings and tail membrane skin stretched between its bones, rebuilt as
-## they move: the arm (humerus, forearm), the thumb with its claw at the
-## wrist, the four long fingers (the second along the leading edge, the
-## third to the tip, the fourth and fifth fanned behind), the membrane
-## before the arm (propatagium), between the fingers (dactylopatagium),
-## from the fifth finger to its side and ankle (plagiopatagium), and
-## between its legs round its tail (uropatagium), the calcar along its edge;
-## each membrane's free edge scalloped in between the bones; its hind legs
-## turned, knees back, its feet's five toes clawed and curled; its ears
-## rounded, thick, black, a short round tragus in each; its eyes small and
-## black; its broad dark muzzle, glandular swellings either side of the
-## nose; its canines long, its mouth pink inside.
+## How it's made: its body, its head and its jaw one skin (MammalSkin): the
+## body deep and broad at its chest, narrow at its hips; the head sculpted
+## (SculptHead: a broad round braincase, a short blunt muzzle swollen either
+## side between eye and nostril, its glands; small eye sockets). Over the
+## skin its fur, in shells (bat_fur.gdshader: the skin drawn again, shell on
+## shell, each keeping the hairs that reach it): long, soft, lying back,
+## each hair dark at its root, glossy brown at its tip (buff beneath);
+## shorter on its crown, short and dark down its face, none on its muzzle,
+## lips and round its eyes: black, bare skin. Its nose a bare pad, a round
+## nostril either side; its eyes small black beads; its ears broad, rounded,
+## thick and leathery, funnelled at their base, a short blunt tragus in
+## each; its mouth pink inside, its tongue, its teeth behind its lips till
+## it opens (incisors, the long canines, premolars, sharp-cusped molars).
+## Its wings and tail membrane bare skin (bat_skin.gdshader: dark, finely
+## wrinkled, crumpled where it's folded; opaque) stretched between its
+## bones, rebuilt as they move: the arm (humerus, forearm), the thumb with
+## its claw at the wrist, the four long fingers (the second along the
+## leading edge, the third to the tip, the fourth and fifth fanned behind),
+## the membrane before the arm (propatagium), between the fingers
+## (dactylopatagium), from the fifth finger to its side and ankle
+## (plagiopatagium), and between its legs round its tail (uropatagium), the
+## calcar along its edge; each membrane's free edge scalloped in between
+## the bones; the bones under their own skin, swollen at each joint; its
+## hind legs turned, knees back, its feet's five toes clawed and curled.
 ##
 ## Its ways:
 ## - hanging (its roost: set_roost(point): the world's to give it): head
@@ -62,16 +71,19 @@ signal action_finished(name: String, ok: bool)
 
 const PilotScript := preload("res://scripts/creatures/pilot.gd")
 const SkinScript := preload("res://scripts/creatures/mammal_skin.gd")
+const SculptScript := preload("res://scripts/creatures/sculpt_head.gd")
 const MealScript := preload("res://scripts/creatures/meal.gd")
 
 # its bones, mm
-const SHOULDER := Vector3(7.0, 4.0, -22.0)
-const HIP := Vector3(5.0, -1.5, 30.0)
-const TAIL_ROOT := Vector3(0.0, -1.0, 36.0)
-const HEAD_AT := Vector3(0.0, 3.0, -31.0)
-const MOUTH := Vector3(0.0, -3.4, -22.0) # (its mouth, the head's space: between its jaws' tips)
+const SHOULDER := Vector3(8.0, 3.5, -13.0)
+const HIP := Vector3(4.5, -1.0, 19.0)
+const TAIL_ROOT := Vector3(0.0, -0.8, 24.0)
+const HEAD_AT := Vector3(0.0, 2.2, -22.0) # (its skull's base: where its head turns)
+const JAW_AT := Vector3(0.0, -2.4, -4.5) # (its jaw's hinge, the head's space)
+const MOUTH := Vector3(0.0, -2.7, -15.0) # (its mouth, the head's space: between its jaws' tips)
+const SHELLS := 24 # (its fur's)
 const L := {"hum": 24.0, "fore": 47.0, "d2": 40.0, "d3a": 44.0, "d3b": 36.0, "d4a": 42.0, "d4b": 24.0, "d5a": 40.0, "d5b": 16.0, "thumb": 8.0,
-		"femur": 18.0, "tibia": 20.0, "foot": 10.0, "calcar": 16.0}
+		"femur": 15.0, "tibia": 19.0, "foot": 9.0, "calcar": 15.0}
 const TAIL_N := 8
 const TAIL_SEG := 5.0
 # (each bone's way, the right side's: [folded, spread])
@@ -154,8 +166,13 @@ var _jawn: Node3D
 var _skin: SkinScript
 var _sb := {}
 var _fur: ShaderMaterial
-var _membrane: StandardMaterial3D
+var _membrane: ShaderMaterial
+var _limb: ShaderMaterial
+var _ear_mat: ShaderMaterial
 var _mem: MeshInstance3D
+var _bones: MeshInstance3D
+var _shells: Array[MeshInstance3D] = []
+var _teeth: Array[Node3D] = []
 var _eye_mi: Array[MeshInstance3D] = []
 var _lid_mi: Array[MeshInstance3D] = []
 var _ear_n: Array[Node3D] = []
@@ -184,6 +201,10 @@ func _apply_size() -> void:
 	if _fur:
 		var g := clampf((size - 0.45) / 0.35, 0.0, 1.0) if young else 1.0
 		_fur.set_shader_parameter("fur", g)
+		for m: ShaderMaterial in [_membrane, _limb, _ear_mat]:
+			m.set_shader_parameter("pup", (1.0 - g) * 0.7)
+		for sh in _shells: # (naked: no fur to draw)
+			sh.visible = g > 0.02
 	for l in _lid_mi:
 		l.visible = young and size < 0.6
 	for e in _eye_mi:
@@ -232,42 +253,66 @@ func _cone(base: Vector3, tip: Vector3, r: float, m: Material, parent: Node3D) -
 	return mi
 
 
-const HEAD_KEYS := [[3.0, 0.0, 9.5, 9.0], [-2.0, 1.0, 11.5, 10.5], [-7.0, 1.6, 12.0, 10.4], [-12.0, 0.8, 10.0, 8.6], [-16.0, -0.4, 8.2, 6.8],
-		[-19.5, -1.2, 6.6, 5.2], [-22.0, -1.6, 4.6, 3.8], [-23.6, -1.8, 2.0, 1.7]]
-const BODY_KEYS := [[-29.0, 2.0, 9.0, 8.5], [-24.0, 2.0, 12.5, 11.5], [-14.0, 1.5, 15.0, 13.5], [0.0, 1.0, 15.5, 13.5],
-		[14.0, 0.5, 14.0, 12.0], [26.0, 0.0, 10.5, 9.5], [33.0, -0.5, 6.5, 6.0], [37.0, -1.0, 3.0, 3.0]]
+# its body under its fur (the skin): [z, y, half width, half height]: deep and
+# broad at its chest (its flight muscles), narrow at its hips
+const BODY_KEYS := [[26.0, -0.7, 2.2, 2.0], [21.5, -0.5, 4.4, 3.9], [15.0, -0.2, 6.4, 5.7], [7.0, 0.2, 8.0, 7.0], [-3.0, 0.6, 9.0, 7.9],
+		[-12.0, 1.0, 9.2, 8.2], [-18.5, 1.8, 8.6, 7.9], [-24.0, 2.4, 7.0, 6.6]]
+# its head, sculpted (SculptHead: the head's mm, its skull's base its
+# origin): a broad, rounded braincase, a short broad muzzle, swollen either
+# side between eye and nostril (its glands); its eyes small, on its sides
+const HEAD := {
+	"z": [3.0, 0.0, -4.0, -7.5, -10.0, -12.0, -14.0, -15.6, -16.6],
+	"top": [5.4, 8.2, 9.0, 8.5, 7.1, 5.6, 4.4, 3.5, 2.4],
+	"bot": [-1.6, -3.0, -3.6, -3.6, -3.3, -3.0, -2.7, -2.3, -1.0],
+	"w": [4.8, 7.2, 7.9, 7.6, 6.5, 5.4, 4.6, 3.8, 2.5],
+	"wl": [4.8, 6.9, 7.6, 7.4, 6.6, 5.7, 5.0, 4.1, 2.5],
+	"pw": [2.0, 2.0, 2.1, 2.1, 2.1, 2.15, 2.2, 2.15, 2.0],
+	"eye": Vector3(5.9, 3.4, -9.9), "eye_r": 1.5, "socket": 0.25, "lid": 0.3, "brow": 0.5, "cheek": 0.7, "stop": 0.6, "pads": 0.6,
+	"flews": 0.45, "almond": 0.85, "slant": 0.0, "look_fwd": 0.35,
+}
+const HEAD_NZ := 30
+const HEAD_NA := 28
+
+
+## Its head's surface at z, round it by phi (SculptHead's, and its own: the
+## glands either side of its muzzle, its jaw's muscle).
+static func _head_pt(z: float, phi: float) -> Vector3:
+	var p: Vector3 = SculptScript.point(HEAD, z, phi)
+	var side := signf(p.x) if absf(p.x) > 1e-4 else 1.0
+	var out := Vector3(p.x, p.y - 1.0, 0.0)
+	out = out.normalized() if out.length() > 1e-3 else Vector3.UP
+	var gl := Vector3(3.9 * side, 2.2, -13.0)
+	p += out * 1.25 * exp(-2.6 * pow(p.distance_to(gl) / 2.5, 2.0))
+	var ms := Vector3(6.8 * side, -0.4, -5.5)
+	p += out * 0.7 * exp(-2.6 * pow(p.distance_to(ms) / 4.0, 2.0))
+	return p
+
+
+func _skin_mat(kind: int, c: Color) -> ShaderMaterial:
+	var m := ShaderMaterial.new()
+	m.shader = preload("res://shaders/render/bat_skin.gdshader")
+	m.set_shader_parameter("kind", kind)
+	m.set_shader_parameter("skin_color", Vector3(c.r, c.g, c.b))
+	return m
 
 
 func _build() -> void:
 	_body = Node3D.new()
 	add_child(_body)
 	_fur = ShaderMaterial.new()
-	_fur.shader = preload("res://shaders/render/carnivore.gdshader")
-	_fur.set_shader_parameter("species", 18)
-	_fur.set_shader_parameter("hair", 6.0)
-	_fur.set_shader_parameter("skin", true) # (its one skin: its parts, its face, from each vertex)
-	var skin_c := Color(0.11, 0.085, 0.075)
-	_membrane = _mat(Color(0.14, 0.105, 0.09), 0.5) # (plain, opaque dark skin)
-	_membrane.cull_mode = BaseMaterial3D.CULL_DISABLED
-	var wr := FastNoiseLite.new()
-	wr.frequency = 0.08
-	var nt := NoiseTexture2D.new() # (its membrane's fine wrinkles, its elastic strands)
-	nt.noise = wr
-	nt.as_normal_map = true
-	nt.bump_strength = 3.0
-	nt.seamless = true
-	_membrane.normal_enabled = true
-	_membrane.normal_texture = nt
-	_membrane.normal_scale = 0.5
-	_membrane.uv1_scale = Vector3(1.0, 1.0, 1.0)
-	var dark := _mat(skin_c, 0.5)
+	_fur.shader = preload("res://shaders/render/bat_fur.gdshader")
+	_membrane = _skin_mat(0, Color(0.135, 0.108, 0.097)) # (plain, opaque dark skin)
+	_limb = _skin_mat(1, Color(0.15, 0.115, 0.1))
+	_ear_mat = _skin_mat(2, Color(0.115, 0.09, 0.08))
+	var dark := _mat(Color(0.012, 0.009, 0.008), 0.38) # (its nose's leather, its lids)
+	var claw := _mat(Color(0.03, 0.022, 0.018), 0.25)
 	_head = Node3D.new()
 	_head.position = HEAD_AT
 	_body.add_child(_head)
 	_jawn = Node3D.new()
-	_jawn.position = Vector3(0.0, -4.6, -8.0)
+	_jawn.position = JAW_AT
 	_head.add_child(_jawn)
-	# its skin: the body into the head, the jaw
+	# its skin: its body; its head, sculpted, its back in its shoulders' fur; its jaw
 	var K: SkinScript = SkinScript.new()
 	var torso := K.bone("torso", Transform3D())
 	var hrest := _head.transform
@@ -275,105 +320,204 @@ func _build() -> void:
 	var jrest := hrest * _jawn.transform
 	var jb := K.bone("jaw", jrest)
 	_sb = {"head": hb, "jaw": jb}
-	K.body_head(torso, BODY_KEYS, hb, hrest, HEAD_KEYS, 2.0, 20)
-	K.jaw_tube(hb, jb, jrest, [[0.0, 0.0, 6.0, 2.6], [-6.0, -0.2, 5.0, 2.3], [-11.5, 0.0, 3.0, 1.6], [-14.2, 0.2, 1.2, 0.9]])
+	var rings := []
+	var z0 := float(BODY_KEYS[0][0])
+	var z1 := float(BODY_KEYS[BODY_KEYS.size() - 1][0])
+	for k: Array in BODY_KEYS:
+		rings.append(SkinScript.ring(Vector3(0.0, k[1], k[0]), Vector3.RIGHT, Vector3.UP, k[2], k[3], float(k[3]) * 1.05, {torso: 1.0}, 0, 0.6 * (z0 - float(k[0])) / (z0 - z1), 0.0, 2.2))
+	K.tube(SkinScript.smooth(rings, 4), 20, hb)
+	var hz: Array = HEAD.z
+	var rows := []
+	var ws := []
+	var faces := []
+	var alongs := []
+	for i in HEAD_NZ + 1:
+		var t := float(i) / HEAD_NZ
+		var z := lerpf(float(hz[0]), float(hz[hz.size() - 1]), t * t * 0.25 + t * 0.75)
+		var row := []
+		for k in HEAD_NA:
+			row.append(hrest * _head_pt(z, TAU * float(k) / HEAD_NA))
+		rows.append(row)
+		ws.append({torso: 0.5, hb: 0.5} if z > 1.5 else ({torso: 0.2, hb: 0.8} if z > -0.5 else {hb: 1.0}))
+		faces.append(1.0)
+		alongs.append(0.75 + 0.25 * t)
+	K.surface(rows, ws, faces, alongs, hb, 0, 0.8)
+	K.jaw_tube(hb, jb, jrest, [[1.5, 0.4, 5.2, 1.5], [-3.5, 0.0, 5.1, 1.7], [-8.0, 0.0, 4.0, 1.55], [-10.4, 0.25, 2.9, 1.2], [-11.3, 0.45, 1.8, 0.8]])
 	_skin = K
-	K.finish(_body, _fur)
-	var ex := 9.0 # (on its face's surface, a little forward)
-	_fur.set_shader_parameter("bare_a", Vector3(-ex, 2.6, -13.0))
-	_fur.set_shader_parameter("bare_b", Vector3(ex, 2.6, -13.0))
-	_fur.set_shader_parameter("bare_r", 1.9)
-	_fur.set_shader_parameter("muzzle_z", -14.0)
-	# its eyes: small, black, glossy (a newborn's shut)
-	var eye := _mat(Color(0.015, 0.012, 0.012), 0.05)
+	var base := K.finish(_body, _fur)
+	for k in range(1, SHELLS + 1): # (its fur: the skin again, shell on shell; the nearer, the more of them drawn)
+		var sh := MeshInstance3D.new()
+		sh.mesh = base.mesh
+		sh.skin = base.skin
+		sh.material_override = _fur
+		K.skel.add_child(sh)
+		sh.skeleton = sh.get_path_to(K.skel)
+		sh.custom_aabb = base.custom_aabb
+		sh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		sh.set_instance_shader_parameter("shell", float(k) / SHELLS)
+		sh.visibility_range_end = 30.0 if k % 4 == 0 else (5.0 if k % 2 == 0 else 1.6)
+		_shells.append(sh)
+	var e: Vector3 = HEAD.eye
+	_fur.set_shader_parameter("eye_a", Vector3(-e.x, e.y, e.z))
+	_fur.set_shader_parameter("eye_b", e)
+	_fur.set_shader_parameter("eye_r", float(HEAD.eye_r))
+	_fur.set_shader_parameter("muzzle_z", -12.2)
+	_fur.set_shader_parameter("ear_at", Vector3(5.5, 5.4, -2.8))
+	# its eyes: small, black, glossy, each in its socket (a newborn's shut)
+	var eye := _mat(Color(0.012, 0.01, 0.01), 0.04)
 	eye.clearcoat_enabled = true
 	eye.clearcoat = 1.0
+	eye.clearcoat_roughness = 0.05
+	var ec := e - Vector3(0.75, 0.0, -0.15) # (set in its socket, bulging a little)
 	for side: float in [-1.0, 1.0]:
-		_eye_mi.append(_ell(Vector3(ex * side, 2.6, -13.0), Vector3(3.0, 3.0, 3.2), eye, _head))
-		_lid_mi.append(_ell(Vector3((ex - 0.1) * side, 2.6, -13.0), Vector3(3.2, 3.1, 3.4), dark, _head))
-	# its muzzle: broad, dark; the glandular swellings either side of its nose; its nostrils
+		_eye_mi.append(_ell(Vector3(ec.x * side, ec.y, ec.z), Vector3(2.6, 2.6, 2.6), eye, _head))
+		_lid_mi.append(_ell(Vector3((ec.x + 0.15) * side, ec.y, ec.z), Vector3(2.4, 2.2, 2.6), dark, _head))
+	# its nose: a bare black pad, its nostrils a round swelling each, opening forward and out, a groove between
+	_ell(Vector3(0.0, 1.0, -16.5), Vector3(3.2, 2.4, 2.0), dark, _head)
+	var hole := _mat(Color(0.0, 0.0, 0.0), 0.9)
 	for side: float in [-1.0, 1.0]:
-		_ell(Vector3(5.2 * side, 0.0, -18.5), Vector3(5.5, 4.8, 6.0), dark, _head) # (the glandular swellings, plump either side)
-		_ell(Vector3(1.2 * side, -1.0, -23.6), Vector3(1.1, 0.8, 0.7), _mat(Color(0.03, 0.02, 0.02), 0.7), _head)
-	_ell(Vector3(0.0, -1.2, -23.0), Vector3(4.2, 3.0, 2.4), dark, _head) # (its nose pad)
-	# its mouth: pink inside; its teeth, the canines long and white
-	_mouth_in = _ell(Vector3(0.0, -3.6, -15.0), Vector3(6.5, 2.0, 12.0), _mat(Color(0.75, 0.35, 0.38), 0.4), _head)
-	var tooth := _mat(Color(0.95, 0.93, 0.86), 0.25)
+		_ell(Vector3(1.15 * side, 1.3, -16.85), Vector3(1.9, 1.7, 1.5), dark, _head)
+		var nh := _ell(Vector3(1.55 * side, 1.3, -17.38), Vector3(0.85, 0.95, 0.5), hole, _head)
+		nh.rotation = Vector3(0.0, -0.6 * side, 0.0)
+	# its mouth: pink inside, its palate, its tongue; its teeth (as it's open)
+	var pink := _mat(Color(0.72, 0.36, 0.38), 0.3)
+	_mouth_in = _ell(Vector3(0.0, -2.0, -10.6), Vector3(7.4, 2.4, 10.6), pink, _head)
+	var tooth := _mat(Color(0.93, 0.91, 0.84), 0.22)
+	var up := Node3D.new()
+	_head.add_child(up)
+	var lo := Node3D.new()
+	_jawn.add_child(lo)
+	_teeth = [up, lo]
+	_ell(Vector3(0.0, 1.2, -5.8), Vector3(4.6, 1.6, 9.6), _mat(Color(0.82, 0.42, 0.44), 0.22), lo) # (its tongue)
 	for side: float in [-1.0, 1.0]:
-		_cone(Vector3(2.4 * side, -3.0, -20.6), Vector3(2.3 * side, -6.6, -20.9), 0.75, tooth, _head) # (upper canines)
-		_cone(Vector3(2.0 * side, 0.6, -12.0), Vector3(1.9 * side, 3.4, -12.3), 0.6, tooth, _jawn) # (lower)
-		for k in 2: # (small incisors, cheek teeth)
-			_cone(Vector3((0.8 + 0.6 * k) * side, -3.0, -22.2 + k * 0.4), Vector3((0.8 + 0.6 * k) * side, -4.4, -22.3 + k * 0.4), 0.35, tooth, _head)
-		_cone(Vector3(3.2 * side, -3.2, -17.5), Vector3(3.2 * side, -5.2, -17.5), 0.6, tooth, _head)
-	# its ears: rounded, thick, black, cupped forward; the short round tragus in each
+		# (its upper teeth, inside its lip: two incisors, the long canine, a premolar, three sharp-cusped molars)
+		_cone(Vector3(0.7 * side, -1.4, -15.9), Vector3(0.65 * side, -2.6, -16.0), 0.32, tooth, up)
+		_cone(Vector3(1.3 * side, -1.6, -15.6), Vector3(1.3 * side, -2.4, -15.65), 0.24, tooth, up)
+		_cone(Vector3(2.3 * side, -1.8, -14.4), Vector3(2.4 * side, -4.5, -14.8), 0.55, tooth, up)
+		_cone(Vector3(2.75 * side, -2.2, -13.1), Vector3(2.75 * side, -3.2, -13.1), 0.36, tooth, up)
+		for m in 3:
+			var mz := -11.9 + 1.4 * m
+			var mx := 2.85 + 0.35 * m
+			_cone(Vector3(mx * side, -2.5, mz), Vector3((mx + 0.15) * side, -3.45 + 0.1 * m, mz - 0.25), 0.48, tooth, up)
+			_cone(Vector3((mx - 0.45) * side, -2.5, mz + 0.5), Vector3((mx - 0.5) * side, -3.25 + 0.1 * m, mz + 0.5), 0.38, tooth, up)
+		# (its lower: three small incisors, the canine before the upper one, two premolars, three molars)
+		for k in 3:
+			_cone(Vector3((0.3 + 0.42 * k) * side, 1.1, -11.2 + 0.15 * k), Vector3((0.3 + 0.42 * k) * side, 1.75, -11.3 + 0.15 * k), 0.19, tooth, lo)
+		_cone(Vector3(1.75 * side, 1.1, -10.7), Vector3(1.9 * side, 3.3, -10.7), 0.45, tooth, lo)
+		for k in 2:
+			_cone(Vector3((2.2 + 0.3 * k) * side, 1.25, -9.6 + 0.9 * k), Vector3((2.2 + 0.3 * k) * side, 2.05 + 0.15 * k, -9.6 + 0.9 * k), 0.32, tooth, lo)
+		for m in 3:
+			var mz2 := -7.6 + 1.3 * m
+			var mx2 := 2.75 + 0.25 * m
+			_cone(Vector3(mx2 * side, 1.35, mz2), Vector3(mx2 * side, 2.25 - 0.08 * m, mz2 - 0.2), 0.44, tooth, lo)
+			_cone(Vector3((mx2 - 0.3) * side, 1.35, mz2 + 0.5), Vector3((mx2 - 0.3) * side, 2.05 - 0.08 * m, mz2 + 0.5), 0.36, tooth, lo)
+	# its ears: broad, rounded, thick, black, cupped forward and out; the short blunt tragus in each
 	for side: float in [-1.0, 1.0]:
 		var en := Node3D.new()
-		en.position = Vector3(8.0 * side, 9.5, -5.0) # (on top of its head, at its sides)
+		en.position = Vector3(5.5 * side, 5.4, -2.8) # (on its head's side, behind and above its eye)
 		_head.add_child(en)
 		en.set_meta("side", side)
 		var mi := MeshInstance3D.new()
-		mi.mesh = _ear_mesh(side, 15.0, 7.5, 3.4)
-		mi.material_override = dark
+		mi.mesh = _ear_mesh(side, 11.5, 4.4, 2.9, 0.45)
+		mi.material_override = _ear_mat
 		en.add_child(mi)
 		var tr := MeshInstance3D.new()
-		tr.mesh = _ear_mesh(side, 5.2, 1.7, 0.6)
-		tr.material_override = _mat(Color(0.2, 0.15, 0.13), 0.5)
-		tr.position = Vector3(1.0 * side, 0.6, -2.4)
-		tr.rotation = Vector3(0.0, -0.2 * side, 0.0)
+		tr.mesh = _ear_mesh(side, 5.6, 1.2, 0.35, 0.0)
+		tr.material_override = _ear_mat
+		tr.position = Vector3(-1.2 * side, 0.2, -2.3)
+		tr.rotation = Vector3(-0.12, 0.25 * side, 0.12 * side)
 		en.add_child(tr)
 		_ear_n.append(en)
-	# its feet (the claws curled), its thumbs' claws: hung on its bones each frame
+	# its feet (five toes, their claws curled), its thumbs' claws: hung on its bones each frame
 	for side: float in [-1.0, 1.0]:
 		var f := Node3D.new()
 		_body.add_child(f)
 		for k in 5:
-			var a := deg_to_rad(-16.0 + 8.0 * k)
-			var d := Vector3(sin(a), 0.0, 1.0).normalized()
-			var c1 := d * 5.0
-			_cone(Vector3.ZERO + Vector3(0.0, 0.0, 0.0), c1 * 1.2, 0.55, dark, f)
-			_cone(c1, c1 + Vector3(0.0, 2.8, 1.0), 0.45, _mat(Color(0.12, 0.1, 0.09), 0.3), f) # (the claw hooked up)
+			var a := deg_to_rad(-18.0 + 9.0 * k)
+			var d := Vector3(sin(a), 0.0, cos(a))
+			var c1 := d * 4.6
+			_cone(-d * 1.5, c1 * 1.25, 0.5, _limb, f)
+			_cone(c1 * 0.95, c1 + d * 1.6 + Vector3(0.0, 1.5, 0.0), 0.42, claw, f) # (the claw: out, then hooked up)
+			_cone(c1 + d * 1.3 + Vector3(0.0, 1.1, 0.0), c1 + d * 0.9 + Vector3(0.0, 3.1, 0.0), 0.3, claw, f)
 		_foot_n.append(f)
 		var t := Node3D.new()
 		_body.add_child(t)
-		_cone(Vector3.ZERO, Vector3(0.0, 0.0, -4.0), 1.0, dark, t)
-		_cone(Vector3(0.0, 0.0, -4.0), Vector3(0.0, -2.0, -6.5), 0.5, _mat(Color(0.12, 0.1, 0.09), 0.3), t)
+		_cone(Vector3(0.0, 0.0, 0.8), Vector3(0.0, 0.0, -4.6), 0.85, _limb, t)
+		_cone(Vector3(0.0, 0.0, -3.8), Vector3(0.0, -1.3, -6.2), 0.5, claw, t)
+		_cone(Vector3(0.0, -1.0, -5.9), Vector3(0.0, -3.0, -6.0), 0.32, claw, t)
 		_thumb_n.append(t)
-	# its membranes and the bones in them: rebuilt as they move
+	# its membranes, and the bones in them: rebuilt as they move
 	_mem = MeshInstance3D.new()
 	_mem.material_override = _membrane
 	_body.add_child(_mem)
 	_mem.custom_aabb = AABB(Vector3(-220, -150, -220), Vector3(440, 300, 440))
+	_bones = MeshInstance3D.new()
+	_bones.material_override = _limb
+	_body.add_child(_bones)
+	_bones.custom_aabb = _mem.custom_aabb
 
 
-## An ear (or a tragus), its base at its origin, up its y, its hollow facing
-## forward and out: a rounded triangle, cupped, thick at its rim.
-static func _ear_mesh(side: float, h: float, w: float, cup: float) -> ArrayMesh:
+## An ear (or a tragus): its base at its origin, up its y, its hollow facing
+## forward (-z), `side` its outer edge's; h tall, w its half width, cupped;
+## a rounded top, narrower at its base; thick, its rim rounded; lobe: its
+## outer edge's base carried down and forward (toward its mouth's corner).
+static func _ear_mesh(side: float, h: float, w: float, cup: float, lobe: float) -> ArrayMesh:
+	var nu := 14
+	var nv := 10
+	var th := minf(0.5, w * 0.25)
+	var P := []
+	for i in nu + 1:
+		var u := sin(PI * 0.5 * float(i) / nu) # (closer together round its top)
+		var row := []
+		var wd := w * (0.55 + 0.45 * sin(PI * 0.5 * minf(u / 0.42, 1.0))) if u < 0.42 else w * pow(maxf(cos(PI * 0.5 * (u - 0.42) / 0.58), 0.0), 0.5)
+		for j in nv + 1:
+			var v := float(j) / nv * 2.0 - 1.0 # (-1 its inner edge .. 1 its outer)
+			var x := (v * wd * (1.12 if v > 0.0 else 0.8) + 1.6 * u * (h / 14.0)) * side # (its outer edge the fuller)
+			var y := u * h
+			var z := 1.3 * u * u * (h / 14.0) - cup * v * v * (1.0 - 0.55 * u) - cup * 0.35 * pow(absf(v), 5.0) # (its rim rolled forward)
+			z -= cup * 1.1 * v * v * pow(maxf(1.0 - u / 0.35, 0.0), 2.0) # (a funnel at its base)
+			if v > 0.0: # (its outer edge rolled forward toward its base)
+				z -= cup * 0.9 * v * v * (1.0 - u) * (1.0 - u)
+				var lb := lobe * smoothstep(0.35, 1.0, v) * (1.0 - smoothstep(0.0, 0.3, u))
+				y -= 3.0 * lb
+				z -= 2.2 * lb
+			row.append(Vector3(x, y, z))
+		P.append(row)
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	var nu := 7
-	var nv := 7
-	var pts := []
+	var N := []
 	for i in nu + 1:
-		var t := float(i) / nu
 		var row := []
-		var wd := w * sin(PI * (0.18 + 0.72 * t)) * (1.0 - 0.25 * t)
 		for j in nv + 1:
-			var s := float(j) / nv * 2.0 - 1.0
-			var x := s * wd
-			var z := -cup * (1.0 - s * s) * (1.0 - 0.6 * t) + 0.8 * t * t
-			row.append(Vector3(x + 2.5 * t * side, t * h, z))
-		pts.append(row)
-	for i in nu:
-		for j in nv:
-			var a: Vector3 = pts[i][j]
-			var b: Vector3 = pts[i + 1][j]
-			var c: Vector3 = pts[i + 1][j + 1]
-			var d: Vector3 = pts[i][j + 1]
-			for p: Vector3 in [a, b, c, a, c, d]:
-				st.add_vertex(p)
-	st.generate_normals()
-	var m := st.commit()
-	return m
+			var du: Vector3 = (P[mini(i + 1, nu)][j] as Vector3) - (P[maxi(i - 1, 0)][j] as Vector3)
+			var dv: Vector3 = (P[i][mini(j + 1, nv)] as Vector3) - (P[i][maxi(j - 1, 0)] as Vector3)
+			var n := du.cross(dv) * side
+			if n.length() < 1e-6:
+				n = Vector3.FORWARD
+			n = n.normalized()
+			if n.z > 0.0:
+				n = -n # (its hollow's: forward)
+			row.append(n)
+		N.append(row)
+	for face in 2: # (its hollow; its back, the ear's thickness behind it, thinning to its rim)
+		for i in nu:
+			for j in nv:
+				var idx := [[i, j], [i + 1, j], [i + 1, j + 1], [i, j], [i + 1, j + 1], [i, j + 1]]
+				if (face == 0) != (side > 0.0):
+					idx.reverse()
+				for q: Array in idx:
+					var pp: Vector3 = P[q[0]][q[1]]
+					var nn: Vector3 = N[q[0]][q[1]]
+					var vv := float(q[1]) / nv * 2.0 - 1.0
+					var uu := sin(PI * 0.5 * float(q[0]) / nu)
+					var edge := maxf(absf(vv), uu) # (1 at its rim)
+					var t := th * sqrt(maxf(1.0 - pow(edge, 2.5), 0.0))
+					st.set_uv(Vector2(vv, uu))
+					st.set_color(Color(0.0, 1.0 if face == 0 else 0.0, 0.0))
+					st.set_normal(nn if face == 0 else -nn)
+					st.add_vertex(pp if face == 0 else pp - nn * t)
+	st.index()
+	return st.commit()
 
 
 # --- the pose: its bones from its pose's numbers; the skin; the membranes ---------------
@@ -463,9 +607,11 @@ func _pose_skin() -> void:
 	_skin.pose(_sb.head, ht)
 	_skin.pose(_sb.jaw, ht * _jawn.transform)
 	_mouth_in.visible = _jaw > 0.05
+	for tn in _teeth: # (its teeth behind its lips, shut)
+		tn.visible = _jaw > 0.05
 	for en in _ear_n:
 		var sd: float = en.get_meta("side")
-		en.rotation = Vector3(-0.15 - 0.9 * _ears, -0.45 * sd + 0.15 * sd * sin(_mt * 1.3 + sd), -0.75 * sd) # (up and out, turning)
+		en.rotation = Vector3(-0.1 + 0.95 * _ears, -0.6 * sd + 0.12 * sd * sin(_mt * 1.3 + sd), -0.5 * sd - 0.25 * sd * _ears) # (up and out, turning; laid back)
 	var lid := _eyes_shut > 0.5 or (young and size < 0.6)
 	for k in _lid_mi.size():
 		_lid_mi[k].visible = lid
@@ -491,6 +637,8 @@ func _pose_membranes() -> void:
 	_pose_sig = sig
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var sb := SurfaceTool.new()
+	sb.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var tail := _tail_pts()
 	var sides := {}
 	for side: float in [-1.0, 1.0]:
@@ -499,23 +647,24 @@ func _pose_membranes() -> void:
 		var S: Vector3 = o.S
 		var E: Vector3 = o.E
 		var W: Vector3 = o.W
-		var bulge := Vector3(0.0, 0.0, -1.0) * 4.0 * float(spread[0 if side < 0.0 else 1])
+		var fold := 1.0 - float(spread[0 if side < 0.0 else 1])
+		var bulge := Vector3(0.0, 0.0, -1.0) * 4.0 * (1.0 - fold)
 		# propatagium: before the arm, shoulder to wrist
-		_panel(st, [S, E, W], [S, S.lerp(W, 0.5) + bulge, W], 6, 3, 0.0)
+		_panel(st, [S, E, W], [S, S.lerp(W, 0.5) + bulge, W], 6, 3, 0.0, fold)
 		# between the fingers, and from the fifth to its side and ankle
-		_panel(st, [W, o.d3j, o.d3], [W, o.d4j, o.d4], 7, 5, 0.18)
-		_panel(st, [W, o.d4j, o.d4], [W, o.d5j, o.d5], 7, 5, 0.18)
-		_panel(st, [W, o.d2], [W, (o.d3j as Vector3)], 4, 2, 0.0)
-		var flank := Vector3(9.0 * side, -2.0, 0.0)
-		_panel(st, [S, E, W, o.d5j, o.d5], [S + Vector3(1.0 * side, -3.0, 2.0), flank + Vector3(0.0, 0.0, -12.0), Vector3(8.0 * side, -2.0, 20.0), o.K, o.A], 10, 6, 0.22)
+		_panel(st, [W, o.d3j, o.d3], [W, o.d4j, o.d4], 8, 6, 0.13, fold)
+		_panel(st, [W, o.d4j, o.d4], [W, o.d5j, o.d5], 8, 6, 0.13, fold)
+		_panel(st, [W, o.d2], [W, (o.d3j as Vector3)], 4, 2, 0.0, fold)
+		_panel(st, [S, E, W, o.d5j, o.d5], [S + Vector3(0.0, -2.5, 2.0), Vector3(8.3 * side, -1.5, -4.0), Vector3(7.0 * side, -1.5, 10.0), o.K, o.A], 12, 7, 0.16, fold)
 		# the tail membrane, its half: leg and calcar to the tail
-		_panel(st, [o.H + Vector3(-2.0 * side, -1.0, 0.0), o.K, o.A, o.C], tail.slice(0, 4) + [tail[tail.size() - 1]], 6, 4, 0.15)
-		# the bones in it: ridges
-		for b: Array in [[S, E, 1.7], [E, W, 1.4], [W, o.d2, 0.7], [W, o.d3j, 0.8], [o.d3j, o.d3, 0.5], [W, o.d4j, 0.8], [o.d4j, o.d4, 0.45],
-				[W, o.d5j, 0.8], [o.d5j, o.d5, 0.4], [o.H, o.K, 1.4], [o.K, o.A, 1.1], [o.A, o.F, 1.0], [o.A, o.C, 0.45]]:
-			_tube(st, b[0], b[1], b[2])
-		for k in TAIL_N:
-			_tube(st, tail[k], tail[k + 1], lerpf(1.3, 0.5, float(k) / TAIL_N))
+		_panel(st, [o.H + Vector3(-2.0 * side, -1.0, 0.0), o.K, o.A, o.C], tail.slice(0, 4) + [tail[tail.size() - 1]], 7, 4, 0.12, _tail_curl * 0.5)
+		# the bones in it, their joints
+		for b: Array in [[S, E, 1.6, 1.3], [E, W, 1.25, 0.95], [W, o.d2, 0.55, 0.3], [W, o.d3j, 0.6, 0.45], [o.d3j, o.d3, 0.42, 0.18], [W, o.d4j, 0.6, 0.45],
+				[o.d4j, o.d4, 0.4, 0.18], [W, o.d5j, 0.62, 0.48], [o.d5j, o.d5, 0.42, 0.2], [o.H, o.K, 1.5, 1.0], [o.K, o.A, 0.95, 0.7], [o.A, o.F, 0.95, 0.8], [o.A, o.C, 0.4, 0.15]]:
+			_tube(sb, b[0], b[1], b[2], b[3])
+		if side > 0.0:
+			for k in TAIL_N:
+				_tube(sb, tail[k], tail[k + 1], lerpf(1.0, 0.35, float(k) / TAIL_N), lerpf(1.0, 0.35, float(k + 1) / TAIL_N))
 		# its foot, its thumb: their claws
 		var fi := 0 if side < 0.0 else 1
 		var A: Vector3 = o.A
@@ -527,16 +676,20 @@ func _pose_membranes() -> void:
 		var td: Vector3 = ((o.th as Vector3) - W).normalized()
 		var tup := (Vector3.UP - td * td.y).normalized()
 		_thumb_n[fi].transform = Transform3D(Basis(tup.cross(-td).normalized(), tup, -td), W)
+	st.index()
 	st.generate_normals()
 	_mem.mesh = st.commit()
+	_bones.mesh = sb.commit()
 
 
 ## A membrane between two lines of points (resampled to nu across, nv
 ## between them); its far end free, its edge sagging in (sag of its span).
-func _panel(st: SurfaceTool, a: Array, b: Array, nu: int, nv: int, sag: float) -> void:
+func _panel(st: SurfaceTool, a: Array, b: Array, nu: int, nv: int, sag: float, fold := 0.0) -> void:
 	var ra := _resample(a, nu)
 	var rb := _resample(b, nu)
 	var rows := []
+	var la := 0.0
+	var span := 0.0
 	for i in nu + 1:
 		var row := []
 		for j in nv + 1:
@@ -544,30 +697,30 @@ func _panel(st: SurfaceTool, a: Array, b: Array, nu: int, nv: int, sag: float) -
 			var p: Vector3 = (ra[i] as Vector3).lerp(rb[i], v)
 			row.append(p)
 		rows.append(row)
+		span += (ra[i] as Vector3).distance_to(rb[i]) / (nu + 1)
+		if i > 0:
+			la += ((ra[i] as Vector3).distance_to(ra[i - 1]) + (rb[i] as Vector3).distance_to(rb[i - 1])) * 0.5
 	if sag > 0.0: # (its free edge scalloped: drawn in toward the bones' joint)
 		var last: Array = rows[nu]
 		var inward: Vector3 = ((ra[0] as Vector3) + (rb[0] as Vector3)) * 0.5
 		for j in range(1, nv):
 			var v := float(j) / nv
-			var p: Vector3 = last[j]
 			var k := 4.0 * v * (1.0 - v)
 			for i2 in range(nu, maxi(nu - 3, 0), -1):
 				var fall := float(3 - (nu - i2)) / 3.0
 				var q: Vector3 = rows[i2][j]
 				rows[i2][j] = q.lerp(inward, sag * k * fall * fall)
+		var _l := last
+	# (its skin's grain: cm along it, across it; as it lay spread)
+	var us := maxf(la, 20.0) * 0.1
+	var vs := maxf(span, 12.0) * 0.1 * lerpf(1.0, 2.2, fold)
+	var seed_ := float(nu * 7 + nv * 3) + sag * 40.0
+	st.set_color(Color(fold, 0.0, 0.0))
 	for i in nu:
 		for j in nv:
-			var p0: Vector3 = rows[i][j]
-			var p1: Vector3 = rows[i + 1][j]
-			var p2: Vector3 = rows[i + 1][j + 1]
-			var p3: Vector3 = rows[i][j + 1]
-			var u0 := float(i) / nu * 3.0
-			var u1 := float(i + 1) / nu * 3.0
-			var v0 := float(j) / nv * 2.0
-			var v1 := float(j + 1) / nv * 2.0
-			for e: Array in [[p0, u0, v0], [p1, u1, v0], [p2, u1, v1], [p0, u0, v0], [p2, u1, v1], [p3, u0, v1]]:
-				st.set_uv(Vector2(e[1], e[2]))
-				st.add_vertex(e[0])
+			for e: Array in [[i, j], [i + 1, j], [i + 1, j + 1], [i, j], [i + 1, j + 1], [i, j + 1]]:
+				st.set_uv(Vector2(float(e[0]) / nu * us + seed_, float(e[1]) / nv * vs))
+				st.add_vertex(rows[e[0]][e[1]])
 
 
 static func _resample(pts: Array, n: int) -> Array:
@@ -587,22 +740,32 @@ static func _resample(pts: Array, n: int) -> Array:
 	return out
 
 
-static func _tube(st: SurfaceTool, a: Vector3, b: Vector3, r: float) -> void:
+## A bone under its skin, a to b (r0, r1 its radius at each), swollen at its joints.
+static func _tube(st: SurfaceTool, a: Vector3, b: Vector3, r0: float, r1 := -1.0) -> void:
 	var d := b - a
 	if d.length() < 1e-4:
 		return
+	if r1 < 0.0:
+		r1 = r0 * 0.8
 	var y := d.normalized()
 	var x := y.cross(Vector3.UP if absf(y.y) < 0.9 else Vector3.RIGHT).normalized()
 	var z := x.cross(y)
-	var n := 5
-	for k in n:
-		var a0 := TAU * k / n
-		var a1 := TAU * (k + 1) / n
-		var o0 := (x * cos(a0) + z * sin(a0)) * r
-		var o1 := (x * cos(a1) + z * sin(a1)) * r
-		for p: Vector3 in [a + o0, b + o0 * 0.8, b + o1 * 0.8, a + o0, b + o1 * 0.8, a + o1]:
-			st.set_uv(Vector2.ZERO)
-			st.add_vertex(p)
+	var n := 8
+	var prof := [[-0.02, 0.6, 1.0], [0.0, 1.3, 1.0], [0.05, 1.32, 1.0], [0.12, 1.0, 0.0], [0.88, 1.0, 0.0], [0.95, 1.32, 1.0], [1.0, 1.3, 1.0], [1.02, 0.6, 1.0]]
+	for i in prof.size() - 1:
+		var t0: float = prof[i][0]
+		var t1: float = prof[i + 1][0]
+		var ra := lerpf(r0, r1, clampf(t0, 0.0, 1.0)) * float(prof[i][1])
+		var rb := lerpf(r0, r1, clampf(t1, 0.0, 1.0)) * float(prof[i + 1][1])
+		for k in n:
+			var a0 := TAU * k / n
+			var a1 := TAU * (k + 1) / n
+			var o0 := x * cos(a0) + z * sin(a0)
+			var o1 := x * cos(a1) + z * sin(a1)
+			for e: Array in [[t0, ra, o0, i], [t1, rb, o0, i + 1], [t1, rb, o1, i + 1], [t0, ra, o0, i], [t1, rb, o1, i + 1], [t0, ra, o1, i]]:
+				st.set_uv(Vector2(float(e[0]) * d.length() * 0.1, float(prof[e[3]][2])))
+				st.set_normal(e[2])
+				st.add_vertex(a + d * float(e[0]) + (e[2] as Vector3) * float(e[1]))
 
 
 # --- where it is ---------------------------------------------------------------------------
@@ -1387,7 +1550,7 @@ func _mount(dt: float) -> void:
 	var hb: Basis = her.get("_ori")
 	var hp: Vector3 = her.get("_pos")
 	_ori = _ori.slerp(hb, 1.0 - exp(-8.0 * dt))
-	_pos = _pos.lerp(hp + hb * (Vector3(0.0, 14.0, 8.0) * 0.001 * size), 1.0 - exp(-8.0 * dt)) # (over her back)
+	_pos = _pos.lerp(hp + hb * (Vector3(0.0, 13.0, 6.0) * 0.001 * size), 1.0 - exp(-8.0 * dt)) # (over her back)
 	_legs_to("hang", dt)
 	for i in 2:
 		spread[i] = _ease(spread[i], 0.3, 4.0, dt)
@@ -1473,7 +1636,7 @@ func _ride(mom: Node3D) -> void:
 	var mp: Vector3 = mom.get("_pos")
 	var k := pups_index_of(mom)
 	_ori = mb * Basis(Vector3.UP, PI) # (facing her, belly to belly)
-	_pos = mp + mb * (Vector3(6.0 * (1.0 if k == 0 else -1.0), -11.0, -6.0) * 0.001)
+	_pos = mp + mb * (Vector3(5.0 * (1.0 if k == 0 else -1.0), -10.0, -7.0) * 0.001)
 	transform = Transform3D(_ori.orthonormalized(), _pos)
 
 

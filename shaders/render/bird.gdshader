@@ -61,7 +61,7 @@ uniform vec2 patch_r = vec2(0.012, 0.009); // (its half length along the body, i
 uniform float cov_lead_to = 0.3; // (how far across the coverts the leading edge's colour reaches)
 uniform vec4 cov_lead_edge = vec4(0.0); // a band just below the leading edge's colour (cov_lead): a red-winged blackbird's yellow border to its red epaulet
 uniform vec4 supercilium = vec4(0.0); // a pale stripe over the eye, bill to nape (rgb; w: how much: a female blackbird's)
-uniform vec3 nape_iris : source_color = vec3(0.4, 0.2, 0.5); // the hackles' sheen seen glancing (iridescent: a pigeon's neck)
+uniform vec4 nape_iris : source_color = vec4(0.4, 0.2, 0.5, 0.0); // the hackles' sheen seen glancing (iridescent: a pigeon's neck)
 uniform vec4 tail_outer = vec4(0.0); // the outer tail feathers their own colour (w: how much: a passenger pigeon's white sides)
 uniform float tail_count = 12.0;
 uniform float eye_rm = 0.005; // the eye's radius (m)
@@ -213,20 +213,46 @@ vec3 bump(vec3 nrm, vec3 pos, float h, float k) {
 
 // The body's feathers, overlapping like shingles (p: across, along, in
 // feathers; they point along +y): x how far from its tip (0 the edge .. 1
-// its root, hidden), y its own random, z how far across it (-1 .. 1).
+// its root, hidden), y its own random, z how far across it (-1 .. 1). No
+// two alike: the rows wander, each feather its own width, its own length,
+// set a little off its place; its tip's edge loose, frayed (its barbs' ends).
 vec3 shingle(vec2 p) {
+	p += (vec2(vnoise(p * 0.45 + 3.7), vnoise(p * 0.45 + 31.1)) - 0.5) * 0.55; // (the tracts wandering)
 	float row = floor(p.y);
 	for (int k = 1; k >= 0; k--) {
 		float r = row - float(k);
-		float x = p.x + 0.5 * mod(r, 2.0) + 0.17 * hash(vec2(r, 3.3));
+		float x = p.x + 0.5 * mod(r, 2.0) + 0.3 * hash(vec2(r, 3.3));
 		float col = floor(x);
-		float fx = fract(x) * 2.0 - 1.0;
+		float id = hash(vec2(col, r));
+		float fx = (fract(x) * 2.0 - 1.0 + (id - 0.5) * 0.3) / (0.92 + 0.3 * hash(vec2(col + 5.1, r)));
 		float fy = p.y - r; // (0 its root .. past 1: its tip, over the next row)
-		float reach = 1.0 + 0.85 * sqrt(max(1.0 - fx * fx, 0.0));
+		float len = 0.62 + 0.38 * hash(vec2(col, r + 9.7));
+		float fray = (vnoise(vec2(fx * 6.0 + id * 40.0, id * 17.0)) - 0.5) * 0.12 + (vnoise(vec2(fx * 19.0 + id * 9.0, id * 5.0)) - 0.5) * 0.03;
+		float reach = 1.0 + (0.85 * sqrt(max(1.0 - fx * fx, 0.0)) + fray) * len;
 		if (fy < reach || k == 0)
-			return vec3(clamp((reach - fy) / 0.85, 0.0, 1.0), hash(vec2(col, r)), fx);
+			return vec3(clamp((reach - fy) / 0.85, 0.0, 1.0), id, clamp(fx, -1.0, 1.0));
 	}
 	return vec3(1.0, 0.0, 0.0);
+}
+
+// A feather's vane seen close: its barbs, fine, slanting out from its shaft
+// to its edge (0 .. 1: a soft streaking, no lines).
+float barbs_of(vec3 f) {
+	vec2 q = vec2((abs(f.z) + f.x * 0.9) * 26.0 + f.y * 50.0, f.x * 2.0 + f.z * 1.5 + f.y * 9.0);
+	return vnoise(q) * 0.65 + vnoise(q * vec2(2.3, 1.0) + 5.0) * 0.35;
+}
+
+// The feathers' soft shading (c dimmed, nrm turned): each a little shadowed
+// toward its root, where the one over it lies; its vane faintly streaked by
+// its barbs; its surface a low pillow. Nothing drawn at its edge: the next
+// feather's tone is its outline. k: how strong (a feather's size, m).
+void feather_shade(vec3 f, float fade, float k, vec3 vtx, inout vec3 c, inout vec3 nrm) {
+	c *= 1.0 - 0.14 * smoothstep(0.45, 1.0, f.x) * fade;
+	c *= 1.0 + (barbs_of(f) - 0.5) * 0.14 * fade * fade;
+	c *= 1.0 - 0.05 * (1.0 - smoothstep(0.0, 0.12, abs(f.z))) * smoothstep(0.1, 0.4, f.x) * fade; // (its shaft, barely)
+	float h = smoothstep(0.0, 0.7, f.x) * 0.6 + (1.0 - f.z * f.z) * 0.25;
+	float inside = 1.0 - smoothstep(0.03, 0.12, fwidth(f.x) + fwidth(f.z) * 0.5 + fwidth(f.y) * 2.0); // (not across an edge: no ridge there)
+	nrm = bump(nrm, vtx, h * k * fade * inside * 0.22, 1.0);
 }
 
 // A metal sheen that turns with the light: bronze, copper, green.
@@ -260,7 +286,7 @@ void raptor(int pt, float u, float v, vec3 view, float ndv, vec3 vtx, vec3 nrm0,
 		}
 		vec3 f = shingle(p);
 		float fade = clamp(1.0 - length(fwidth(p)) * 0.8, 0.0, 1.0);
-		float edge = (1.0 - smoothstep(0.04, 0.16, f.x)) * fade;
+		float edge = (1.0 - smoothstep(0.0, 0.34, f.x + 0.1 * (vnoise(p * 4.0 + f.y * 9.0) - 0.5))) * fade * (0.35 + 0.4 * f.y); // (its fringe: soft, broad, more on some than others)
 		// the back (over its back, the wing's coverts from above): dark, each
 		// feather edged pale, barred darker
 		float bf = back_from_hi < 0.0 ? back_from : mix(back_from, back_from_hi, smoothstep(0.3, 0.5, u) * (1.0 - smoothstep(0.78, 0.84, u)));
@@ -268,7 +294,7 @@ void raptor(int pt, float u, float v, vec3 view, float ndv, vec3 vtx, vec3 nrm0,
 		vec3 bk = back_color * (0.88 + 0.24 * f.y);
 		float bbar = smoothstep(0.38, 0.44, f.x) * (1.0 - smoothstep(0.52, 0.6, f.x)) * back_bars * fade;
 		bk = mix(bk, back_bar, bbar);
-		bk = mix(bk, back_edge, edge * 0.8);
+		bk = mix(bk, back_edge, edge);
 		if (pt == 10 && (cov_bar > 0.0 || cov_lead.w > 0.0)) {
 			// the upperwing's coverts: over the arm, short of the wrist, a
 			// bar of feathers dark centred, fringed broad and pale, a few
@@ -380,7 +406,7 @@ void raptor(int pt, float u, float v, vec3 view, float ndv, vec3 vtx, vec3 nrm0,
 		if (pt == 0 && nape_u >= 0.0) { // (the hackles: down the back of its head and neck)
 			float nap = smoothstep(nape_u, nape_u + 0.1, u) * (1.0 - smoothstep(0.12, 0.24, abs(v - 0.5) + 0.04 * (vnoise(vec2(u * 40.0, v * 9.0)) - 0.5)));
 			nap *= mix(1.0, smoothstep(eye_at.z + 0.006, eye_at.z + 0.02, rest.z), smoothstep(0.74, 0.8, u)); // (on its head, behind its eye: its face dark)
-			vec3 nc = mix(nape_color, nape_iris, smoothstep(0.75, 0.25, ndv)); // (its sheen: the other colour seen glancing)
+			vec3 nc = mix(nape_color, nape_iris.rgb, nape_iris.a * smoothstep(0.75, 0.25, ndv)); // (its sheen: the other colour seen glancing)
 			c = mix(c, nc * (0.85 + 0.3 * f.y) * mix(0.7, 1.0, smoothstep(0.0, 0.3, f.x)), nap * smoothstep(0.0, 0.05, f.x + 0.04));
 		}
 		if (pt == 0 && hood_u >= 0.0) { // (all its head and neck)
@@ -418,7 +444,7 @@ void raptor(int pt, float u, float v, vec3 view, float ndv, vec3 vtx, vec3 nrm0,
 		}
 		rough = 0.72;
 		spec = 0.35;
-		nrm = bump(nrm, vtx, smoothstep(0.0, 0.4, f.x) * feather_cm * 0.0008 * fade, 1.0);
+		feather_shade(f, fade, feather_cm * 0.0008, vtx, c, nrm);
 		if (down > 0.0) { // an eyas's down: white, woolly
 			float fl = vnoise(rest.xz * 1400.0) * 0.5 + vnoise(rest.xy * 2600.0) * 0.5;
 			c = mix(c, down_white * (0.86 + 0.16 * fl), down);
@@ -461,11 +487,15 @@ void raptor(int pt, float u, float v, vec3 view, float ndv, vec3 vtx, vec3 nrm0,
 				c = mix(c, fl_dark * 0.7, fl_prim_dark * smoothstep(0.45, 0.75, u));
 			c = mix(c, fl_patch_color * (0.92 + 0.1 * seed), (1.0 - smoothstep(fl_patch - 0.12, fl_patch, u + 0.05 * sin(v * 3.0 + seed * 7.0))) * step(0.01, fl_patch));
 		}
-		c *= 0.92 + 0.08 * sin(u * 160.0 - abs(v) * 30.0);
-		c = mix(c, c * 0.6 + vec3(0.3) * 0.4, shaft * 0.5);
+		float ff = clamp(1.0 - length(fwidth(vec2(u * 8.0, v * 3.0))) * 0.8, 0.0, 1.0);
+		c *= 1.0 + 0.16 * (vnoise(vec2((u * 3.0 - abs(v)) * 60.0 + seed * 30.0, v * 3.0 + seed * 7.0)) - 0.5) * ff; // (its barbs: a soft grain)
+		c *= 1.0 + 0.1 * (seed - 0.5); // (no two the same tone)
+		c *= mix(0.8, 1.0, smoothstep(-1.0, 0.1, v + 0.25 * (vnoise(vec2(u * 9.0, seed * 20.0)) - 0.5))); // (one vane in its neighbour's shade)
+		c = mix(c, c * 1.22 + vec3(0.025), (1.0 - smoothstep(0.0, 0.14, 1.0 - abs(v))) * 0.5 * ff); // (its edge: a fine pale fringe)
+		c = mix(c, c * 0.7 + vec3(0.3) * 0.3, shaft * 0.35 * ff);
 		c = mix(c, down_white, down);
-		rough = 0.6;
-		spec = 0.3;
+		rough = 0.82;
+		spec = 0.16;
 		return;
 	}
 	if (pt == 1) { // the cere, the ring round the eye: bare, yellow
@@ -552,7 +582,7 @@ void fragment() {
 			p = vec2(suv.x, suv.y) / (feather_cm * 0.01 * size) * vec2(1.0, 1.25);
 		}
 		vec3 f = shingle(p);
-		float edge = 1.0 - smoothstep(0.03, 0.1, f.x);
+		float edge = 1.0 - smoothstep(0.0, 0.14, f.x + 0.04 * (vnoise(p * 5.0 + f.y * 9.0) - 0.5));
 		float band = smoothstep(0.05, 0.14, f.x) * (1.0 - 0.75 * smoothstep(0.55, 0.95, f.x));
 		float patch = vnoise(suv * 9.0 + rest.x * 5.0);
 		float hue = 0.05 + ndv * 0.7 + f.y * 0.25 + (part == 10 ? 0.15 + v * 0.3 : 0.0) + patch * 0.5;
@@ -564,7 +594,7 @@ void fragment() {
 		rough = mix(0.62, 0.34, band);
 		spec = 0.55;
 		float fade = clamp(1.0 - length(fwidth(p)) * 0.9, 0.0, 1.0);
-		nrm = bump(nrm, VERTEX, (smoothstep(0.0, 0.5, f.x) * 0.5 + (1.0 - abs(f.z)) * 0.15) * feather_cm * 0.0012 * size * fade * (1.0 + puff), 1.0);
+		feather_shade(f, fade, feather_cm * 0.0012 * size * (1.0 + puff), VERTEX, c, nrm);
 		if (part == 10) {
 			// (the greater coverts, the row over the flight feathers: a coppery bar)
 			float bar = smoothstep(0.62, 0.72, v);
@@ -652,7 +682,7 @@ void fragment() {
 		// a flight feather or a tail feather: its shaft, its barbs, its bars
 		float seed = hash(vec2(fc.z * 17.0, float(part)));
 		float shaft = 1.0 - smoothstep(0.02, 0.07, abs(v));
-		float barbs = 0.9 + 0.1 * sin((u * 160.0 - abs(v) * 30.0));
+		float barbs = 0.95 + 0.1 * (vnoise(vec2((u * 3.0 - abs(v)) * 60.0 + seed * 30.0, v * 3.0 + seed * 7.0)) - 0.5);
 		if (part == 11 || part == 12) {
 			// black, barred white (a primary's bars clean; a secondary's
 			// browner, its outer edge bronzed)

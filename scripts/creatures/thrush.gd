@@ -103,11 +103,11 @@ func thrush_shape(k: float, head: float, bill: float, legs: float, tail_len: flo
 	var root: Vector2 = hp.call(36.0, -6.9, 4.9)
 	if snout > 0.0: # (its forehead sloping down and forward from its crown into the bill; its chin rising to it)
 		var run := 1.5 + snout
-		for e: Array in [[0.2, 2.3, 2.15, 4.75], [0.4, 1.95, 1.75, 4.82], [0.6, 1.6, 1.4, 4.88], [0.8, 1.3, 1.1, 4.93], [0.95, 1.12, 0.95, 4.97]]:
+		for e: Array in [[0.2, 2.42, 2.5, 4.75], [0.42, 2.2, 2.25, 4.82], [0.62, 1.8, 1.8, 4.88], [0.8, 1.3, 1.3, 4.93], [0.93, 0.85, 0.9, 4.97], [1.0, 0.62, 0.7, 4.985]]:
 			var f := float(e[0])
-			var q: Vector2 = hp.call(36.5 - 0.75 * f, -4.7 - f * run, 4.9)
+			var q: Vector2 = hp.call(36.5 - 0.3 * f, -4.7 - f * run, 4.9) # (down a little to the bill)
 			spine.append([q.x, q.y, float(e[1]) * k * head, float(e[2]) * k * head * crown, e[3]])
-		root = hp.call(36.5 - 0.78, -4.7 - run - 0.08, 4.9)
+		root = hp.call(36.5 - 0.34, -4.7 - run - 0.05, 4.9)
 	# (its bill: thin, straight, a little down at its tip; from the face, cm at its size)
 	var L := 1.9 * bill
 	for b: Array in [[0.0, 0.0, 0.42, 0.4, 5.0], [0.12, -0.03, 0.34, 0.33, 5.05], [0.5, -0.1, 0.2, 0.19, 5.5], [0.85, -0.2, 0.09, 0.08, 5.85], [1.0, -0.26, 0.03, 0.03, 6.0]]:
