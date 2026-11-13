@@ -772,7 +772,7 @@ func _p_behaviours() -> PackedStringArray:
 	if young:
 		b.append_array(PackedStringArray(["play", "hide"]))
 		return b
-	b.append("mate")
+	b.append_array(PackedStringArray(["mate", "eat"]))
 	if male:
 		b.append_array(PackedStringArray(["mark", "snort", "spar"]))
 	else:
@@ -782,6 +782,16 @@ func _p_behaviours() -> PackedStringArray:
 
 func _p_act(name: String, args: Dictionary) -> bool:
 	match name:
+		"eat": # (a mouse pup, found in the grass by it: snapped up, now and then, as deer do; Diet's)
+			var f: Variant = args.get("food")
+			if not (f is Node3D):
+				f = Diet.find_one(self, 3.0, ["mouse_pup"])
+			if f == null:
+				return false
+			if (f as Node).has_method("die") and (f as Node).get("dead") != true:
+				MealScript.subdue(f)
+			eat(f)
+			return true
 		"graze":
 			graze(args.get("centre", _pos), float(args.get("radius", 2.0)))
 		"browse":

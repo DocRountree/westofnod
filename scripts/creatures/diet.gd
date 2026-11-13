@@ -95,6 +95,11 @@ const ALIASES := {"snails": ["snails", "grass_snail", "tigersnail"]}
 ## taken out of its colony, a body of its own to be eaten).
 const ONE_AT_A_TIME := ["snails", "grass_snail", "tigersnail", "firefly"]
 
+## Colonies some eat a member of without touching the colony (a toad's
+## ant: its tongue flicked at one at the nest's edge): copy_of, a single
+## copy of one of them, eaten; the colony as it was. By the eater's script.
+const COPIES_FOR := {"american_toad.gd": ["ants"]}
+
 ## What isn't hunted (no animal to run down: carrion, plants, the game's
 ## items, a colony eaten whole where it is, what's always under it).
 const NOT_PREY := ["carcass", "dead_mouse", "dead_fish", "berries", "forbs", "flowers", "sapling", "stick", "ants", "wasp_comb",
@@ -120,7 +125,19 @@ static func of(c: Node) -> Array:
 
 ## What c hunts (its diet's animals, run down, caught).
 static func prey_of(c: Node) -> Array:
-	return of(c).filter(func(k: String) -> bool: return k not in NOT_PREY)
+	var copies := copies_for(c)
+	return of(c).filter(func(k: String) -> bool: return k not in NOT_PREY or k in copies)
+
+
+## The colonies c eats one of as a copy (COPIES_FOR, by its script or a parent's).
+static func copies_for(c: Node) -> Array:
+	var sc: Script = c.get_script() if c else null
+	while sc:
+		var f := sc.resource_path.get_file()
+		if COPIES_FOR.has(f):
+			return COPIES_FOR[f]
+		sc = sc.get_base_script()
+	return []
 
 
 ## Its diet for an act: hunting (hunt, strike, catch) its prey; else all
@@ -280,9 +297,41 @@ static func find(c: Node3D, r := 30.0, kinds: Array = []) -> Node:
 ## swarm) taken out of it: a body of its own where it was, to be eaten.
 static func find_one(c: Node3D, r := 30.0, kinds: Array = []) -> Node:
 	var f := find(c, r, kinds)
+	if f != null and f != c and kind_of(f) in copies_for(c): # (one of them copied, to be eaten: the colony untouched)
+		return copy_of(f as Node3D, _at(c))
 	if f != null and f != c and kind_of(f) in ONE_AT_A_TIME:
 		return one_of(f as Node3D, _at(c))
 	return f
+
+
+## A single copy of colony's member nearest p (its mesh, its look, where it
+## is), a body of its own to be eaten; the colony itself as it was, none of
+## it taken. Null if it has none.
+static func copy_of(colony: Node3D, p: Vector3) -> Node3D:
+	var mm: MultiMesh = (colony as MultiMeshInstance3D).multimesh if colony is MultiMeshInstance3D else null
+	var ps: Variant = colony.get("pos")
+	if mm == null or not (ps is PackedVector3Array) or (ps as PackedVector3Array).is_empty():
+		return null
+	var pos: PackedVector3Array = ps
+	var lp := colony.to_local(colony.get_parent().to_global(p)) if colony.is_inside_tree() else p
+	var best := -1
+	var bd := INF
+	for i in mini(pos.size(), mm.instance_count):
+		var d := pos[i].distance_to(lp)
+		if d < bd:
+			bd = d
+			best = i
+	if best < 0:
+		return null
+	var body := MeshInstance3D.new()
+	body.name = "%s_copy" % kind_of(colony)
+	body.mesh = mm.mesh
+	body.material_override = (colony as MultiMeshInstance3D).material_override
+	colony.get_parent().add_child(body)
+	body.global_transform = colony.global_transform * mm.get_instance_transform(best)
+	body.set_meta("from_colony", kind_of(colony))
+	body.set_meta("copy", true)
+	return body
 
 
 ## The member of colony nearest p taken out of it: dead to it (Snails.die;

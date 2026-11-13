@@ -3435,7 +3435,7 @@ func _feed(c: Node, act_: String, young: bool, p: Vector3, st: Vector3, near: Ve
 				edge.y = POND
 				c.call("fish", fs, edge, into)
 				return
-	if not young and c.has_method("eat_at") and c.has_method("hunt") and Diet.of(c).size() > 0:
+	if not young and c.has_method("eat_at") and c.has_method("hunt") and Diet.of(c).size() > 0 and not Diet.of(c).any(func(k: String) -> bool: return k in Diet.EVERYWHERE):
 		# (the hunters' make: E the nearest of all it eats, H its prey; Diet's)
 		var kinds: Array = Diet.prey_of(c) if act_ == "hunt" else Diet.of(c).filter(func(k: String) -> bool: return k not in ["fish", "morel", "fly_agaric", "chicken_of_the_woods", "little_brown"])
 		var f := Diet.find_one(c as Node3D, 30.0, kinds)
@@ -3552,7 +3552,11 @@ func _feed(c: Node, act_: String, young: bool, p: Vector3, st: Vector3, near: Ve
 		c.call("feed_on_insect", cat, Vector3(at.x, maxf(at.y, 0.0), at.z), Vector3.UP)
 	elif sc == BisonScript or sc == DeerScript or sc == MooseScript:
 		if act_ == "eat":
-			if not young:
+			var pup: Node3D = Diet.find_one(c as Node3D, 3.0, Diet.prey_of(c)) as Node3D if not young else null # (a deer: a mouse pup in the grass by it, snapped up; else grazing)
+			if pup and pup != c:
+				pup.set_meta("hunted", c)
+				c.call("eat", _caught(pup))
+			elif not young:
 				c.call("graze", p, 3.0 if sc == BisonScript else 2.0)
 		elif _flag(c, "male") and not young: # (H: a bull, a buck, sparring with another)
 			for o in _creatures():
