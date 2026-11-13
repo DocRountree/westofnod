@@ -653,6 +653,73 @@ func _part_coat(_name: String, m: ShaderMaterial) -> ShaderMaterial:
 	return m
 
 
+static var _claw_meshes := {}
+
+
+## A claw's mesh (the body's mm): `len_` long along +z, hooked: curving
+## down (-y) along its length till its tip has turned `curl` rad from where
+## it set out; deep at its root (r, its half depth), narrower across
+## (pressed from the sides), tapering to a point: a keratin hook (a bear's,
+## a porcupine's), not a straight peg.
+static func claw_mesh(len_: float, r: float, curl: float) -> ArrayMesh:
+	var key := "%.2f:%.2f:%.3f" % [len_, r, curl]
+	var m: ArrayMesh = _claw_meshes.get(key)
+	if m != null:
+		return m
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	const SEG := 8
+	const SIDES := 6
+	var p := Vector3.ZERO
+	var rows := []
+	var ds := len_ / SEG
+	for i in SEG + 1:
+		var t := float(i) / SEG
+		var a := curl * t
+		var d := Vector3(0.0, -sin(a), cos(a))
+		var nrm := Vector3(0.0, cos(a), sin(a)) # (its back: the outside of the curve)
+		var rr := r * (1.0 - t * 0.92)
+		var row := []
+		for k in SIDES:
+			var b := TAU * k / SIDES
+			var o := nrm * cos(b) * rr + Vector3.RIGHT * sin(b) * rr * 0.55
+			row.append([p + o, (nrm * cos(b) + Vector3.RIGHT * sin(b) * 1.8).normalized()])
+		rows.append(row)
+		p += d * ds
+	for i in SEG:
+		for k in SIDES:
+			var k1 := (k + 1) % SIDES
+			for v: Array in [rows[i][k], rows[i][k1], rows[i + 1][k], rows[i][k1], rows[i + 1][k1], rows[i + 1][k]]:
+				st.set_normal(v[1])
+				st.add_vertex(v[0])
+	for k in SIDES: # (its point)
+		var k1 := (k + 1) % SIDES
+		for v: Array in [rows[SEG][k], rows[SEG][k1], [p, Vector3(0.0, -sin(curl), cos(curl))]]:
+			st.set_normal(v[1])
+			st.add_vertex(v[0])
+	m = st.commit()
+	_claw_meshes[key] = m
+	return m
+
+
+var _claws: Array = [[], [], [], []] # (each leg's: [mesh instance, across (of its foot's half width)])
+
+
+## Leg i's claws: one at each toe's tip, across its foot (xs: each one's
+## place across, -1..1 of its foot's half width), each len_ long (mm), r its
+## root's half depth, hooked curl rad; posed at its toes each frame
+## (_pose_legs), in the body's own space: their shape their own, not
+## stretched with the foot's.
+func _add_claws(i: int, xs: Array, len_: float, r: float, curl: float, mat: Material, lens: Array = []) -> void:
+	for k in xs.size():
+		var l := len_ * (float(lens[k]) if k < lens.size() else 1.0)
+		var mi := MeshInstance3D.new()
+		mi.mesh = claw_mesh(l, r, curl)
+		mi.material_override = mat
+		_body.add_child(mi)
+		(_claws[i] as Array).append([mi, float(xs[k]), l])
+
+
 ## (The species' own parts, if any.)
 func _build_extra() -> void:
 	pass
@@ -1650,6 +1717,11 @@ func _pose_legs() -> void:
 		var xx := z.cross(up).normalized() if absf(z.dot(up)) < 0.95 else Vector3.RIGHT
 		var yy := xx.cross(z).normalized()
 		(x[1] as MeshInstance3D).transform = Transform3D(Basis(xx * r * 2.2, yy * r * 1.3, z * l * 1.5), (ball + foot) * 0.5)
+		for c: Array in _claws[i]: # (its claws: out of its toes' tips, hooked down to the ground before them)
+			var cl := c[2] as float
+			var across := float(c[1])
+			var at := foot + xx * (across * r * 0.95) + yy * (r * 0.42) + z * (r * 0.22 - absf(across) * r * 0.3) - z * cl * 0.12
+			(c[0] as MeshInstance3D).transform = Transform3D(Basis(xx, yy, z) * Basis(Vector3.UP, -across * 0.18) * Basis(Vector3.RIGHT, 0.12), at)
 		_joints[i] = [hip, knee, top, ball, foot]
 	_skin_pose()
 

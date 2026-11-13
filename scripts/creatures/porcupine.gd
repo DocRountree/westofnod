@@ -117,15 +117,13 @@ func _male_size() -> float:
 # --- its own parts --------------------------------------------------------------------
 
 func _build_extra() -> void:
-	# its claws: four long curved ones on each forefoot, five on each hind
+	# its claws: four long, hooked ones on each forefoot, five on each hind (for gripping bark)
 	var claw := _coat(7)
 	for i in 4:
-		var paw := _legx[i][1] as MeshInstance3D
-		var n := 4 if i < 2 else 5
-		for k in n:
-			var x := (float(k) - (n - 1) * 0.5) * 0.2
-			var l := (0.42 if i < 2 else 0.3)
-			_stick(Vector3(x, -0.12, 0.4), Vector3(x * 1.1, -0.42, 0.4 + l), 0.04, claw, paw)
+		if i < 2:
+			_add_claws(i, [-0.75, -0.25, 0.25, 0.75], 29.0, 3.6, 1.45, claw, [0.85, 1.0, 1.0, 0.85])
+		else:
+			_add_claws(i, [-0.8, -0.4, 0.0, 0.4, 0.8], 25.0, 3.3, 1.35, claw, [0.8, 0.95, 1.0, 0.95, 0.8])
 	# its incisors: chisels, their faces orange, the lower pair longer; just
 	# showing under its lip
 	var orange := _mat(Color(0.82, 0.42, 0.1), 0.35)

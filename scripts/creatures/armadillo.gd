@@ -129,15 +129,13 @@ func _body_key(z: float) -> Vector3:
 
 
 func _build_extra() -> void:
-	# its claws: four before (the middle two long, for digging), five behind
+	# its claws: four before (the middle two long and stout, for digging), five behind
 	var claw := _coat(7)
 	for i in 4:
-		var paw := _legx[i][1] as MeshInstance3D
-		var n := 4 if i < 2 else 5
-		for k in n:
-			var x := (float(k) - (n - 1) * 0.5) * 0.2
-			var l := (0.62 if (k == 1 or k == 2) else 0.36) if i < 2 else 0.3
-			_stick(Vector3(x, -0.12, 0.4), Vector3(x * 1.15, -0.4, 0.42 + l), 0.045, claw, paw)
+		if i < 2:
+			_add_claws(i, [-0.75, -0.25, 0.25, 0.75], 26.0, 3.6, 0.6, claw, [0.55, 1.0, 0.95, 0.5])
+		else:
+			_add_claws(i, [-0.8, -0.4, 0.0, 0.4, 0.8], 15.0, 2.6, 0.55, claw, [0.7, 0.9, 1.0, 0.9, 0.7])
 	# its tongue: long, thin, sticky, pink; out only when it licks
 	var tp := Node3D.new() # (its root, at its mouth's tip: drawn out from there)
 	tp.position = Vector3(0.0, 3.0, -78.0)

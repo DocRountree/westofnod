@@ -66,12 +66,9 @@ func _build_extra() -> void:
 	# brown bear's long, nearly straight, pale)
 	var claw := _coat(7)
 	var cl: float = S.get("claw", 30.0)
+	var brown := cl >= 45.0 # (a brown bear's: long, gently curved, for digging; a black bear's short and sharply hooked, for climbing)
 	for i in 4:
-		var paw := _legx[i][1] as MeshInstance3D
-		for k in 5:
-			var x := (float(k) - 2.0) * 0.18
-			var len_ := cl * (1.4 if i < 2 else 0.9) / 100.0
-			_stick(Vector3(x, -0.1, 0.42), Vector3(x * 1.1, -0.35, 0.42 + len_), 0.035, claw, paw)
+		_add_claws(i, [-0.8, -0.4, 0.0, 0.4, 0.8], cl * (1.25 if i < 2 else 0.7), cl * (0.13 if brown else 0.2), 0.7 if brown else 1.35, claw, [0.8, 0.95, 1.0, 0.95, 0.8])
 	for h: Array in S.get("hump", []): # (a brown bear's shoulder hump)
 		_fur_shells(_part(h[0], h[1], _coat(0), _body), float(S.get("fur", 55.0)), 10)
 
