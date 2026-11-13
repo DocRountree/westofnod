@@ -129,6 +129,10 @@ const NOT_PREY := ["carcass", "dead_mouse", "dead_fish", "berries", "forbs", "fl
 		"fish", "mollies", "clam", "urchin", "acorn", "walnut", "pawpaw", "crabapple", "morel", "fly_agaric", "chicken_of_the_woods",
 		"little_brown", "graze", "leaf", "litter", "algae", "blood"]
 
+## (A plant's: eaten from where it grows, nothing taken off it (a bush's
+## berries left hanging, a flower's nectar); never one creature's alone.)
+const SHARED := ["berries", "flowers", "forbs", "sapling"]
+
 ## (Those that eat from what's always under them: no finding.)
 const EVERYWHERE := ["graze", "leaf", "litter", "algae", "blood"]
 const FORBS := ["yampah", "fleabane", "susan"]
@@ -340,7 +344,7 @@ static func find(c: Node3D, r := 30.0, kinds: Array = [], any_ := false) -> Node
 		var k := kind_of(o)
 		if k == "" or not want.has(k):
 			continue
-		if o.has_meta("hunted") and is_instance_valid(o.get_meta("hunted")) and o.get_meta("hunted") != c:
+		if o.has_meta("hunted") and is_instance_valid(o.get_meta("hunted")) and o.get_meta("hunted") != c and k not in SHARED:
 			continue
 		if o.has_meta("taken") and not o.has_meta("keep"):
 			continue

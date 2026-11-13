@@ -783,6 +783,9 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   snail or a tigersnail; a colony's member, a snail, a firefly or a June bug, eaten one at a time: `Diet.find_one`
   takes the nearest out of its colony (`Beetles.die(i)`: a beetle gone from it for good), a body of its own; a toad's,
   a robin's or a bluebird's ant a single copy of one at the nest, `Diet.copy_of`, the colony itself untouched),
+  A plant eaten from where it grows (a bush's berries, a flower, a forb, a sapling: `Diet.SHARED`) is never taken off
+  it nor claimed by one creature: a bear's lips to each berry, the fox's, the coyote's, the opossum's snout to the bush,
+  the turkey's pecks, the berries left hanging, any number at the one bush at once.
   and `Diet.find(creature, reach)`: the best real food of its diet there, never anything made for it (those that
   eat what's always under them, grass, leaves, litter, algae, blood: the creature itself). A creature told to eat
   with no target (the pilot's act eat, hunt, strike, catch, fish, browse, feed, forage, visit_flowers) is given what
