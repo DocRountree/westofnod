@@ -550,6 +550,16 @@ func birth(n := 1, den_: Node3D = null) -> void:
 	super(1 if n > 0 else 0, den_)
 
 
+func _birth(dt: float) -> void:
+	if _stage == 0: # (at her den's mouth: near enough, or a good while trying (circling it, waddling))
+		var at := home_den.position if is_instance_valid(home_den) else _pos
+		if Vector2(_pos.x - at.x, _pos.z - at.z).length() < 0.35 or _st > 60.0:
+			_target = _pos
+			_stage = 1
+			_st = 0.0
+	super(dt)
+
+
 func _young_one() -> void:
 	var parent := get_parent() as Node3D
 	if parent == null:
