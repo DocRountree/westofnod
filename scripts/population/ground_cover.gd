@@ -29,6 +29,10 @@ const SettingsScript := preload("res://scripts/settings.gd") # (by path: found w
 ## - reeds: the swamp's, 1.8-2.3 m, broad-bladed, in clumps here and there
 ##   (sparse patches, in the water too); to 72 m;
 ## - cattails among them: stalks with brown heads, a few leaves; to 66 m;
+## - scouring rush (Equisetum hyemale) among them too, in the reeds' same
+##   clumps: dense tufts of straight, unbranched, jointed stems, dark blue
+##   green, a black-edged band at each joint, a small dark cone at the tip
+##   of some; a tad shorter than the reeds (1.4-1.9 m); to 60 m;
 ## - marram: the coast's and the beaches', half the prairie grass's height,
 ##   as pale as the sand (a fifth of the patches a tad greener, a fifth a tad
 ##   yellower), in patches: none at the water's edge, thicker and
@@ -95,6 +99,11 @@ const LAYERS := [
 		"u": {"kind": 0, "seed": 6, "in_forest": false, "in_prairie": false, "in_swamp": true, "cover": 0.45,
 			"prairie_height": Vector2(1.7, 2.2), "prairie_green": Vector3(0.24, 0.33, 0.13), "prairie_blonde": Vector3(0.45, 0.42, 0.26),
 			"fade_out": Vector2(50.0, 66.0), "thin_from": 40.0}},
+	# scouring rush, in the reeds' clumps (the same field: in_swamp, clumped), a tad shorter than them
+	{"cell": 1.2, "cells": 14, "tiles": 7, "rushes": 22, "radius": 0.22,
+		"u": {"kind": 0, "seed": 18, "in_forest": false, "in_prairie": false, "in_swamp": true, "cover": 0.6,
+			"prairie_height": Vector2(1.4, 1.9), "prairie_green": Vector3(0.17, 0.3, 0.2), "prairie_blonde": Vector3(0.22, 0.33, 0.22),
+			"fade_out": Vector2(46.0, 60.0), "thin_from": 36.0}},
 	# marram, along the coast: half the prairie grass's height, as pale as the sand
 	{"cell": 0.3, "cells": 24, "tiles": 9, "blades": 12, "segs": 3, "radius": 0.2, "width": 0.018,
 		"lods": [[10.0, 12, 2, 1.0]],
@@ -293,6 +302,8 @@ func setup(w: WorldData) -> void:
 			mesh = flower_mesh(L.flowers, L.stems, L.radius, L.u.seed)
 		elif L.has("cattails"):
 			mesh = cattail_mesh(L.cattails, L.radius, L.u.seed)
+		elif L.has("rushes"):
+			mesh = rush_mesh(L.rushes, L.radius, L.u.seed)
 		else:
 			mesh = grass_mesh(L.blades, L.segs, L.radius, L.width, L.u.seed)
 		mesh.surface_set_material(0, m)
@@ -919,6 +930,43 @@ static func cattail_mesh(stalks: int, radius: float, seed: int) -> ArrayMesh:
 				pts.append(Vector3(off.x, lt * t, off.y))
 				halfs.append(0.009 * (1.0 - t * 0.8))
 			strip.call(root, pts, halfs, lside, Vector3(dir.x, 0.6, dir.y).normalized(), rng.randf_range(0.85, 1.15), 0.0)
+	return st.commit()
+
+
+## A tuft of scouring rush (Equisetum hyemale): straight round stems,
+## unbranched, close together and nearly upright, each jointed every ~6 %
+## of its height, a dark band round each joint (a ring a hair thicker,
+## shaded near black: COLOR.r), the top ones' tips a small dark cone (its
+## strobilus); in units of the clump's height, as grass_mesh. Round
+## stalks (UV.x 1.25), lit as round.
+static func rush_mesh(stems: int, radius: float, seed: int) -> ArrayMesh:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = seed * 19 + 7
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	st.set_custom_format(0, SurfaceTool.CUSTOM_RGB_FLOAT)
+	var base := [0]
+	const H := 1.65 # m: a clump's height, about
+	for b in stems:
+		var a := rng.randf() * TAU
+		var rr := sqrt(rng.randf()) * radius
+		var root := Vector2(cos(a), sin(a)) * rr
+		var tall := rng.randf_range(0.6, 1.0)
+		var lean := Vector2(cos(a), sin(a)) * rng.randf_range(0.0, 0.05) * (rr / maxf(radius, 1e-3) + 0.3) # (the outer ones leaning out a little)
+		var top := Vector3(lean.x, tall, lean.y)
+		var r0 := rng.randf_range(0.0028, 0.0038) / H
+		var shade := rng.randf_range(0.85, 1.1)
+		_tube(st, base, root, [Vector3.ZERO, top * 0.5, top], [r0 * 1.1, r0, r0 * 0.75], shade)
+		# its joints: a dark band round each
+		var gap := rng.randf_range(0.055, 0.075)
+		var t := gap * rng.randf_range(0.5, 1.0)
+		while t < 0.97:
+			var p := top * t
+			var w := 0.006 / H
+			_tube(st, base, root, [p - top.normalized() * w * 0.5, p + top.normalized() * w * 0.5], [r0 * (1.0 - 0.25 * t) * 1.18, r0 * (1.0 - 0.25 * t) * 1.18], 0.28)
+			t += gap
+		if rng.randf() < 0.35: # (its cone)
+			_tube(st, base, root, [top, top + top.normalized() * 0.014], [r0 * 0.9, 0.0002], 0.45)
 	return st.commit()
 
 

@@ -405,8 +405,9 @@ func _solve(dt: float) -> void:
 		d_model = _xb(head_rest) + b * head_off
 	var xf := Transform3D(Basis(Vector3.UP, _yaw) * size, _pos)
 	var d_world := xf * d_model
-	if head_point != Vector3.INF:
-		d_world = head_point + (xf.basis * (head_rest - (_bill_tip() as Vector3))) * 0.9
+	if head_point != Vector3.INF: # (its head where its bill's tip, the head turned and tipped as it is, comes to the point)
+		var hb0 := Basis(Vector3.UP, look_yaw) * Basis(Vector3.RIGHT, -float(cur.head_pitch))
+		d_world = head_point + xf.basis * (hb0 * (head_rest - (_bill_tip() as Vector3)))
 	if _head_hold == Vector3.INF or _air or dead:
 		_head_hold = d_world
 	var bobs := _speed > 0.08 and _speed < run_speed * 0.55 and head_point == Vector3.INF and not _air
@@ -758,6 +759,53 @@ static func _feather(st: SurfaceTool, part: float, idx: float, c1: Color, root: 
 	_grid(st, rows)
 
 
+## (A songbird's, a pigeon's, a hummingbird's face, S.face_taper:) its
+## head drawn forward into its bill in one smooth curve, as feathers lie on
+## a skull: from the head's widest ring (behind its eyes) down to the bill's
+## root, rounded off the head and easing into the bill (a smoothstep, its
+## width and its height each), never narrower than the bill on the way (the
+## rings' spline dipped there: a pinched neck, the bill's root standing out
+## past it, flat ended); and the bill from its root on never wider than the
+## ring behind it. line: [p, w, h, c] each (c past 5 the bill).
+static func _taper_face(line: Array, from_c := 4.25) -> void:
+	var root := -1
+	for i in line.size():
+		if float((line[i] as Array)[3]) >= 5.0:
+			root = i
+			break
+	if root <= 0:
+		return
+	var top := -1
+	var wmax := 0.0
+	for i in root:
+		var e: Array = line[i]
+		if float(e[3]) >= from_c and float(e[1]) * float(e[2]) > wmax: # (from its eyes on: the head kept full round them)
+			wmax = float(e[1]) * float(e[2])
+			top = i
+	if top < 0 or top >= root - 1:
+		return
+	var w0: float = (line[top] as Array)[1]
+	var h0: float = (line[top] as Array)[2]
+	var wb: float = (line[root] as Array)[1]
+	var hb: float = (line[root] as Array)[2]
+	# (its length along the line, each ring's share of it)
+	var lens := [0.0]
+	for i in range(top + 1, root + 1):
+		lens.append(float(lens[lens.size() - 1]) + ((line[i] as Array)[0] as Vector3).distance_to((line[i - 1] as Array)[0]))
+	var total: float = lens[lens.size() - 1]
+	for i in range(top + 1, root):
+		var f := float(lens[i - top]) / maxf(total, 1e-6)
+		var g := 1.0 - f * f * (3.0 - 2.0 * f) # (round off the head, easing into the bill)
+		var e: Array = line[i]
+		e[1] = wb + (w0 - wb) * g
+		e[2] = hb + (h0 - hb) * g
+	for i in range(root + 1, line.size()): # (the bill: tapering on from its root, never swelling)
+		var e: Array = line[i]
+		var pr: Array = line[i - 1]
+		e[1] = minf(float(e[1]), float(pr[1]))
+		e[2] = minf(float(e[2]), float(pr[2]))
+
+
 ## The mesh at rest (m): [mesh, its joints' places, the neck's chain].
 func _make_mesh() -> Array:
 	var S := shape
@@ -781,6 +829,8 @@ func _make_mesh() -> Array:
 			for c in 5:
 				vals.append(_cr((sp[maxi(i - 1, 0)] as Array)[c], (sp[i] as Array)[c], (sp[i + 1] as Array)[c], (sp[mini(i + 2, K - 1)] as Array)[c], f))
 			line.append([Vector3(0.0, vals[0], vals[1]) * CM, maxf(float(vals[2]), 0.02) * CM, maxf(float(vals[3]), 0.02) * CM, clampf(lerpf((sp[i] as Array)[4], (sp[i + 1] as Array)[4], f), 0.0, 6.0)])
+	if S.get("face_taper", false):
+		_taper_face(line, float(S.get("eye_c", 4.62)))
 	var neck: Array[Vector3] = []
 	var rows := []
 	var along := 0.0
@@ -805,7 +855,7 @@ func _make_mesh() -> Array:
 		skin_rings.append([p, dorsal, c, e[1], e[2]])
 		var ja := clampi(int(floorf(c)), 0, 5)
 		var jb := mini(ja + 1, 5)
-		var wb := smoothstep(0.2, 0.8, c - floorf(c)) if c < 5.0 else 0.0
+		var wb := smoothstep(0.0, 1.0, c - floorf(c)) if c < 5.0 else 0.0 # (each bend eased over the whole span between two joints: a curve, no kink)
 		var part := 2.0 if c > 5.02 else 0.0
 		var u := (c - 5.0) if c > 5.02 else c / 5.0
 		var w: float = e[1]

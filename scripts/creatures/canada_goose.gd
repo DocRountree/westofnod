@@ -290,7 +290,7 @@ func _graze(dt: float) -> void:
 			var w: Vector3 = get_parent().to_global(_graze_at)
 			head_rate = 9.0
 			head_point = w
-			want.head_pitch = -0.05
+			want.head_pitch = 1.15 # (its head tipped down along its neck, its bill to the grass: one curve)
 			want.pitch = 0.3 # (tipped forward, its breast down, its neck down to the grass)
 			rate["pitch"] = 4.0
 			if bill_tip().distance_to(w) < 0.02 * maxf(bk, 0.5): # (its bill on the grass: a bite, a tear)

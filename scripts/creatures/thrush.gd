@@ -137,6 +137,7 @@ func thrush_shape(k: float, head: float, bill: float, legs: float, tail_len: flo
 		return Vector3(v.x * k * (head if c >= 4.5 else B), q.x, q.y)
 	var S := {
 		"tilt_rings": true,
+		"face_taper": true,
 		"spine": spine,
 		"pivot": Vector3(0.0, 20.0, 4.0) * k,
 		"jaw": Vector3(0.0, root.x - 0.12 * L, root.y - 0.02 * L),
