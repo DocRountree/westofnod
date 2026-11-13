@@ -2613,6 +2613,63 @@ func _raptor_nest_site(r: Raptor) -> void:
 		return pole)
 	r.set_nest_site(site.position + (site.get_meta("site_top") as Vector3))
 
+
+## (A fallen fruit or a nut eaten by c where it lies (eat_at): eaten away
+## only while its mouth is on it, gone once it's done; never reached (called
+## off before), left as it was.)
+func _eaten_by_mouth(c: Node3D, item: Node3D, at: Vector3) -> void:
+	var s0 := item.scale
+	var reached := 0.0
+	var t := 0.0
+	while is_instance_valid(c) and is_instance_valid(item) and t < 60.0:
+		await get_tree().process_frame
+		t += get_process_delta_time()
+		if c.get("_mode") != "eat_at":
+			break
+		if int(c.get("_stage")) == 1 and (c.call("_mouth") as Vector3).distance_to(at) < 0.09:
+			reached += get_process_delta_time()
+			item.scale = s0 * clampf(1.0 - reached / 9.0, 0.15, 1.0) # (bitten at, going)
+	if is_instance_valid(item):
+		if reached > 1.0:
+			item.queue_free()
+		else:
+			item.scale = s0
+			item.remove_meta("hunted")
+
+
+## (A fish school after something in its water: dashing at it (feed), the
+## prey taken only when a fish's mouth gets to it: a molly or a trout of
+## another school then taken out of its own, a crayfish or an insect
+## killed and gone. Not reached in 12 s, left as it was.)
+func _eaten_by_fish(school: Node3D, prey: Node3D) -> void:
+	var t := 0.0
+	var many := Diet.kind_of(prey) in ["mollies", "fish"]
+	while is_instance_valid(school) and is_instance_valid(prey) and t < 12.0:
+		var at := prey.global_position
+		var j := -1
+		if many: # (the one of them nearest the school)
+			j = prey.call("nearest", school.global_position)
+			if j < 0:
+				return
+			var pp: PackedVector3Array = prey.get("pos")
+			at = prey.global_transform * pp[j]
+		school.call("feed", school.to_local(at))
+		await get_tree().process_frame
+		t += get_process_delta_time()
+		var ps: PackedVector3Array = school.get("pos")
+		for i in ps.size():
+			if (school.global_transform * ps[i]).distance_to(at) < 0.07: # (a mouth on it)
+				if many:
+					var one: Node3D = prey.call("take", j)
+					if one:
+						one.queue_free()
+				else:
+					MealScript.subdue(prey)
+					prey.queue_free()
+				return
+	if is_instance_valid(prey):
+		prey.remove_meta("hunted")
+
 ## A tick colony's ways: E / H questing, 1 the engorged females laying, 2
 ## the engorged young moulting and the egg masses hatching, X still, W
 ## walking about (then questing again).
@@ -2888,20 +2945,7 @@ func _do(c: Node, act_: String) -> void:
 			"eat", "hunt": # (at the nearest of their diet in their water: a crayfish, an insect fallen in, a molly; none put in)
 				var f := _food(c, Diet.of(c), maxf((tmax - tmin).length(), 3.0))
 				if f:
-					var fat := (f as Node3D).global_position
-					if Diet.kind_of(f) in ["mollies", "fish"]: # (one of them taken)
-						var i: int = f.call("nearest", fat)
-						if i >= 0:
-							var one: Node3D = f.call("take", i)
-							fat = one.global_position
-							get_tree().create_timer(1.5).timeout.connect(func() -> void: if is_instance_valid(one): one.queue_free())
-					else:
-						var ff := f
-						get_tree().create_timer(1.5).timeout.connect(func() -> void:
-							if is_instance_valid(ff):
-								MealScript.subdue(ff)
-								ff.queue_free())
-					c.call("feed", (c as Node3D).to_local(fat))
+					_eaten_by_fish(c as Node3D, f as Node3D) # (taken only as a fish's mouth gets to it)
 			"alarm":
 				c.call("scatter", (tmin + tmax) * 0.5)
 			"fly", "sleep", "sit":
@@ -3448,12 +3492,14 @@ func _feed(c: Node, act_: String, young: bool, p: Vector3, st: Vector3, near: Ve
 			c.call("browse", f)
 		elif k in ["berries", "pawpaw", "crabapple", "acorn", "walnut", "ants", "wasp_comb"]: # (eaten where it is: its snout to it)
 			var at := (f as Node3D).position
-			if k == "berries":
-				at += Vector3(0.0, randf_range(0.22, 0.4), 0.0)
+			if k == "berries": # (on the bush's near side, at its height, toward it: where its mouth can reach)
+				var toward := Vector3(p.x - at.x, 0.0, p.z - at.z).normalized()
+				at += toward * 0.18 + Vector3(randf_range(-0.05, 0.05), randf_range(0.22, 0.4), randf_range(-0.05, 0.05))
+			elif k in ["pawpaw", "crabapple", "acorn", "walnut"]:
+				at += Vector3.UP * 0.02 # (its top, on the ground)
 			c.call("eat_at", at, 10.0)
-			if k in ["pawpaw", "crabapple", "acorn", "walnut"]: # (a fallen fruit, a nut: gone, eaten)
-				var ff := f
-				get_tree().create_timer(9.0).timeout.connect(func() -> void: if is_instance_valid(ff): ff.queue_free())
+			if k in ["pawpaw", "crabapple", "acorn", "walnut"]: # (a fallen fruit, a nut: gone only as its mouth's on it)
+				_eaten_by_mouth(c as Node3D, f as Node3D, at)
 		elif k in Diet.NOT_PREY: # (carrion: torn at)
 			c.call("eat", f)
 		else:
