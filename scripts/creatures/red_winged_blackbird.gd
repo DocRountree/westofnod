@@ -24,7 +24,7 @@ extends "res://scripts/creatures/thrush.gd"
 ## median a buff-yellow border below them (the epaulet: at rest often
 ## only the yellow showing, the red hid under the scapulars), his bill
 ## and legs black, his eye dark. The female dark brown and heavily
-## streaked, buffy white below streaked dark, a pale buff stripe over her
+## streaked, below dark brown streaked buffy white, a pale buff stripe over her
 ## eye and a pale moustache, her throat washed peach, a little rust in
 ## her shoulders. The juvenile like her.
 
@@ -87,9 +87,9 @@ func _plumage(stage: String, male_: bool) -> Dictionary:
 		"back_from": 0.3, "back_from_hi": 0.2,
 		"cap_color": Color(0.22, 0.17, 0.14), "hood_u": 0.72, "hood_low": 0.0, "hood_nape": 1.0, "cheek": 0.0, "malar": 0.0,
 		"supercilium": Color(0.85, 0.76, 0.64, 1.0),
-		"under_color": Color(0.8, 0.73, 0.64), "breast_wash": Color(0.72, 0.64, 0.56), "wash_from": -0.5, "wash_to": 0.9, "under_mark": Color(0.12, 0.09, 0.07),
+		"under_color": Color(0.3, 0.23, 0.19), "breast_wash": Color(0.27, 0.21, 0.17), "wash_from": -0.5, "wash_to": 0.9, "under_mark": Color(0.8, 0.72, 0.64), # (dark brown, streaked pale)
 		"under_pattern": 3, "throat_clean": 0.92,
-		"throat_color": Color(0.88, 0.76, 0.66, 0.7), "throat_from": 0.62, "throat_streak": 0.0,
+		"throat_color": Color(0.82, 0.7, 0.62, 0.6), "throat_from": 0.66, "throat_streak": 0.6,
 		"cov_lead": Color(0.6, 0.28, 0.14, 0.45), "cov_lead_to": 0.45, "patch_color": Color(0.55, 0.26, 0.14, 0.4), "patch_edge": Color(0.0, 0.0, 0.0, 0.0),
 		"fl_top": Color(0.18, 0.14, 0.11), "fl_pale": Color(0.42, 0.38, 0.34), "fl_dark": Color(0.2, 0.17, 0.14), "fl_bars": 0.0, "fl_top_bars": 0.0, "fl_trail": 0.0,
 		"tail_color": Color(0.18, 0.14, 0.12), "tail_band": brown, "tail_bands": 0.0, "tail_band_w": 0.0, "tail_tip_r": Color(0.18, 0.14, 0.12), "tail_tip_w": 0.0,

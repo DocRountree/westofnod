@@ -990,7 +990,7 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   coo, V display flight, A sunbathe, B forage (a drink, at a pond near), K court, 1 lay, 2 hatch, N brood.
   `red_winged_blackbird.gd` (`RedWingedBlackbird`, *Agelaius phoeniceus*): the male glossy black, his epaulets scarlet
   bordered buff yellow (at rest a patch at the bend of the wing; in his song spread and in flight across the coverts);
-  the female dark brown, heavily streaked, buffy below streaked dark, a pale stripe over her eye, a little rust in her
+  the female dark brown, heavily streaked, below dark brown streaked buffy white, a pale stripe over her eye, rust in her
   shoulders. His song spread (`call_out`: puffed, wings held out and drooped, the epaulets flared, tail fanned,
   conk-la-ree, the last a trill), her chatter; display (`display(rival)`: a rival male flown at and chased off; none,
   his song spread); walking and gaping for insects (caterpillars, grasshoppers and their nymphs, June bugs and
