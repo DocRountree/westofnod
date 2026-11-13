@@ -4,93 +4,6 @@ A Godot 4 exploration game set in a fantasy reimagining of precolonial North Ame
 data (Copernicus GLO-30), 281 km across, rendered as one continuous world with no
 popping. Walk, sprint, swim (as in Minecraft), climb and fly.
 
-## The organisms
-
-Every kind of plant and animal in the ecology sandbox (`tools/creatures/ecology_demo.gd`; in debug mode in the game itself), each as it stands there, rendered by the game's own engine.
-
-### Plants
-
-<table>
-<tr><td align="center" width="33%"><img src="docs/organisms/milkweed.jpg" width="100%" alt="Common milkweed"><br><sub>Common milkweed</sub></td><td align="center" width="33%"><img src="docs/organisms/swamp_milkweed.jpg" width="100%" alt="Swamp milkweed"><br><sub>Swamp milkweed</sub></td><td align="center" width="33%"><img src="docs/organisms/coneflower.jpg" width="100%" alt="Purple coneflower"><br><sub>Purple coneflower</sub></td></tr>
-<tr><td align="center" width="33%"><img src="docs/organisms/susan.jpg" width="100%" alt="Black-eyed Susan"><br><sub>Black-eyed Susan</sub></td><td align="center" width="33%"><img src="docs/organisms/fleabane.jpg" width="100%" alt="Fleabane"><br><sub>Fleabane</sub></td><td align="center" width="33%"><img src="docs/organisms/aster.jpg" width="100%" alt="Aster"><br><sub>Aster</sub></td></tr>
-<tr><td align="center" width="33%"><img src="docs/organisms/yampah.jpg" width="100%" alt="Yampah"><br><sub>Yampah</sub></td><td align="center" width="33%"><img src="docs/organisms/nettle.jpg" width="100%" alt="Nettle"><br><sub>Nettle</sub></td><td align="center" width="33%"><img src="docs/organisms/tobacco.jpg" width="100%" alt="Baccy (wild tobacco)"><br><sub>Baccy (wild tobacco)</sub></td></tr>
-</table>
-
-### Insects
-
-<table>
-<tr><td align="center" width="33%"><img src="docs/organisms/monarch.jpg" width="100%" alt="Monarch"><br><sub>Monarch</sub></td><td align="center" width="33%"><img src="docs/organisms/moth.jpg" width="100%" alt="Hummingbird clearwing"><br><sub>Hummingbird clearwing</sub></td><td align="center" width="33%"><img src="docs/organisms/swallowtail.jpg" width="100%" alt="Old World swallowtail"><br><sub>Old World swallowtail</sub></td></tr>
-<tr><td align="center" width="33%"><img src="docs/organisms/luna.jpg" width="100%" alt="Luna moth"><br><sub>Luna moth</sub></td><td align="center" width="33%"><img src="docs/organisms/cloak.jpg" width="100%" alt="Mourning cloak"><br><sub>Mourning cloak</sub></td><td align="center" width="33%"><img src="docs/organisms/cecropia.jpg" width="100%" alt="Cecropia moth"><br><sub>Cecropia moth</sub></td></tr>
-<tr><td align="center" width="33%"><img src="docs/organisms/polyphemus.jpg" width="100%" alt="Polyphemus moth"><br><sub>Polyphemus moth</sub></td><td align="center" width="33%"><img src="docs/organisms/wasp.jpg" width="100%" alt="Paper wasp"><br><sub>Paper wasp</sub></td><td align="center" width="33%"><img src="docs/organisms/bee.jpg" width="100%" alt="Common eastern bumble bee"><br><sub>Common eastern bumble bee</sub></td></tr>
-<tr><td align="center" width="33%"><img src="docs/organisms/trig.jpg" width="100%" alt="Trigonalid wasp"><br><sub>Trigonalid wasp</sub></td><td align="center" width="33%"><img src="docs/organisms/ichneumon.jpg" width="100%" alt="Ichneumon wasp"><br><sub>Ichneumon wasp</sub></td><td align="center" width="33%"><img src="docs/organisms/carpenter.jpg" width="100%" alt="Carpenter ant (queen)"><br><sub>Carpenter ant (queen)</sub></td></tr>
-<tr><td align="center" width="33%"><img src="docs/organisms/harvester.jpg" width="100%" alt="Red harvester (queen)"><br><sub>Red harvester (queen)</sub></td><td align="center" width="33%"><img src="docs/organisms/june.jpg" width="100%" alt="June bugs (a pair)"><br><sub>June bugs (a pair)</sub></td><td align="center" width="33%"><img src="docs/organisms/lady.jpg" width="100%" alt="Convergent lady beetles (a pair)"><br><sub>Convergent lady beetles (a pair)</sub></td></tr>
-<tr><td align="center" width="33%"><img src="docs/organisms/firefly.jpg" width="100%" alt="Common eastern fireflies (a few)"><br><sub>Common eastern fireflies (a few)</sub></td><td align="center" width="33%"><img src="docs/organisms/hopper.jpg" width="100%" alt="Differential grasshopper"><br><sub>Differential grasshopper</sub></td><td align="center" width="33%"><img src="docs/organisms/blue_hopper.jpg" width="100%" alt="Blue-winged grasshopper"><br><sub>Blue-winged grasshopper</sub></td></tr>
-<tr><td align="center" width="33%"><img src="docs/organisms/mantis.jpg" width="100%" alt="Carolina mantis"><br><sub>Carolina mantis</sub></td><td align="center" width="33%"><img src="docs/organisms/darner.jpg" width="100%" alt="Common green darner"><br><sub>Common green darner</sub></td><td></td></tr>
-</table>
-
-### Spiders and kin
-
-<table>
-<tr><td align="center" width="33%"><img src="docs/organisms/wolf_spider.jpg" width="100%" alt="Carolina wolf spider"><br><sub>Carolina wolf spider</sub></td><td align="center" width="33%"><img src="docs/organisms/fishing_spider.jpg" width="100%" alt="Six-spotted fishing spider"><br><sub>Six-spotted fishing spider</sub></td><td align="center" width="33%"><img src="docs/organisms/funnel_spider.jpg" width="100%" alt="Grass spider (funnel weaver)"><br><sub>Grass spider (funnel weaver)</sub></td></tr>
-<tr><td align="center" width="33%"><img src="docs/organisms/scorpion.jpg" width="100%" alt="Arizona bark scorpion"><br><sub>Arizona bark scorpion</sub></td><td align="center" width="33%"><img src="docs/organisms/pillbug.jpg" width="100%" alt="Pill bug"><br><sub>Pill bug</sub></td><td align="center" width="33%"><img src="docs/organisms/deer_tick.jpg" width="100%" alt="Blacklegged (deer) ticks"><br><sub>Blacklegged (deer) ticks</sub></td></tr>
-<tr><td align="center" width="33%"><img src="docs/organisms/lone_star_tick.jpg" width="100%" alt="Lone star ticks"><br><sub>Lone star ticks</sub></td><td></td><td></td></tr>
-</table>
-
-### Snails
-
-<table>
-<tr><td align="center" width="33%"><img src="docs/organisms/tigersnail.jpg" width="100%" alt="Flamed tigersnails (a few)"><br><sub>Flamed tigersnails (a few)</sub></td><td align="center" width="33%"><img src="docs/organisms/grass_snail.jpg" width="100%" alt="Lovely grass snails (a few)"><br><sub>Lovely grass snails (a few)</sub></td><td></td></tr>
-</table>
-
-### Crustaceans
-
-<table>
-<tr><td align="center" width="33%"><img src="docs/organisms/red_crayfish.jpg" width="100%" alt="Red swamp crayfish"><br><sub>Red swamp crayfish</sub></td><td align="center" width="33%"><img src="docs/organisms/virile_crayfish.jpg" width="100%" alt="Virile crayfish"><br><sub>Virile crayfish</sub></td><td align="center" width="33%"><img src="docs/organisms/white_shrimp.jpg" width="100%" alt="White shrimp"><br><sub>White shrimp</sub></td></tr>
-<tr><td align="center" width="33%"><img src="docs/organisms/brown_shrimp.jpg" width="100%" alt="Brown shrimp"><br><sub>Brown shrimp</sub></td><td align="center" width="33%"><img src="docs/organisms/pink_shrimp.jpg" width="100%" alt="Pink shrimp"><br><sub>Pink shrimp</sub></td><td></td></tr>
-</table>
-
-### Fish
-
-<table>
-<tr><td align="center" width="33%"><img src="docs/organisms/mollies.jpg" width="100%" alt="Sailfin mollies (a school)"><br><sub>Sailfin mollies (a school)</sub></td><td align="center" width="33%"><img src="docs/organisms/chinook.jpg" width="100%" alt="Chinook salmon, at sea (a school)"><br><sub>Chinook salmon, at sea (a school)</sub></td><td align="center" width="33%"><img src="docs/organisms/chinook_spawning.jpg" width="100%" alt="Chinook salmon, spawning (a few)"><br><sub>Chinook salmon, spawning (a few)</sub></td></tr>
-<tr><td align="center" width="33%"><img src="docs/organisms/rainbow.jpg" width="100%" alt="Rainbow trout, in a stream (a few)"><br><sub>Rainbow trout, in a stream (a few)</sub></td><td align="center" width="33%"><img src="docs/organisms/steelhead.jpg" width="100%" alt="Steelhead, in a stream (a few)"><br><sub>Steelhead, in a stream (a few)</sub></td><td align="center" width="33%"><img src="docs/organisms/bluefin.jpg" width="100%" alt="Atlantic bluefin tuna (a school)"><br><sub>Atlantic bluefin tuna (a school)</sub></td></tr>
-</table>
-
-### Amphibians and reptiles
-
-<table>
-<tr><td align="center" width="33%"><img src="docs/organisms/frog.jpg" width="100%" alt="Northern leopard frog"><br><sub>Northern leopard frog</sub></td><td align="center" width="33%"><img src="docs/organisms/toad.jpg" width="100%" alt="American toad"><br><sub>American toad</sub></td><td align="center" width="33%"><img src="docs/organisms/anole.jpg" width="100%" alt="Green anole"><br><sub>Green anole</sub></td></tr>
-<tr><td align="center" width="33%"><img src="docs/organisms/gila.jpg" width="100%" alt="Gila monster"><br><sub>Gila monster</sub></td><td align="center" width="33%"><img src="docs/organisms/rattler.jpg" width="100%" alt="Eastern diamondback rattlesnake"><br><sub>Eastern diamondback rattlesnake</sub></td><td align="center" width="33%"><img src="docs/organisms/milk.jpg" width="100%" alt="Eastern milk snake"><br><sub>Eastern milk snake</sub></td></tr>
-<tr><td align="center" width="33%"><img src="docs/organisms/box_turtle.jpg" width="100%" alt="Eastern box turtle"><br><sub>Eastern box turtle</sub></td><td align="center" width="33%"><img src="docs/organisms/snapper.jpg" width="100%" alt="Common snapping turtle"><br><sub>Common snapping turtle</sub></td><td align="center" width="33%"><img src="docs/organisms/painted.jpg" width="100%" alt="Western painted turtle"><br><sub>Western painted turtle</sub></td></tr>
-<tr><td align="center" width="33%"><img src="docs/organisms/sea_turtle.jpg" width="100%" alt="Green sea turtle"><br><sub>Green sea turtle</sub></td><td></td><td></td></tr>
-</table>
-
-### Birds
-
-<table>
-<tr><td align="center" width="33%"><img src="docs/organisms/turkey.jpg" width="100%" alt="Wild turkey"><br><sub>Wild turkey</sub></td><td align="center" width="33%"><img src="docs/organisms/peregrine.jpg" width="100%" alt="Peregrine falcon"><br><sub>Peregrine falcon</sub></td><td align="center" width="33%"><img src="docs/organisms/coopers.jpg" width="100%" alt="Cooper's hawk"><br><sub>Cooper's hawk</sub></td></tr>
-<tr><td align="center" width="33%"><img src="docs/organisms/bald_eagle.jpg" width="100%" alt="Bald eagle"><br><sub>Bald eagle</sub></td><td align="center" width="33%"><img src="docs/organisms/golden_eagle.jpg" width="100%" alt="Golden eagle"><br><sub>Golden eagle</sub></td><td align="center" width="33%"><img src="docs/organisms/robin.jpg" width="100%" alt="American robin"><br><sub>American robin</sub></td></tr>
-<tr><td align="center" width="33%"><img src="docs/organisms/bluebird.jpg" width="100%" alt="Eastern bluebird"><br><sub>Eastern bluebird</sub></td><td align="center" width="33%"><img src="docs/organisms/pigeon.jpg" width="100%" alt="Passenger pigeon"><br><sub>Passenger pigeon</sub></td><td align="center" width="33%"><img src="docs/organisms/blackbird.jpg" width="100%" alt="Red-winged blackbird"><br><sub>Red-winged blackbird</sub></td></tr>
-<tr><td align="center" width="33%"><img src="docs/organisms/goldfinch.jpg" width="100%" alt="American goldfinch"><br><sub>American goldfinch</sub></td><td align="center" width="33%"><img src="docs/organisms/house_finch.jpg" width="100%" alt="House finch"><br><sub>House finch</sub></td><td align="center" width="33%"><img src="docs/organisms/hummingbird.jpg" width="100%" alt="Ruby-throated hummingbird"><br><sub>Ruby-throated hummingbird</sub></td></tr>
-<tr><td align="center" width="33%"><img src="docs/organisms/heron.jpg" width="100%" alt="Great blue heron"><br><sub>Great blue heron</sub></td><td align="center" width="33%"><img src="docs/organisms/goose.jpg" width="100%" alt="Canada goose"><br><sub>Canada goose</sub></td><td align="center" width="33%"><img src="docs/organisms/barn_owl.jpg" width="100%" alt="Barn owl"><br><sub>Barn owl</sub></td></tr>
-<tr><td align="center" width="33%"><img src="docs/organisms/horned_owl.jpg" width="100%" alt="Great horned owl"><br><sub>Great horned owl</sub></td><td align="center" width="33%"><img src="docs/organisms/screech_owl.jpg" width="100%" alt="Eastern screech owl"><br><sub>Eastern screech owl</sub></td><td></td></tr>
-</table>
-
-### Mammals
-
-<table>
-<tr><td align="center" width="33%"><img src="docs/organisms/mouse.jpg" width="100%" alt="Deer mouse"><br><sub>Deer mouse</sub></td><td align="center" width="33%"><img src="docs/organisms/hare.jpg" width="100%" alt="Snowshoe hare"><br><sub>Snowshoe hare</sub></td><td align="center" width="33%"><img src="docs/organisms/fox_squirrel.jpg" width="100%" alt="Eastern fox squirrel"><br><sub>Eastern fox squirrel</sub></td></tr>
-<tr><td align="center" width="33%"><img src="docs/organisms/grey_squirrel.jpg" width="100%" alt="Eastern grey squirrel"><br><sub>Eastern grey squirrel</sub></td><td align="center" width="33%"><img src="docs/organisms/beaver.jpg" width="100%" alt="North American beaver"><br><sub>North American beaver</sub></td><td align="center" width="33%"><img src="docs/organisms/river_otter.jpg" width="100%" alt="North American river otter"><br><sub>North American river otter</sub></td></tr>
-<tr><td align="center" width="33%"><img src="docs/organisms/sea_otter.jpg" width="100%" alt="Sea otter"><br><sub>Sea otter</sub></td><td align="center" width="33%"><img src="docs/organisms/opossum.jpg" width="100%" alt="Virginia opossum"><br><sub>Virginia opossum</sub></td><td align="center" width="33%"><img src="docs/organisms/porcupine.jpg" width="100%" alt="North American porcupine"><br><sub>North American porcupine</sub></td></tr>
-<tr><td align="center" width="33%"><img src="docs/organisms/armadillo.jpg" width="100%" alt="Nine-banded armadillo"><br><sub>Nine-banded armadillo</sub></td><td align="center" width="33%"><img src="docs/organisms/bat.jpg" width="100%" alt="Big brown bat"><br><sub>Big brown bat</sub></td><td align="center" width="33%"><img src="docs/organisms/fox.jpg" width="100%" alt="Red fox"><br><sub>Red fox</sub></td></tr>
-<tr><td align="center" width="33%"><img src="docs/organisms/bobcat.jpg" width="100%" alt="Bobcat"><br><sub>Bobcat</sub></td><td align="center" width="33%"><img src="docs/organisms/coyote.jpg" width="100%" alt="Coyote"><br><sub>Coyote</sub></td><td align="center" width="33%"><img src="docs/organisms/wolf.jpg" width="100%" alt="Grey wolf"><br><sub>Grey wolf</sub></td></tr>
-<tr><td align="center" width="33%"><img src="docs/organisms/dog_gsd.jpg" width="100%" alt="Dog: German shepherd"><br><sub>Dog: German shepherd</sub></td><td align="center" width="33%"><img src="docs/organisms/dog_lab.jpg" width="100%" alt="Dog: Labrador retriever"><br><sub>Dog: Labrador retriever</sub></td><td align="center" width="33%"><img src="docs/organisms/dog_beagle.jpg" width="100%" alt="Dog: beagle"><br><sub>Dog: beagle</sub></td></tr>
-<tr><td align="center" width="33%"><img src="docs/organisms/black_bear.jpg" width="100%" alt="American black bear"><br><sub>American black bear</sub></td><td align="center" width="33%"><img src="docs/organisms/brown_bear.jpg" width="100%" alt="Brown bear (grizzly)"><br><sub>Brown bear (grizzly)</sub></td><td align="center" width="33%"><img src="docs/organisms/deer.jpg" width="100%" alt="White-tailed deer (summer)"><br><sub>White-tailed deer (summer)</sub></td></tr>
-<tr><td align="center" width="33%"><img src="docs/organisms/deer_winter.jpg" width="100%" alt="White-tailed deer (winter)"><br><sub>White-tailed deer (winter)</sub></td><td align="center" width="33%"><img src="docs/organisms/deer_ticks.jpg" width="100%" alt="White-tailed deer, tick-infested"><br><sub>White-tailed deer, tick-infested</sub></td><td align="center" width="33%"><img src="docs/organisms/moose.jpg" width="100%" alt="Moose"><br><sub>Moose</sub></td></tr>
-<tr><td align="center" width="33%"><img src="docs/organisms/bison.jpg" width="100%" alt="American bison"><br><sub>American bison</sub></td><td></td><td></td></tr>
-</table>
-
-
 ## Running
 
 Open the folder in **Godot 4.5+** (Forward+ renderer; written for 4.5.1: 4.4 doesn't compile it, the ants' GPU readback uses `PackedByteArray.to_vector3_array`) and press Play. The start
@@ -141,6 +54,10 @@ there; 3 km from it, all of it is taken away. Not there yet: ponds, the sea and 
 dragonfly, the fishing spider, crayfish, shrimp, krill, the fish, frogs and toads, the turtles, the beaver, the
 otters, the moose): those are in the sandbox's own scene still.
 
+<p align="center"><img src="docs/organisms/red_crayfish.jpg" width="140" alt="Red swamp crayfish"><img src="docs/organisms/virile_crayfish.jpg" width="140" alt="Virile crayfish"><img src="docs/organisms/white_shrimp.jpg" width="140" alt="White shrimp"><img src="docs/organisms/brown_shrimp.jpg" width="140" alt="Brown shrimp"><img src="docs/organisms/pink_shrimp.jpg" width="140" alt="Pink shrimp"><br><sub>Red swamp crayfish &nbsp; Virile crayfish &nbsp; White shrimp &nbsp; Brown shrimp &nbsp; Pink shrimp</sub></p>
+
+
+
 | Input | Action |
 |---|---|
 | WASD, Space, Ctrl, Shift | move, jump, sprint, crouch (on foot: lower and slower) |
@@ -159,7 +76,11 @@ otters, the moose): those are in the sandbox's own scene still.
 | E | the knapsack: 10 slots and a hand each (click to pick up and put down, right-click half or one, shift-click to or from the hands); what the hands hold shows in them. `/give <item> [count]` puts items in it (stick, stone, acorn, oak leaf, pawpaw, crabapple, walnut, black_cherry, raspberry, blueberry, susan, fleabane, coneflower, aster, yampah, milkweed, swamp_milkweed, nettle, cattail, clay_pot, pot_of_sap) |
 | X | take the knapsack off and set it down on the ground before you (on a log or stump if you're on one), or, back beside it (within about 2.2 m), pick it up and put it on again. It's a hide bag, made by hand, nothing on it but hide and twine (`scripts/items/pack.gd`: a soft buckskin sack, its seams laced with a thong; a flap over its mouth, its edge ragged as the skin was cut, fringed; twine wound twice round it over the flap and knotted at its front, the ends hanging; a twine loop on top to carry it by; twisted twine cords down its back for the shoulders), worn on the figure's back (seen in third person). Set down, E doesn't open it: right-click it (looking at it, beside it) to open it there; away from it you have only what's in your hands. Where it is and whether it's worn are saved with the game (rebindable: Settings, Keybindings) |
 | Q | drop what's in your right hand (else your left), the whole stack, on the ground just before you (on a log or stump if you're on one): it lies there as it's held, turned onto its longest side, a stack's few spread a little. Left-click it (within about 2.4 m of your eye) with a hand free (or holding the same, with room) to take it up again, as much as the hands hold. Saved with the game (`scripts/items/drops.gd`) |
-| Left mouse | with a hand free: pick the fruit you're looking at (a pawpaw, crabapple, walnut, wild black cherry, raspberry, blueberry or acorn hanging in a grown tree's crown, within about 2.8 m of your eye: climb a tall tree for those up in it), that one, into the left hand (else the right); or, looking at one within about 2.6 m, a flower (black-eyed Susan, fleabane, purple coneflower, yampah, swamp aster, common or swamp milkweed), a stinging nettle (the forest's, here and there; it doesn't sting) or a cattail, a clump a click, into a hand empty or holding that kind (16 a hand), the clump gone till the next day. The fruit hang on the trees as real things, as many as are left: some trees bear none, the rest up to six (an oak up to eighteen acorns, two or three together on their long stalks, 10 to a hand); what's picked is gone till the next day (saved with the game; `scripts/items/foraging.gd`) |
+| Left mouse | with a hand free: pick the fruit you're looking at (a pawpaw, crabapple, walnut, wild black cherry, raspberry, blueberry or acorn hanging in a grown tree's crown, within about 2.8 m of your eye: climb a tall tree for those up in it), that one, into the left hand (else the right); or, looking at one within about 2.6 m, a flower (black-eyed Susan, fleabane, purple coneflower, yampah, swamp aster, common or swamp milkweed), a stinging nettle (the forest's, here and there; it doesn't sting) or a cattail, a clump a click, into a hand empty or holding that kind (16 a hand), the clump gone till the next day.
+
+<p align="center"><img src="docs/organisms/susan.jpg" width="360" alt="Black-eyed Susan"><br><sub>Black-eyed Susan</sub></p>
+
+The fruit hang on the trees as real things, as many as are left: some trees bear none, the rest up to six (an oak up to eighteen acorns, two or three together on their long stalks, 10 to a hand); what's picked is gone till the next day (saved with the game; `scripts/items/foraging.gd`) |
 | Left or right mouse | with a clay pot in that hand, looking at the notch an axe has left in a living maple (it drips sap: a drop gathers at its lip and falls): sets the pot on the ground under the drip; it fills as the game's day goes (a whole day while the notch is there), the sap rising in it. With a hand empty (or holding pots), looking at a pot: takes it up, a pot of maple sap if it's full, else the pot again, empty. Notches, part-cut notches and pots are saved with the game (`scripts/items/tapping.gd`) |
 | Left mouse | with the axe in a hand (a stone axe: a stick with a sharp stone lashed to it with twine; a new game starts with one in the right): swing it (held down, it swings again and again until the tree is down); at a tree's trunk (an oak or a pawpaw: live, dead or a sapling), each blow cuts a notch deeper and wider on your side of the trunk, at the height you aim the first blow at (where your view meets the trunk: from about 12 cm up to about 1.9 m, never above two fifths of the tree), and the tree breaks there, leaving a stump that tall, and enough (more the thicker it is) fell it: the axe swings sideways, from its hand's side across, aimed at the notch (in third person the figure turns to it, both hands on the handle, the arms following it round); the notch is a real hollow cut in the trunk, showing the wood's rings, on the side the axe swings in from (square to your view); the blade stops in it, no follow-through; the tree falls toward the notch's side (square to your view), its foot (cut off clean at the notch: the tree's meshes themselves cut across there, every level of detail, and closed by a face of fresh end grain through the very outline the cut leaves, so nothing of it below the cut can show, from any side or distance: `scripts/items/mesh_cut.gd`) landing a little beyond the stump (its trunk lying along the ground, pressed in only a few cm, pitched up from its foot where it would otherwise sink further; its crown and limbs go into the ground as they will; trees felled before this are laid again so when the game loads) (its top chopped flat in strokes square to the notch, as is the felled trunk's foot, fresh pale wood, no moss), and lies there, to stand on and climb as a log and a tree are, its stump too (saved with the game; `scripts/items/felling.gd`) |
 | Right mouse | at a felled tree lying in reach (within about 2.4 m of your eye): forage sticks from it, the limb you're looking at a click: it comes away, gone from the tree as it lies (its twigs and leaves with it, and no longer there to stand on), and its sticks (one for each metre or so of it, up to 8) go into a free hand, the left first, the rest into the other; until only the trunk is left. The limbs taken are saved with the tree (every corner of a tree's mesh knows its limb: `TreeBuilder`, CUSTOM2; `scripts/items/felling.gd`) |
@@ -282,8 +203,20 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   the other. Among the prairie's grass, wildflowers in drifts: black-eyed Susans
   (golden rays drooping round a dark brown dome) and fleabane (a few small heads a stem, fine rays
   pure white to light purple, a little lower) and purple coneflowers (pink-purple rays hanging
-  from a raised orange-brown cone) and yampah (white umbels, knee-high in the forest too), their heads up among the grass's tips; to 38 m. In the swamp, broad-bladed reeds 1.8-2.3 m tall in clumps here and there,
-  standing in the water too, and a few swamp asters (branching, violet heads round yellow discs), sparse, and swamp milkweed (branched, narrow-leaved, flat clusters of deep pink flowers). On the prairie, common milkweed in loose colonies (a stout stem, broad paired leaves, drooping balls of mauve-pink flowers). Nothing grows under a log or stump, or in a trunk or boulder
+  from a raised orange-brown cone) and yampah (white umbels, knee-high in the forest too), their heads up among the grass's tips; to 38 m.
+
+<p align="center"><img src="docs/organisms/fleabane.jpg" width="240" alt="Fleabane"><img src="docs/organisms/yampah.jpg" width="240" alt="Yampah"><br><sub>Fleabane &nbsp; Yampah</sub></p>
+
+In the swamp, broad-bladed reeds 1.8-2.3 m tall in clumps here and there,
+  standing in the water too, and a few swamp asters (branching, violet heads round yellow discs), sparse, and swamp milkweed (branched, narrow-leaved, flat clusters of deep pink flowers).
+
+<p align="center"><img src="docs/organisms/swamp_milkweed.jpg" width="360" alt="Swamp milkweed"><br><sub>Swamp milkweed</sub></p>
+
+On the prairie, common milkweed in loose colonies (a stout stem, broad paired leaves, drooping balls of mauve-pink flowers).
+
+<p align="center"><img src="docs/organisms/milkweed.jpg" width="360" alt="Common milkweed"><br><sub>Common milkweed</sub></p>
+
+Nothing grows under a log or stump, or in a trunk or boulder
   (`Population.walk_near`). Clumps dissolve in and out (stippled) with distance, by which point their
   colour is exactly the ground's (`ground.gdshaderinc`, shared with the terrain). The
   forest floor also has patches of damp, matte mud, and its brown patches carry a
@@ -340,13 +273,21 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   shader (`shaders/render/ant.gdshader`: a tripod gait, the antennae sweeping, the
   head, mandibles and gaster) from the clock and each ant's speed and feeding, so a
   colony is one draw call; the CPU only moves them along (wandering, or to food and
-  feeding, keeping apart). `tools/creatures/ant_demo.tscn` (keys: 1 wander, 2 feed on
+  feeding, keeping apart).
+
+<p align="center"><img src="docs/organisms/carpenter.jpg" width="240" alt="Carpenter ant (queen)"><img src="docs/organisms/harvester.jpg" width="240" alt="Red harvester (queen)"><br><sub>Carpenter ant (queen) &nbsp; Red harvester (queen)</sub></p>
+
+`tools/creatures/ant_demo.tscn` (keys: 1 wander, 2 feed on
   the crumbs, 3 half and half, + / - more or fewer, 4 the other kind).
 - `scripts/creatures/mollies.gd` (`Mollies`): sailfin mollies (*Poecilia latipinna*), life size, in schools, made
   and moved as the ants are: one mesh, every fish an instance of it, posed by `shaders/render/molly.gdshader` (the
   body's wave down to the tail, faster and wider swimming fast; curved into its turns; the pectorals sculling as it
   hovers; grazing's pecks; the male's great spotted, orange-edged sail half folded swimming, raised and quivering to
-  display), so a school of hundreds is a draw call. Olive above, silvery sides, a net of scales with rows of dark
+  display), so a school of hundreds is a draw call.
+
+<p align="center"><img src="docs/organisms/mollies.jpg" width="360" alt="Sailfin mollies (a school)"><br><sub>Sailfin mollies (a school)</sub></p>
+
+Olive above, silvery sides, a net of scales with rows of dark
   spots; the males iridescent, orange throated, their gonopodium; the females' small dorsal and fan of an anal fin.
   The CPU side schools them (keeping apart, going their neighbours' way, staying together; the school wandering the
   water it's given, `swim_to`, `scatter`), sends one down to graze now and then, a male to display beside a female;
@@ -356,6 +297,10 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
 - `scripts/creatures/fish_school.gd` (`FishSchool`): fish in schools, life size, made and moved as the mollies are
   (one mesh, every fish an instance, posed by `shaders/render/fish.gdshader`: the body's wave, a tuna's beat all in its
   tail; the turns; the pectorals; the jaw opening to feed and with each breath), a school a draw call.
+
+<p align="center"><img src="docs/organisms/chinook.jpg" width="140" alt="Chinook salmon, at sea (a school)"><img src="docs/organisms/chinook_spawning.jpg" width="140" alt="Chinook salmon, spawning (a few)"><img src="docs/organisms/rainbow.jpg" width="140" alt="Rainbow trout, in a stream (a few)"><img src="docs/organisms/steelhead.jpg" width="140" alt="Steelhead, in a stream (a few)"><img src="docs/organisms/bluefin.jpg" width="140" alt="Atlantic bluefin tuna (a school)"><br><sub>Chinook salmon, at sea (a school) &nbsp; Chinook salmon, spawning (a few) &nbsp; Rainbow trout, in a stream (a few) &nbsp; Steelhead, in a stream (a few) &nbsp; Atlantic bluefin tuna (a school)</sub></p>
+
+
   `FishSchool.new(kind, variant)`: `"chinook"`, a Chinook salmon (at sea dark blue green, silver, white, black spots
   over its back and both tail lobes; `"spawning"`: dark olive and maroon, humped, the male's hooked jaws);
   `"rainbow"`, a rainbow trout (olive, spotted black over its back, fins and tail, the pink-red band, white-edged
@@ -371,21 +316,37 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   unbroken shell at rest, parting and rising, the hind wings unfolding and beating, nose up). `june_beetles.gd` (`JuneBeetles`, *Phyllophaga*: glossy
   reddish brown, ridged wing cases, a fan of plates on each antenna, spurred legs) and `lady_beetles.gd`
   (`LadyBeetles`, *Hippodamia convergens*: orange-red, thirteen black spots, the black pronotum edged white with its
-  two converging white dashes). `tools/creatures/beetle_demo.tscn` (both kinds; keys: 1 walk
+  two converging white dashes).
+
+<p align="center"><img src="docs/organisms/june.jpg" width="240" alt="June bugs (a pair)"><img src="docs/organisms/lady.jpg" width="240" alt="Convergent lady beetles (a pair)"><br><sub>June bugs (a pair) &nbsp; Convergent lady beetles (a pair)</sub></p>
+
+`tools/creatures/beetle_demo.tscn` (both kinds; keys: 1 walk
   about, 2 eat at the leaves, 3 half and half, 4 fly, 5 half fly, + / - more or fewer).
 - `scripts/creatures/wasp.gd`: a paper wasp (`Wasp`, drawn at twice life size), not yet in the game: its model
   built from parts, posed by hand every frame, its animations methods (seek food, feed
-  on a flower, catch and eat a caterpillar, land and walk about and settle, sting). Its colours are `_palette()`'s,
+  on a flower, catch and eat a caterpillar, land and walk about and settle, sting).
+
+<p align="center"><img src="docs/organisms/wasp.jpg" width="360" alt="Paper wasp"><br><sub>Paper wasp</sub></p>
+
+Its colours are `_palette()`'s,
   so another species can wear the model: `trigonalid.gd` (`Trigonalid`, *Taeniogonalos gundlachii*, drawn at the
   paper wasp's size): black, cream marks on its face, collar, tegulae and scutellum, cream bands on the gaster's
-  second and third segments only, reddish legs, a pale ring on each antenna, near clear wings. It builds no nest and
+  second and third segments only, reddish legs, a pale ring on each antenna, near clear wings.
+
+<p align="center"><img src="docs/organisms/trig.jpg" width="360" alt="Trigonalid wasp"><br><sub>Trigonalid wasp</sub></p>
+
+It builds no nest and
   hunts nothing: `visit_flowers(heads)` (from flower to flower, hovering, drinking nectar) and, a female's,
   `lay_on_leaf(edge)` (down on a leaf, along its margin, the gaster curled to the edge, rows of tiny dark eggs left
   there: they would hatch only inside a caterpillar that ate them, so here they don't). In the ecology sandbox, with what it uses there: a female and a male, fleabane, leaves to lay along (E nectar, 1 lay, G land, W / F fly about, K mate).
   `ichneumon.gd` (`Ichneumon`, a female of the Ichneumoninae, about 13 mm, drawn at the paper wasp's size) wears the
   model again in its own colours and proportions: its head orange red, its thorax black with the mesoscutum red and the
   scutellum and tegulae cream, a long slender orange-red gaster on a narrow waist, orange legs (the hind coxae black),
-  long curving black antennae with a broad cream band past their middle, smoky brownish-violet wings. It drinks nectar
+  long curving black antennae with a broad cream band past their middle, smoky brownish-violet wings.
+
+<p align="center"><img src="docs/organisms/ichneumon.jpg" width="360" alt="Ichneumon wasp"><br><sub>Ichneumon wasp</sub></p>
+
+It drinks nectar
   as the trigonalid does (`visit_flowers`) and lays in living caterpillars (`lay_in_caterpillar(caterpillar)`: to it,
   hovering beside it facing its middle, drumming it with her antennae, her gaster swung under and forward and the
   ovipositor driven in, pumping; the caterpillar thrashes, then goes on as it was, stung). In the ecology sandbox
@@ -416,7 +377,11 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   and round, no wasp waist, its gaster short and blunt, all of it in dense short pile (`shaders/render/bee_fur.gdshader`:
   shells of hairs, darker at their roots), the thorax yellow above with a small bare black spot between the wings,
   black beneath, the gaster's first segment yellow and the rest black, its wings smoky, its legs black and stout, the
-  hind tibiae broad (the pollen baskets). `forage(heads, nest)`: landing on flower after flower, its tongue out,
+  hind tibiae broad (the pollen baskets).
+
+<p align="center"><img src="docs/organisms/bee.jpg" width="360" alt="Common eastern bumble bee"><br><sub>Common eastern bumble bee</sub></p>
+
+`forage(heads, nest)`: landing on flower after flower, its tongue out,
   crawling over each and now and then buzzing it (its body shaking, its wings still), the pollen loads on its hind legs
   growing; full, home to its nest (`Bumblebee.nest()`, a hole in the ground), down into it, a while, out unloaded and
   back to the flowers; `home(nest)`. A drone (male) drinks only, no loads. In the ecology sandbox, with what it uses there: a worker
@@ -432,6 +397,10 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   and overhanging, the upper lip great), small high eyes, long ears, the bell hanging from its throat, a stub of a
   tail; dark brown near black, pale grey brown stockings (`carnivore.gdshader`'s species 13); a bull's palmate
   antlers (a broad palm a side fringed with points, a brow palm before it; in velvet or hard), a calf red brown.
+
+<p align="center"><img src="docs/organisms/moose.jpg" width="360" alt="Moose"><br><sub>Moose</sub></p>
+
+
   The deer's grazing, browsing, bedding, alarm, rub and scrape, sparring, calving and nursing; its own wading out
   into the water to feed under it. In the ecology sandbox: willows and a pond by it (B wade).
 - `scripts/creatures/frog.gd` (`Frog`): a northern leopard frog (*Lithobates pipiens*), twice life size: its body
@@ -439,7 +408,11 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   raised), painted in its own shader: green or brown, rows of dark spots ringed pale, the folds cream bronze, a pale
   upper-lip stripe, a dark line from nostril to eye, its tympanum a brown disc with a pale dot, a white belly; bulging
   golden eyes with level pupils, set into its head; its legs tapered and barred dark across, long hind legs folded
-  in a Z, the hind feet webbed; a male's dark thumb pads and paired vocal sacs. Sitting, its throat pulsing; hopping (a ballistic
+  in a Z, the hind feet webbed; a male's dark thumb pads and paired vocal sacs.
+
+<p align="center"><img src="docs/organisms/frog.jpg" width="360" alt="Northern leopard frog"><br><sub>Northern leopard frog</sub></p>
+
+Sitting, its throat pulsing; hopping (a ballistic
   leap, its legs thrown out straight); swimming in strokes (both legs kicked back together, a glide with them straight behind, then drawn up again, knees out, feet turned out; its forelegs laid back along its sides) and floating with its legs splayed behind, only its eyes out; its body deep, rising to the sacral hump over its hips, its belly round; its eyes gold, mottled, the pupil a level oval; sitting, its shins folded back beside its thighs, outside them; catching an insect (a grasshopper nymph in the demo)
   (`Frog.fly_of()`) with a flick of its tongue and gulping (its eyes pulled in); a male calling, his sacs swelling in
   bouts; fleeing in leaps for the water; amplexus (on her back, clasped behind her arms) and her egg mass laid on a
@@ -452,8 +425,16 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   kidney-shaped parotoid gland behind each eye and the bony crests between and behind them; no dorsolateral folds,
   no lip stripe; its iris copper gold; a male's long trill, one round vocal sac swelling under his chin; its eggs in
   two long strings of jelly over the bottom; its tadpoles black.
+
+<p align="center"><img src="docs/organisms/toad.jpg" width="360" alt="American toad"><br><sub>American toad</sub></p>
+
+
 - `scripts/creatures/turtle.gd` (`Turtle`): an eastern box turtle (*Terrapene carolina carolina*), twice life size,
-  on a species' make (a spec: `SnappingTurtle` has its own). Its carapace its own mesh (a high dome, a low keel, the
+  on a species' make (a spec: `SnappingTurtle` has its own).
+
+<p align="center"><img src="docs/organisms/box_turtle.jpg" width="240" alt="Eastern box turtle"><img src="docs/organisms/painted.jpg" width="240" alt="Western painted turtle"><br><sub>Eastern box turtle &nbsp; Western painted turtle</sub></p>
+
+Its carapace its own mesh (a high dome, a low keel, the
   rim flared behind) painted from its scutes' centres: brown, irregular yellow and orange streaks and blotches out
   from each scute's growth centre, fine growth rings, dark seams; its plastron hinged in two lobes that close the
   shell tight (head, legs and tail in) when it withdraws; a lofted head with a hooked beak and a jaw; dark skin
@@ -467,7 +448,11 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   the rear rim sharply toothed, dark brown, fine dark lines radiating over each scute, a little algae; a small
   cross-shaped plastron (it can't hide); a huge head, hooked beak, chin barbels; grey skin knobbed all over with
   rounded tubercles, and spiked: fleshy pointed tubercles along its jaw and under its chin, on its cheeks, round its
-  neck and down each side of its tail; thick legs, big claws, webbed feet; a tail as long as its shell with a saw crest. Walking the pond's bottom, surfacing
+  neck and down each side of its tail; thick legs, big claws, webbed feet; a tail as long as its shell with a saw crest.
+
+<p align="center"><img src="docs/organisms/snapper.jpg" width="360" alt="Common snapping turtle"><br><sub>Common snapping turtle</sub></p>
+
+Walking the pond's bottom, surfacing
   to breathe; lying in ambush on the bottom, mouth a little open; striking (its neck shot out, jaws snapped shut);
   on land its threat (up on its legs, gaping, lunging and snapping); mating in the water (he's on her back, claws
   over her shell's rim, biting at her head); nesting on the bank.
@@ -477,7 +462,11 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   head too big to draw in, big dark eyes; head and flippers a mosaic of dark scales, darkest in their middles, each
   outlined in yellow cream, the neck yellow olive and finely scaled; its foreflippers long swept-back wings, tapering
   to a point, thick along their leading edge (each its own mesh), a claw there (a male's long and curved); its hind
-  flippers broad round paddles; their undersides pale; a male's tail long. Flying through
+  flippers broad round paddles; their undersides pale; a male's tail long.
+
+<p align="center"><img src="docs/organisms/sea_turtle.jpg" width="360" alt="Green sea turtle"><br><sub>Green sea turtle</sub></p>
+
+Flying through
   the water on its foreflippers' slow strokes (the hind ones steering), at one depth then another, up to breathe;
   resting on the bottom; grazing seagrass; away fast when alarmed (it can't hide); the male on the female's back at
   the surface, his claws over her shell's front; the female up the beach heaving on both foreflippers together, her
@@ -497,7 +486,11 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   too), the anole, the scorpion, the spiders, the dragonfly, the snakes, and the squirrel's nut, the mouse's seed,
   the hare's plants.
 - `scripts/creatures/dragonfly.gd` (`Dragonfly`): a common green darner (*Anax junius*), drawn at twice life size,
-  its own flying motor (quick to turn and stop, hovering, banking). Its head nearly all eye, its face yellow green
+  its own flying motor (quick to turn and stop, hovering, banking).
+
+<p align="center"><img src="docs/organisms/darner.jpg" width="360" alt="Common green darner"><br><sub>Common green darner</sub></p>
+
+Its head nearly all eye, its face yellow green
   with the dark bullseye on its brow; a grass green thorax; ten abdominal segments in a chain (curling), the first
   two green, then a male's sky blue, a female's brownish violet, a black stripe down the back, a male's claspers;
   four long clear wings netted with veins (a shader), each with its pterostigma, beating fore and hind out of step,
@@ -518,14 +511,22 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   hindwings sky blue in a broad black band, clear at the edge, shown as it flies; its hind tibiae blue; its own
   place in the ecology sandbox) and `mantis.gd` (`Mantis`: a Carolina mantis, its raised prothorax, turning
   head and raptorial forelegs; stalking with its rocking sway, watching, striking a grasshopper nymph and eating it, grooming,
-  flying; building a foam egg case on a stem, whose nymphs come out along its seam, let down on threads). Their
+  flying; building a foam egg case on a stem, whose nymphs come out along its seam, let down on threads).
+
+<p align="center"><img src="docs/organisms/hopper.jpg" width="180" alt="Differential grasshopper"><img src="docs/organisms/blue_hopper.jpg" width="180" alt="Blue-winged grasshopper"><img src="docs/organisms/mantis.jpg" width="180" alt="Carolina mantis"><br><sub>Differential grasshopper &nbsp; Blue-winged grasshopper &nbsp; Carolina mantis</sub></p>
+
+Their
   nymphs small, wingless (the mantis's abdomen curled up), growing. Not yet in the game:
   the ecology sandbox (`tools/creatures/ecology_demo.tscn`).
 - `scripts/creatures/snake.gd` (`Snake`): snakes, life size, not yet in the game: the eastern diamondback
   rattlesnake (broad triangular head, heat pits, slit pupils, the stripe through the eye, dark diamonds edged in
   cream, keeled scales, a banded tail and its rattle; a newborn only a button) and the eastern milk snake (narrow head,
   black-edged red-brown saddles on grey tan, a checkered belly, the pale V on its nape, glossy; a hatchling bright
-  red). One skin bent along a spine (`shaders/render/snake.gdshader`), the body following its head's sinuous path
+  red).
+
+<p align="center"><img src="docs/organisms/rattler.jpg" width="240" alt="Eastern diamondback rattlesnake"><img src="docs/organisms/milk.jpg" width="240" alt="Eastern milk snake"><br><sub>Eastern diamondback rattlesnake &nbsp; Eastern milk snake</sub></p>
+
+One skin bent along a spine (`shaders/render/snake.gdshader`), the body following its head's sinuous path
   (lateral undulation), the tongue flicking; coiling; eating a mouse (the rattler coils, rattles, strikes and lets go,
   waits, swallows; the milk snake strikes, constricts in its coils, swallows: the jaws gaping, the meal a bulge going
   down). The milk snake lays leathery eggs that hatch (a slit, the young's head out, then the young); the rattler gives
@@ -535,14 +536,26 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   sac carried in its jaws, a nursery web spun over it to hatch in), a grass spider (a funnel weaver: its sheet web laid
   in sweeps out from its funnel, waiting at the mouth, rushing out at prey and dragging it in) and a yellow garden
   spider (its orb spun off a branch thread by thread, frame, radii, spiral, the zigzag stabilimentum; at its hub head
-  down; prey wrapped in silk; its brown papery sac hung). Lofted bodies with their marks
+  down; prey wrapped in silk; its brown papery sac hung).
+
+<p align="center"><img src="docs/organisms/wolf_spider.jpg" width="180" alt="Carolina wolf spider"><img src="docs/organisms/fishing_spider.jpg" width="180" alt="Six-spotted fishing spider"><img src="docs/organisms/funnel_spider.jpg" width="180" alt="Grass spider (funnel weaver)"><br><sub>Carolina wolf spider &nbsp; Six-spotted fishing spider &nbsp; Grass spider (funnel weaver)</sub></p>
+
+Lofted bodies with their marks
   (`shaders/render/spider.gdshader`), eyes in their families' patterns, chelicerae, palps, spinnerets; silk
   (`shaders/render/silk.gdshader`) drawn as far as it's spun. Hunting, eating, laying, hatching, spiderlings.
 - `scripts/creatures/isopod.gd` (`Isopod`): a pill bug, overlapping plates over seven pairs of legs; walking, eating
   leaf litter, rolling into a ball; its eggs carried in a brood pouch that swells, its young (six pairs of legs) walking
   out from under it.
+
+<p align="center"><img src="docs/organisms/pillbug.jpg" width="360" alt="Pill bug"><br><sub>Pill bug</sub></p>
+
+
 - `scripts/creatures/bat.gd` (`Bat`, *Eptesicus fuscus*, its own make): a big brown bat, life size (115 mm head and
-  body, a 47 mm forearm, 33 cm across). Its body and head one furred skin (`MammalSkin`; carnivore.gdshader's species
+  body, a 47 mm forearm, 33 cm across).
+
+<p align="center"><img src="docs/organisms/bat.jpg" width="360" alt="Big brown bat"><br><sub>Big brown bat</sub></p>
+
+Its body and head one furred skin (`MammalSkin`; carnivore.gdshader's species
   18: glossy, oily brown above, paler tan beneath, its face and broad muzzle black); its wings and tail membrane plain
   dark skin stretched between its bones and rebuilt as they move (only when they've moved): the arm, the thumb and its
   claw at the wrist, the four long fingers, the membrane before the arm, between the fingers, from the fifth finger to
@@ -570,7 +583,11 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   (*Peromyscus maniculatus*), life size: brown above, grizzled, white beneath with the sharp line between, white feet,
   big black eyes, big round ears pink inside, whiskers, orange incisors, its long tail dark above and white below
   (`carnivore.gdshader`'s species 9); mammal legs (the elbows back, the knees forward, the long hind feet flat heel to
-  toe). Scurrying, stopping to sniff (nose, whiskers and ears going), sitting up to look; eating a seed sat up on its
+  toe).
+
+<p align="center"><img src="docs/organisms/mouse.jpg" width="360" alt="Deer mouse"><br><sub>Deer mouse</sub></p>
+
+Scurrying, stopping to sniff (nose, whiskers and ears going), sitting up to look; eating a seed sat up on its
   haunches, turning it in its forepaws, nibbling it away; washing its face. The female gives birth in her grass nest
   (`Mouse.nest()`), licking each pup clean, then nursing; the pups born pink, hairless, eyes shut, ears folded,
   wriggling where they lie; growing, furred grey, eyes open, up and about, brown as they grow up.
@@ -578,7 +595,11 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   `canid.gd` (the dogs': below) and `red_fox.gd` (`RedFox`: rufous, grizzled, white beneath, black stockings, a narrow white-sided muzzle, amber slit-pupilled
   eyes, big black-backed ears, a full brush tipped white) and `bobcat.gd` (`Bobcat`: tawny to grey, spotted and barred,
   a barred ruff, white about the eyes, black-backed tufted ears with a white spot, a short barred tail black-tipped
-  above); coats by `shaders/render/carnivore.gdshader`. Digitigrade legs (upper, lower, the long metapodial, the paw on
+  above); coats by `shaders/render/carnivore.gdshader`.
+
+<p align="center"><img src="docs/organisms/fox.jpg" width="240" alt="Red fox"><img src="docs/organisms/bobcat.jpg" width="240" alt="Bobcat"><br><sub>Red fox &nbsp; Bobcat</sub></p>
+
+Digitigrade legs (upper, lower, the long metapodial, the paw on
   its toes; a lifted paw curled); gaits by speed, each foot planted where it's set down: a walk (each foot in turn), a
   trot (the diagonals), a gallop (the back flexing, rising and pitching); the head on its neck, looking, sniffing; the
   ears turning, pricked, laid back; the tail carried low walking, out behind running, low stalking, curled round its
@@ -605,6 +626,10 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   lupus*: big, deep chested, long legged, big footed, a broad head and deep muzzle, shorter rounder ears; grizzled
   grey, a darker saddle, pale buff legs and flanks, a pale underside and face mask; its tail carried low and straight,
   dark tipped); their pups born dark (a wolf's near black), blind, in the den, growing, playing.
+
+<p align="center"><img src="docs/organisms/coyote.jpg" width="240" alt="Coyote"><img src="docs/organisms/wolf.jpg" width="240" alt="Grey wolf"><br><sub>Coyote &nbsp; Grey wolf</sub></p>
+
+
   `dog.gd` (`Dog`, *Canis familiaris*): the wolf's make cut to a breed (`Dog.make_spec`: the wolf's measures made over,
   its size, legs, build and muzzle; ears pricked or hanging, the make's `ear.drop`; its tail's carriage) and its coat
   (`carnivore.gdshader`'s dog, species 17: solid, black and tan, tricolour). Each breed's head sculpted its own (`make_spec`'s
@@ -617,6 +642,10 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   pups whelped in a box (`Dog.bed()`). The breeds: `german_shepherd.gd` (tan, a black saddle and mask, big pricked
   ears, a bushy low tail), `labrador_retriever.gd` (sturdy, broad headed, hanging ears, an otter's tail; yellow, black
   or chocolate), `beagle.gd` (a small hound, short legged, long hanging ears, its white-tipped tail up; tricolour).
+
+<p align="center"><img src="docs/organisms/dog_gsd.jpg" width="180" alt="Dog: German shepherd"><img src="docs/organisms/dog_lab.jpg" width="180" alt="Dog: Labrador retriever"><img src="docs/organisms/dog_beagle.jpg" width="180" alt="Dog: beagle"><br><sub>Dog: German shepherd &nbsp; Dog: Labrador retriever &nbsp; Dog: beagle</sub></p>
+
+
   In the sandbox under Mammals: V a ball thrown (or a play bow), D / X barking at you, B digging, E its bowl; the rest
   as the wolf's.
 - `scripts/creatures/ursid.gd`, the bears' ways on the hunters' make, plantigrade (on the whole sole, the heel
@@ -632,11 +661,19 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   claws; black, cinnamon, brown or blond, now and then a white chest blaze) and `brown_bear.gd` (`BrownBear`, *Ursus
   arctos*: massive, the shoulder hump, a dished face, a broad muzzle, small round ears, long pale claws; brown,
   grizzled or blond, darker legs).
+
+<p align="center"><img src="docs/organisms/black_bear.jpg" width="240" alt="American black bear"><img src="docs/organisms/brown_bear.jpg" width="240" alt="Brown bear (grizzly)"><br><sub>American black bear &nbsp; Brown bear (grizzly)</sub></p>
+
+
 - `scripts/creatures/bison.gd` (`Bison`, *Bison bison*, on the hunters' make, a grazer's ways): life size (a bull
   3 m long, 1.8 m at the hump, a cow a little smaller); the great hump, the huge head carried low, short black horns
   curving up and in, the beard; long dark shaggy wool on the head, hump, shoulders and forelegs, the hindquarters
   browner, short (`carnivore.gdshader`'s species 6); small wide-set eyes, barred pupils; slender legs on cloven
-  black hooves; a thin tufted tail. Grazing (head down, cropping, chewing, stepping on); lying chewing its cud (its
+  black hooves; a thin tufted tail.
+
+<p align="center"><img src="docs/organisms/bison.jpg" width="360" alt="American bison"><br><sub>American bison</sub></p>
+
+Grazing (head down, cropping, chewing, stepping on); lying chewing its cud (its
   rest); wallowing (horning the ground, down and rolling on its side and back, legs kicking, a cloud of dust, up and
   a shake); a bull's bellow and sparring (head to head, horns locked, pushing back and forth); stampeding at a
   gallop, tail up; a cow's calf born in the open (red orange, no hump or horns), licked, struggling up, suckling at
@@ -645,7 +682,11 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
 - `scripts/creatures/deer.gd` (`Deer`, *Odocoileus virginianus*, on the hunters' make, a browser's ways): a
   white-tailed deer, life size (a doe 90 cm at the shoulder, a buck a little bigger); slender and deep chested on
   long thin legs, small cloven hooves with dewclaws; the long neck carried high, a narrow tapering head, big dark
-  eyes, big mobile ears; the long broad tail, white beneath. Its coat by season (`Deer.new(young, "summer" |
+  eyes, big mobile ears; the long broad tail, white beneath.
+
+<p align="center"><img src="docs/organisms/deer.jpg" width="180" alt="White-tailed deer (summer)"><img src="docs/organisms/deer_winter.jpg" width="180" alt="White-tailed deer (winter)"><img src="docs/organisms/deer_ticks.jpg" width="180" alt="White-tailed deer, tick-infested"><br><sub>White-tailed deer (summer) &nbsp; White-tailed deer (winter) &nbsp; White-tailed deer, tick-infested</sub></p>
+
+Its coat by season (`Deer.new(young, "summer" |
   "winter")`, `carnivore.gdshader`'s species 7): summer red brown, winter grey brown; white belly, chin, muzzle band,
   eye rings and throat patch. A buck's antlers (`antlers`: points a side): the beams sweeping out, back and forward,
   the tines rising off them, the brow tines; in velvet in summer, hard and pale in winter. A fawn red and white
@@ -660,7 +701,11 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
 - `scripts/creatures/beaver.gd` (`Beaver`, *Castor canadensis*, on the hunters' make, plantigrade, waddling): a North
   American beaver, life size; one skin, heavy, humped, broadest at its hips, a broad blunt head, small eyes and
   ears, great orange incisors, clawed hands, big webbed hind feet, its tail a broad flat scaled paddle
-  (`carnivore.gdshader`'s species 11: rich dark glossy brown, its feet and tail bare and black). In its water (`wet`,
+  (`carnivore.gdshader`'s species 11: rich dark glossy brown, its feet and tail bare and black).
+
+<p align="center"><img src="docs/organisms/beaver.jpg" width="360" alt="North American beaver"><br><sub>North American beaver</sub></p>
+
+In its water (`wet`,
   `water_y`) it floats low, head and back showing, hind feet paddling by turns, forefeet tucked, tail trailing;
   its alarm a tail slap on the water (a splash) and a dive; felling an aspen (`Beaver.sapling()`) sat up gnawing
   round it, chips flying, the tree falling, a length gnawed off and carried in its jaws out to its lodge
@@ -679,7 +724,11 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   one skin, long, low and supple, its neck as thick as its broad flat head, small round ears set low, small eyes set
   high, a short blunt muzzle with full whisker pads and thick white whiskers, a broad black nose pad, clawed webbed
   feet, its tail thick at the root and tapering (species 15: dark chocolate, its belly paler, its throat, chin, lips
-  and cheeks silvery cream down onto its chest). Its catch carried ashore and eaten lying on its belly, pinned under
+  and cheeks silvery cream down onto its chest).
+
+<p align="center"><img src="docs/organisms/river_otter.jpg" width="360" alt="North American river otter"><br><sub>North American river otter</sub></p>
+
+Its catch carried ashore and eaten lying on its belly, pinned under
   its forepaws, head tilted to crunch it; up on its hind legs to look (`periscope`, its tail a prop; in the water,
   treading it); sliding: up the bank, a bound down it and onto its belly, forelegs swept back, into the water
   (`slide`); rolling dry on the bank, then licking its coat (groom); its spraint left crouched, tail up (dark, fish
@@ -689,7 +738,11 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   its neck short, its head round and blunt, the whisker pads swelling either side of a broad black nose, long pale
   drooping whiskers, small dark eyes set wide, tiny ears, mitten forepaws, broad flat webbed hind flippers, a short
   flattened tail (species 16: a deep brown frosted silver at the guard hairs' tips; its head, throat and chest cream to
-  blond, a grown male's near white; a pup a fluffy buff). It lives on its back: drifting, its forepaws on its chest,
+  blond, a grown male's near white; a pup a fluffy buff).
+
+<p align="center"><img src="docs/organisms/sea_otter.jpg" width="360" alt="Sea otter"><br><sub>Sea otter</sub></p>
+
+It lives on its back: drifting, its forepaws on its chest,
   its flippers out of the water; travelling belly down. Foraging (`forage`): a dive, nosing and digging on the bottom,
   up with a clam (`SeaOtter.clam()`) and a rock (`rock()`) under its arm, or an urchin (`urchin()`); over onto its
   back, the rock on its chest and the clam hammered on it two-handed till it opens; eaten off its chest; the shells
@@ -707,7 +760,11 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   mouth open); its ears black, naked, pale rimmed; short black legs, bare pink five-fingered feet, the hind foot's
   big toe an opposable thumb; its tail long, bare, scaled, black from its furred root for a third of its length,
   then white (`carnivore.gdshader`'s species 14: grizzled grey, white underfur and guard hairs, black ones among
-  them). Playing possum (over on its side, stiff, mouth open, tongue out, drooling; an ear twitches, its head comes
+  them).
+
+<p align="center"><img src="docs/organisms/opossum.jpg" width="360" alt="Virginia opossum"><br><sub>Virginia opossum</sub></p>
+
+Playing possum (over on its side, stiff, mouth open, tongue out, drooling; an ear twitches, its head comes
   up, it gets up and goes); gaping and hissing, every tooth bared; climbing a leaning branch (`Opossum.snag()`),
   its feet round it, its tail coiled round it, a while up there, turned round and down head first; leaves gathered
   in its mouth, tucked back under it with its forefeet into the loop of its tail and carried to its den
@@ -721,7 +778,11 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   North American porcupine, life size; one skin, squat and round, its back humped highest over its rump, its legs
   short and bowed, its head small and blunt, a big black nose pad, small black eyes, small round ears half hidden,
   long whiskers, its incisors' faces orange; four long curved claws before, five behind, its soles bare, black and
-  pebbled (`carnivore.gdshader`'s species 18: dark brown black woolly underfur, grizzled). Its quills and guard
+  pebbled (`carnivore.gdshader`'s species 18: dark brown black woolly underfur, grizzled).
+
+<p align="center"><img src="docs/organisms/porcupine.jpg" width="360" alt="North American porcupine"><br><sub>North American porcupine</sub></p>
+
+Its quills and guard
   hairs grown on its skin (`scripts/creatures/strands.gd`, `Strands`: each a tapered tube weighted to the skin's
   own bones, bending with its neck and tail; `shaders/render/strands.gdshader`): the quills cream with dark tips,
   short over its shoulders and in a crest on its crown, longest and thickest over its rump and on its tail; its
@@ -744,7 +805,11 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   hanging straight down nearly to its elbows and knees, its ends arched down over its shoulders and its rump; each
   band's rear edge raised over the next): its shoulder and hip shields a mosaic of small rounded scutes, its nine
   bands rows of long scutes pointed behind, the pale pinkish skin folded between them, a few bristles out of it
-  (`shaders/render/armadillo_shell.gdshader`). Its head long and narrow, its snout a tapering tube to a small pink
+  (`shaders/render/armadillo_shell.gdshader`).
+
+<p align="center"><img src="docs/organisms/armadillo.jpg" width="360" alt="Nine-banded armadillo"><br><sub>Nine-banded armadillo</sub></p>
+
+Its head long and narrow, its snout a tapering tube to a small pink
   nose, its head shield of scutes over its crown and down its snout, small dark eyes, big naked upright ears; its
   tail long and tapering, ringed with scutes; its legs short and scaly, four toes before (the middle two clawed
   long, for digging), five behind; its belly soft, pale pinkish grey, with long sparse yellowish hairs (Strands)
@@ -762,7 +827,11 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   life size; one skin, a long supple body, round head, short blunt muzzle, big dark eyes ringed pale, short rounded
   ears, orange incisors, sharp claws; its long bushy tail a chain of bones carried up over its back in an S,
   streaming out behind as it bounds, flicked in waves (`carnivore.gdshader`'s species 10: grizzled grey brown
-  washed orange above, rusty orange beneath, the tail's hairs black banded and orange fringed). Bounding, sitting up
+  washed orange above, rusty orange beneath, the tail's hairs black banded and orange fringed).
+
+<p align="center"><img src="docs/organisms/fox_squirrel.jpg" width="360" alt="Eastern fox squirrel"><br><sub>Eastern fox squirrel</sub></p>
+
+Bounding, sitting up
   to look; eating a nut (`FoxSquirrel.nut()`) picked up in its teeth, then sat up with it in its forepaws, turned
   and gnawed; caching one (dug in with its forepaws, pushed down with its nose, raked over and patted, a little
   mound left); climbing its tree (`FoxSquirrel.tree()`) in bounds, claws gripping, a look round at the top, down
@@ -772,13 +841,21 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
 - `scripts/creatures/grey_squirrel.gd` (`GreySquirrel`, *Sciurus carolinensis*, on `FoxSquirrel`): an eastern grey
   squirrel, its model and ways the fox squirrel's, a little larger here (size 0.33); its coat `carnivore.gdshader`'s
   species 12: grizzled silver grey washed brown along the back, over the head and down the legs, white beneath and
-  round the eyes, the tail grey, its hairs black banded, a white fringe. Its own entry in the ecology sandbox
+  round the eyes, the tail grey, its hairs black banded, a white fringe.
+
+<p align="center"><img src="docs/organisms/grey_squirrel.jpg" width="360" alt="Eastern grey squirrel"><br><sub>Eastern grey squirrel</sub></p>
+
+Its own entry in the ecology sandbox
   (after the beavers'), the same keys.
 - `scripts/creatures/hare.gd` (`Hare`, on `hexapod.gd`'s motor, its gait its own): a snowshoe hare (*Lepus
   americanus*), life size, in its summer coat (`carnivore.gdshader`'s species 8: brown, grizzled, darker along the back,
   white beneath, the hind feet paler, the ears black tipped); long spoon ears turning, laid back, pricked; big eyes
   high on its sides, the split lip and twitching nose, whiskers, a powder-puff tail; slender forelegs, the huge flat
-  furred hind feet. Hopping (the hind feet pushing off together, a moment in the air, the forefeet down one then the
+  furred hind feet.
+
+<p align="center"><img src="docs/organisms/hare.jpg" width="360" alt="Snowshoe hare"><br><sub>Snowshoe hare</sub></p>
+
+Hopping (the hind feet pushing off together, a moment in the air, the forefeet down one then the
   other, the hind feet swung past them to land ahead; slow or bounding, quick to get going); still, hunched in its
   form. Browsing clover (`Hare.clover()`) or sitting up to a willow shoot (`Hare.twig()`), the jaw grinding side to
   side; grooming (licking its paws, washing its face, drawing an ear down); sitting up alert; thumping; freezing flat,
@@ -789,14 +866,22 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   white beneath, finely pebbled, turning brown (still a long while) and green again (`shaders/render/anole.gdshader`:
   its body and tail one skin bent along a spine, the trunk swinging side to side with its stride, the tail waving
   after it along the ground); a long pointed head, eyes in turrets, a hinged jaw; four sprawling legs, long splayed
-  toes; the male's pink dewlap flared to display (only his). Darting and stopping, head bobs and push-ups; hunting
+  toes; the male's pink dewlap flared to display (only his).
+
+<p align="center"><img src="docs/organisms/anole.jpg" width="360" alt="Green anole"><br><sub>Green anole</sub></p>
+
+Darting and stopping, head bobs and push-ups; hunting
   (watching, creeping, a dash and a snap, chewing); the female digging a hole with her snout and laying one leathery
   egg in it, covered over (`Anole.AnoleEgg`: a slit, the hatchling out); mating (his display, then on her, his jaws
   on her nape, his tail twisted under hers).
   `gila_monster.gd` (`GilaMonster`, *Heloderma suspectum*): the anole's make made a Gila monster (the anole's body frame
   now per species, `Anole.set_frame`; its girth, `_girth`, its own; its eggs' size and clutch, `egg_scale`, `clutch`;
   its hatchlings growing to its own size, `adult_size`): about 50 cm, heavy and low slung, its legs short and stout,
-  its toes thick and clawed, its head broad and blunt, its eyes small and beady, its tail short and fat. Its hide
+  its toes thick and clawed, its head broad and blunt, its eyes small and beady, its tail short and fat.
+
+<p align="center"><img src="docs/organisms/gila.jpg" width="360" alt="Gila monster"><br><sub>Gila monster</sub></p>
+
+Its hide
   beaded (`shaders/render/gila.gdshader`: each bead a dome, each its own colour), black in a broken net of peach,
   salmon and orange, its tail ringed, its head black speckled peach on the crown; a hatchling banded clean across.
   An amble, its forked tongue flicking out and in as it goes; its burrow (`GilaMonster.burrow()`): sleep takes it in,
@@ -809,7 +894,11 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   carapace a low trapezoid, notched before, furrowed, its eyes; the mesosoma's seven tergites overlapping, keeled, the
   pale membrane between; the five-segmented tail, its segments narrow jointed and keeled at their edges (coiled to its
   side at rest, arched over its back walking), the telson's bulb, its tooth, its long curved sting; long slender
-  keeled pedipalps, the chelae's long curved fingers; chelicerae, the pectines' combs, claws at its feet. Ambushing,
+  keeled pedipalps, the chelae's long curved fingers; chelicerae, the pectines' combs, claws at its feet.
+
+<p align="center"><img src="docs/organisms/scorpion.jpg" width="360" alt="Arizona bark scorpion"><br><sub>Arizona bark scorpion</sub></p>
+
+Ambushing,
   creeping, seizing prey in its chelae, drawing it in and stinging it, tearing at it (a grasshopper nymph in the demo); its
   strike (`strike(at)`, `sting(at)`: up on its legs, chelae raised, the tail cocked up and back, whipped forward over
   its back, the tail's joints bent to bring the sting to its mark, driven in, held, the bulb pumping, a drop of venom
@@ -989,10 +1078,18 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   from parts (furred where the species is), its wings cut to their real outlines and painted, veins, borders and
   spots, above and beneath (`tools/creatures/bake_lepidoptera_wings.py` bakes `data/creatures/lepidoptera_wings.png`
   and the outlines, `scripts/creatures/lepidoptera_wings.gd`; drawn by `shaders/render/lepidoptera_wing.gdshader`), flying (beating, gliding, a blur
-  past the eye's speed), perching, its proboscis uncoiling to a point. `hummingbird_moth.gd` (`HummingbirdMoth`,
+  past the eye's speed), perching, its proboscis uncoiling to a point.
+
+<p align="center"><img src="docs/organisms/swallowtail.jpg" width="140" alt="Old World swallowtail"><img src="docs/organisms/luna.jpg" width="140" alt="Luna moth"><img src="docs/organisms/cloak.jpg" width="140" alt="Mourning cloak"><img src="docs/organisms/cecropia.jpg" width="140" alt="Cecropia moth"><img src="docs/organisms/polyphemus.jpg" width="140" alt="Polyphemus moth"><br><sub>Old World swallowtail &nbsp; Luna moth &nbsp; Mourning cloak &nbsp; Cecropia moth &nbsp; Polyphemus moth</sub></p>
+
+`hummingbird_moth.gd` (`HummingbirdMoth`,
   *Hemaris thysbe*: search, darting from hover to hover and looking in at flowers; feed, hovering at a flower's florets,
   its proboscis in each) and `monarch.gd` (`Monarch`, *Danaus plexippus*: fly, flap and glide; bask on a stone, its
-  wings spread; feed on a flower, its wings closed over its back). `tools/creatures/lepidoptera_demo.tscn` shows them
+  wings spread; feed on a flower, its wings closed over its back).
+
+<p align="center"><img src="docs/organisms/monarch.jpg" width="240" alt="Monarch"><img src="docs/organisms/moth.jpg" width="240" alt="Hummingbird clearwing"><br><sub>Monarch &nbsp; Hummingbird clearwing</sub></p>
+
+`tools/creatures/lepidoptera_demo.tscn` shows them
   in a patch of the game's flowers (`DemoFlowers.patch`: three clumps of common milkweed, one of swamp milkweed,
   coneflowers, Susans, fleabane, asters, yampah) and a stone, each animation on a key.
   Three more, each with its eggs, caterpillar, pupa and adult (in the ecology sandbox's Insects, adult, young or
@@ -1014,7 +1111,11 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   `fireflies.gd` (`Fireflies`, *Photinus pyralis*, the "big dipper"): beetles on the ants' GPU colony (`Beetles`), long
   and soft, the wing cases dull blackish edged pale yellow, the pronotum's shield rose pink with a black spot, rimmed
   yellow; the lantern (two cream segments under the tail, `ant.gdshader` part 27) lit each instant from the CPU,
-  yellow-green, a few small lights cast from the brightest flashes. At dusk (the global night, or D: court) the males
+  yellow-green, a few small lights cast from the brightest flashes.
+
+<p align="center"><img src="docs/organisms/firefly.jpg" width="360" alt="Common eastern fireflies (a few)"><br><sub>Common eastern fireflies (a few)</sub></p>
+
+At dusk (the global night, or D: court) the males
   fly low, each flashing every 5.6 s as he swoops down and up (a J of light); the females in the grass answer 2 s after
   a male's flash; an answered male comes in nearer and lower at each exchange, lands, walks to her and they mate; she
   lays a dozen eggs, which glow faintly. Its larva (a glowworm: flat, dark plates edged pink, two lanterns pulsing
@@ -1033,6 +1134,10 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   flamed tigersnail (`flamed_tigersnails.gd`, *Anguispira alternata*): a low ribbed dome, horn brown with rows of ragged
   red-brown flames, an orange-tan body; the lovely grass snail (`grass_snails.gd`, *Vallonia pulchella*): tiny, a glassy
   white disc with a flared white lip, mostly selfing.
+
+<p align="center"><img src="docs/organisms/tigersnail.jpg" width="240" alt="Flamed tigersnails (a few)"><img src="docs/organisms/grass_snail.jpg" width="240" alt="Lovely grass snails (a few)"><br><sub>Flamed tigersnails (a few) &nbsp; Lovely grass snails (a few)</sub></p>
+
+
   `bird.gd` (`Bird`, `bird.gdshader`, `bird_rig.gdshaderinc`): the make birds share (the plan: `docs/birds.md`), one
   mesh posed in its shader, no `Skeleton3D`: one skin from tail to bill bending at four neck joints, the legs, each
   wing a surface over three bones whose elbow and wrist fold together, every flight and tail feather a card fanned
@@ -1049,9 +1154,17 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   pole in for it, `Raptor.nest_pole`), built there the first time, her clutch laid and sat, the eyases hatching (white down), brooded, fed morsels bill to bill, begging,
   growing, flapping, fledging as juveniles; falling dead from the air. `peregrine_falcon.gd` (`PeregrineFalcon`):
   slate above, black hood and moustache, white below barred black, pointed wings; rings up over its prey and stoops; a
-  gravel ledge, four red-brown blotched eggs; the juvenile brown, streaked. `coopers_hawk.gd` (`CoopersHawk`): blue grey
+  gravel ledge, four red-brown blotched eggs; the juvenile brown, streaked.
+
+<p align="center"><img src="docs/organisms/peregrine.jpg" width="360" alt="Peregrine falcon"><br><sub>Peregrine falcon</sub></p>
+
+`coopers_hawk.gd` (`CoopersHawk`): blue grey
   above, dark cap, barred rufous below, red-orange eye under a bony brow, short rounded wings, a long banded tail;
   flap-flap-glide; dashes low off its perch; a stick nest, pale bluish eggs; the juvenile brown, streaked, yellow-eyed.
+
+<p align="center"><img src="docs/organisms/coopers.jpg" width="360" alt="Cooper's hawk"><br><sub>Cooper's hawk</sub></p>
+
+
   In the sandbox under Birds (adult, juvenile, or young: an eyas in its nest): E / H hunt, B soar, F fly, X alarm, D
   call, G preen, A rouse, Z sleep, K mate, 1 lay, 2 hatch, N brood, U die.
   `eagle.gd` (`Eagle`): a Raptor twice a hawk's size (`eagle_shape`: the hawk's lines made over, bulkier, a heavier
@@ -1067,7 +1180,11 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   colour (`trouser`), white blotched through brown (under pattern 6). `bald_eagle.gd` (`BaldEagle`): dark chocolate
   brown, its head, neck and tail white, the great bill, cere and feet yellow, the eye pale yellow under a heavy brow;
   fishes, scavenges, takes a hare or a poult; calls with its head thrown back, chattering; dull white eggs; the
-  juvenile brown blotched white, dark billed, brown eyed. `golden_eagle.gd` (`GoldenEagle`): dark brown, the crown and
+  juvenile brown blotched white, dark billed, brown eyed.
+
+<p align="center"><img src="docs/organisms/bald_eagle.jpg" width="360" alt="Bald eagle"><br><sub>Bald eagle</sub></p>
+
+`golden_eagle.gd` (`GoldenEagle`): dark brown, the crown and
   hackles golden, the face dark, a pale tawny bar on the folded wing, a grey-brown tail dark tipped, legs feathered
   tawny to yellow feet, a dark bill blue grey at its root, amber eyes; its wings above with a tawny bar over the arm's deep coverts (each
   dark centred, fringed broad and pale, a few pale through), the leading edge golden, the flight feathers grey brown
@@ -1075,7 +1192,11 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   tawny, the flight feathers grey, irregularly barred near their bases, a broad dark band at their ends (the shader's
   `cov_bar`, `cov_lead`, `under_cov_var`, `fl_bar_wave`, `fl_bar_to`, `fl_trail`, `fl_top_tip`, `fl_prim_dark`); stoops on hares and squirrels from high, its
   display a sky dance; white eggs blotched reddish brown; the juvenile with white patches in its wings and a white
-  tail broadly tipped black. In the sandbox under Birds (adult, juvenile, or young: an eaglet in its nest), on a tall
+  tail broadly tipped black.
+
+<p align="center"><img src="docs/organisms/golden_eagle.jpg" width="360" alt="Golden eagle"><br><sub>Golden eagle</sub></p>
+
+In the sandbox under Birds (adult, juvenile, or young: an eaglet in its nest), on a tall
   snag: H the bald eagle fishes (a pond here with fish in it), the golden stoops on a hare; E to a carcass
   that's here; the rest as the hawks.
   `owl.gd` (`Owl`): a Raptor made upright and round headed (the body's own additions for it: a big round head, its face a
@@ -1087,10 +1208,22 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   weaving, hooting (leaned forward, throat swelled, tail cocked), casting a pellet (it lies a while, then is gone), quartering low and slow, dropping
   on its prey; its threat wings spread and turned forward, puffed, swaying, bill clacking. White eggs, downy owlets.
   `great_horned_owl.gd` (`GreatHornedOwl`): big, tufted, mottled grey brown, a rusty disc rimmed black, yellow eyes, a
-  white bib, finely barred below; takes squirrels and poults too; two eggs in a stick nest. `barn_owl.gd` (`BarnOwl`):
+  white bib, finely barred below; takes squirrels and poults too; two eggs in a stick nest.
+
+<p align="center"><img src="docs/organisms/horned_owl.jpg" width="360" alt="Great horned owl"><br><sub>Great horned owl</sub></p>
+
+`barn_owl.gd` (`BarnOwl`):
   slim, long legged, golden buff spotted white, a white heart face with small black eyes, white below (the female
-  buff), long wings; five eggs on a bare floor. `eastern_screech_owl.gd` (`EasternScreechOwl`): small, tufted, grey
-  or (one in three: `red`) rufous, streaked and barred like bark; four eggs. In the sandbox under Birds (adult or
+  buff), long wings; five eggs on a bare floor.
+
+<p align="center"><img src="docs/organisms/barn_owl.jpg" width="360" alt="Barn owl"><br><sub>Barn owl</sub></p>
+
+`eastern_screech_owl.gd` (`EasternScreechOwl`): small, tufted, grey
+  or (one in three: `red`) rufous, streaked and barred like bark; four eggs.
+
+<p align="center"><img src="docs/organisms/screech_owl.jpg" width="360" alt="Eastern screech owl"><br><sub>Eastern screech owl</sub></p>
+
+In the sandbox under Birds (adult or
   young): as the hawks, but X its threat, D its hoot, M a pellet cast, B quartering.
   `thrush.gd` (`Thrush`): a Raptor made a songbird (`thrush_shape`: the hawk's lines made small and plump, the head
   round and big, the bill thin and straight, the wings short and rounded, a broken white eye ring by the shader's
@@ -1111,10 +1244,18 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   spots (`under_spots`). `american_robin.gd` (`AmericanRobin`, *Turdus migratorius*): black head with white eye
   arcs, white throat streaked black, grey-brown back, blackish tail with white corners, brick-orange breast, white
   vent, yellow bill; the female paler, her head grey brown; the juvenile spotted; robin's-egg blue eggs; runs and
-  stops on the lawn. `eastern_bluebird.gd` (`EasternBluebird`, *Sialia sialis*): the male royal blue above (head,
+  stops on the lawn.
+
+<p align="center"><img src="docs/organisms/robin.jpg" width="360" alt="American robin"><br><sub>American robin</sub></p>
+
+`eastern_bluebird.gd` (`EasternBluebird`, *Sialia sialis*): the male royal blue above (head,
   back, wings, tail), rusty throat and breast, white belly, black bill and legs; the female grey brown, blue only in
   her wings and tail, a white eye ring, a paler breast; the juvenile grey, spotted white; pale blue eggs in a box;
-  hunts from a low post. In the sandbox under Birds (adult, juvenile, or young: a nestling in its nest; the robin on
+  hunts from a low post.
+
+<p align="center"><img src="docs/organisms/bluebird.jpg" width="360" alt="Eastern bluebird"><br><sub>Eastern bluebird</sub></p>
+
+In the sandbox under Birds (adult, juvenile, or young: a nestling in its nest; the robin on
   the ground, the bluebird on a low post): E / H what it eats that's here (none set out), B forage, D sing, K court
   and mate, 1 lay (its site given it: a ledge, a box), 2 hatch, N brood; the rest as the hawks.
   The songbird's make serves others too: `thrush_shape`'s girth (`plump`), a deep conical bill (`bill_deep`), a
@@ -1141,13 +1282,21 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   graduated and pointed; the male slate blue grey above, black spots on his coverts, his neck's sides iridescent
   bronze and violet, his throat and breast a coppery rufous paling to a white vent, the middle tail feathers grey, the
   outer white, his eye red, his legs coral red, his bill black; the female browner, duller, buff grey below, her eye
-  orange; one white egg on a platform in a tree's fork; acorns, grubs, caterpillars, snails. Taken by the peregrine,
+  orange; one white egg on a platform in a tree's fork; acorns, grubs, caterpillars, snails.
+
+<p align="center"><img src="docs/organisms/pigeon.jpg" width="360" alt="Passenger pigeon"><br><sub>Passenger pigeon</sub></p>
+
+Taken by the peregrine,
   the Cooper's hawk, the great horned owl. In the sandbox under Birds: on the ground; E eats (an acorn that's here), D
   coo, V display flight, A sunbathe, B forage (a drink, at a pond near), K court, 1 lay, 2 hatch, N brood.
   `red_winged_blackbird.gd` (`RedWingedBlackbird`, *Agelaius phoeniceus*): the male glossy black, his epaulets scarlet
   bordered buff yellow (at rest a patch at the bend of the wing; in his song spread and in flight across the coverts);
   the female dark brown, heavily streaked, below dark brown streaked buffy white, a pale stripe over her eye, rust in her
-  shoulders. His song spread (`call_out`: puffed, wings held out and drooped, the epaulets flared, tail fanned,
+  shoulders.
+
+<p align="center"><img src="docs/organisms/blackbird.jpg" width="360" alt="Red-winged blackbird"><br><sub>Red-winged blackbird</sub></p>
+
+His song spread (`call_out`: puffed, wings held out and drooped, the epaulets flared, tail fanned,
   conk-la-ree, the last a trill), her chatter; display (`display(rival)`: a rival male flown at and chased off; none,
   his song spread); walking and gaping for insects (caterpillars, grasshoppers and their nymphs, June bugs and
   grubs, spiders, snails); its alarm, a check and a flick of its tail; her cup woven among cattails, four pale blue-green
@@ -1159,7 +1308,11 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   stood on the head's rim, swaying with it in the wind (`bird.gdshader`'s `ride_at`, `ride_k`: the plant's own sway),
   leaning over it as it pecks the ground, its bill to the disc: a seed picked out only with its bill on it (sidling on
   the rim till it's there), husked in its bill (its jaw working), the two halves of the husk fluttering down, the
-  kernel swallowed; a dozen or so, then the next head, or off. The plant never touched: its heads, its meshes as they
+  kernel swallowed; a dozen or so, then the next head, or off.
+
+<p align="center"><img src="docs/organisms/coneflower.jpg" width="240" alt="Purple coneflower"><img src="docs/organisms/aster.jpg" width="240" alt="Aster"><br><sub>Purple coneflower &nbsp; Aster</sub></p>
+
+The plant never touched: its heads, its meshes as they
   were (a seed in its bill a copy of one, `seed.gdshader`). A berry bush's berries pecked at the same way (the house
   finch's), a bite of each, the bush's berries all left hanging. Its flight bounding (a burst of beats, wings shut,
   swooping; a call on each rise); its song a long run of quick notes; a male's song flight (`display_flight`); his
@@ -1172,7 +1325,11 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   deep keeled, its neck very long in an S, its head long, its bill a straight yellow dagger, its legs long and bare far
   up the shin (`bird.gd`'s `shin_feathered`), its toes long; plumes (`bird.gd`'s `plumes`: fine filaments off a joint)
   hanging from the base of its neck over its breast, down its back over its wings, two black ones off the back of its
-  head. Blue grey; its face and crown white, a black stripe over its eye to its plumes; its neck pale, its front white
+  head.
+
+<p align="center"><img src="docs/organisms/heron.jpg" width="360" alt="Great blue heron"><br><sub>Great blue heron</sub></p>
+
+Blue grey; its face and crown white, a black stripe over its eye to its plumes; its neck pale, its front white
   streaked black; a black and chestnut patch at the bend of its wing; chestnut thighs; its eye yellow, its lores blue
   green. It lives by its water (`water_y`, `pond`), wading its shallows (no deeper than `wade_depth`): a slow step,
   a long wait, its neck drawn back; what's near (a fish of a school or of the mollies in its water, a frog, a
@@ -1186,7 +1343,11 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   `ruby_throated_hummingbird.gd` (`RubyThroatedHummingbird`, *Archilochus colubris*): 9 cm with its bill, 3.2 g; the
   songbird's make made tiny, its bill a straight fine needle, its legs short under it, its wings long narrow blades (a
   short arm, a long hand), its tail of ten broad feathers (his forked, hers rounded, her outer ones banded black, tipped
-  white). The male's back and crown glittering green (`bird.gdshader`'s `iridescence`: metallic, its hue turning with
+  white).
+
+<p align="center"><img src="docs/organisms/hummingbird.jpg" width="360" alt="Ruby-throated hummingbird"><br><sub>Ruby-throated hummingbird</sub></p>
+
+The male's back and crown glittering green (`bird.gdshader`'s `iridescence`: metallic, its hue turning with
   the light), his gorget ruby where it faces you and near black aside (`gorget`), black under his eye, a white collar;
   the female green above, whitish below, buff at her flanks. Hovering is its own flight (`hover_at`): its body tipped
   up, its wings beating fifty-odd times a second, their stroke a flat figure eight; held where it means to be, its bill
@@ -1200,7 +1361,11 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   sandbox under Birds: on a twig; E / H the flowers (or an insect), D a rival chased off, K courting, 1 lay, 2 hatch.
   `canada_goose.gd` (`CanadaGoose`, *Branta canadensis*): 95 cm, 1.6 m across, 4.5 kg; its own body: deep and long,
   carried level, its neck a long S, its head small and flat crowned sloping into a broad flat bill, its legs short and
-  set back, its feet webbed (`bird.gd`'s `web`). Its head and neck black, a white chinstrap from under its chin up
+  set back, its feet webbed (`bird.gd`'s `web`).
+
+<p align="center"><img src="docs/organisms/goose.jpg" width="360" alt="Canada goose"><br><sub>Canada goose</sub></p>
+
+Its head and neck black, a white chinstrap from under its chin up
   behind its eye (`chin_strap`), its back brown and scalloped pale, breast and flanks paler barred, white under and over
   its tail, the tail black. It lives by its water (`water_y`, `pond`): grazing on the bank (a slow walk, its neck down,
   a bite taken only with its bill at the grass, a tear, its head up now and then); swimming (floating, its belly under,
@@ -1220,18 +1385,30 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   before his eye (`cap_back`, `cap_lore`), wings black with a yellow shoulder, two white bars (`wing_bars`,
   `wing_bar_fl`) and white edges to the tertials and secondaries (`fl_edge`), tail black, notched, white spots on its
   inner webs (`tail_inner`), white under it, his bill orange; the female olive yellow, no cap, her wings brownish,
-  barred buff; `winter`, both drab. Its cup of plant fibres lined with thistle down in a fork; five pale bluish eggs.
+  barred buff; `winter`, both drab.
+
+<p align="center"><img src="docs/organisms/goldfinch.jpg" width="360" alt="American goldfinch"><br><sub>American goldfinch</sub></p>
+
+Its cup of plant fibres lined with thistle down in a fork; five pale bluish eggs.
   Bounding deeply; his song flight slow, deep beats, circling.
   `house_finch.gd` (`HouseFinch`, *Haemorhous mexicanus*): the male's forehead, a broad band over his eye, throat,
   breast and rump red (`red`), the crown's back and his ear patch brown, back brown streaked, two thin pale wing bars,
   belly and flanks whitish streaked brown (`mark_from`), his under tail coverts pale (`tail_cov_below`); the female
-  plain grey brown, blurrily streaked all over below. Its cup of twigs and grass on a ledge; four pale blue eggs dotted
+  plain grey brown, blurrily streaked all over below.
+
+<p align="center"><img src="docs/organisms/house_finch.jpg" width="360" alt="House finch"><br><sub>House finch</sub></p>
+
+Its cup of twigs and grass on a ledge; four pale blue eggs dotted
   black. Seeds, and berries pecked at; its song a jumbled warble ending in a burry wheer. In the sandbox under Birds,
   both: on a low post; E / H to the seed heads (a berry bush, the house finch) that are here (none: the no-food
   notice), D his song, V his song flight, K courting (courtship feeding, then mating), 1 lay, 2 hatch, N brood.
   `wild_turkey.gd` (`WildTurkey`, *Meleagris gallopavo*): the tom bronze, copper and green, every feather edged
   black, flight feathers barred white, the fan brown with a black band and buff tip, the bare head red and blue,
-  snood, wattle, caruncles, beard, spurs; the hen browner, edged buff; the poult downy, striped. Foraging (walking,
+  snood, wattle, caruncles, beard, spurs; the hen browner, edged buff; the poult downy, striped.
+
+<p align="center"><img src="docs/organisms/turkey.jpg" width="360" alt="Wild turkey"><br><sub>Wild turkey</sub></p>
+
+Foraging (walking,
   looking about, scratching back the litter, pecking), the tom's strut (fan up, wings dragging, feathers raised,
   head drawn back, snood let down, colours up, the drum's shiver) and gobble, alarm, running, flushing up and away,
   sitting, sleeping, preening, dust-bathing; mating (he struts to her, she crouches, he treads her back); a hen's
@@ -1245,7 +1422,11 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   female, lay a heaped egg mass (`tick_eggs.gd`) and die; the eggs hatch into a swarm of larvae. The blacklegged tick
   (`blacklegged_ticks.gd`, *Ixodes scapularis*: black scutum, orange-red back, slate engorged; the male all dark,
   rimmed pale) and the lone star tick (`lone_star_ticks.gd`, *Amblyomma americanum*: reddish brown, the female's one
-  white spot, banded orange legs, festoons, grey-olive marbled yellow engorged). And a tick-infested white-tailed
+  white spot, banded orange legs, festoons, grey-olive marbled yellow engorged).
+
+<p align="center"><img src="docs/organisms/deer_tick.jpg" width="240" alt="Blacklegged (deer) ticks"><img src="docs/organisms/lone_star_tick.jpg" width="240" alt="Lone star ticks"><br><sub>Blacklegged (deer) ticks &nbsp; Lone star ticks</sub></p>
+
+And a tick-infested white-tailed
   deer, alive or dead (fresh only), its ticks not drawn but their marks (`Deer.set_infested`, carnivore.gdshader's
   `infest`): wasted, the skin drawn in over its ribs, hips and flanks, its legs thin, its eyes sunk; its coat dull,
   thin and coarse; where they crowd (its head, ears, round its eyes, its neck and shoulders) its hair fallen out in
