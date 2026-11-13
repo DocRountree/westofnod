@@ -364,7 +364,11 @@ func _place(i: int, dt: float) -> void:
 	elif flat.length() > 0.02:
 		want = flat.normalized()
 	var yaw_rate := h.signed_angle_to(want, Vector3.UP)
-	h = h.slerp(want, 1.0 - exp(-4.0 * dt)).normalized()
+	# (turned toward it about the vertical: its heading level, as it always is;
+	# not slerp, whose axis, from two near parallel headings, comes out a hair
+	# off unit length and errors)
+	h = h.rotated(Vector3.UP, yaw_rate * (1.0 - exp(-4.0 * dt)))
+	h = Vector3(h.x, 0.0, h.z).normalized() if Vector2(h.x, h.z).length() > 1e-5 else Vector3.FORWARD
 	turn[i] = lerpf(turn[i], clampf(yaw_rate / maxf(dt, 1e-4) / 3.0, -1.0, 1.0), 1.0 - exp(-5.0 * dt))
 	heading[i] = h
 	var pitch := clampf(atan2(v.y, maxf(Vector2(v.x, v.z).length(), 0.02)), -0.6, 0.6) * 0.8
