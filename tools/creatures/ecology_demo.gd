@@ -57,6 +57,8 @@ const OWL_SCRIPTS := {
 	"bluebird": preload("res://scripts/creatures/eastern_bluebird.gd"),
 	"pigeon": preload("res://scripts/creatures/passenger_pigeon.gd"),
 	"blackbird": preload("res://scripts/creatures/red_winged_blackbird.gd"),
+	"goldfinch": preload("res://scripts/creatures/american_goldfinch.gd"),
+	"house_finch": preload("res://scripts/creatures/house_finch.gd"),
 }
 const DeerTickScript := preload("res://scripts/creatures/blacklegged_ticks.gd")
 const LoneStarScript := preload("res://scripts/creatures/lone_star_ticks.gd")
@@ -211,6 +213,8 @@ const CATALOGUE := [
 	["Birds", "eastern bluebird (on a low post, dropping onto what moves below; young: a nestling, in its nest box)", "bluebird", ["adult", "juvenile", "young"]],
 	["Birds", "passenger pigeon (looks: the museum's; ways: the living doves'; walking, nodding, pecking; D coo, V display flight, A sunbathe, B forage or drink at a pond; young: a squab, in its nest)", "pigeon", ["adult", "juvenile", "young"]],
 	["Birds", "red-winged blackbird (on a low post: D his song spread, or a rival male chased off; young: a nestling, in its nest in the reeds)", "blackbird", ["adult", "juvenile", "young"]],
+	["Birds", "American goldfinch (on a low post; E / H to the seed heads that are here: clinging, picking seeds, husking them; D his song, V his butterfly song flight, K courtship feeding; young: a nestling, in its cup in a fork)", "goldfinch", ["adult", "juvenile", "young"]],
+	["Birds", "house finch (on a low post; E / H to the seed heads or a berry bush that's here; D his warble, V his song flight, K courtship feeding; young: a nestling, in its cup on a ledge)", "house_finch", ["adult", "juvenile", "young"]],
 	["Birds", "barn owl (dozing by day, awake at dusk and by night: T; young: an owlet, in its nest)", "barn_owl", ["adult", "young"]],
 	["Birds", "great horned owl (dozing by day, awake at dusk and by night: T; young: an owlet, in its nest)", "horned_owl", ["adult", "young"]],
 	["Birds", "eastern screech owl (grey or rufous; dozing by day, awake at dusk and by night: T; young: an owlet, in its nest)", "screech_owl", ["adult", "young"]],
@@ -1386,7 +1390,7 @@ func _spawn_animal(key: String, at: Vector3, stage: String, male: bool, young: b
 			_org(tc, at, true)
 			tc.setup_stages(8 if not young else 14, Vector3.ZERO, 0.08, [Ticks.MALE, Ticks.FEMALE] if not young else [Ticks.LARVA, Ticks.LARVA, Ticks.NYMPH])
 			return tc
-		"peregrine", "coopers", "barn_owl", "horned_owl", "screech_owl", "bald_eagle", "golden_eagle", "robin", "bluebird", "pigeon", "blackbird":
+		"peregrine", "coopers", "barn_owl", "horned_owl", "screech_owl", "bald_eagle", "golden_eagle", "robin", "bluebird", "pigeon", "blackbird", "goldfinch", "house_finch":
 			var rs: GDScript = OWL_SCRIPTS[key] if OWL_SCRIPTS.has(key) else (FalconScript if key == "peregrine" else HawkScript)
 			var r: Raptor = rs.new(young, stage == "juvenile")
 			r.male = (male and not young) if not young else randf() < 0.5
@@ -2464,6 +2468,23 @@ func _raptor_do(r: Raptor, act_: String) -> void:
 			if pr:
 				e.hunt(pr)
 		return
+	if r is Finch: # (a finch: its seeds, its song, its song flight)
+		var fi := r as Finch
+		match act_:
+			"eat", "hunt", "forage":
+				var f := fi._find_food(40.0)
+				if f:
+					fi.feed_at(f)
+				else:
+					_no_food(fi)
+				return
+			"display", "mark":
+				fi.call_out(10.0)
+				return
+			"play":
+				if fi.male:
+					fi.display_flight()
+				return
 	match act_:
 		"eat", "hunt":
 			var prey: Node3D = _prey(r, (r.call("_meal_kinds") if act_ == "eat" else Diet.prey_of(r)) if r is Thrush else Diet.prey_of(r), 0.0, 40.0) # (its prey that's here: none set out; a pigeon's seeds too)

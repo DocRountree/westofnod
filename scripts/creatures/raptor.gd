@@ -67,6 +67,7 @@ var feather_cm := 3.2 ## its body feathers' size
 var grow_secs := 200.0 ## s an eyas takes to fledge
 var eyas_scale := 1.0 ## (its eyas's size, of a hawk's: an eaglet's twice)
 var body_k := 1.0 ## (its length, of a hawk's: its poses' offsets in metres scaled by it; a thrush's, a half)
+var cup_colors := [] ## (a cup nest's own: [its wall, its lining]; none, a thrush's dry grass and mud)
 var nest_scale := 1.0 ## (its stick nest's size, of a hawk's: an eagle's great platform)
 var hunger := 0.0 ## (0 fed .. 1 hunting)
 var perch_at := Vector3.INF ## (where it's standing, up off the ground: its perch's top)
@@ -916,7 +917,7 @@ func _strike() -> void:
 		return
 	var kind := "mammal"
 	var path: String = (prey.get_script() as Script).resource_path.get_file() if prey.get_script() else ""
-	if path in ["wild_turkey.gd", "passenger_pigeon.gd", "red_winged_blackbird.gd", "american_robin.gd", "eastern_bluebird.gd"]:
+	if path in ["wild_turkey.gd", "passenger_pigeon.gd", "red_winged_blackbird.gd", "american_robin.gd", "eastern_bluebird.gd", "american_goldfinch.gd", "house_finch.gd"]:
 		kind = "bird"
 	var sz := 0.09
 	match path:
@@ -932,6 +933,8 @@ func _strike() -> void:
 			sz = 0.2 if not prey.get("young") else 0.1
 		"red_winged_blackbird.gd", "american_robin.gd", "eastern_bluebird.gd":
 			sz = 0.11 if not prey.get("young") else 0.06
+		"american_goldfinch.gd", "house_finch.gd":
+			sz = 0.07 if not prey.get("young") else 0.04
 	var col := Color(0.45, 0.37, 0.28)
 	match path:
 		"passenger_pigeon.gd":
@@ -942,6 +945,10 @@ func _strike() -> void:
 			col = Color(0.55, 0.32, 0.2)
 		"eastern_bluebird.gd":
 			col = Color(0.3, 0.38, 0.6)
+		"american_goldfinch.gd":
+			col = Color(0.8, 0.72, 0.2)
+		"house_finch.gd":
+			col = Color(0.55, 0.4, 0.34)
 		"fox_squirrel.gd":
 			col = Color(0.6, 0.4, 0.22)
 		"grey_squirrel.gd":
@@ -1285,10 +1292,10 @@ func _make_nest() -> Node3D:
 	n.set_meta("prop", true)
 	if nest_style in ["cup", "box"]: # (a thrush's: a cup of dry grass, the robin's walled with mud inside; in its box, the bluebird's)
 		var grass := StandardMaterial3D.new()
-		grass.albedo_color = Color(0.62, 0.53, 0.36)
+		grass.albedo_color = Color(0.62, 0.53, 0.36) if cup_colors.is_empty() else cup_colors[0]
 		grass.roughness = 1.0
 		var mud := StandardMaterial3D.new()
-		mud.albedo_color = Color(0.3, 0.24, 0.17) if nest_style == "cup" else Color(0.55, 0.47, 0.32)
+		mud.albedo_color = (Color(0.3, 0.24, 0.17) if nest_style == "cup" else Color(0.55, 0.47, 0.32)) if cup_colors.is_empty() else cup_colors[1]
 		mud.roughness = 1.0
 		var r := 0.075 * nest_scale / 0.35
 		var wall := MeshInstance3D.new()

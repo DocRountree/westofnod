@@ -1025,6 +1025,34 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   grubs, spiders, snails); its alarm, a check and a flick of its tail; her cup woven among cattails, four pale blue-green
   eggs scrawled black. Taken by the Cooper's hawk, the peregrine, owls; its nestlings by snakes. In the sandbox under
   Birds: on a low post; D his song spread (a rival near: chased off); the rest as the robin.
+  `finch.gd` (`Finch`): the songbird's make made small, its bill short, deep and conical, its head big and round, its
+  tail notched; a seed eater. To the seed heads that are here (a coneflower's, a black-eyed Susan's, an aster's, a
+  fleabane's, a yampah's: each species' own liking for each, `seeds`, over the unified diet, `Diet`): flown to,
+  stood on the head's rim, swaying with it in the wind (`bird.gdshader`'s `ride_at`, `ride_k`: the plant's own sway),
+  leaning over it as it pecks the ground, its bill to the disc: a seed picked out only with its bill on it (sidling on
+  the rim till it's there), husked in its bill (its jaw working), the two halves of the husk fluttering down, the
+  kernel swallowed; a dozen or so, then the next head, or off. The plant never touched: its heads, its meshes as they
+  were (a seed in its bill a copy of one, `seed.gdshader`). A berry bush's berries pecked at the same way (the house
+  finch's), a bite of each, the bush's berries all left hanging. Its flight bounding (a burst of beats, wings shut,
+  swooping; a call on each rise); its song a long run of quick notes; a male's song flight (`display_flight`); his
+  courtship (`mate`): wings drooped and quivering, tail raised and spread, singing, then courtship feeding: she
+  crouches and begs as a nestling does, wings fluttering, bill raised and open, and he leans down and brings up seed
+  into it, bill in bill; then on her back. Paired, they're mates (`_mate`): her eggs in a cup on her site, he feeds
+  her on it; their young both of theirs, fed seed brought up from the crop (`crop`), bill in each gape in turn, his
+  head pumping (no insects, even for them). Taken by the Cooper's hawk, the peregrine, the screech owl.
+  `american_goldfinch.gd` (`AmericanGoldfinch`, *Spinus tristis*): the male lemon yellow, a black forecap and black
+  before his eye (`cap_back`, `cap_lore`), wings black with a yellow shoulder, two white bars (`wing_bars`,
+  `wing_bar_fl`) and white edges to the tertials and secondaries (`fl_edge`), tail black, notched, white spots on its
+  inner webs (`tail_inner`), white under it, his bill orange; the female olive yellow, no cap, her wings brownish,
+  barred buff; `winter`, both drab. Its cup of plant fibres lined with thistle down in a fork; five pale bluish eggs.
+  Bounding deeply; his song flight slow, deep beats, circling.
+  `house_finch.gd` (`HouseFinch`, *Haemorhous mexicanus*): the male's forehead, a broad band over his eye, throat,
+  breast and rump red (`red`), the crown's back and his ear patch brown, back brown streaked, two thin pale wing bars,
+  belly and flanks whitish streaked brown (`mark_from`), his under tail coverts pale (`tail_cov_below`); the female
+  plain grey brown, blurrily streaked all over below. Its cup of twigs and grass on a ledge; four pale blue eggs dotted
+  black. Seeds, and berries pecked at; its song a jumbled warble ending in a burry wheer. In the sandbox under Birds,
+  both: on a low post; E / H to the seed heads (a berry bush, the house finch) that are here (none: the no-food
+  notice), D his song, V his song flight, K courting (courtship feeding, then mating), 1 lay, 2 hatch, N brood.
   `wild_turkey.gd` (`WildTurkey`, *Meleagris gallopavo*): the tom bronze, copper and green, every feather edged
   black, flight feathers barred white, the fan brown with a black band and buff tip, the bare head red and blue,
   snood, wattle, caruncles, beard, spurs; the hen browner, edged buff; the poult downy, striped. Foraging (walking,

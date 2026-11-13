@@ -60,11 +60,11 @@ const EATS := {
 	"river_otter.gd": {"fish": 1.0, "crayfish": 0.8, "frog": 0.4, "toad": 0.1},
 	"sea_otter.gd": {"urchin": 1.0, "clam": 0.9}, # (on the bottom: SeaOtter.clam(), urchin(), meta "shellfish")
 	"wild_turkey.gd": {"acorn": 1.0, "walnut": 0.5, "berries": 0.7, "grasshopper": 0.7, "nymph": 0.6, "grub": 0.5, "caterpillar": 0.5},
-	"peregrine_falcon.gd": {"pigeon": 1.0, "blackbird": 0.6, "robin": 0.5, "bluebird": 0.3, "poult": 0.5, "squirrel": 0.2, "mouse": 0.2},
-	"coopers_hawk.gd": {"robin": 0.9, "pigeon": 0.8, "blackbird": 0.8, "bluebird": 0.7, "nestling": 0.5, "poult": 0.7, "squirrel": 0.6, "mouse": 0.4},
+	"peregrine_falcon.gd": {"pigeon": 1.0, "blackbird": 0.6, "robin": 0.5, "bluebird": 0.3, "finch": 0.2, "poult": 0.5, "squirrel": 0.2, "mouse": 0.2},
+	"coopers_hawk.gd": {"robin": 0.9, "pigeon": 0.8, "blackbird": 0.8, "bluebird": 0.7, "finch": 0.7, "nestling": 0.5, "poult": 0.7, "squirrel": 0.6, "mouse": 0.4},
 	"barn_owl.gd": {"mouse": 1.0, "grasshopper": 0.15, "nymph": 0.1, "grub": 0.1, "spider": 0.05},
 	"eastern_screech_owl.gd": {"mouse": 1.0, "mouse_pup": 0.8, "grasshopper": 0.7, "nymph": 0.6, "caterpillar": 0.5, "grub": 0.4, "crayfish": 0.4, "frog": 0.4,
-			"snails": 0.2, "anole": 0.2, "fish": 0.15, "bluebird": 0.15, "blackbird": 0.1, "nestling": 0.15, "bat": 0.15},
+			"snails": 0.2, "anole": 0.2, "fish": 0.15, "bluebird": 0.15, "blackbird": 0.1, "finch": 0.2, "nestling": 0.15, "bat": 0.15},
 	"great_horned_owl.gd": {"hare": 1.0, "leveret": 0.9, "mouse": 0.8, "squirrel": 0.6, "poult": 0.4, "pigeon": 0.3, "blackbird": 0.1, "bat": 0.1},
 	"bald_eagle.gd": {"fish": 1.0, "carcass": 0.8, "poult": 0.2, "hare": 0.2, "leveret": 0.2},
 	"golden_eagle.gd": {"hare": 1.0, "leveret": 0.9, "squirrel": 0.7, "poult": 0.4, "carcass": 0.5},
@@ -78,6 +78,8 @@ const EATS := {
 	"eastern_bluebird.gd": {"caterpillar": 1.0, "beetle": 0.9, "grub": 0.6, "spider": 0.6, "ants": 0.4, "snails": 0.3},
 	"passenger_pigeon.gd": {"acorn": 1.0, "grub": 0.3, "caterpillar": 0.3, "snails": 0.25},
 	"red_winged_blackbird.gd": {"caterpillar": 1.0, "nymph": 0.9, "grasshopper": 0.8, "beetle": 0.7, "grub": 0.6, "spider": 0.6, "snails": 0.3},
+	"american_goldfinch.gd": {"forbs": 1.0, "flowers": 0.9}, # (seeds only, its young's too: Finch)
+	"house_finch.gd": {"forbs": 1.0, "flowers": 0.9, "berries": 0.6},
 	"bat.gd": {"beetle": 1.0, "moth": 0.7, "flier": 0.5},
 	"american_toad.gd": {"ants": 1.0, "grub": 0.6, "spider": 0.7, "caterpillar": 0.6, "nymph": 0.6, "grasshopper": 0.4, "snails": 0.5},
 	"frog.gd": {"nymph": 0.8, "grasshopper": 1.0, "spider": 0.7, "caterpillar": 0.6, "grub": 0.4, "snails": 0.4},
@@ -310,6 +312,8 @@ static func kind_of(n: Node) -> String:
 			k = "nestling" if young else "robin"
 		"eastern_bluebird.gd":
 			k = "nestling" if young else "bluebird"
+		"american_goldfinch.gd", "house_finch.gd":
+			k = "nestling" if young else "finch"
 		"june_beetles.gd":
 			k = "beetle"
 		"lady_beetles.gd":

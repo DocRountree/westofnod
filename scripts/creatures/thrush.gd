@@ -36,6 +36,8 @@ var stand_pitch := 0.3 ## rad: its body tipped forward, standing (a hawk upright
 var walks := false ## (foraging at a walk, pecking as it goes: a pigeon's, a blackbird's; a thrush runs and stops)
 var gapes := false ## (its bill pushed into the ground and opened, prying: a blackbird's)
 var site_style := "shelf" ## (the nest site the world gives it: Raptor.nest_pole's style: "shelf", "box", "reeds", "" a branch)
+var head_blend := 0.0 ## (its neck's rings eased from its body's girth to its head's: no neck to see, its big head on its body: a finch's)
+var bill_lift := 0.0 ## (its bill's root raised up its face, the hawk's cm: a finch's, mid-face, its ridge on its forehead's line)
 var _hop_to := Vector3.INF
 var _cock := 0.0
 
@@ -94,13 +96,13 @@ func thrush_shape(k: float, head: float, bill: float, legs: float, tail_len: flo
 		hawk.append([36.45, -4.75, 2.45, 2.5, 4.5])
 	for e: Array in hawk:
 		var c: float = e[4]
-		var q: Vector2 = hp.call(e[0], e[1], c)
-		var s := head if c >= 4.5 else B
+		var q: Vector2 = hp.call(float(e[0]) + bill_lift * smoothstep(4.5, 4.85, c), e[1], c) # (its face's front lifted with its bill)
+		var s := head if c >= 4.5 else (lerpf(B, head, head_blend * smoothstep(2.5, 4.5, c)) if head_blend > 0.0 else B)
 		var hh := lerpf(1.0, crown, smoothstep(1.5, 4.5, c)) # (its crown, its throat: lower; eased in down the neck)
 		var nk := 1.0 - (0.18 * smoothstep(0.5, 2.5, c) * (1.0 - smoothstep(4.0, 4.6, c)) if snout > 0.0 else 0.0) # (a dove's slender neck)
 		spine.append([q.x, q.y, float(e[2]) * k * s * nk, float(e[3]) * k * s * hh * nk, c])
 	# (a dove's forehead: drawn forward and down, tapering into the bill)
-	var root: Vector2 = hp.call(36.0, -6.9, 4.9)
+	var root: Vector2 = hp.call(36.0 + bill_lift, -6.9, 4.9)
 	if snout > 0.0: # (its forehead sloping down and forward from its crown into the bill; its chin rising to it)
 		var run := 1.5 + snout
 		for e: Array in [[0.2, 2.42, 2.5, 4.75], [0.42, 2.2, 2.25, 4.82], [0.62, 1.8, 1.8, 4.88], [0.8, 1.3, 1.3, 4.93], [0.93, 0.85, 0.9, 4.97], [1.0, 0.62, 0.7, 4.985]]:
