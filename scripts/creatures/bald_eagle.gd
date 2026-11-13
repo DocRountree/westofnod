@@ -25,7 +25,6 @@ func _init(young_ := false, juvenile_ := false) -> void:
 	stoop_speed = 0.0
 	egg_size = Vector2(0.073, 0.054)
 	egg_colors = [Color(0.93, 0.92, 0.86), Color(0.93, 0.92, 0.86)]
-	prey_scripts = ["hare.gd", "wild_turkey.gd"]
 
 
 func mass_of() -> Vector3:

@@ -57,7 +57,6 @@ func _init(young_ := false, juvenile_ := false) -> void:
 	flight_pitch = 1.0
 	fold_pitch = 0.8
 	feather_cm = 1.6
-	prey_scripts = [] # (its diet's: Diet)
 
 
 ## The body: a Cooper's hawk's lines (cm) made over small (k: its length of

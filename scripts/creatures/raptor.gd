@@ -64,7 +64,6 @@ var clutch := 4
 var egg_size := Vector2(0.052, 0.041)
 var egg_colors := [Color(0.62, 0.36, 0.25), Color(0.36, 0.14, 0.08)] ## ground, blotches
 var feather_cm := 3.2 ## its body feathers' size
-var prey_scripts := ["mouse.gd", "fox_squirrel.gd", "grey_squirrel.gd", "wild_turkey.gd"]
 var grow_secs := 200.0 ## s an eyas takes to fledge
 var eyas_scale := 1.0 ## (its eyas's size, of a hawk's: an eaglet's twice)
 var body_k := 1.0 ## (its length, of a hawk's: its poses' offsets in metres scaled by it; a thrush's, a half)
@@ -577,28 +576,11 @@ func _watch(dt: float) -> void:
 			perch_on(home_perch)
 
 
+## Its prey that's here (Diet: its diet's animals, the best of them by how
+## near and how much it likes each), or null.
 func _find_prey() -> Node3D:
-	var par := get_parent()
-	if par == null:
-		return null
-	var best: Node3D = null
-	var bd := 40.0
-	for o in par.get_children():
-		if o == self or not (o is Node3D) or o.get_script() == null or not o.has_method("die"):
-			continue
-		var path: String = (o.get_script() as Script).resource_path.get_file()
-		if path not in prey_scripts or o.get("dead"):
-			continue
-		if path == "wild_turkey.gd" and not o.get("young"):
-			continue
-		if o.has_meta("hunted") and o.get_meta("hunted") != self and is_instance_valid(o.get_meta("hunted")):
-			continue
-		var q: Variant = o.get("_pos")
-		var d: float = ((q if q is Vector3 else (o as Node3D).position) as Vector3).distance_to(_pos)
-		if d < bd:
-			bd = d
-			best = o
-	return best
+	var f := Diet.find_one(self, 40.0, Diet.prey_of(self))
+	return f as Node3D if f != self else null
 
 
 func _preen(_dt: float) -> void:

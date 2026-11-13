@@ -24,7 +24,6 @@ func _init(young_ := false, juvenile_ := false) -> void:
 	egg_size = Vector2(0.056, 0.047)
 	grow_secs = 220.0
 	feather_cm = 3.0
-	prey_scripts = ["mouse.gd", "fox_squirrel.gd", "grey_squirrel.gd", "wild_turkey.gd"]
 
 
 func mass_of() -> Vector3:

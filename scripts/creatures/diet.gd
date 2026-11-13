@@ -20,74 +20,93 @@ extends RefCounted
 ## Some eat what's always under them (grass, leaves, the ground's litter,
 ## algae: "graze", "leaf", "litter", "algae", "blood"): no finding.
 
-## Each creature's diet, by its script's file: the kinds it eats.
+## Each creature's diet, by its script's file: the kinds it eats, each with
+## its affinity for it (0..1): 1 its staple, what it takes first; ~0.6 a
+## regular meal; ~0.3 now and then; ~0.1 rare, taken only by chance (as
+## the biology has it: the most of its diet by bulk or by how often it's
+## seen eating it, and how readily it goes for it when there's a choice).
 const EATS := {
-	"red_fox.gd": ["mouse", "mouse_pup", "squirrel", "hare", "leveret", "grasshopper", "grub", "fawn", "beaver_kit", "bobcat_kit", "snake_young", "carcass", "dead_mouse", "berries", "pawpaw", "crabapple", "ants", "wasp_comb", "frog", "toad"],
-	"bobcat.gd": ["hare", "leveret", "squirrel", "mouse", "fawn", "deer", "fox", "fox_kit", "beaver_kit", "grasshopper", "snake", "carcass", "poult"],
-	"coyote.gd": ["mouse", "mouse_pup", "hare", "leveret", "squirrel", "fawn", "fox", "fox_kit", "bobcat_kit", "beaver", "otter_pup", "grub", "grasshopper", "snake", "carcass", "dead_mouse", "berries", "pawpaw", "crabapple", "poult", "frog", "toad"],
-	"grey_wolf.gd": ["hare", "mouse", "deer", "fawn", "moose_calf", "bison_calf", "beaver", "otter_pup", "coyote", "fox", "carcass"],
-	"german_shepherd.gd": ["hare", "leveret", "mouse", "squirrel", "carcass", "dead_mouse"],
-	"labrador_retriever.gd": ["hare", "leveret", "mouse", "squirrel", "carcass", "dead_mouse"],
-	"beagle.gd": ["hare", "leveret", "mouse", "squirrel", "carcass", "dead_mouse"],
-	"black_bear.gd": ["berries", "fish", "carcass", "fawn", "moose_calf", "beaver", "grub", "mouse_pup", "squirrel", "bobcat_kit", "hare", "mouse", "chicken_of_the_woods", "morel", "acorn", "walnut", "pawpaw", "crabapple", "ants"],
-	"brown_bear.gd": ["berries", "fish", "carcass", "moose_calf", "bison_calf", "fawn", "deer", "beaver", "grub", "black_cub", "wolf_pup", "hare", "mouse", "squirrel", "chicken_of_the_woods", "morel", "acorn", "walnut", "pawpaw", "crabapple", "ants"],
-	"opossum.gd": ["mouse", "mouse_pup", "grasshopper", "nymph", "snake", "snake_young", "toad", "frog", "grub", "caterpillar", "anole", "pawpaw", "crabapple", "carcass", "dead_mouse", "morel", "chicken_of_the_woods", "berries", "snails"],
-	"deer.gd": ["graze", "fly_agaric", "morel", "chicken_of_the_woods", "mouse_pup"],
-	"moose.gd": ["graze", "fly_agaric", "morel"],
-	"bison.gd": ["graze"],
-	"mouse.gd": ["acorn", "walnut", "berries", "nymph", "caterpillar", "grub", "pillbug", "mantis_nymph", "snails", "little_brown", "morel"],
-	"fox_squirrel.gd": ["walnut", "acorn", "caterpillar", "grub", "mouse_pup", "morel", "fly_agaric", "chicken_of_the_woods"],
-	"grey_squirrel.gd": ["walnut", "acorn", "caterpillar", "grub", "mouse_pup", "morel", "fly_agaric", "chicken_of_the_woods"],
-	"hare.gd": ["forbs", "dead_mouse", "sapling", "carcass"],
-	"beaver.gd": ["sapling", "stick"],
-	"river_otter.gd": ["crayfish", "fish", "frog", "toad"],
-	"sea_otter.gd": ["clam", "urchin"], # (on the bottom: SeaOtter.clam(), urchin(), meta "shellfish")
-	"wild_turkey.gd": ["acorn", "walnut", "berries", "grasshopper", "nymph", "grub", "caterpillar"],
-	"peregrine_falcon.gd": ["mouse", "squirrel", "poult"],
-	"coopers_hawk.gd": ["mouse", "squirrel", "poult"],
-	"barn_owl.gd": ["mouse", "grasshopper", "nymph", "grub", "spider"],
-	"eastern_screech_owl.gd": ["mouse", "mouse_pup", "grasshopper", "nymph", "grub", "caterpillar", "frog", "crayfish", "fish", "anole", "snails"],
-	"great_horned_owl.gd": ["mouse", "squirrel", "poult", "hare", "leveret"],
-	"bald_eagle.gd": ["fish", "carcass", "hare", "leveret", "poult"],
-	"golden_eagle.gd": ["hare", "leveret", "squirrel", "poult", "carcass"],
-	"anole.gd": ["nymph", "grasshopper", "caterpillar", "grub", "spider"],
-	"scorpion.gd": ["nymph", "grasshopper", "grub", "spider"],
-	"gila_monster.gd": ["mouse", "mouse_pup", "leveret", "hare", "poult"],
-	"snake.gd": ["mouse", "mouse_pup", "frog", "toad", "anole", "snake_young"],
-	"snapping_turtle.gd": ["fish", "frog", "toad", "crayfish", "carcass", "dead_fish", "grass_snail", "tigersnail", "nymph"],
-	"painted_turtle.gd": ["crayfish", "fish", "dead_fish", "carcass", "grass_snail", "tigersnail", "nymph", "grasshopper"],
-	"american_robin.gd": ["ants", "beetle", "grub", "caterpillar", "spider", "snails"],
-	"eastern_bluebird.gd": ["ants", "beetle", "grub", "caterpillar", "spider", "snails"],
-	"american_toad.gd": ["ants", "spider", "grub", "caterpillar", "nymph", "grasshopper", "snails"],
-	"frog.gd": ["nymph", "grasshopper", "spider", "grub", "caterpillar", "snails"],
-	"turtle.gd": ["crabapple", "pawpaw", "pillbug", "nymph", "grasshopper", "grub", "snails", "berries", "morel", "fly_agaric", "little_brown"],
-	"crayfish.gd": ["dead_mouse", "dead_fish", "nymph", "snails", "grub"],
-	"shrimp.gd": ["dead_fish", "litter", "algae"],
-	"spider.gd": ["nymph", "grasshopper", "grub", "caterpillar", "flier", "bee", "monarch", "firefly", "mollies"],
-	"mantis.gd": ["nymph", "grasshopper", "caterpillar", "grub", "spider"],
-	"dragonfly.gd": ["flier", "monarch", "swallowtail", "mollies"],
-	"wasp.gd": ["flowers", "caterpillar", "grub", "grasshopper", "nymph", "spider"],
-	"trigonalid.gd": ["flowers"],
-	"ichneumon.gd": ["flowers"],
-	"bumblebee.gd": ["flowers"],
-	"monarch.gd": ["flowers"],
-	"swallowtail.gd": ["flowers"],
-	"hummingbird_moth.gd": ["flowers"],
-	"mourning_cloak.gd": ["crabapple", "pawpaw"],
-	"harvester_ants.gd": ["acorn", "walnut", "nymph", "grasshopper"],
-	"ant_colony.gd": ["nymph", "grasshopper", "grub", "caterpillar", "carcass"],
-	"luna_moth.gd": [], # (the grown moths don't eat)
-	"cecropia_moth.gd": [],
-	"polyphemus_moth.gd": [],
-	"sea_turtle.gd": [], # (its seagrass isn't in the game)
-	"larva.gd": ["leaf"],
-	"grasshopper.gd": ["graze"],
-	"isopod.gd": ["litter"],
-	"snails.gd": ["leaf"],
-	"fireflies.gd": ["snails"], # (the glowworm larvae's)
-	"ticks.gd": ["blood"],
-	"mollies.gd": ["algae"],
-	"fish_school.gd": ["crayfish", "fish", "nymph", "grasshopper", "mollies"],
+	"red_fox.gd": {"mouse": 1.0, "mouse_pup": 0.9, "hare": 0.6, "leveret": 0.7, "squirrel": 0.5, "grasshopper": 0.5, "grub": 0.4, "berries": 0.6, "pawpaw": 0.5,
+			"crabapple": 0.4, "carcass": 0.5, "dead_mouse": 0.6, "frog": 0.3, "toad": 0.1, "fawn": 0.15, "beaver_kit": 0.15, "bobcat_kit": 0.1, "snake_young": 0.2,
+			"ants": 0.2, "wasp_comb": 0.2},
+	"bobcat.gd": {"hare": 1.0, "leveret": 0.9, "squirrel": 0.7, "mouse": 0.7, "poult": 0.5, "fawn": 0.4, "deer": 0.2, "fox": 0.1, "fox_kit": 0.2, "beaver_kit": 0.2,
+			"grasshopper": 0.15, "snake": 0.2, "carcass": 0.25},
+	"coyote.gd": {"mouse": 1.0, "mouse_pup": 0.8, "hare": 0.8, "leveret": 0.8, "squirrel": 0.5, "fawn": 0.6, "carcass": 0.7, "dead_mouse": 0.6, "berries": 0.5,
+			"pawpaw": 0.5, "crabapple": 0.5, "grasshopper": 0.4, "grub": 0.3, "poult": 0.4, "frog": 0.2, "toad": 0.1, "snake": 0.2, "beaver": 0.2, "otter_pup": 0.1,
+			"fox": 0.1, "fox_kit": 0.2, "bobcat_kit": 0.1},
+	"grey_wolf.gd": {"deer": 1.0, "fawn": 0.9, "moose_calf": 0.8, "bison_calf": 0.6, "beaver": 0.6, "carcass": 0.6, "hare": 0.4, "mouse": 0.2, "otter_pup": 0.1,
+			"coyote": 0.1, "fox": 0.1},
+	"german_shepherd.gd": {"hare": 0.4, "leveret": 0.4, "mouse": 0.3, "squirrel": 0.3, "carcass": 0.6, "dead_mouse": 0.5},
+	"labrador_retriever.gd": {"hare": 0.3, "leveret": 0.3, "mouse": 0.2, "squirrel": 0.2, "carcass": 0.8, "dead_mouse": 0.7},
+	"beagle.gd": {"hare": 0.6, "leveret": 0.6, "mouse": 0.3, "squirrel": 0.3, "carcass": 0.7, "dead_mouse": 0.6},
+	"black_bear.gd": {"berries": 1.0, "acorn": 0.9, "walnut": 0.7, "grub": 0.7, "ants": 0.7, "pawpaw": 0.7, "crabapple": 0.6, "carcass": 0.6, "fawn": 0.4,
+			"fish": 0.3, "chicken_of_the_woods": 0.3, "morel": 0.3, "mouse_pup": 0.2, "squirrel": 0.1, "hare": 0.1, "mouse": 0.1, "moose_calf": 0.15, "beaver": 0.1,
+			"bobcat_kit": 0.05},
+	"brown_bear.gd": {"fish": 1.0, "berries": 1.0, "carcass": 0.8, "moose_calf": 0.6, "bison_calf": 0.4, "fawn": 0.5, "deer": 0.3, "grub": 0.5, "ants": 0.5,
+			"acorn": 0.4, "walnut": 0.4, "pawpaw": 0.4, "crabapple": 0.4, "beaver": 0.2, "squirrel": 0.2, "mouse": 0.15, "hare": 0.15, "morel": 0.2,
+			"chicken_of_the_woods": 0.2, "black_cub": 0.05, "wolf_pup": 0.05},
+	"opossum.gd": {"carcass": 0.9, "dead_mouse": 0.8, "grub": 0.8, "snails": 0.8, "pawpaw": 0.8, "crabapple": 0.7, "berries": 0.7, "grasshopper": 0.6, "nymph": 0.6,
+			"caterpillar": 0.6, "mouse": 0.4, "mouse_pup": 0.5, "frog": 0.4, "toad": 0.3, "anole": 0.2, "snake": 0.2, "snake_young": 0.3, "morel": 0.2,
+			"chicken_of_the_woods": 0.2},
+	"deer.gd": {"graze": 1.0, "morel": 0.3, "chicken_of_the_woods": 0.3, "fly_agaric": 0.1, "mouse_pup": 0.05},
+	"moose.gd": {"graze": 1.0, "morel": 0.2, "fly_agaric": 0.1},
+	"bison.gd": {"graze": 1.0},
+	"mouse.gd": {"acorn": 1.0, "walnut": 0.8, "berries": 0.8, "caterpillar": 0.6, "grub": 0.5, "nymph": 0.5, "snails": 0.3, "pillbug": 0.3, "mantis_nymph": 0.2,
+			"little_brown": 0.3, "morel": 0.2},
+	"fox_squirrel.gd": {"walnut": 1.0, "acorn": 1.0, "caterpillar": 0.2, "grub": 0.2, "morel": 0.3, "chicken_of_the_woods": 0.3, "fly_agaric": 0.15, "mouse_pup": 0.05},
+	"grey_squirrel.gd": {"acorn": 1.0, "walnut": 0.9, "caterpillar": 0.2, "grub": 0.2, "morel": 0.3, "chicken_of_the_woods": 0.3, "fly_agaric": 0.15, "mouse_pup": 0.05},
+	"hare.gd": {"forbs": 1.0, "sapling": 0.7, "dead_mouse": 0.05, "carcass": 0.05},
+	"beaver.gd": {"sapling": 1.0, "stick": 0.6},
+	"river_otter.gd": {"fish": 1.0, "crayfish": 0.8, "frog": 0.4, "toad": 0.1},
+	"sea_otter.gd": {"urchin": 1.0, "clam": 0.9}, # (on the bottom: SeaOtter.clam(), urchin(), meta "shellfish")
+	"wild_turkey.gd": {"acorn": 1.0, "walnut": 0.5, "berries": 0.7, "grasshopper": 0.7, "nymph": 0.6, "grub": 0.5, "caterpillar": 0.5},
+	"peregrine_falcon.gd": {"poult": 0.5, "squirrel": 0.2, "mouse": 0.2},
+	"coopers_hawk.gd": {"poult": 0.7, "squirrel": 0.6, "mouse": 0.4},
+	"barn_owl.gd": {"mouse": 1.0, "grasshopper": 0.15, "nymph": 0.1, "grub": 0.1, "spider": 0.05},
+	"eastern_screech_owl.gd": {"mouse": 1.0, "mouse_pup": 0.8, "grasshopper": 0.7, "nymph": 0.6, "caterpillar": 0.5, "grub": 0.4, "crayfish": 0.4, "frog": 0.4,
+			"snails": 0.2, "anole": 0.2, "fish": 0.15},
+	"great_horned_owl.gd": {"hare": 1.0, "leveret": 0.9, "mouse": 0.8, "squirrel": 0.6, "poult": 0.4},
+	"bald_eagle.gd": {"fish": 1.0, "carcass": 0.8, "poult": 0.2, "hare": 0.2, "leveret": 0.2},
+	"golden_eagle.gd": {"hare": 1.0, "leveret": 0.9, "squirrel": 0.7, "poult": 0.4, "carcass": 0.5},
+	"anole.gd": {"nymph": 0.8, "grasshopper": 0.7, "spider": 0.8, "caterpillar": 0.6, "grub": 0.3},
+	"scorpion.gd": {"nymph": 0.8, "grasshopper": 0.6, "spider": 0.6, "grub": 0.4},
+	"gila_monster.gd": {"mouse_pup": 1.0, "poult": 0.6, "leveret": 0.6, "mouse": 0.3, "hare": 0.1},
+	"snake.gd": {"mouse": 1.0, "mouse_pup": 0.9, "frog": 0.5, "toad": 0.4, "anole": 0.4, "snake_young": 0.2},
+	"snapping_turtle.gd": {"fish": 0.8, "carcass": 0.8, "dead_fish": 0.9, "crayfish": 0.7, "frog": 0.6, "toad": 0.2, "grass_snail": 0.5, "tigersnail": 0.5, "nymph": 0.5},
+	"painted_turtle.gd": {"nymph": 0.9, "crayfish": 0.5, "grass_snail": 0.6, "tigersnail": 0.6, "dead_fish": 0.6, "carcass": 0.4, "fish": 0.2, "grasshopper": 0.3},
+	"american_robin.gd": {"grub": 1.0, "caterpillar": 0.8, "beetle": 0.7, "spider": 0.5, "snails": 0.4, "ants": 0.3},
+	"eastern_bluebird.gd": {"caterpillar": 1.0, "beetle": 0.9, "grub": 0.6, "spider": 0.6, "ants": 0.4, "snails": 0.3},
+	"american_toad.gd": {"ants": 1.0, "grub": 0.6, "spider": 0.7, "caterpillar": 0.6, "nymph": 0.6, "grasshopper": 0.4, "snails": 0.5},
+	"frog.gd": {"nymph": 0.8, "grasshopper": 1.0, "spider": 0.7, "caterpillar": 0.6, "grub": 0.4, "snails": 0.4},
+	"turtle.gd": {"snails": 1.0, "grub": 0.8, "berries": 0.9, "crabapple": 0.8, "pawpaw": 0.8, "morel": 0.7, "little_brown": 0.6, "fly_agaric": 0.4, "pillbug": 0.6,
+			"nymph": 0.5, "grasshopper": 0.4},
+	"crayfish.gd": {"dead_fish": 1.0, "dead_mouse": 0.7, "snails": 0.6, "nymph": 0.6, "grub": 0.4},
+	"shrimp.gd": {"algae": 1.0, "litter": 0.8, "dead_fish": 0.5},
+	"spider.gd": {"grasshopper": 1.0, "nymph": 1.0, "flier": 0.8, "caterpillar": 0.6, "grub": 0.3, "bee": 0.5, "firefly": 0.3, "monarch": 0.2, "mollies": 0.1},
+	"mantis.gd": {"grasshopper": 1.0, "nymph": 0.9, "caterpillar": 0.6, "spider": 0.4, "grub": 0.2},
+	"dragonfly.gd": {"flier": 1.0, "mollies": 0.2, "monarch": 0.15, "swallowtail": 0.15},
+	"wasp.gd": {"caterpillar": 1.0, "flowers": 0.8, "grub": 0.4, "nymph": 0.3, "grasshopper": 0.2, "spider": 0.2},
+	"trigonalid.gd": {"flowers": 1.0},
+	"ichneumon.gd": {"flowers": 1.0},
+	"bumblebee.gd": {"flowers": 1.0},
+	"monarch.gd": {"flowers": 1.0},
+	"swallowtail.gd": {"flowers": 1.0},
+	"hummingbird_moth.gd": {"flowers": 1.0},
+	"mourning_cloak.gd": {"crabapple": 1.0, "pawpaw": 0.9},
+	"harvester_ants.gd": {"acorn": 0.4, "walnut": 0.3, "nymph": 0.6, "grasshopper": 0.5},
+	"ant_colony.gd": {"carcass": 0.8, "grub": 0.8, "caterpillar": 0.9, "nymph": 0.8, "grasshopper": 0.6},
+	"luna_moth.gd": {}, # (the grown moths don't eat)
+	"cecropia_moth.gd": {},
+	"polyphemus_moth.gd": {},
+	"sea_turtle.gd": {}, # (its seagrass isn't in the game)
+	"larva.gd": {"leaf": 1.0},
+	"grasshopper.gd": {"graze": 1.0},
+	"isopod.gd": {"litter": 1.0},
+	"snails.gd": {"leaf": 1.0},
+	"fireflies.gd": {"snails": 1.0}, # (the glowworm larvae's)
+	"ticks.gd": {"blood": 1.0},
+	"mollies.gd": {"algae": 1.0},
+	"fish_school.gd": {"nymph": 1.0, "grasshopper": 0.8, "crayfish": 0.6, "mollies": 0.5, "fish": 0.3},
 }
 
 ## (A kind that stands for several: "snails", any snail.)
@@ -114,15 +133,33 @@ const FORBS := ["yampah", "fleabane", "susan"]
 const BERRIES := ["g_blueberry", "g_raspberry"]
 
 
-## Its diet (by its script; a subclass's, its parent script's).
+## Its diet (by its script; a subclass's, its parent script's): the kinds.
 static func of(c: Node) -> Array:
+	return _table(c).keys()
+
+
+## How much c likes kind (0..1, Diet.EATS: 1 its staple, ~0.1 a rare meal):
+## 0 if it doesn't eat it. A snail of any kind counts as "snails".
+static func affinity(c: Node, kind: String) -> float:
+	var t := _table(c)
+	if t.has(kind):
+		return float(t[kind])
+	if kind.begins_with("dead_") and t.has(kind.substr(5)): # (a dead one of what it hunts: as its live one)
+		return float(t[kind.substr(5)])
+	for k: String in ALIASES:
+		if kind in (ALIASES[k] as Array) and t.has(k):
+			return float(t[k])
+	return 0.0
+
+
+static func _table(c: Node) -> Dictionary:
 	var sc: Script = c.get_script() if c else null
 	while sc:
 		var f := sc.resource_path.get_file()
 		if EATS.has(f):
 			return EATS[f]
 		sc = sc.get_base_script()
-	return []
+	return {}
 
 
 ## What c hunts (its diet's animals, run down, caught).
@@ -269,10 +306,12 @@ static func kind_of(n: Node) -> String:
 	return k
 
 
-## The nearest real food of c's diet (or of kinds) in its parent, within r
-## m: alive (or a carcass), not another's quarry already; or null. (For
-## what's always under it, EVERYWHERE: c itself.) any_: not the nearest but
-## any of it there, at random (a rarer meal as likely as its usual one).
+## The best real food of c's diet (or of kinds) in its parent, within r m:
+## alive (or a carcass), not another's quarry already; or null. Best: the
+## nearest by its distance over c's affinity for it (affinity: a staple a
+## few times as far off still before a rare meal at its feet). (For what's
+## always under it, EVERYWHERE: c itself.) any_: a rarer meal: any of it
+## there, at random, the less it's liked the likelier.
 static func find(c: Node3D, r := 30.0, kinds: Array = [], any_ := false) -> Node:
 	if c == null or c.get_parent() == null:
 		return null
@@ -282,8 +321,9 @@ static func find(c: Node3D, r := 30.0, kinds: Array = [], any_ := false) -> Node
 			return c
 	var p := _at(c)
 	var best: Node = null
-	var bd := r
+	var bd := INF
 	var all := []
+	var weights := []
 	for o in c.get_parent().get_children():
 		if o == c or not (o is Node3D):
 			continue
@@ -295,13 +335,26 @@ static func find(c: Node3D, r := 30.0, kinds: Array = [], any_ := false) -> Node
 		if o.has_meta("taken") and not o.has_meta("keep"):
 			continue
 		var d := _at(o as Node3D).distance_to(p)
-		if d < r:
-			all.append(o)
-		if d < bd:
-			bd = d
+		if d >= r:
+			continue
+		var a := affinity(c, k)
+		if a <= 0.0: # (a kind asked for that isn't in its table: middling)
+			a = 0.5
+		all.append(o)
+		weights.append(1.05 - a)
+		if d / maxf(a, 0.05) < bd:
+			bd = d / maxf(a, 0.05)
 			best = o
 	if any_ and not all.is_empty():
-		return all[randi() % all.size()]
+		var tot := 0.0
+		for w: float in weights:
+			tot += w
+		var x := randf() * tot
+		for i in all.size():
+			x -= float(weights[i])
+			if x <= 0.0:
+				return all[i]
+		return all[all.size() - 1]
 	return best
 
 

@@ -24,7 +24,6 @@ func _init(young_ := false, juvenile_ := false) -> void:
 	fold_pitch = 1.38
 	beat_amp = 1.0
 	egg_colors = [Color(0.95, 0.94, 0.9), Color(0.95, 0.94, 0.9)] # (white, round)
-	prey_scripts = ["mouse.gd"]
 
 
 ## An owl's body (cm, before k): k its size (1 a great horned owl's), g its

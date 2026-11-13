@@ -15,7 +15,7 @@ extends "res://scripts/creatures/raptor.gd"
 ## - its nest a great platform of sticks (nest_scale), two eggs, its
 ##   eaglets grey down, growing to near its size (eyas_scale)
 ## Hungry, it goes for whatever's near: a fish school (if it fishes), a
-## carcass, its prey (prey_scripts).
+## carcass, its prey (Diet).
 ##
 ## A species gives eagle_shape() its measures, _plumage() and mass_of().
 
@@ -258,25 +258,14 @@ func _think(dt: float) -> void:
 					perch()
 
 
-## Hungry: a fish school (if it fishes), a carcass, else its prey.
+## Hungry: whatever of its diet's here (Diet: a fish school with fish in it,
+## a carcass, its prey; the best by how near and how much it likes each).
 func _find_prey() -> Node3D:
-	var par := get_parent()
-	if par == null:
-		return null
-	var best: Node3D = null
-	var bd := 60.0
-	for o in par.get_children():
-		if not (o is Node3D):
-			continue
-		var ok := false
-		if fishes and o.get_script() != null and (o.get_script() as Script).resource_path.get_file() == "fish_school.gd" and int(o.call("nearest", _pos)) >= 0:
-			ok = true
-		elif o.has_meta("carcass") and int(o.get_meta("carcass")) <= 2:
-			ok = true
-		if ok and (o as Node3D).position.distance_to(_pos) < bd:
-			bd = (o as Node3D).position.distance_to(_pos)
-			best = o
-	return best if best else super()
+	var kinds := Diet.of(self)
+	var f := Diet.find(self, 60.0, kinds)
+	if f and f.has_method("nearest") and int(f.call("nearest", _pos)) < 0: # (a school with no fish left in it: the rest)
+		f = Diet.find(self, 60.0, kinds.filter(func(k: String) -> bool: return k != "fish"))
+	return f as Node3D if f != self else null
 
 
 func hunt(prey: Node3D) -> void:

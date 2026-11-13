@@ -771,13 +771,19 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   prepuce along his belly, furred as the belly is (a bison bull's and a buck's tufted at the tip), and the scrotum
   between and behind his thighs (a bobcat's high under his tail, a bull's hanging).
 - Diet (`scripts/creatures/diet.gd`, `Diet`): what every creature eats, by its script (`Diet.EATS`, `Diet.of`), each
+  kind with the creature's affinity for it, 0..1 (`Diet.affinity(creature, kind)`: 1 its staple, about 0.6 a regular
+  meal, 0.3 now and then, 0.1 rare, taken by chance; a dead one as its live one, a snail of any kind as "snails"):
+  the robin's grubs 1, its ants 0.3; the fox's mice 1, a fawn 0.15; the black bear's berries 1, a mouse 0.1. Food is
+  found best first, its distance over its affinity (a staple a few times as far off still before a rare meal at its
+  feet); a rarer meal (the sandbox's U, `any_`) any of it there at random, the less liked the likelier. A hungry
+  raptor's own hunt finds its prey the same way (`Raptor._find_prey`, the eagles' fish and carrion too). Each
   thing in the world named as food (`Diet.kind_of`: an animal by its kind and age, a dead one, a carcass, a fish
   school, the game's items, a plant by what it gives, an ant colony, a wasp comb, a clam or urchin on the sea floor, a
   spider, a bee, a monarch or a swallowtail, a firefly, a June bug (`beetle`; a lady beetle `lady_beetle`), a grass
   snail or a tigersnail; a colony's member, a snail, a firefly or a June bug, eaten one at a time: `Diet.find_one`
   takes the nearest out of its colony (`Beetles.die(i)`: a beetle gone from it for good), a body of its own; a toad's,
   a robin's or a bluebird's ant a single copy of one at the nest, `Diet.copy_of`, the colony itself untouched),
-  and `Diet.find(creature, reach)`: the nearest real food of its diet there, never anything made for it (those that
+  and `Diet.find(creature, reach)`: the best real food of its diet there, never anything made for it (those that
   eat what's always under them, grass, leaves, litter, algae, blood: the creature itself). A creature told to eat
   with no target (the pilot's act eat, hunt, strike, catch, fish, browse, feed, forage, visit_flowers) is given what
   `Diet.find` finds (hunting acts its prey only, `Diet.prey_of`); nothing there, the act fails. The sandbox's E / H
