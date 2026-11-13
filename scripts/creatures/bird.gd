@@ -986,6 +986,24 @@ func _make_mesh() -> Array:
 			var root: Vector3 = (bd[0] as Vector3) * CM + Vector3(cos(a), 0.0, sin(a) * 0.5) * 0.006
 			var tip := root + (Vector3(cos(a) * 0.1, -1.0, -0.22 + sin(a) * 0.08)).normalized() * float(bd[1]) * CM * (0.85 + 0.15 * sin(k * 2.4))
 			_tube(st, [[root, 0.0035, 0, 0, 0.0], [root.lerp(tip, 0.5) + Vector3(0.0, 0.0, 0.01), 0.003, 0, 0, 0.0], [tip, 0.0012, 0, 0, 0.0]], 6.0, 5)
+	# plumes (a heron's): fine long feathers hanging from a joint, each its own
+	# filament ([its root's middle (cm, at rest), the way they lie, how long
+	# (cm), how many, the joint they're on, how wide across they're spread (cm)])
+	var prng := RandomNumberGenerator.new()
+	prng.seed = 4177
+	for pl: Array in S.get("plumes", []):
+		var r0: Vector3 = pl[0]
+		var dir: Vector3 = (pl[1] as Vector3).normalized()
+		var across := dir.cross(Vector3.UP if absf(dir.y) < 0.9 else Vector3.BACK).normalized()
+		var jn: int = pl[4]
+		for k in int(pl[3]):
+			var f := (float(k) + 0.5) / float(pl[3]) * 2.0 - 1.0
+			var root := (r0 + across * f * float(pl[5]) * 0.5 + Vector3(0.0, 0.0, prng.randf_range(-0.6, 0.6))) * CM
+			var ln := float(pl[2]) * CM * prng.randf_range(0.7, 1.0)
+			var d := (dir + across * f * 0.12 + Vector3(prng.randf_range(-0.05, 0.05), prng.randf_range(-0.05, 0.05), 0.0)).normalized()
+			var mid := root + d * ln * 0.5 + Vector3(0.0, -ln * 0.06, 0.0) # (drooping a little, their own weight)
+			var tip := root + d * ln + Vector3(0.0, -ln * 0.12, 0.0)
+			_tube(st, [[root, 0.0045, jn, jn, 0.0], [mid, 0.003, jn, jn, 0.0], [tip, 0.0006, jn, jn, 0.0]], 6.0, 4)
 	# the legs
 	var hip: Vector3 = (S.hip as Vector3) * CM
 	var knee: Vector3 = (S.knee as Vector3) * CM
@@ -1001,8 +1019,14 @@ func _make_mesh() -> Array:
 		rest[j + 1] = knee * m
 		rest[j + 2] = ank * m
 		rest[j + 3] = foot * m
-		_tube(st, [[hip * m, float(tr[0]) * CM, j, j, 0.0], [hip.lerp(knee, 0.6) * m, float(tr[0]) * CM, j, j, 0.0], [knee * m, float(tr[1]) * CM, j, j + 1, 0.5],
-				[knee.lerp(ank, 0.4) * m, float(tr[1]) * CM * 0.85, j + 1, j + 1, 0.0], [knee.lerp(ank, 0.85) * m, lr * 1.5, j + 1, j + 1, 0.0], [knee.lerp(ank, 0.93) * m, lr * 1.1, j + 1, j + 1, 0.0]], 7.0, 12)
+		var sf := float(S.get("shin_feathered", 0.93)) # (how far down its shin its feathers reach: a wader's bare far up)
+		if sf >= 0.9:
+			_tube(st, [[hip * m, float(tr[0]) * CM, j, j, 0.0], [hip.lerp(knee, 0.6) * m, float(tr[0]) * CM, j, j, 0.0], [knee * m, float(tr[1]) * CM, j, j + 1, 0.5],
+					[knee.lerp(ank, 0.4) * m, float(tr[1]) * CM * 0.85, j + 1, j + 1, 0.0], [knee.lerp(ank, 0.85) * m, lr * 1.5, j + 1, j + 1, 0.0], [knee.lerp(ank, 0.93) * m, lr * 1.1, j + 1, j + 1, 0.0]], 7.0, 12)
+		else:
+			_tube(st, [[hip * m, float(tr[0]) * CM, j, j, 0.0], [hip.lerp(knee, 0.6) * m, float(tr[0]) * CM, j, j, 0.0], [knee * m, float(tr[1]) * CM, j, j + 1, 0.5],
+					[knee.lerp(ank, sf * 0.6) * m, float(tr[1]) * CM * 0.7, j + 1, j + 1, 0.0], [knee.lerp(ank, sf) * m, lr * 1.3, j + 1, j + 1, 0.0]], 7.0, 12)
+			_tube(st, [[knee.lerp(ank, sf * 0.85) * m, lr * 1.25, j + 1, j + 1, 0.0], [knee.lerp(ank, 0.6) * m, lr * 1.0, j + 1, j + 1, 0.0], [knee.lerp(ank, 0.97) * m, lr * 1.05, j + 1, j + 1, 0.0]], float(S.get("leg_part", 8.0)), 9) # (the shin bare below)
 		_tube(st, [[knee.lerp(ank, 0.82) * m, lr * 1.05, j + 1, j + 1, 0.0], [ank * m, lr * 1.25, j + 1, j + 2, 0.5], [ank.lerp(foot, 0.3) * m, lr, j + 2, j + 2, 0.0],
 				[ank.lerp(foot, 0.85) * m, lr, j + 2, j + 2, 0.0], [foot * m, lr * 1.3, j + 2, j + 2, 0.0]], float(S.get("leg_part", 8.0)), 9) # (an owl's: feathered to its toes)
 		# the toes: three forward, one back, a claw on each

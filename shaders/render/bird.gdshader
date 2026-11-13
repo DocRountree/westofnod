@@ -71,6 +71,8 @@ uniform vec4 chin_strap = vec4(0.0); // a pale band from under its chin up each 
 uniform vec4 strap_at = vec4(-0.02, 0.012, 0.028, 0.024); // (its middle from the eye: down, back; its half height, half length: m)
 uniform float iridescence = 0.0; // its back's and crown's feathers glittering metallic, their hue turning with the light (a hummingbird's green)
 uniform float gorget = 0.0; // its throat's colour iridescent: blazing where it faces you, near black glancing (a ruby-throat's gorget)
+uniform vec3 plume_color : source_color = vec3(0.85, 0.86, 0.88); // its plumes (a heron's breast's, back's)
+uniform vec3 plume_dark : source_color = vec3(0.04, 0.04, 0.05); // and those off its head
 uniform float mark_from = 0.06; // (its underparts marked from here along it up: below, its vent, plain)
 uniform vec2 wing_bar_fl = vec2(-1.0); // (the greater coverts' bar, seen on the folded wing across its flight feathers' bases: from, to along them)
 uniform float cap_back = 1.0; // (m behind the eye the cap reaches: a goldfinch's black forecap, short of its crown)
@@ -561,6 +563,13 @@ void raptor(int pt, float u, float v, vec3 view, float ndv, vec3 vtx, vec3 nrm0,
 		c = mix(c, down_white, down);
 		rough = 0.82;
 		spec = 0.16;
+		return;
+	}
+	if (pt == 6) { // plumes (a heron's): pale, fine; those off the back of its head black
+		bool head_ = rest.y > eye_at.y - eye_rm * 3.0;
+		c = (head_ ? plume_dark : plume_color) * (0.85 + 0.25 * hash(vec2(fc.z * 13.0, floor(u * 3.0))));
+		rough = 0.75;
+		spec = 0.25;
 		return;
 	}
 	if (pt == 1) { // the cere, the ring round the eye: bare, yellow

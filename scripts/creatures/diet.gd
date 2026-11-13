@@ -79,6 +79,7 @@ const EATS := {
 	"passenger_pigeon.gd": {"acorn": 1.0, "grub": 0.3, "caterpillar": 0.3, "snails": 0.25},
 	"red_winged_blackbird.gd": {"caterpillar": 1.0, "nymph": 0.9, "grasshopper": 0.8, "beetle": 0.7, "grub": 0.6, "spider": 0.6, "snails": 0.3},
 	"ruby_throated_hummingbird.gd": {"flowers": 1.0, "forbs": 0.8, "flier": 0.3}, # (nectar, its tongue in the flower; small insects caught in the air)
+	"great_blue_heron.gd": {"mollies": 1.0, "fish": 0.9, "frog": 0.7, "crayfish": 0.6, "mouse": 0.4, "toad": 0.2, "snake_young": 0.2, "grasshopper": 0.15},
 	"canada_goose.gd": {"graze": 1.0, "algae": 0.5}, # (grass, the water's weeds: its goslings' too)
 	"american_goldfinch.gd": {"forbs": 1.0, "flowers": 0.9}, # (seeds only, its young's too: Finch)
 	"house_finch.gd": {"forbs": 1.0, "flowers": 0.9, "berries": 0.6},
@@ -316,6 +317,8 @@ static func kind_of(n: Node) -> String:
 			k = "nestling" if young else "bluebird"
 		"canada_goose.gd":
 			k = "gosling" if young else "goose"
+		"great_blue_heron.gd":
+			k = "nestling" if young else "heron"
 		"ruby_throated_hummingbird.gd":
 			k = "nestling" if young else "hummingbird"
 		"american_goldfinch.gd", "house_finch.gd":

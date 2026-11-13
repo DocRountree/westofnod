@@ -22,6 +22,7 @@ uniform int kind = 0;      // 0 grass, 1 fern, 2 flowers
 uniform bool in_forest = true;
 uniform bool in_prairie = true;
 uniform bool in_swamp = false; // (the reeds: prairie_height their height; they take the prairie's colours)
+uniform vec2 clump_off = vec2(0.0); // (its clumps' own field: 0 the reeds' and cattails'; another, a layer's clumps of its own, wherever they fall)
 uniform bool swamp_clumped = true; // (in the swamp in the reeds' clumps; false: anywhere in it, as drift says)
 uniform bool in_coast = false; // (marram: on the coast and the beaches, in patches, none at the water's edge, more and taller inland)
 uniform vec2 forest_height = vec2(0.08, 0.16); // m (grass; ferns: their length)
@@ -169,7 +170,7 @@ void fragment() {
 	if (in_swamp && !swamp_clumped)
 		grows += sw;
 	else if (in_swamp)
-		grows += sw * smoothstep(0.6, 0.68, vnoise(pos / 11.0 + 41.0) * 0.7 + vnoise(pos / 3.5 + 5.0) * 0.3);
+		grows += sw * smoothstep(0.6, 0.68, vnoise(pos / 11.0 + 41.0 + clump_off) * 0.7 + vnoise(pos / 3.5 + 5.0 + clump_off * 1.7) * 0.3);
 	// marram along the coast: patches on the beaches and the coast,
 	// none at the water's edge, thicker and taller up from it (by the
 	// height above the sea: the beach rising to the dunes behind)

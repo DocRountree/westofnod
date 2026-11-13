@@ -1040,6 +1040,21 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   into it, bill in bill; then on her back. Paired, they're mates (`_mate`): her eggs in a cup on her site, he feeds
   her on it; their young both of theirs, fed seed brought up from the crop (`crop`), bill in each gape in turn, his
   head pumping (no insects, even for them). Taken by the Cooper's hawk, the peregrine, the screech owl.
+  `great_blue_heron.gd` (`GreatBlueHeron`, *Ardea herodias*): 1.2 m tall, 1.9 m across, 2.5 kg; its own body: slim,
+  deep keeled, its neck very long in an S, its head long, its bill a straight yellow dagger, its legs long and bare far
+  up the shin (`bird.gd`'s `shin_feathered`), its toes long; plumes (`bird.gd`'s `plumes`: fine filaments off a joint)
+  hanging from the base of its neck over its breast, down its back over its wings, two black ones off the back of its
+  head. Blue grey; its face and crown white, a black stripe over its eye to its plumes; its neck pale, its front white
+  streaked black; a black and chestnut patch at the bend of its wing; chestnut thighs; its eye yellow, its lores blue
+  green. It lives by its water (`water_y`, `pond`), wading its shallows (no deeper than `wade_depth`): a slow step,
+  a long wait, its neck drawn back; what's near (a fish of a school or of the mollies in its water, a frog, a
+  crayfish, a mouse) leaned toward, its neck coiled, then struck at, its neck shot out, its bill into the water: taken
+  only with its bill on it (fish come out of their school: `take`), held crosswise, its head shaken, turned and
+  swallowed head first. Its croak; its threat (wings spread and drooped, plumes up, bill open); its flight (a jump or
+  two up, its neck folded back in an S into its shoulders, its legs trailing straight out behind, slow deep beats); his
+  stretch display (bill up, neck stretched, then bowed, bill snapped); her nest a platform of sticks high in a tree,
+  four pale blue eggs; its young fed fish brought up, a nestling's bill clamped on its parent's. In the sandbox under
+  Birds: with its shallow pond and mollies in it; E fishing, D its croak, X its threat, F off, K courting, 1 lay, 2 hatch.
   `ruby_throated_hummingbird.gd` (`RubyThroatedHummingbird`, *Archilochus colubris*): 9 cm with its bill, 3.2 g; the
   songbird's make made tiny, its bill a straight fine needle, its legs short under it, its wings long narrow blades (a
   short arm, a long hand), its tail of ten broad feathers (his forked, hers rounded, her outer ones banded black, tipped

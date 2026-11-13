@@ -62,6 +62,7 @@ const OWL_SCRIPTS := {
 	"hummingbird": preload("res://scripts/creatures/ruby_throated_hummingbird.gd"),
 }
 const GooseScript := preload("res://scripts/creatures/canada_goose.gd")
+const HeronScript := preload("res://scripts/creatures/great_blue_heron.gd")
 const DeerTickScript := preload("res://scripts/creatures/blacklegged_ticks.gd")
 const LoneStarScript := preload("res://scripts/creatures/lone_star_ticks.gd")
 const LarvaScript := preload("res://scripts/creatures/larva.gd")
@@ -218,6 +219,7 @@ const CATALOGUE := [
 	["Birds", "American goldfinch (on a low post; E / H to the seed heads that are here: clinging, picking seeds, husking them; D his song, V his butterfly song flight, K courtship feeding; young: a nestling, in its cup in a fork)", "goldfinch", ["adult", "juvenile", "young"]],
 	["Birds", "house finch (on a low post; E / H to the seed heads or a berry bush that's here; D his warble, V his song flight, K courtship feeding; young: a nestling, in its cup on a ledge)", "house_finch", ["adult", "juvenile", "young"]],
 	["Birds", "ruby-throated hummingbird (on a twig; E / H hovering at the flowers that are here, its bill in each, licking; or a small insect snapped up in the air; D a rival male chased off; K his pendulum dives and shuttle for her; young: a nestling, in its tiny cup)", "hummingbird", ["adult", "juvenile", "young"]],
+	["Birds", "great blue heron (with its shallow pond, mollies in it: wading, stalking, waiting, its strike; E / H fishing (a fish, a frog, a crayfish that's here), D its croak, X its threat (wings spread, plumes up), F off (neck folded, legs trailing), K courting (his stretch display), 1 her nest high in a tree, 2 hatch; young: a nestling, in the nest)", "heron", ["adult", "juvenile", "young"]],
 	["Birds", "Canada goose (on the bank of its pond, grazing; to the water and swimming, upending, drinking; E graze / swim, D honk, X its threat, F fly off, V the geese here off in a V skein, K courting on the water, 1 her nest on the bank, 2 hatch, N brood; young: a gosling, after its mother)", "goose", ["adult", "juvenile", "young"]],
 	["Birds", "barn owl (dozing by day, awake at dusk and by night: T; young: an owlet, in its nest)", "barn_owl", ["adult", "young"]],
 	["Birds", "great horned owl (dozing by day, awake at dusk and by night: T; young: an owlet, in its nest)", "horned_owl", ["adult", "young"]],
@@ -264,7 +266,7 @@ const WET := ["puddle", "small_pond", "pond", "large_pond", "sea", "darner", "fi
 const PONDS := {
 	"puddle": [0.32, 0.24, 0.05], "small_pond": [0.5, 0.4, 0.2], "pond": [1.2, 0.9, 0.45],
 	"large_pond": [1.6, 1.0, 0.45], "sea": [3.2, 2.4, 1.1], "salmon": [3.0, 2.0, 1.4], "trout": [2.2, 0.7, 0.55], "ocean": [10.0, 6.0, 3.5], "darner": [0.6, 0.45, 0.09], "fishing": [0.42, 0.36, 0.3],
-	"beaver": [1.5, 2.0, 0.3], "otter": [1.8, 1.3, 0.6], "goose": [2.8, 2.2, 0.5],
+	"beaver": [1.5, 2.0, 0.3], "otter": [1.8, 1.3, 0.6], "goose": [2.8, 2.2, 0.5], "heron": [2.0, 1.4, 0.2],
 }
 
 ## (The acts' names on their buttons, in the game: where not the act's own.)
@@ -1394,6 +1396,47 @@ func _spawn_animal(key: String, at: Vector3, stage: String, male: bool, young: b
 			_org(tc, at, true)
 			tc.setup_stages(8 if not young else 14, Vector3.ZERO, 0.08, [Ticks.MALE, Ticks.FEMALE] if not young else [Ticks.LARVA, Ticks.LARVA, Ticks.NYMPH])
 			return tc
+		"heron":
+			var hn: GreatBlueHeron = HeronScript.new(young, stage == "juvenile")
+			hn.male = (male and not young) if not young else randf() < 0.5
+			hn.height = _height
+			if young: # (a nestling: in its mother's nest, if she's here; else a nest of its own)
+				var hm: GreatBlueHeron = null
+				for o in get_children():
+					if o is GreatBlueHeron and o != hn and not o.male and not o.young and not o.dead and (o as Node3D).position.distance_to(at) < 12.0:
+						hm = o
+				var host: GreatBlueHeron = hm if hm else hn
+				_org(hn, at, false)
+				_raptor_nest_site(host)
+				host.call("_ensure_nest")
+				var ya := randf() * TAU
+				hn.nest_top = host.nest_top
+				hn.perch_at = host.nest_top
+				hn.place(host.nest_top + Vector3(cos(ya), 0.0, sin(ya)) * 0.15, ya + PI)
+				hn.set("_mother", hm)
+				hn.call("_to", "eyas")
+				if hm:
+					hm.young_ones.append(hn)
+				return hn
+			var hq := _pond_near(at, 6.0)
+			if hq.is_empty():
+				hq = _pond_for(at, "heron")
+				# (its fish: mollies in the shallows)
+				var mol := MolliesScript.new()
+				var hc0: Vector3 = hq.c
+				var hdp := float(hq.deep)
+				mol.tank_min = hc0 + Vector3(-float(hq.hw) + 0.05, POND - hdp + 0.01, -float(hq.hd) + 0.05)
+				mol.tank_max = hc0 + Vector3(float(hq.hw) - 0.05, POND - 0.02, float(hq.hd) - 0.05)
+				_org(mol, hc0, false)
+				mol.setup(18, hc0 + Vector3(0.0, POND - hdp * 0.5, 0.0), 0.5)
+				hq.mollies = mol
+			var hc: Vector3 = hq.c
+			hn.water_y = POND
+			hn.pond = Rect2(hc.x - float(hq.hw), hc.z - float(hq.hd), float(hq.hw) * 2.0, float(hq.hd) * 2.0)
+			_org(hn, at, false)
+			hn.place(at, randf() * TAU)
+			hn.call("forage")
+			return hn
 		"goose":
 			var g: CanadaGoose = GooseScript.new(young, stage == "juvenile")
 			g.male = (male and not young) if not young else randf() < 0.5
@@ -2497,6 +2540,21 @@ func _raptor_do(r: Raptor, act_: String) -> void:
 			if pr:
 				e.hunt(pr)
 		return
+	if r is GreatBlueHeron: # (a heron: fishing; its croak, its threat; off)
+		var hr := r as GreatBlueHeron
+		match act_:
+			"eat", "hunt", "forage", "wander":
+				hr.forage()
+				return
+			"display", "mark":
+				hr.call_out(3.0)
+				return
+			"alarm":
+				hr.threaten(_on(cam.global_position) if cam else p + Vector3(2.0, 0.0, 0.0))
+				return
+			"fly":
+				hr.fly_off(cam.global_position if cam else p + Vector3(5.0, 0.0, 0.0))
+				return
 	if r is CanadaGoose: # (a goose: grazing, swimming; its honk, its threat; off in a skein)
 		var gz := r as CanadaGoose
 		match act_:

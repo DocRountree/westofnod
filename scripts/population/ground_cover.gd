@@ -29,8 +29,8 @@ const SettingsScript := preload("res://scripts/settings.gd") # (by path: found w
 ## - reeds: the swamp's, 1.8-2.3 m, broad-bladed, in clumps here and there
 ##   (sparse patches, in the water too); to 72 m;
 ## - cattails among them: stalks with brown heads, a few leaves; to 66 m;
-## - scouring rush (Equisetum hyemale) among them too, in the reeds' same
-##   clumps: dense tufts of straight, unbranched, jointed stems, dark blue
+## - scouring rush (Equisetum hyemale): clumps of its own about the swamp
+##   (their own field, apart from the reeds' but for chance): dense tufts of straight, unbranched, jointed stems, dark blue
 ##   green, a black-edged band at each joint, a small dark cone at the tip
 ##   of some; a tad shorter than the reeds (1.4-1.9 m); to 60 m;
 ## - marram: the coast's and the beaches', half the prairie grass's height,
@@ -99,9 +99,9 @@ const LAYERS := [
 		"u": {"kind": 0, "seed": 6, "in_forest": false, "in_prairie": false, "in_swamp": true, "cover": 0.45,
 			"prairie_height": Vector2(1.7, 2.2), "prairie_green": Vector3(0.24, 0.33, 0.13), "prairie_blonde": Vector3(0.45, 0.42, 0.26),
 			"fade_out": Vector2(50.0, 66.0), "thin_from": 40.0}},
-	# scouring rush, in the reeds' clumps (the same field: in_swamp, clumped), a tad shorter than them
+	# scouring rush: clumps of its own in the swamp (their own field, clump_off: among the reeds' only where they happen to fall), a tad shorter than the reeds
 	{"cell": 1.2, "cells": 14, "tiles": 7, "rushes": 22, "radius": 0.22,
-		"u": {"kind": 0, "seed": 18, "in_forest": false, "in_prairie": false, "in_swamp": true, "cover": 0.6,
+		"u": {"kind": 0, "seed": 18, "in_forest": false, "in_prairie": false, "in_swamp": true, "clump_off": Vector2(173.3, -91.7), "cover": 0.6,
 			"prairie_height": Vector2(1.4, 1.9), "prairie_green": Vector3(0.17, 0.3, 0.2), "prairie_blonde": Vector3(0.22, 0.33, 0.22),
 			"fade_out": Vector2(46.0, 60.0), "thin_from": 36.0}},
 	# marram, along the coast: half the prairie grass's height, as pale as the sand
@@ -203,7 +203,7 @@ const MAX_LOGS := 256 ## logs, stumps, trunks and boulders the grass is kept out
 const MAX_GONE := 64 ## clumps picked a layer hides (ground_cover_bake.gdshader: gone[]), the nearest
 const REBAKE := 5.0 ## m the camera moves before a layer's grid is worked out again (more for the layers further out: 8% of their fade_out)
 const BAKES_PER_FRAME := 2 ## layers' grids worked out a frame, at most (all thirteen at once made a hitch)
-const BAKE_KEYS := ["kind", "seed", "in_forest", "in_prairie", "in_swamp", "swamp_clumped", "in_coast", "forest_height", "prairie_height", "cover", "drift", "on_litter",
+const BAKE_KEYS := ["kind", "seed", "in_forest", "in_prairie", "in_swamp", "swamp_clumped", "clump_off", "in_coast", "forest_height", "prairie_height", "cover", "drift", "on_litter",
 		"fade_in", "fade_out", "thin_from"]
 const BAKE_MARGIN := 6.0 ## m past a layer's rebake distance the eye may go before a bake's distance culling shows (the bake's, the readback's lag)
 const DRAW_KEYS := ["kind", "seed", "fade_in", "fade_out", "thin_from", "prairie_green", "prairie_blonde", "patch_tints",
