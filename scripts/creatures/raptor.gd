@@ -916,7 +916,7 @@ func _strike() -> void:
 		return
 	var kind := "mammal"
 	var path: String = (prey.get_script() as Script).resource_path.get_file() if prey.get_script() else ""
-	if path == "wild_turkey.gd":
+	if path in ["wild_turkey.gd", "passenger_pigeon.gd", "red_winged_blackbird.gd", "american_robin.gd", "eastern_bluebird.gd"]:
 		kind = "bird"
 	var sz := 0.09
 	match path:
@@ -928,8 +928,20 @@ func _strike() -> void:
 			sz = 0.08
 		"hare.gd":
 			sz = 0.4 if not prey.get("young") else 0.18
+		"passenger_pigeon.gd":
+			sz = 0.2 if not prey.get("young") else 0.1
+		"red_winged_blackbird.gd", "american_robin.gd", "eastern_bluebird.gd":
+			sz = 0.11 if not prey.get("young") else 0.06
 	var col := Color(0.45, 0.37, 0.28)
 	match path:
+		"passenger_pigeon.gd":
+			col = Color(0.5, 0.48, 0.5)
+		"red_winged_blackbird.gd":
+			col = Color(0.12, 0.1, 0.1)
+		"american_robin.gd":
+			col = Color(0.55, 0.32, 0.2)
+		"eastern_bluebird.gd":
+			col = Color(0.3, 0.38, 0.6)
 		"fox_squirrel.gd":
 			col = Color(0.6, 0.4, 0.22)
 		"grey_squirrel.gd":
@@ -1368,6 +1380,42 @@ static func nest_pole(height: float, scrape: bool, thick := 1.0, style := "") ->
 		_wood = StandardMaterial3D.new()
 		_wood.albedo_color = Color(0.36, 0.3, 0.24)
 		_wood.roughness = 0.95
+	if style == "reeds": # (a blackbird's: a stand of cattail stems, its cup woven between them at height)
+		var rm := StandardMaterial3D.new()
+		rm.albedo_color = Color(0.55, 0.52, 0.33)
+		rm.roughness = 0.9
+		for i in 6:
+			var a := TAU * i / 6.0 + 0.3
+			var rr := 0.045 + 0.02 * float(i % 2)
+			var tall := height + 0.5 + 0.25 * float(i % 3)
+			var st := MeshInstance3D.new()
+			var sc := CylinderMesh.new()
+			sc.top_radius = 0.003
+			sc.bottom_radius = 0.006
+			sc.height = tall
+			sc.radial_segments = 5
+			sc.rings = 1
+			st.mesh = sc
+			st.material_override = rm
+			st.position = Vector3(cos(a) * rr, tall * 0.5, sin(a) * rr)
+			st.rotation = Vector3(0.04 * sin(a * 3.0), 0.0, 0.04 * cos(a * 2.0))
+			n.add_child(st)
+			if i % 2 == 0: # (a cattail's brown head on the taller ones)
+				var hd := MeshInstance3D.new()
+				var hc := CylinderMesh.new()
+				hc.top_radius = 0.011
+				hc.bottom_radius = 0.011
+				hc.height = 0.14
+				hc.radial_segments = 6
+				hd.mesh = hc
+				var hm := StandardMaterial3D.new()
+				hm.albedo_color = Color(0.32, 0.2, 0.12)
+				hm.roughness = 1.0
+				hd.material_override = hm
+				hd.position = Vector3(cos(a) * rr, tall - 0.18, sin(a) * rr)
+				n.add_child(hd)
+		n.set_meta("site_top", Vector3(0.0, height, 0.0))
+		return n
 	var pole := MeshInstance3D.new()
 	var cm := CylinderMesh.new()
 	cm.top_radius = 0.07 * thick
@@ -1378,6 +1426,20 @@ static func nest_pole(height: float, scrape: bool, thick := 1.0, style := "") ->
 	pole.position = Vector3(0.0, height * 0.5, 0.0)
 	n.add_child(pole)
 	n.set_meta("site_top", Vector3(0.0, height, 0.0))
+	if style == "fork": # (a tree's branches, stood in for: a fork of three at the pole's top, a pigeon's platform laid across them)
+		for i in 3:
+			var a := TAU * i / 3.0
+			var br := MeshInstance3D.new()
+			var bc := CylinderMesh.new()
+			bc.top_radius = 0.008
+			bc.bottom_radius = 0.022 * thick
+			bc.height = 0.45
+			br.mesh = bc
+			br.material_override = _wood
+			br.position = Vector3(cos(a) * 0.15, height + 0.08, sin(a) * 0.15)
+			br.rotation = Vector3(sin(a) * 1.05, 0.0, -cos(a) * 1.05)
+			n.add_child(br)
+		return n
 	if style == "box": # (a nest box on its post: open topped, its roof lifted off it, a hole in its front)
 		var wood := StandardMaterial3D.new()
 		wood.albedo_color = Color(0.58, 0.47, 0.33)

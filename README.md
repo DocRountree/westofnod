@@ -961,6 +961,42 @@ To rebake: `pip install numpy scipy rasterio pillow`, then
   hunts from a low post. In the sandbox under Birds (adult, juvenile, or young: a nestling in its nest; the robin on
   the ground, the bluebird on a low post): E / H what it eats that's here (none set out), B forage, D sing, K court
   and mate, 1 lay (its site given it: a ledge, a box), 2 hatch, N brood; the rest as the hawks.
+  The songbird's make serves others too: `thrush_shape`'s girth (`plump`), a deep conical bill (`bill_deep`), a
+  graduated tail (`tail_grad`), a dove's forehead running down into its bill with no round face (`snout`), a longer
+  neck (`neck`), a low sleek crown (`crown`); walking foragers pecking as they go (`walks`; `gapes`: the bill pushed
+  into the ground and opened, prying), what it goes for (`_meal_kinds`), its nest site (`site_style`: a ledge, a box,
+  reeds, a fork). Its bill goes to its food's middle (its meshes' bounds), never the ground under it. New nest sites
+  (`Raptor.nest_pole`): `"reeds"` (a stand of cattails, the cup woven among them), `"fork"` (a tree's fork of three
+  branches). The shader's additions: black spots on the coverts (`cov_spots`), the leading edge's colour reaching
+  across them with a border below (`cov_lead_to`, `cov_lead_edge`: a blackbird's red and yellow), the same seen at
+  rest as a patch at the bend of the folded wing, fading as the wings open (`patch_color`, `patch_edge`, `patch_at`),
+  a pale stripe over the eye (`supercilium`), the hackles iridescent (`nape_iris`, seen glancing), the outer tail
+  feathers their own colour (`tail_outer`), no cere's colour at a songbird's bill root (`bill_cere`).
+  `pigeon.gd` (`Pigeon`): a dove, its ways the living doves' (the rock dove's, the mourning dove's, the band-tailed
+  pigeon's): walking, its head nodding, pecking as it goes, seeds and nuts swallowed whole (an acorn: its bill on it
+  first); drinking (`drink(at)`: its bill held in the water, sucking, no tipping back its head); cooing (`call_out`: its
+  bill shut, its throat swelling); the bow-coo (`mate`: his neck puffed, his tail fanned and dragged, bowing and
+  turning before her, following her up; then billing, her bill in his, before he mounts); every take-off with a clap
+  of its wings; its display flight (`display_flight`: a clap, up, a long glide down on wings held up in a V, its tail
+  spread); sunbathing (`sunbathe`: down on its belly, tipped onto one side, a wing raised to the sun); a flimsy
+  platform of twigs, white eggs; its squabs fed crop milk (the squab's bill inside the parent's, the parent pumping),
+  never food carried to them. `passenger_pigeon.gd` (`PassengerPigeon`, *Ectopistes migratorius*): as the museum's
+  skins show it, its ways the living doves' (none was ever filmed): long and slender, a small sleek head, its tail long,
+  graduated and pointed; the male slate blue grey above, black spots on his coverts, his neck's sides iridescent
+  bronze and violet, his throat and breast a coppery rufous paling to a white vent, the middle tail feathers grey, the
+  outer white, his eye red, his legs coral red, his bill black; the female browner, duller, buff grey below, her eye
+  orange; one white egg on a platform in a tree's fork; acorns, grubs, caterpillars, snails. Taken by the peregrine,
+  the Cooper's hawk, the great horned owl. In the sandbox under Birds: on the ground; E eats (an acorn that's here), D
+  coo, V display flight, A sunbathe, B forage (a drink, at a pond near), K court, 1 lay, 2 hatch, N brood.
+  `red_winged_blackbird.gd` (`RedWingedBlackbird`, *Agelaius phoeniceus*): the male glossy black, his epaulets scarlet
+  bordered buff yellow (at rest a patch at the bend of the wing; in his song spread and in flight across the coverts);
+  the female dark brown, heavily streaked, buffy below streaked dark, a pale stripe over her eye, a little rust in her
+  shoulders. His song spread (`call_out`: puffed, wings held out and drooped, the epaulets flared, tail fanned,
+  conk-la-ree, the last a trill), her chatter; display (`display(rival)`: a rival male flown at and chased off; none,
+  his song spread); walking and gaping for insects (caterpillars, grasshoppers and their nymphs, June bugs and
+  grubs, spiders, snails); its alarm, a check and a flick of its tail; her cup woven among cattails, four pale blue-green
+  eggs scrawled black. Taken by the Cooper's hawk, the peregrine, owls; its nestlings by snakes. In the sandbox under
+  Birds: on a low post; D his song spread (a rival near: chased off); the rest as the robin.
   `wild_turkey.gd` (`WildTurkey`, *Meleagris gallopavo*): the tom bronze, copper and green, every feather edged
   black, flight feathers barred white, the fan brown with a black band and buff tip, the bare head red and blue,
   snood, wattle, caruncles, beard, spurs; the hen browner, edged buff; the poult downy, striped. Foraging (walking,

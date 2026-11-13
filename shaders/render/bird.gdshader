@@ -53,6 +53,19 @@ uniform float throat_from = 0.72;
 uniform float throat_streak = 0.0; // (streaked with the cap's colour: a robin's)
 uniform vec4 eye_arcs = vec4(0.0); // white arcs over and under the eye (a robin's broken eye ring): rgb, w its outer radius (m)
 uniform vec2 under_spots = vec2(0.12, 0.5); // (pattern 4) a spot's radius (of a feather), and on which feathers (above this of each's random: 0 all)
+uniform vec4 cov_spots = vec4(0.0); // a dark spot near the tip of some of the folded wing's coverts (rgb; w: how many of them: a passenger pigeon's black spots)
+uniform vec4 patch_color = vec4(0.0); // a patch on its side at the bend of its folded wing (rgb; w: how much): the epaulet seen at rest, a red-winged blackbird's
+uniform vec4 patch_edge = vec4(0.0); // its lower border (a blackbird's yellow)
+uniform vec3 patch_at = vec3(0.0); // (its middle, the rest pose's: m; x its side's)
+uniform vec2 patch_r = vec2(0.012, 0.009); // (its half length along the body, its half height: m)
+uniform float cov_lead_to = 0.3; // (how far across the coverts the leading edge's colour reaches)
+uniform vec4 cov_lead_edge = vec4(0.0); // a band just below the leading edge's colour (cov_lead): a red-winged blackbird's yellow border to its red epaulet
+uniform vec4 supercilium = vec4(0.0); // a pale stripe over the eye, bill to nape (rgb; w: how much: a female blackbird's)
+uniform vec3 nape_iris : source_color = vec3(0.4, 0.2, 0.5); // the hackles' sheen seen glancing (iridescent: a pigeon's neck)
+uniform vec4 tail_outer = vec4(0.0); // the outer tail feathers their own colour (w: how much: a passenger pigeon's white sides)
+uniform float tail_count = 12.0;
+uniform float eye_rm = 0.005; // the eye's radius (m)
+uniform float bill_cere = 1.0; // (the bill's root the cere's colour: a raptor's; a songbird's, a pigeon's, none)
 uniform float vent_to = -1.0; // m along its body (its rest pose's height): below this, its vent, its lower belly, plain (under_color: a robin's white)
 uniform float cov_bar = 0.0;       // the upperwing's coverts over the arm, a pale bar: each feather fringed broad and pale, some pale through (a golden eagle's tawny bar)
 uniform vec3 cov_bar_color : source_color = vec3(0.68, 0.52, 0.32);
@@ -265,7 +278,12 @@ void raptor(int pt, float u, float v, vec3 view, float ndv, vec3 vtx, vec3 nrm0,
 			float pale = max(fringe, 0.75 * step(0.66, f.y) * smoothstep(0.0, 0.3, f.x) * (1.0 - smoothstep(0.65, 0.9, f.x)));
 			bk *= mix(1.0, 0.72, bar * (1.0 - fringe));
 			bk = mix(bk, cov_bar_color * (0.82 + 0.3 * f.y), bar * pale);
-			bk = mix(bk, cov_lead.rgb * (0.85 + 0.25 * f.y), cov_lead.w * (1.0 - smoothstep(0.05, 0.3, v + 0.1 * f.y)) * (1.0 - smoothstep(0.7, 0.9, u)));
+			bk = mix(bk, cov_lead.rgb * (0.85 + 0.25 * f.y), cov_lead.w * (1.0 - smoothstep(cov_lead_to - 0.25, cov_lead_to, v + 0.1 * f.y)) * (1.0 - smoothstep(0.7, 0.9, u)));
+			bk = mix(bk, cov_lead_edge.rgb * (0.88 + 0.2 * f.y), cov_lead_edge.w * smoothstep(cov_lead_to - 0.08, cov_lead_to, v + 0.1 * f.y) * (1.0 - smoothstep(cov_lead_to + 0.12, cov_lead_to + 0.2, v + 0.1 * f.y)) * (1.0 - smoothstep(0.7, 0.9, u)));
+		}
+		if (pt == 10 && cov_spots.w > 0.0) { // (a dark spot near a covert's tip, on some of them)
+			float sd = length(vec2(f.z * 0.6, f.x - 0.22));
+			bk = mix(bk, cov_spots.rgb, step(1.0 - cov_spots.w, f.y) * (1.0 - smoothstep(0.1, 0.15, sd)) * fade * (1.0 - smoothstep(0.75, 0.9, u)));
 		}
 		if (mottle > 0.0 || back_streak > 0.0 || back_spot > 0.0) {
 			float verm = smoothstep(0.42, 0.58, vnoise(vec2(p.x * 5.0, p.y * 13.0)));
@@ -362,7 +380,8 @@ void raptor(int pt, float u, float v, vec3 view, float ndv, vec3 vtx, vec3 nrm0,
 		if (pt == 0 && nape_u >= 0.0) { // (the hackles: down the back of its head and neck)
 			float nap = smoothstep(nape_u, nape_u + 0.1, u) * (1.0 - smoothstep(0.12, 0.24, abs(v - 0.5) + 0.04 * (vnoise(vec2(u * 40.0, v * 9.0)) - 0.5)));
 			nap *= mix(1.0, smoothstep(eye_at.z + 0.006, eye_at.z + 0.02, rest.z), smoothstep(0.74, 0.8, u)); // (on its head, behind its eye: its face dark)
-			c = mix(c, nape_color * (0.85 + 0.3 * f.y) * mix(0.7, 1.0, smoothstep(0.0, 0.3, f.x)), nap * smoothstep(0.0, 0.05, f.x + 0.04));
+			vec3 nc = mix(nape_color, nape_iris, smoothstep(0.75, 0.25, ndv)); // (its sheen: the other colour seen glancing)
+			c = mix(c, nc * (0.85 + 0.3 * f.y) * mix(0.7, 1.0, smoothstep(0.0, 0.3, f.x)), nap * smoothstep(0.0, 0.05, f.x + 0.04));
 		}
 		if (pt == 0 && hood_u >= 0.0) { // (all its head and neck)
 			float hd = smoothstep(hood_u - 0.01, hood_u + 0.02, u + 0.03 * (vnoise(vec2(v * 30.0, u * 9.0)) - 0.5) + 0.05 * f.x * (1.0 - f.x));
@@ -374,6 +393,21 @@ void raptor(int pt, float u, float v, vec3 view, float ndv, vec3 vtx, vec3 nrm0,
 			float th = throat_color.w * smoothstep(throat_from, throat_from + 0.03, u) * frontv * below;
 			float stripe = throat_streak * (1.0 - smoothstep(0.18, 0.4, abs(fract(v * 34.0 + 0.3 * f.y) - 0.5) * 2.0)) * smoothstep(0.1, 0.3, f.x);
 			c = mix(c, mix(throat_color.rgb * (0.94 + 0.1 * f.y), cap_color, stripe), th);
+		}
+		if (pt == 0 && patch_color.w > 0.0) { // (the epaulet at rest: on its side at the bend of the wing, its lower edge bordered; gone as the wings open)
+			vec2 q = vec2((rest.y - patch_at.y) / patch_r.x, (rest.z - patch_at.z) / patch_r.y);
+			float side = smoothstep(patch_at.x * 0.55, patch_at.x * 0.8, abs(rest.x));
+			float d = length(q) + 0.15 * (vnoise(rest.yz * 600.0) - 0.5);
+			float inside = (1.0 - smoothstep(0.85, 1.0, d)) * side * (1.0 - smoothstep(0.08, 0.3, max(wing[0].w, wing[1].w))) * smoothstep(0.0, 0.05, f.x + 0.04);
+			float lower = smoothstep(0.15, 0.55, -q.x); // (its lower part: the border)
+			c = mix(c, mix(patch_color.rgb, patch_edge.rgb, patch_edge.w * lower) * (0.88 + 0.2 * f.y), patch_color.w * inside);
+		}
+		if (pt == 0 && supercilium.w > 0.0) { // (a pale stripe over its eye, from its bill back toward its nape)
+			vec3 q = rest - vec3(sign(rest.x) * eye_at.x, eye_at.y, eye_at.z);
+			float er = eye_rm;
+			float line = q.y - er * (1.5 + 0.12 * max(q.z, 0.0) / er); // (a little rising behind the eye)
+			float sc = (1.0 - smoothstep(er * 0.3, er * 0.6, abs(line))) * (1.0 - smoothstep(er * 3.0, er * 6.0, q.z)) * smoothstep(-er * 4.5, -er * 3.0, q.z);
+			c = mix(c, supercilium.rgb * (0.9 + 0.15 * f.y), supercilium.w * sc * smoothstep(0.78, 0.84, u) * step(0.0, rest_n.x * sign(rest.x) + 0.3));
 		}
 		if (pt == 0 && eye_arcs.w > 0.0) { // (its broken eye ring: arcs above and below, none fore and aft)
 			vec3 q = rest - vec3(sign(rest.x) * eye_at.x, eye_at.y, eye_at.z);
@@ -402,6 +436,8 @@ void raptor(int pt, float u, float v, vec3 view, float ndv, vec3 vtx, vec3 nrm0,
 			float band = smoothstep(1.0 - tail_band_w - 0.05, 1.0 - tail_band_w, b) * (1.0 - smoothstep(0.96, 1.0, b));
 			band *= 1.0 - smoothstep(1.0 - tail_tip_w - 0.12, 1.0 - tail_tip_w - 0.06, u) * 0.0;
 			vec3 tc = top ? tail_color : mix(tail_color, fl_pale, tail_under);
+			float tt = abs(fc.z / max(tail_count - 1.0, 1.0) * 2.0 - 1.0);
+			tc = mix(tc, tail_outer.rgb, tail_outer.w * smoothstep(0.3, 0.55, tt));
 			c = mix(tc, tail_band, band * (top ? 1.0 : 0.85));
 			c = mix(c, tail_tip_r, smoothstep(1.0 - tail_tip_w - 0.02, 1.0 - tail_tip_w, u));
 		} else if (pt == 15) {
@@ -439,7 +475,7 @@ void raptor(int pt, float u, float v, vec3 view, float ndv, vec3 vtx, vec3 nrm0,
 		return;
 	}
 	if (pt == 2) { // the bill: blue grey, dark at its hooked tip
-		c = mix(mix(cere_color, bill_color, smoothstep(0.0, 0.15, u)), bill_tip, smoothstep(0.35, 0.85, u));
+		c = mix(mix(mix(bill_color, cere_color, bill_cere), bill_color, smoothstep(0.0, 0.15, u)), bill_tip, smoothstep(0.35, 0.85, u));
 		rough = 0.3;
 		spec = 0.5;
 		return;

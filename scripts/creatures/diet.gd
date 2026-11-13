@@ -47,7 +47,7 @@ const EATS := {
 			"chicken_of_the_woods": 0.2, "black_cub": 0.05, "wolf_pup": 0.05},
 	"opossum.gd": {"carcass": 0.9, "dead_mouse": 0.8, "grub": 0.8, "snails": 0.8, "pawpaw": 0.8, "crabapple": 0.7, "berries": 0.7, "grasshopper": 0.6, "nymph": 0.6,
 			"caterpillar": 0.6, "mouse": 0.4, "mouse_pup": 0.5, "frog": 0.4, "toad": 0.3, "anole": 0.2, "snake": 0.2, "snake_young": 0.3, "morel": 0.2,
-			"chicken_of_the_woods": 0.2},
+			"chicken_of_the_woods": 0.2, "nestling": 0.2},
 	"deer.gd": {"graze": 1.0, "morel": 0.3, "chicken_of_the_woods": 0.3, "fly_agaric": 0.1, "mouse_pup": 0.05},
 	"moose.gd": {"graze": 1.0, "morel": 0.2, "fly_agaric": 0.1},
 	"bison.gd": {"graze": 1.0},
@@ -60,22 +60,24 @@ const EATS := {
 	"river_otter.gd": {"fish": 1.0, "crayfish": 0.8, "frog": 0.4, "toad": 0.1},
 	"sea_otter.gd": {"urchin": 1.0, "clam": 0.9}, # (on the bottom: SeaOtter.clam(), urchin(), meta "shellfish")
 	"wild_turkey.gd": {"acorn": 1.0, "walnut": 0.5, "berries": 0.7, "grasshopper": 0.7, "nymph": 0.6, "grub": 0.5, "caterpillar": 0.5},
-	"peregrine_falcon.gd": {"poult": 0.5, "squirrel": 0.2, "mouse": 0.2},
-	"coopers_hawk.gd": {"poult": 0.7, "squirrel": 0.6, "mouse": 0.4},
+	"peregrine_falcon.gd": {"pigeon": 1.0, "blackbird": 0.6, "robin": 0.5, "bluebird": 0.3, "poult": 0.5, "squirrel": 0.2, "mouse": 0.2},
+	"coopers_hawk.gd": {"robin": 0.9, "pigeon": 0.8, "blackbird": 0.8, "bluebird": 0.7, "nestling": 0.5, "poult": 0.7, "squirrel": 0.6, "mouse": 0.4},
 	"barn_owl.gd": {"mouse": 1.0, "grasshopper": 0.15, "nymph": 0.1, "grub": 0.1, "spider": 0.05},
 	"eastern_screech_owl.gd": {"mouse": 1.0, "mouse_pup": 0.8, "grasshopper": 0.7, "nymph": 0.6, "caterpillar": 0.5, "grub": 0.4, "crayfish": 0.4, "frog": 0.4,
-			"snails": 0.2, "anole": 0.2, "fish": 0.15},
-	"great_horned_owl.gd": {"hare": 1.0, "leveret": 0.9, "mouse": 0.8, "squirrel": 0.6, "poult": 0.4},
+			"snails": 0.2, "anole": 0.2, "fish": 0.15, "bluebird": 0.15, "blackbird": 0.1, "nestling": 0.15},
+	"great_horned_owl.gd": {"hare": 1.0, "leveret": 0.9, "mouse": 0.8, "squirrel": 0.6, "poult": 0.4, "pigeon": 0.3, "blackbird": 0.1},
 	"bald_eagle.gd": {"fish": 1.0, "carcass": 0.8, "poult": 0.2, "hare": 0.2, "leveret": 0.2},
 	"golden_eagle.gd": {"hare": 1.0, "leveret": 0.9, "squirrel": 0.7, "poult": 0.4, "carcass": 0.5},
 	"anole.gd": {"nymph": 0.8, "grasshopper": 0.7, "spider": 0.8, "caterpillar": 0.6, "grub": 0.3},
 	"scorpion.gd": {"nymph": 0.8, "grasshopper": 0.6, "spider": 0.6, "grub": 0.4},
 	"gila_monster.gd": {"mouse_pup": 1.0, "poult": 0.6, "leveret": 0.6, "mouse": 0.3, "hare": 0.1},
-	"snake.gd": {"mouse": 1.0, "mouse_pup": 0.9, "frog": 0.5, "toad": 0.4, "anole": 0.4, "snake_young": 0.2},
+	"snake.gd": {"mouse": 1.0, "mouse_pup": 0.9, "frog": 0.5, "toad": 0.4, "anole": 0.4, "snake_young": 0.2, "nestling": 0.4},
 	"snapping_turtle.gd": {"fish": 0.8, "carcass": 0.8, "dead_fish": 0.9, "crayfish": 0.7, "frog": 0.6, "toad": 0.2, "grass_snail": 0.5, "tigersnail": 0.5, "nymph": 0.5},
 	"painted_turtle.gd": {"nymph": 0.9, "crayfish": 0.5, "grass_snail": 0.6, "tigersnail": 0.6, "dead_fish": 0.6, "carcass": 0.4, "fish": 0.2, "grasshopper": 0.3},
 	"american_robin.gd": {"grub": 1.0, "caterpillar": 0.8, "beetle": 0.7, "spider": 0.5, "snails": 0.4, "ants": 0.3},
 	"eastern_bluebird.gd": {"caterpillar": 1.0, "beetle": 0.9, "grub": 0.6, "spider": 0.6, "ants": 0.4, "snails": 0.3},
+	"passenger_pigeon.gd": {"acorn": 1.0, "grub": 0.3, "caterpillar": 0.3, "snails": 0.25},
+	"red_winged_blackbird.gd": {"caterpillar": 1.0, "nymph": 0.9, "grasshopper": 0.8, "beetle": 0.7, "grub": 0.6, "spider": 0.6, "snails": 0.3},
 	"american_toad.gd": {"ants": 1.0, "grub": 0.6, "spider": 0.7, "caterpillar": 0.6, "nymph": 0.6, "grasshopper": 0.4, "snails": 0.5},
 	"frog.gd": {"nymph": 0.8, "grasshopper": 1.0, "spider": 0.7, "caterpillar": 0.6, "grub": 0.4, "snails": 0.4},
 	"turtle.gd": {"snails": 1.0, "grub": 0.8, "berries": 0.9, "crabapple": 0.8, "pawpaw": 0.8, "morel": 0.7, "little_brown": 0.6, "fly_agaric": 0.4, "pillbug": 0.6,
@@ -291,6 +293,14 @@ static func kind_of(n: Node) -> String:
 			k = "firefly"
 		"ant_colony.gd", "harvester_ants.gd":
 			k = "ants"
+		"passenger_pigeon.gd":
+			k = "nestling" if young else "pigeon"
+		"red_winged_blackbird.gd":
+			k = "nestling" if young else "blackbird"
+		"american_robin.gd":
+			k = "nestling" if young else "robin"
+		"eastern_bluebird.gd":
+			k = "nestling" if young else "bluebird"
 		"june_beetles.gd":
 			k = "beetle"
 		"lady_beetles.gd":

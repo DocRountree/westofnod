@@ -650,8 +650,10 @@ func _build() -> void:
 	_mat.set_shader_parameter("tail_at", (S.tail as Vector3) * CM)
 	_mat.set_shader_parameter("snood_at", (S.get("snood", Vector3.ZERO) as Vector3) * CM)
 	_mat.set_shader_parameter("eye_at", (S.eye as Vector3) * CM)
+	_mat.set_shader_parameter("eye_rm", float(S.get("eye_r", 0.5)) * CM)
 	_mat.set_shader_parameter("fold_chord", float(S.get("fold_chord", 0.3)))
 	_mat.set_shader_parameter("fold_fan", S.get("fold_fan", Vector3.ZERO))
+	_mat.set_shader_parameter("tail_count", float((S.tail_feathers as Array)[0]) if S.has("tail_feathers") else 12.0)
 	_mat.set_shader_parameter("fold_tuck", float(S.get("fold_tuck", 0.0)))
 	_mat.set_shader_parameter("fold_tuck_front", float(S.get("fold_tuck_front", 0.6)))
 	for k: String in colors:
@@ -1022,7 +1024,7 @@ func _make_mesh() -> Array:
 	var nt := int(tl[0])
 	for i in nt:
 		var t := lerpf(-1.0, 1.0, float(i) / maxf(nt - 1, 1))
-		_feather(st, 14.0, i, Color(3, 1.0, 0, t), 0.025, float(tl[1]) * CM * (1.0 - 0.07 * t * t), float(tl[2]) * CM, 0.006 - 0.006 * absf(t), 0.93)
+		_feather(st, 14.0, i, Color(3, 1.0, 0, t), 0.025, float(tl[1]) * CM * (1.0 - float(S.get("tail_grad", 0.07)) * t * t), float(tl[2]) * CM, 0.006 - 0.006 * absf(t), 0.93) # (tail_grad: the outer ones shorter: a dove's graduated, pointed tail)
 	var ri := 0
 	for cr: Array in S.get("tail_coverts", []): # [how many, long, wide, lifted, its share of the spread]
 		for i in int(cr[0]):

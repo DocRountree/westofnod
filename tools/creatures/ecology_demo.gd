@@ -55,6 +55,8 @@ const OWL_SCRIPTS := {
 	"golden_eagle": preload("res://scripts/creatures/golden_eagle.gd"),
 	"robin": preload("res://scripts/creatures/american_robin.gd"),
 	"bluebird": preload("res://scripts/creatures/eastern_bluebird.gd"),
+	"pigeon": preload("res://scripts/creatures/passenger_pigeon.gd"),
+	"blackbird": preload("res://scripts/creatures/red_winged_blackbird.gd"),
 }
 const DeerTickScript := preload("res://scripts/creatures/blacklegged_ticks.gd")
 const LoneStarScript := preload("res://scripts/creatures/lone_star_ticks.gd")
@@ -206,6 +208,8 @@ const CATALOGUE := [
 	["Birds", "golden eagle (on a snag; H stoops on a hare, E to a carcass; young: an eaglet, in its nest)", "golden_eagle", ["adult", "juvenile", "young"]],
 	["Birds", "American robin (on the lawn, running, stopping, its head cocked; E / H what it eats that's here; young: a nestling, in its nest on a ledge)", "robin", ["adult", "juvenile", "young"]],
 	["Birds", "eastern bluebird (on a low post, dropping onto what moves below; young: a nestling, in its nest box)", "bluebird", ["adult", "juvenile", "young"]],
+	["Birds", "passenger pigeon (looks: the museum's; ways: the living doves'; walking, nodding, pecking; D coo, V display flight, A sunbathe, B forage or drink at a pond; young: a squab, in its nest)", "pigeon", ["adult", "juvenile", "young"]],
+	["Birds", "red-winged blackbird (on a low post: D his song spread, or a rival male chased off; young: a nestling, in its nest in the reeds)", "blackbird", ["adult", "juvenile", "young"]],
 	["Birds", "barn owl (dozing by day, awake at dusk and by night: T; young: an owlet, in its nest)", "barn_owl", ["adult", "young"]],
 	["Birds", "great horned owl (dozing by day, awake at dusk and by night: T; young: an owlet, in its nest)", "horned_owl", ["adult", "young"]],
 	["Birds", "eastern screech owl (grey or rufous; dozing by day, awake at dusk and by night: T; young: an owlet, in its nest)", "screech_owl", ["adult", "young"]],
@@ -1380,7 +1384,7 @@ func _spawn_animal(key: String, at: Vector3, stage: String, male: bool, young: b
 			_org(tc, at, true)
 			tc.setup_stages(8 if not young else 14, Vector3.ZERO, 0.08, [Ticks.MALE, Ticks.FEMALE] if not young else [Ticks.LARVA, Ticks.LARVA, Ticks.NYMPH])
 			return tc
-		"peregrine", "coopers", "barn_owl", "horned_owl", "screech_owl", "bald_eagle", "golden_eagle", "robin", "bluebird":
+		"peregrine", "coopers", "barn_owl", "horned_owl", "screech_owl", "bald_eagle", "golden_eagle", "robin", "bluebird", "pigeon", "blackbird":
 			var rs: GDScript = OWL_SCRIPTS[key] if OWL_SCRIPTS.has(key) else (FalconScript if key == "peregrine" else HawkScript)
 			var r: Raptor = rs.new(young, stage == "juvenile")
 			r.male = (male and not young) if not young else randf() < 0.5
@@ -1403,7 +1407,7 @@ func _spawn_animal(key: String, at: Vector3, stage: String, male: bool, young: b
 				if mom:
 					mom.young_ones.append(r)
 				return r
-			if key == "robin": # (on the ground, foraging)
+			if key in ["robin", "pigeon"]: # (on the ground, foraging)
 				r.place(at, randf() * TAU)
 				r.call("forage")
 				return r
@@ -2438,11 +2442,20 @@ func _raptor_do(r: Raptor, act_: String) -> void:
 		return
 	match act_:
 		"eat", "hunt":
-			var prey: Node3D = _prey(r, Diet.prey_of(r), 0.0, 40.0) # (its prey that's here: none set out)
+			var prey: Node3D = _prey(r, (r.call("_meal_kinds") if act_ == "eat" else Diet.prey_of(r)) if r is Thrush else Diet.prey_of(r), 0.0, 40.0) # (its prey that's here: none set out; a pigeon's seeds too)
 			if prey:
 				r.hunt(prey)
 		"forage":
-			r.soar(40.0)
+			var pond := _pond_near(p, 12.0) if r is Pigeon else {}
+			if not pond.is_empty() and randf() < 0.6: # (a pigeon: a drink at the pond's edge)
+				var c0: Vector3 = pond.c
+				var e := Vector3(clampf(p.x, c0.x - float(pond.hw) + 0.03, c0.x + float(pond.hw) - 0.03), POND, clampf(p.z, c0.z - float(pond.hd) + 0.03, c0.z + float(pond.hd) - 0.03))
+				(r as Pigeon).drink(e, 6.0)
+			else:
+				r.soar(40.0)
+		"play":
+			if r is Pigeon:
+				(r as Pigeon).display_flight()
 		"fly":
 			r.fly(p + Vector3(cos(a), 0.0, sin(a)) * 18.0)
 		"alarm":
@@ -2451,7 +2464,13 @@ func _raptor_do(r: Raptor, act_: String) -> void:
 			else:
 				r.fly_off(cam.global_position if cam else p + Vector3(5.0, 0.0, 0.0))
 		"display", "mark":
-			if r is Thrush: # (its song)
+			if r is RedWingedBlackbird: # (a rival male near: chased off; else his song spread)
+				var rival: Node3D = null
+				for o in _creatures():
+					if o != r and o is RedWingedBlackbird and o.male and not o.young and not o.dead and r.male and (o as Node3D).position.distance_to(p) < 15.0:
+						rival = o
+				(r as RedWingedBlackbird).display(rival)
+			elif r is Thrush: # (its song: a pigeon's coo)
 				r.call_out(10.0)
 			elif r is Owl and act_ == "mark":
 				(r as Owl).cast_pellet()
@@ -2460,7 +2479,10 @@ func _raptor_do(r: Raptor, act_: String) -> void:
 		"groom":
 			r.preen(10.0)
 		"sit":
-			r.rouse()
+			if r is Pigeon:
+				(r as Pigeon).sunbathe(20.0)
+			else:
+				r.rouse()
 		"sleep":
 			r.sleep()
 		"lay":
@@ -2544,7 +2566,7 @@ func _raptor_nest_site(r: Raptor) -> void:
 		var base: Vector3 = r.home_perch if r.home_perch != Vector3.INF else r.get("_pos")
 		var a := randf() * TAU
 		var at := _on(base + Vector3(cos(a), 0.0, sin(a)) * 3.0)
-		var pole: Node3D = Raptor.nest_pole(r.nest_height, r.nest_style == "scrape", sqrt(r.nest_scale), {"cup": "shelf", "box": "box"}.get(r.nest_style, ""))
+		var pole: Node3D = Raptor.nest_pole(r.nest_height, r.nest_style == "scrape", sqrt(r.nest_scale), String(r.get("site_style")) if r is Thrush else "")
 		pole.position = at
 		add_child(pole)
 		return pole)

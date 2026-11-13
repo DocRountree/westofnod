@@ -22,6 +22,7 @@ func _init(young_ := false, juvenile_ := false) -> void:
 	body_k = 0.42
 	eyas_scale = 0.48
 	nest_style = "box"
+	site_style = "box"
 	nest_height = 1.5
 	pounces = true
 	song_notes = 3
