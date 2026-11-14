@@ -672,7 +672,13 @@ func _build() -> void:
 	_mat.set_shader_parameter("wing_len", (S.wing as Vector3) * CM)
 	_mat.set_shader_parameter("tail_at", (S.tail as Vector3) * CM)
 	_mat.set_shader_parameter("snood_at", (S.get("snood", Vector3.ZERO) as Vector3) * CM)
-	_mat.set_shader_parameter("eye_at", (S.eye as Vector3) * CM)
+	_mat.set_shader_parameter("eye_at", built[3] if built.size() > 3 else (S.eye as Vector3) * CM) # (as it's seated in the head: _make_mesh)
+	_mat.set_shader_parameter("eye_sink", 0.0 if S.has("head_ball") else float(S.get("eye_sink", 0.78)))
+	_mat.set_shader_parameter("eye_axis", built[4] if built.size() > 4 else Vector3.RIGHT)
+	if S.has("eye_ring") and S.get("eye_ring_lid", true) and not S.has("head_ball") and not colors.has("orbital"): # (its bare ring round the eye: its lids' rim, the cere's colour)
+		var oc: Color = colors.get("cere_color", Color(0.95, 0.75, 0.1))
+		_mat.set_shader_parameter("orbital", Color(oc.r, oc.g, oc.b, 1.0))
+		_mat.set_shader_parameter("orbital_w", 0.12)
 	_mat.set_shader_parameter("eye_rm", float(S.get("eye_r", 0.5)) * CM)
 	_mat.set_shader_parameter("fold_chord", float(S.get("fold_chord", 0.3)))
 	_mat.set_shader_parameter("fold_fan", S.get("fold_fan", Vector3.ZERO))
@@ -726,8 +732,26 @@ static func _ball(st: SurfaceTool, c: Vector3, r: Vector3, part: float, j: int, 
 	_grid(st, rows)
 
 
+## An eye's globe: round, fine (its poles in and out: the cap that shows is
+## its outer pole's).
+static func _eye_ball(st: SurfaceTool, c: Vector3, r: float, side: float, axis := Vector3.RIGHT) -> void:
+	var ax := Vector3(axis.x * side, axis.y, axis.z).normalized()
+	var u := ax.cross(Vector3.UP).normalized()
+	var w := ax.cross(u).normalized()
+	var rows := []
+	for i in 13:
+		var la := PI * i / 12.0
+		var row := []
+		for k in 21:
+			var lo := TAU * k / 20.0 * side
+			var d := ax * cos(la) + (u * cos(lo) + w * sin(lo)) * sin(la)
+			row.append([c + d * r, d, Color(3.0, 0.5, 0.5, 0), Color(0, J_HEAD, J_HEAD, 0), Color(0, 0, 0, 0), Vector2(lo * r, la * r)])
+		rows.append(row)
+	_grid(st, rows)
+
+
 ## A tube through pts ([p, r, ja, jb, wb] each), its part; u 0..1 along it.
-static func _tube(st: SurfaceTool, pts: Array, part: float, ring := 10, cap := true) -> void:
+static func _tube(st: SurfaceTool, pts: Array, part: float, ring := 10, cap := true, mark := 0.0) -> void:
 	var rows := []
 	var n := pts.size()
 	var total := 0.0
@@ -746,7 +770,7 @@ static func _tube(st: SurfaceTool, pts: Array, part: float, ring := 10, cap := t
 		for k in ring + 1:
 			var a := TAU * k / ring
 			var d := sx * cos(a) + sy * sin(a)
-			row.append([p + d * r, d, Color(part, along / maxf(total, 1e-5), float(k) / ring, 0), Color(0, (pts[i] as Array)[2], (pts[i] as Array)[3], (pts[i] as Array)[4]), Color(0, 0, 0, 0),
+			row.append([p + d * r, d, Color(part, along / maxf(total, 1e-5), float(k) / ring, mark), Color(0, (pts[i] as Array)[2], (pts[i] as Array)[3], (pts[i] as Array)[4]), Color(0, 0, 0, 0),
 					Vector2(float(k) / ring * TAU * r, along)])
 		rows.append(row)
 	if cap:
@@ -878,6 +902,8 @@ func _make_mesh() -> Array:
 		var ja := clampi(int(floorf(c)), 0, 5)
 		var jb := mini(ja + 1, 5)
 		var wb := smoothstep(0.0, 1.0, c - floorf(c)) if c < 5.0 else 0.0 # (each bend eased over the whole span between two joints: a curve, no kink)
+		if c >= 4.0 and c < 5.0 and not S.get("soft_skull", false): # (its skull rigid: all the head's from its joint on, the neck's last bend done by there; else its face shears from its eyes and bill as it tips its head)
+			wb = smoothstep(0.0, 1.0, minf((c - 4.0) * 2.0, 1.0))
 		var part := 2.0 if c > 5.02 else 0.0
 		var u := (c - 5.0) if c > 5.02 else c / 5.0
 		var w: float = e[1]
@@ -901,18 +927,61 @@ func _make_mesh() -> Array:
 	var jl := []
 	for e: Array in S.lower_bill:
 		jl.append([Vector3(0.0, e[0], e[1]) * CM, float(e[2]) * CM, J_JAW, J_JAW, 0.0])
-	_tube(st, jl, 2.0, 8)
-	# the eyes
+	_tube(st, jl, 2.0, 12, true, 1.0)
+	# the eyes: each seated in the head (its globe sunk till only a cap of
+	# it shows through the lids, as a bird's is: S.eye_sink of its radius
+	# under the skin there; an owl's head ball has them placed), the skin's
+	# own surface found at its place
 	var eye: Vector3 = (S.eye as Vector3) * CM
 	var er: float = float(S.eye_r) * CM
+	var sink := float(S.get("eye_sink", 0.78))
+	if not S.has("head_ball") and sink > 0.0:
+		er *= 1.22 # (the globe itself bigger than what shows of it)
+	var eye_dx := 0.0
+	var eye_n := Vector3.RIGHT # (the way its cap faces: the skin's own there)
+	if not S.has("head_ball") and sink > 0.0:
+		# (the skin's side at a place seen from the side: its head's own
+		# rings, not its neck's or its body's passing behind)
+		var from_c := float(S.get("eye_from_c", 4.3))
+		var surf := func(y: float, z: float) -> float:
+			var bd := INF
+			var sx := -1.0
+			for ri in rows.size():
+				var cc := float((line[ri] as Array)[3])
+				if cc < from_c or cc > 5.0:
+					continue
+				for q: Array in rows[ri]:
+					var sp_: Vector3 = q[0]
+					var d2 := Vector2(sp_.y - y, sp_.z - z).length()
+					if sp_.x > 0.0 and d2 < bd:
+						bd = d2
+						sx = sp_.x
+			return sx
+		var sx0: float = surf.call(eye.y, eye.z)
+		if sx0 > 0.0:
+			# (the way the skin faces there: its face narrowing forward, its
+			# crown rounding over: the eye set square into it, not standing
+			# out of the narrower face before it)
+			var dd := er * 0.9
+			var xa: float = surf.call(eye.y, eye.z - dd)
+			var xb: float = surf.call(eye.y, eye.z + dd)
+			var xu: float = surf.call(eye.y + dd, eye.z)
+			var xd: float = surf.call(eye.y - dd, eye.z)
+			var sz_ := clampf((xb - xa) / (2.0 * dd), -0.9, 0.9) if xa > 0.0 and xb > 0.0 else 0.0
+			var sy_ := clampf((xu - xd) / (2.0 * dd), -0.7, 0.7) if xu > 0.0 and xd > 0.0 else 0.0
+			eye_n = Vector3(1.0, -sy_, -sz_).normalized()
+			var c0 := Vector3(sx0, eye.y, eye.z) - eye_n * er * sink
+			eye_dx = c0.x - eye.x
+			eye = c0
 	for side: float in [-1.0, 1.0]:
-		_ball(st, Vector3(eye.x * side, eye.y, eye.z), Vector3.ONE * er, 3.0, J_HEAD)
-		if S.has("eye_ring"): # (bare skin round it: a raptor's yellow ring)
+		_eye_ball(st, Vector3(eye.x * side, eye.y, eye.z), er, side, eye_n)
+		if S.has("eye_ring") and (S.has("head_ball") or sink <= 0.0): # (bare skin round it, raised; seated eyes: their lids' rim, the shader's: orbital)
 			_ball(st, Vector3((eye.x - er * 0.45) * side, eye.y, eye.z), Vector3(0.9, float(S.eye_ring), float(S.eye_ring)) * er, 1.0, J_HEAD)
 		if S.has("brow"): # (the bony shelf over the eye: a hawk's scowl)
 			var bw: Array = S.brow
-			var bo: Vector3 = (bw[0] as Vector3) * CM
-			_ball(st, Vector3(bo.x * side, bo.y, bo.z), (bw[1] as Vector3) * CM, 0.0, J_HEAD, Basis(Vector3.RIGHT, -0.15), false, Vector2(0.95, 0.5))
+			var br_: Vector3 = (bw[1] as Vector3) * CM * Vector3(1.0, 0.8, 1.35) # (a low long ridge, most of it under the feathers: only its ledge over the eye stands out)
+			var bo: Vector3 = Vector3(eye.x + er * 0.25 - br_.x * 0.45, (bw[0] as Vector3).y * CM, (bw[0] as Vector3).z * CM - br_.z * 0.15)
+			_ball(st, Vector3(bo.x * side, bo.y, bo.z), br_, 0.0, J_HEAD, Basis(Vector3.RIGHT, -0.2), false, Vector2(0.95, 0.5))
 	if S.has("head_ball"): # (an owl's big round head: [centre, radii, how deep its face, how flat (a power: 1 round, less a flatter plate, its rim the sharper), how narrowed to its chin (a heart)]; its poles fore and aft, its feathers lying back)
 		var hb: Array = S.head_ball
 		var hc: Vector3 = (hb[0] as Vector3) * CM
@@ -989,7 +1058,7 @@ func _make_mesh() -> Array:
 		var cl: float = float(cr.len) * CM
 		var cw: float = float(cr.wide) * CM
 		var cpt: float = float(cr.get("point", 0.8))
-		var root := cb + Vector3(0.0, 0.0, cl * 0.6) # (its pivot: its foot's back, on the crown)
+		var root := cb - Vector3(0.0, cw * 0.3, cl * 0.75) # (its pivot: its foot's front, in the crown: laid back, its foot goes down into the head, no gap under its front)
 		var fwd_ := Vector3(0.0, cu.z, -cu.y) # (in its plane, across its way out: toward its front)
 		var crows := []
 		var NR := 10
@@ -1202,4 +1271,4 @@ func _make_mesh() -> Array:
 			var t := lerpf(-1.0, 1.0, float(i) / maxf(int(cr[0]) - 1, 1))
 			_feather(st, 15.0, i + ri * 30.0, Color(3, cr[4], 0, t), float(S.get("tail_root", 0.025)) * 0.4, float(cr[1]) * CM * (1.0 - 0.1 * t * t), float(cr[2]) * CM, float(cr[3]) * CM - 0.004 * absf(t) * float(S.get("tail_k", 1.0)), 0.9)
 		ri += 1
-	return [st.commit(), rest, neck]
+	return [st.commit(), rest, neck, eye, eye_n]

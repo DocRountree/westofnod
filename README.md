@@ -1144,6 +1144,12 @@ At dusk (the global night, or D: court) the males
   or stacked by the shader; the motors: walking and running with planted feet, the head held still between thrusts
   (the bob), pecking to a point, flight (a crouch, a leap, beating up, a glide, a flare, landing at a run) by
   `BirdFlight` (`bird_flight.gd`: beat rate, stall, glide, sink, turn radius from mass, span and wing area).
+  Every bird's head: its skull rigid from the head joint on (the neck's last bend done by there, so its face never
+  shears from its eyes and bill as it tips its head); its eyes seated in the head (`eye_sink`: each globe sunk square
+  to the skin there till only a cap shows, its rim the lids', `orbital` a bare ring's colour: a falcon's yellow), the
+  iris and pupil filling what shows; a raptor's brow a low ridge over the eye; the bill horn grained along and across,
+  its ridge worn paler, the line of its mouth in shade, nostrils (`nostril`), a root of its own colour (`bill_base`),
+  matt or glossy (`bill_gloss`); the plumage's colour edges ragged by the feathers along them (`edge_rag`, `hood_soft`).
   `raptor.gd` (`Raptor`): birds of prey on the same body (the shader's raptor plumage: the cap, a falcon's hood and
   moustache, cheeks, the back's feathers edged pale, the underparts barred, spotted, rufous-barred or streaked, barred
   flight feathers, a banded tail; yellow cere, eye ring and feet; hooked bills, talons). Stood upright on a perch,

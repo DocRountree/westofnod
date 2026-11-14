@@ -41,7 +41,7 @@ func _plumage(stage: String, _male: bool) -> Dictionary:
 	var brown := Color(0.22, 0.14, 0.085) if juv else Color(0.27, 0.18, 0.11)
 	var d := {
 		"back_color": brown, "back_edge": Color(0.58, 0.44, 0.28) if not juv else Color(0.36, 0.26, 0.16), "back_bar": Color(0.14, 0.1, 0.06), "back_bars": 0.3, "mottle": 0.25 if not juv else 0.0, "back_from": 0.22, "back_from_hi": 0.13,
-		"cap_color": Color(0.78, 0.56, 0.27) if not juv else Color(0.62, 0.42, 0.2), "hood_low": -0.004, "hood_nape": 0.0, "cheek_color": Color(0.22, 0.15, 0.09), "cheek": 1.0, "malar": 0.0,
+		"cap_color": Color(0.78, 0.56, 0.27) if not juv else Color(0.62, 0.42, 0.2), "hood_low": -0.014, "hood_soft": 0.03, "edge_rag": 4.0, "hood_nape": 0.0, "cheek_color": Color(0.22, 0.15, 0.09), "cheek": 1.0, "malar": 0.0,
 		"nape_color": Color(0.8, 0.58, 0.28) if not juv else Color(0.6, 0.4, 0.2), "nape_u": 0.5,
 		"under_color": brown, "breast_wash": brown * 1.1, "under_mark": brown, "under_pattern": 0, "throat_clean": 0.9,
 		"trouser": Color(0.46, 0.33, 0.2, 0.8) if not juv else Color(0.7, 0.58, 0.42, 1.0),

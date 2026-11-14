@@ -113,7 +113,7 @@ uniform vec3 cere_color : source_color = vec3(0.95, 0.75, 0.1);
 uniform vec3 bill_tip : source_color = vec3(0.08, 0.08, 0.1);
 uniform vec3 iris : source_color = vec3(0.12, 0.07, 0.04);
 uniform vec3 down_white : source_color = vec3(0.95, 0.94, 0.9); // an eyas's down
-uniform vec3 eye_dir = vec3(0.62, 0.06, -0.78); // where the right eye looks (an owl's: forward)
+uniform vec3 eye_dir = vec3(0.8, 0.05, -0.6); // where the right eye looks (an owl's: forward)
 uniform vec3 lid_color : source_color = vec3(0.5, 0.48, 0.45);
 uniform float under_bar_n = 2.0;   // (pattern 2: bars to a feather, how wide)
 uniform float under_bar_w = 0.62;
@@ -135,6 +135,17 @@ uniform float disc_rim_sides = 0.0; // the rim only down its outer sides (a grea
 uniform vec3 tuft_dark : source_color = vec3(0.08, 0.06, 0.05); // an ear tuft's dark outer edge and tip
 uniform vec3 tuft_pale : source_color = vec3(0.75, 0.66, 0.52); // and its pale inner edge
 uniform float eye_lid = 0.0;       // the upper lid down over the eye (a horned owl's stare): 0 open .. 1 shut
+uniform vec3 eye_axis = vec3(1.0, 0.0, 0.0); // (the way the right eye's cap faces, out of the head)
+uniform float hood_soft = 0.004; // (m: how soft the cap's lower edge; a golden eagle's crown fading into its face)
+uniform float throat_top = 0.004; // (m below the eye its throat's colour stops: a bluebird's cheeks blue down to its chin)
+uniform float throat_w = 0.24;   // (how far round from its middle the throat's own colour reaches: a robin's narrow, under its bill)
+uniform float eye_sink = 0.0;    // how deep its globe sits in the head (of its radius): the cap that shows, ringed by its lids
+uniform vec4 orbital = vec4(0.0); // its lids' rim round the eye, bare skin (rgb; w: how much; else the lids' own colour, dark)
+uniform float orbital_w = 0.05;   // (its width, of the eye's radius)
+uniform vec4 nostril = vec4(0.16, 0.115, 0.07, 0.85); // its nostrils on the bill: where along it, how far round from its ridge, how long, how dark
+uniform float bill_gloss = 0.5;  // (a horn bill's shine: a goose's matt)
+uniform vec4 bill_base = vec4(0.0); // the bill's root its own colour (rgb; w: how far along: a heron's dusky ridge, an eagle's paler base)
+uniform float edge_rag = 2.0;    // (its plumage's colour edges ragged by the feathers along them)
 uniform float crest = 0.0;       // its crest raised: 0 laid flat back along the crown .. 1 up (a cardinal's, a jay's)
 uniform float crest_lay = 1.2;   // (rad: how far back it lies, laid flat)
 uniform vec4 crest_color = vec4(0.0); // its crest's own colour (w: how much; else the cap's)
@@ -453,7 +464,8 @@ void raptor(int pt, float u, float v, vec3 view, float ndv, vec3 vtx, vec3 nrm0,
 			float head = smoothstep(0.76, 0.83, u);
 			vec3 r = rest;
 			float ax = abs(r.x);
-			float above = smoothstep(eye_at.y - hood_low - 0.003, eye_at.y - hood_low + 0.001, r.y);
+			float rag = edge_rag * eye_rm * ((f.y - 0.5) * 0.9 + (f.x - 0.5) * 0.5); // (the edge by the feathers along it: each its own, none cut across)
+			float above = smoothstep(eye_at.y - hood_low - hood_soft * 0.75, eye_at.y - hood_low + hood_soft * 0.25, r.y + rag);
 			float nape = hood_nape * smoothstep(eye_at.z + 0.011, eye_at.z + 0.016, r.z) * smoothstep(0.32, 0.4, v) * (1.0 - smoothstep(0.6, 0.68, v));
 			float napeb = hood_nape * smoothstep(eye_at.z + 0.018, eye_at.z + 0.024, r.z);
 			float lore = cap_lore * smoothstep(eye_at.z - eye_rm * 0.2, eye_at.z - eye_rm * 1.4, r.z) * smoothstep(eye_at.y - eye_rm * 3.2, eye_at.y - eye_rm * 2.2, r.y);
@@ -474,8 +486,8 @@ void raptor(int pt, float u, float v, vec3 view, float ndv, vec3 vtx, vec3 nrm0,
 			c = mix(c, cap_color * (0.93 + 0.1 * f.y), hd);
 		}
 		if (pt == 0 && throat_color.w > 0.0) { // (its throat, its own: a robin's white, streaked black; a bluebird's rust)
-			float frontv = 1.0 - smoothstep(0.12, 0.24, min(v, 1.0 - v));
-			float below = u > 0.84 ? 1.0 - smoothstep(eye_at.y - 0.009, eye_at.y - 0.004, rest.y) : 1.0;
+			float frontv = 1.0 - smoothstep(throat_w * 0.5, throat_w, min(v, 1.0 - v) + 0.02 * (f.y - 0.5));
+			float below = u > 0.84 ? 1.0 - smoothstep(eye_at.y - throat_top - 0.005, eye_at.y - throat_top, rest.y + 0.3 * eye_rm * (f.y - 0.5)) : 1.0;
 			float th = throat_color.w * smoothstep(throat_from, throat_from + 0.03, u) * frontv * below;
 			float stripe = throat_streak * (1.0 - smoothstep(0.18, 0.4, abs(fract(v * 34.0 + 0.3 * f.y) - 0.5) * 2.0)) * smoothstep(0.1, 0.3, f.x);
 			c = mix(c, mix(throat_color.rgb * (0.94 + 0.1 * f.y), cap_color, stripe), th);
@@ -639,10 +651,24 @@ void raptor(int pt, float u, float v, vec3 view, float ndv, vec3 vtx, vec3 nrm0,
 		spec = 0.4;
 		return;
 	}
-	if (pt == 2) { // the bill: blue grey, dark at its hooked tip
+	if (pt == 2) { // the bill: horn, darker to its tip; its nostrils, the line of its mouth, its ridge, its grain
+		bool lower = fc.z > 0.5;
 		c = mix(mix(mix(bill_color, cere_color, bill_cere), bill_color, smoothstep(0.0, 0.15, u)), bill_tip, smoothstep(0.35, 0.85, u));
-		rough = 0.3;
-		spec = 0.5;
+		c = mix(c, bill_base.rgb, bill_base.w > 0.0 ? (1.0 - smoothstep(bill_base.w * 0.5, bill_base.w, u)) * (lower ? 0.5 : 1.0) : 0.0);
+		float grain = vnoise(vec2(u * 9.0, v * 70.0)) * 0.6 + vnoise(vec2(u * 60.0, v * 14.0)) * 0.4; // (growth lines along it, fine ridges across)
+		c *= 0.9 + 0.2 * grain;
+		if (!lower) {
+			float rv = abs(v - 0.5); // (0 its ridge .. 0.5 under it)
+			c *= 1.0 + 0.12 * (1.0 - smoothstep(0.0, 0.07, rv)); // (the culmen: a little paler, worn)
+			c *= mix(1.0, 0.5, smoothstep(0.3, 0.36, rv)); // (its cutting edge and under it: in shade, the mouth's line)
+			vec2 nq = vec2((u - nostril.x) / max(nostril.z, 1e-4), (rv - nostril.y) / (max(nostril.z, 1e-4) * 0.22));
+			c = mix(c, vec3(0.012, 0.01, 0.01), nostril.w * (1.0 - smoothstep(0.7, 1.0, length(nq))));
+		} else {
+			c *= mix(0.62, 0.9, smoothstep(0.0, 0.5, u)) * mix(0.75, 1.0, smoothstep(0.1, 0.3, abs(v - 0.25)));
+			c *= mix(0.2, 1.0, smoothstep(0.02, 0.16, u)); // (its root, in the corner of its mouth: dark) // (its upper edge against the mouth: dark)
+		}
+		rough = mix(0.62, 0.28, bill_gloss) + 0.1 * grain;
+		spec = 0.5 * bill_gloss + 0.15;
 		return;
 	}
 	if (pt == 3) { // the eye: its iris, its pupil, wet
@@ -653,7 +679,20 @@ void raptor(int pt, float u, float v, vec3 view, float ndv, vec3 vtx, vec3 nrm0,
 			spec = 0.2;
 			return;
 		}
-		float k = dot(rn, normalize(eye_dir));
+		if (eye_sink > 0.0) { // (seated in the head: the rim of the cap that shows its lids' edge, bare skin; inside it, in the lids' shade)
+			float e = dot(rn, eye_axis) - eye_sink;
+			if (e < orbital_w) {
+				vec3 oc = mix(lid_color * 0.45, orbital.rgb, orbital.w);
+				c = oc * (0.8 + 0.3 * vnoise(rest.yz * 4000.0)) * mix(0.55, 1.0, smoothstep(0.0, orbital_w * 0.6, e));
+				rough = 0.6;
+				spec = 0.25;
+				return;
+			}
+		}
+		vec3 ed = eye_sink > 0.0 ? normalize(eye_axis + vec3(0.0, 0.02, -0.22)) : normalize(eye_dir); // (seated: its iris in the middle of what shows, turned a little forward)
+		float k = dot(rn, ed);
+		if (eye_sink > 0.0) // (what shows of it is all its iris and pupil: the cap's middle as a whole eye's)
+			k = mix(0.5, 1.0, clamp((k - eye_sink) / max(1.0 - eye_sink, 0.01), 0.0, 1.0)) + 0.06;
 		if (eye_lid > 0.0) { // (the upper lid over it, feathered, its edge dark)
 			float ly = 0.55 - 0.9 * eye_lid;
 			float lyy = dot(rn, normalize(cross(normalize(eye_dir), vec3(1.0, 0.0, 0.0)))) * -1.0;
@@ -667,8 +706,10 @@ void raptor(int pt, float u, float v, vec3 view, float ndv, vec3 vtx, vec3 nrm0,
 		c = mix(vec3(0.0), iris, smoothstep(0.84, 0.86, -k + 1.7));
 		c = mix(c, vec3(0.005), smoothstep(0.86, 0.9, k));
 		c = mix(iris * 0.5, c, smoothstep(0.35, 0.45, k));
-		rough = 0.04;
-		spec = 0.9;
+		rough = eye_sink > 0.0 ? 0.14 : 0.04;
+		spec = eye_sink > 0.0 ? 0.55 : 0.9;
+		if (eye_sink > 0.0)
+			c *= mix(0.6, 1.0, smoothstep(orbital_w, orbital_w + 0.3, dot(rn, eye_axis) - eye_sink)); // (the lids' shade on it)
 		return;
 	}
 	if (pt == 8) { // the legs, the toes: yellow, scaled
@@ -785,17 +826,8 @@ void fragment() {
 		nrm = normalize(mix(nrm, bump(normalize(NORMAL * (dot(NORMAL, view) < 0.0 ? -1.0 : 1.0)), VERTEX, wart * 0.0009, 1.0), bare));
 		SSS_STRENGTH = 0.3 * bare;
 	}
-	if (part == 2) {
-		c = mix(bill_color * 0.55, bill_color, smoothstep(0.1, 0.8, u));
-		rough = 0.35;
-	}
-	if (part == 3) {
-		c = mix(vec3(0.16, 0.08, 0.04), vec3(0.01), smoothstep(0.35, 0.6, ndv));
-		rough = 0.06;
-		spec = 0.8;
-		if (eye_shut > 0.5)
-			c = vec3(0.45, 0.42, 0.5);
-	}
+	if (part == 2 || part == 3) // (its bill, its eye: as every bird's)
+		raptor(part, u, v, view, ndv, VERTEX, nrm, c, rough, metal, spec, nrm);
 	if (part == 6) {
 		c = mix(vec3(0.02), vec3(0.12, 0.1, 0.07), smoothstep(0.75, 1.0, u) + 0.2 * hash(vec2(fc.z * 31.0, 1.0)));
 		rough = 0.45;

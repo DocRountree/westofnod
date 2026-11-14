@@ -87,7 +87,7 @@ func mass_of() -> Vector3:
 
 func _shape() -> Dictionary:
 	var S := thrush_shape(0.56, 1.22, 1.2, 0.86, 12.5, 1.1, 1.12, 1.45, 0.12)
-	S.crest = crest_of(S, 2.4, 0.05, 0.9, 0.75, 0.62, 9, 0.9)
+	S.crest = crest_of(S, 2.4, 0.05, 0.9, 0.75, 0.66, 5, 1.0)
 	return S
 
 

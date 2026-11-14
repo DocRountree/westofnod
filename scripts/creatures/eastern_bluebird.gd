@@ -47,10 +47,10 @@ func _plumage(stage: String, male_: bool) -> Dictionary:
 	var d := {
 		"back_color": blue if adult_m else grey, "back_edge": (blue.lightened(0.12) if adult_m else grey.lightened(0.08)), "back_bar": blue.darkened(0.4), "back_bars": 0.0,
 		"back_from": 0.32, "back_from_hi": 0.22,
-		"cap_color": blue if adult_m else Color(0.44, 0.44, 0.46), "hood_u": 0.86, "hood_low": 0.002, "hood_nape": 1.0, "cheek": 0.0, "malar": 0.0,
+		"cap_color": blue if adult_m else Color(0.44, 0.44, 0.46), "hood_u": 0.79, "hood_low": 0.002, "hood_nape": 1.0, "cheek": 0.0, "malar": 0.0,
 		"under_color": Color(0.95, 0.95, 0.93), "breast_wash": Color(0.72, 0.36, 0.14) if adult_m else Color(0.82, 0.55, 0.36), "wash_from": -0.5, "wash_to": 0.82, "vent_to": 0.085,
 		"under_mark": Color(0.4, 0.38, 0.36), "under_pattern": 0, "throat_clean": 0.95,
-		"throat_color": Color(0.72, 0.36, 0.14, 1.0) if adult_m else Color(0.84, 0.66, 0.5, 0.8), "throat_from": 0.6, "throat_streak": 0.0,
+		"throat_color": Color(0.72, 0.36, 0.14, 1.0) if adult_m else Color(0.84, 0.66, 0.5, 0.8), "throat_from": 0.6, "throat_streak": 0.0, "throat_w": 0.2, "throat_top": 0.0085,
 		"fl_top": Color(0.12, 0.3, 0.72) if adult_m else Color(0.3, 0.45, 0.72), "fl_pale": Color(0.5, 0.52, 0.56), "fl_dark": Color(0.3, 0.32, 0.36), "fl_bars": 0.0, "fl_top_bars": 0.0,
 		"fl_top_tip": 0.8, "fl_trail": 0.0,
 		"tail_color": Color(0.14, 0.32, 0.74) if adult_m else Color(0.3, 0.45, 0.74), "tail_band": Color(0.1, 0.2, 0.45), "tail_bands": 0.0, "tail_band_w": 0.0,

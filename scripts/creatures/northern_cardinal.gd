@@ -69,7 +69,7 @@ func mass_of() -> Vector3:
 
 func _shape() -> Dictionary:
 	var S := finch_shape(thrush_shape(0.47, 1.25, 0.8, 0.74, 10.5, 0.98, 1.1, 1.8, 0.06), 0.9)
-	S.crest = crest_of(S, 2.5, 0.0, 0.8, 0.5, 0.55, 3, 1.6)
+	S.crest = crest_of(S, 2.5, 0.0, 0.85, 0.5, 0.6, 0, 1.5)
 	return S
 
 

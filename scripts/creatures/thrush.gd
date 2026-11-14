@@ -142,7 +142,7 @@ func thrush_shape(k: float, head: float, bill: float, legs: float, tail_len: flo
 		"pivot": Vector3(0.0, 20.0, 4.0) * k,
 		"jaw": Vector3(0.0, root.x - 0.12 * L, root.y - 0.02 * L),
 		"lower_bill": lb,
-		"eye": p3.call(Vector3(1.85, 36.4, -5.4), 4.6), "eye_r": 0.62 * k * head * 1.2, "eye_ring": 1.2,
+		"eye": p3.call(Vector3(1.85, 36.4, -5.4), 4.6), "eye_r": 0.62 * k * head * 1.02, "eye_ring": 1.2, "eye_ring_lid": false, # (a songbird's lids: dark, feathered to their edge)
 		"hip": Vector3(2.9 * B, 16.5 * legs, 4.0) * k, "knee": Vector3(3.2 * B, 12.0 * legs, 0.5) * k, "ankle": Vector3(2.9 * B, 6.0 * legs, 1.0) * k, "foot": Vector3(2.9 * B, 1.0, 0.0) * k,
 		"thigh_r": [3.0 * k * B, 1.9 * k * B], "leg_r": 0.38 * k, "toes": [3.6 * k, 2.6 * k, 2.4 * k], "claw": 0.28, "claw_r": 0.45,
 		"tuck": Vector3(0.0, -0.05, 0.0),
