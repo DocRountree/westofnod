@@ -43,6 +43,7 @@ const J_NECK := 1
 const J_HEAD := 5
 const J_JAW := 6
 const J_TAIL := 7
+const STRIDE_REACH := 1.25 ## a stride, at most this many times what its leg reaches along the ground from under its knee
 const J_LEG := [8, 12] # (left, right: thigh, shin, tarsus, toes)
 
 var shape := {} ## the species' (cm): see WildTurkey
@@ -263,7 +264,16 @@ func _ground_step(dt: float) -> void:
 	# the feet: each left where it came down, till it's a step behind its
 	# place under the body; then swung to where that will be
 	var stride := clampf(_speed * 0.42, 0.06, 0.62) * size
+	# (no longer than its legs can reach: a small bird's short legs take
+	# many quick steps, not a turkey's strides with its feet dragged after
+	# it; the foot comes down a quarter of a stride ahead of its place and
+	# is left till it's half a stride behind)
+	var leg := ((shape.knee as Vector3).distance_to(shape.ankle) + (shape.ankle as Vector3).distance_to(shape.foot)) * CM * size * 0.97
+	var up := maxf((float(shape.knee.y) - float(shape.foot.y)) * CM * size - float(cur.get("drop", 0.0)) * size - float(cur.get("crouch", 0.0)) * 0.16 * size, 0.0)
+	var reach := sqrt(maxf(leg * leg - up * up, 0.0))
+	stride = minf(stride, maxf(reach * STRIDE_REACH, 0.004 * size))
 	_swing_t = clampf(0.3 / (0.45 + _speed), 0.11, 0.36)
+	_swing_t = clampf(_swing_t, 0.04, maxf(0.42 * stride / maxf(_speed, 0.01), 0.04)) # (down again before the other must lift)
 	var hip: Vector3 = shape.hip * CM * size
 	var lead := _fwd() * (_speed * _swing_t + stride * 0.5)
 	var bob := 0.0
@@ -450,7 +460,7 @@ func _solve(dt: float) -> void:
 	for i in n - 1:
 		var rd := (_neck_rest[i + 1] - _neck_rest[i]).normalized()
 		var cd := (pts[i + 1] - pts[i]).normalized()
-		_g[J_NECK + i] = Transform3D(Basis(Quaternion(rd, cd)), pts[i])
+		_g[J_NECK + i] = Transform3D(_neck_aim(cd) * _neck_aim(rd).inverse(), pts[i])
 	var hb := Basis(Vector3.UP, look_yaw) * Basis(Vector3.RIGHT, -float(cur.head_pitch))
 	if dead or _air:
 		hb = b * hb
@@ -520,6 +530,18 @@ func _solve(dt: float) -> void:
 		_mat.set_shader_parameter(k, cur[k])
 	_mat.set_shader_parameter("feather_load", cur.load)
 	_mat.set_shader_parameter("wing_droop", cur.droop)
+
+
+## A frame along d, its side kept the bird's own right. A neck's segment
+## turned from where it lies at rest to where it lies now by two of these
+## bends forward and back about its side, as a neck does: the shortest turn
+## from the one to the other (a quaternion's) had no way round to prefer
+## once the two were near opposite (a neck upright at rest, its head down
+## at the ground), and went round sideways, the neck rolled over on its back.
+static func _neck_aim(d: Vector3) -> Basis:
+	var x := Vector3.RIGHT - d * d.x
+	x = x.normalized() if x.length() > 1e-3 else Vector3.RIGHT.cross(d).cross(d).normalized()
+	return Basis(x, d, x.cross(d))
 
 
 func _bill_tip() -> Vector3:
