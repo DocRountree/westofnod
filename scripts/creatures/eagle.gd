@@ -87,6 +87,7 @@ func eagle_shape(bill: float, head: float, tail_len: float, feathered: bool) -> 
 		lb.append([q.x, q.y, float(e[2]) * K * head * bill])
 	var S := {
 		"tilt_rings": true,
+		"face_taper": true, "eye_c": 4.6, # (its face drawn smoothly in to its bill: no jowl under it)
 		"spine": spine,
 		"pivot": Vector3(0.0, (20.0 + dy) * K, 4.0 * K),
 		"jaw": p3.call(Vector3(0.0, 34.8, -7.3), 5.2),

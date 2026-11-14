@@ -669,6 +669,10 @@ void raptor(int pt, float u, float v, vec3 view, float ndv, vec3 vtx, vec3 nrm0,
 		}
 		rough = mix(0.62, 0.28, bill_gloss) + 0.1 * grain;
 		spec = 0.5 * bill_gloss + 0.15;
+		if (lower) { // (under the upper bill's eave: no sky to shine in it)
+			rough = 0.8;
+			spec = 0.08;
+		}
 		return;
 	}
 	if (pt == 3) { // the eye: its iris, its pupil, wet

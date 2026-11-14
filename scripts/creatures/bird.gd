@@ -882,6 +882,7 @@ func _make_mesh() -> Array:
 	var along := 0.0
 	var RING := 22
 	var skin_rings := [] # (kept: [p, dorsal, c] for what's set on the skin)
+	var chin_trim := float(S.get("chin_trim", 0.0))
 	for i in line.size():
 		var e: Array = line[i]
 		var p: Vector3 = e[0]
@@ -913,8 +914,10 @@ func _make_mesh() -> Array:
 		for k in RING + 1:
 			var v := float(k) / RING
 			var a := TAU * v
-			var d := Vector3.RIGHT * sin(a) * w - dorsal * cos(a) * h
-			var nn := (Vector3.RIGHT * sin(a) / w - dorsal * cos(a) / h).normalized()
+			# (its chin drawn up: the face's rings, swung forward under the bill as the head turns down to it, cut short below: no shelf of a jowl there)
+			var hh := h * (1.0 - chin_trim * smoothstep(4.45, 4.8, c) * maxf(cos(a), 0.0)) if c <= 5.0 else h
+			var d := Vector3.RIGHT * sin(a) * w - dorsal * cos(a) * hh
+			var nn := (Vector3.RIGHT * sin(a) / w - dorsal * cos(a) / hh).normalized()
 			row.append([p + d, nn, Color(part, u, v, 0), Color(0, ja, jb, wb), Color(0, 0, 0, 0), Vector2((v - 0.5) * per, along)])
 		rows.append(row)
 	_grid(st, rows)

@@ -44,6 +44,7 @@ func mass_of() -> Vector3:
 func _shape() -> Dictionary:
 	return {
 		"tilt_rings": true,
+		"face_taper": true, "eye_c": 4.6, # (its face drawn smoothly in to its bill: no jowl under it)
 		# (sat low, leaning forward, its head on its shoulders)
 		"spine": [[14.0, 13.0, 1.0, 1.0, 0.0], [15.0, 11.0, 4.0, 3.5, 0.0], [16.5, 8.0, 4.8, 6.0, 0.0], [19.5, 4.8, 5.3, 7.4, 0.0], [23.5, 2.0, 5.5, 7.8, 0.0],
 				[27.5, 0.0, 5.2, 7.0, 0.0], [30.5, -1.0, 4.4, 5.6, 0.2], [32.6, -1.5, 3.7, 3.9, 1.0], [34.2, -2.0, 3.1, 3.3, 2.0], [35.5, -2.7, 2.8, 3.0, 3.0],
