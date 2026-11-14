@@ -139,12 +139,6 @@ float swampiness(vec2 p) {
 
 float terrain_height(vec2 p, int m) {
 	float b = base_height(p, m);
-	// (a coarse level is a mean: a thin low shore averaged with the sea floor
-	// (-80 m) sinks below the waves, and the sea shows over the far coast as a
-	// pale streak. Where the ground itself is land here, it is kept at least
-	// that far up, to a metre.)
-	if (m >= 2 && b < 1.0)
-		b = max(b, min(base_height(p, 0), 1.0));
 	float land = clamp((b - 0.5) / 3.0, 0.0, 1.0);
 	if (land <= 0.0)
 		return b; // the sea floor: no relief
@@ -285,14 +279,42 @@ const float GRID = 32.0;
 // through as dotted lines.) A coarser level's spacing is a power-of-two
 // multiple of a finer one's, and scaling by a power of two is exact, so
 // k * (2 s) and (2 k) * s round the same.
+// (Cdlod's own, set by it: RANGE_FACTOR, MORPH_START, and its top level)
+uniform float cdlod_range_factor = 2.4;
+uniform float cdlod_morph_start = 0.6;
+uniform int cdlod_top = 11;
+
+// A patch reaches past its own level's range (Cdlod draws all four children
+// of a node in range, the far ones too), so past its own morph a vertex goes
+// on by the next level's, and the next: where it stands on the lattice and
+// which mips it reads go by its distance alone, the same whichever level's
+// patch it belongs to. (By its own level's morph only, a far child stayed on
+// the next level's lattice while the coarser patch beside it was already
+// sliding to the one after: hairline cracks along their shared edge, the
+// horizon's haze showing through as a dotted line.) lod out: the level it has
+// come to; morph: how far on to the next.
 vec2 cdlod_xz(vec3 vertex, mat4 model, vec4 cd, out int lod, out float morph) {
 	float step = cd.w / GRID; // this level's vertex spacing
 	vec2 k = round((model[3].xz + world_origin.xz - map_origin) / step) + round(vertex.xz * GRID); // (patch corners are even)
-	vec2 wp = map_origin + k * step;
 	lod = int(cd.x + 0.5);
-	float d = distance(vec3(wp.x, 0.0, wp.y), vec3(view_pos.x, 0.0, view_pos.z));
-	d = length(vec2(d, max(view_pos.y - 0.0, 0.0) * 0.5)) / lod_zoom;
-	morph = clamp((d - cd.y) / max(cd.z - cd.y, 1e-3), 0.0, 1.0);
-	k -= fract(k * 0.5) * 2.0 * morph; // odd vertices slide onto the coarser grid
+	float leaf = cd.w * exp2(-float(lod));
+	morph = 0.0;
+	for (int j = 0; j < 4; j++) {
+		vec2 wp = map_origin + k * step;
+		float d = distance(vec3(wp.x, 0.0, wp.y), vec3(view_pos.x, 0.0, view_pos.z));
+		d = length(vec2(d, max(view_pos.y - 0.0, 0.0) * 0.5)) / lod_zoom;
+		// (as Cdlod's: morphing ends a little short of the level's range)
+		float range = leaf * exp2(float(lod)) * cdlod_range_factor;
+		float from = range * cdlod_morph_start;
+		morph = clamp((d - from) / max(range - leaf * 0.3 - from, 1e-3), 0.0, 1.0);
+		k -= fract(k * 0.5) * 2.0 * morph; // odd vertices slide onto the coarser grid
+		if (morph < 1.0 || lod >= cdlod_top || j == 3)
+			break;
+		// (wholly on the next level's lattice: on by that level's)
+		k *= 0.5;
+		step *= 2.0;
+		lod += 1;
+		morph = 0.0;
+	}
 	return map_origin + k * step;
 }

@@ -104,19 +104,9 @@ void fragment() {
 	vec3 world_pos = local_pos + world_origin; // (the map's)
 	vec2 p = world_pos.xz;
 	float fp = max(length(fwidth(p)), 0.01);
-	// (the slope from the two mips either side of the pixel's footprint,
-	// blended by how far between: from one whole mip the normal stepped at a
-	// fixed distance, a pale line across the far mountains)
-	float pml = clamp(log2(max(fp, 1e-3) / map_cell()), 0.0, 10.0);
-	int pm = int(floor(pml));
+	int pm = pixel_mip(fp);
 	vec2 slope;
 	terrain_height_grad(p, pm, max(fp, 0.5) * 1.5 + map_cell() * exp2(float(pm)) * 0.25, slope);
-	float pmt = pml - float(pm);
-	if (pmt > 0.001 && pm < 10) {
-		vec2 slope2;
-		terrain_height_grad(p, pm + 1, max(fp, 0.5) * 1.5 + map_cell() * exp2(float(pm + 1)) * 0.25, slope2);
-		slope = mix(slope, slope2, smoothstep(0.0, 1.0, pmt));
-	}
 	vec3 n = slope_normal(slope);
 	NORMAL = normalize((VIEW_MATRIX * vec4(n, 0.0)).xyz);
 	float h = world_pos.y;

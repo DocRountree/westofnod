@@ -59,6 +59,9 @@ func setup(world: WorldData, mats: Array[ShaderMaterial]) -> void:
 		m.set_shader_parameter("map_size", float(world.size))
 		m.set_shader_parameter("map_domain", world.domain)
 		m.set_shader_parameter("map_origin", world.origin)
+		m.set_shader_parameter("cdlod_range_factor", RANGE_FACTOR)
+		m.set_shader_parameter("cdlod_morph_start", MORPH_START)
+		m.set_shader_parameter("cdlod_top", levels)
 
 
 ## Reselects patches around the camera. Cheap; call every frame.
