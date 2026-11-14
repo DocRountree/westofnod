@@ -139,6 +139,12 @@ float swampiness(vec2 p) {
 
 float terrain_height(vec2 p, int m) {
 	float b = base_height(p, m);
+	// (a coarse level is a mean: a thin low shore averaged with the sea floor
+	// (-80 m) sinks below the waves, and the sea shows over the far coast as a
+	// pale streak. Where the ground itself is land here, it is kept at least
+	// that far up, to a metre.)
+	if (m >= 2 && b < 1.0)
+		b = max(b, min(base_height(p, 0), 1.0));
 	float land = clamp((b - 0.5) / 3.0, 0.0, 1.0);
 	if (land <= 0.0)
 		return b; // the sea floor: no relief
