@@ -1188,6 +1188,8 @@ func _scatter(kind: PropKind, k: int, key: Vector2i, feet: PackedVector4Array, r
 				dc *= lerpf(kind.swamp_depth.x, kind.swamp_depth.y, world.swamp_depth(x, z)) # (more at the edge, or in the middle)
 			if keep >= dc:
 				continue
+			if not kind.thin_near.is_empty() and keep >= dc * kind.thin_near_at(world, x, z):
+				continue # (fewer near a biome it gives way to: the oaks by the taiga)
 			if kind.strict and kind.density_in(world.biome_blend_at(x, z, u)) <= 0.0:
 				continue # (strayed onto ground it doesn't grow in)
 			if kind.not_in_swamp and world.swamp >= 0 and (world.swampiness(x, z) > 0.0 or world.biome_blend_at(x, z, u) == world.swamp):

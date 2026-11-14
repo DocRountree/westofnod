@@ -78,17 +78,50 @@ var _clump_by_biome := PackedFloat32Array()
 @export var never_in := []
 var never_bits := 0 ## (never_in as biome bits)
 
+## Fewer of it near a biome (and in it): biome name -> [how far off (m) it
+## begins to thin, the share of it kept where that biome is all round].
+## Each spot gauged by how much of the ground round it (a centre and two
+## rings, at half and the whole of that reach) is that biome (the oaks:
+## fewer in and near the taiga, its spruce and pine having it).
+@export var thin_near := {}
+var _thin_near: Array = [] # ([biome index, reach, kept] each)
+
 
 ## Resolves clump's names too (and never_in's).
 func resolve_clump(names: Array) -> void:
 	_clump_by_biome.resize(names.size() + 1)
 	for i in _clump_by_biome.size():
 		_clump_by_biome[i] = float(clump.get(names[i], 0.0)) if i < names.size() else 0.0
+	_thin_near.clear()
+	for b: String in thin_near:
+		var i := names.find(b)
+		var v: Array = thin_near[b]
+		if i >= 0:
+			_thin_near.append([i, float(v[0]), float(v[1])])
 	never_bits = 0
 	for b in never_in:
 		var i := names.find(b)
 		if i >= 0 and i < 31:
 			never_bits |= 1 << i
+
+
+## (thin_near) The share of it kept at (x, z): 1 far from those biomes, down
+## to their kept share where they're all round (world: WorldData).
+func thin_near_at(world: Object, x: float, z: float) -> float:
+	var keep := 1.0
+	for t: Array in _thin_near:
+		var bi: int = t[0]
+		var reach: float = t[1]
+		var hits := 1.0 if world.biome_index_at(x, z) == bi else 0.0
+		var n := 1.0
+		for ring: float in [0.5, 1.0]:
+			for q in 8:
+				var a := TAU * (q + ring) / 8.0
+				if world.biome_index_at(x + cos(a) * reach * ring, z + sin(a) * reach * ring) == bi:
+					hits += 1.0
+				n += 1.0
+		keep *= lerpf(1.0, float(t[2]), hits / n)
+	return keep
 
 
 ## How much more (or less) common it is at (x, z) in biome b than its

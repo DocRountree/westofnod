@@ -63,12 +63,12 @@ const EATS := {
 	"river_otter.gd": {"fish": 1.0, "crayfish": 0.8, "frog": 0.4, "toad": 0.1},
 	"sea_otter.gd": {"urchin": 1.0, "clam": 0.9}, # (on the bottom: SeaOtter.clam(), urchin(), meta "shellfish")
 	"wild_turkey.gd": {"acorn": 1.0, "walnut": 0.5, "berries": 0.7, "grasshopper": 0.7, "nymph": 0.6, "grub": 0.5, "caterpillar": 0.5},
-	"peregrine_falcon.gd": {"pigeon": 1.0, "blackbird": 0.6, "robin": 0.5, "bluebird": 0.3, "finch": 0.2, "poult": 0.5, "squirrel": 0.2, "mouse": 0.2},
-	"coopers_hawk.gd": {"robin": 0.9, "pigeon": 0.8, "blackbird": 0.8, "bluebird": 0.7, "finch": 0.7, "nestling": 0.5, "poult": 0.7, "squirrel": 0.6, "mouse": 0.4},
+	"peregrine_falcon.gd": {"pigeon": 1.0, "blackbird": 0.6, "jay": 0.4, "robin": 0.5, "bluebird": 0.3, "finch": 0.2, "poult": 0.5, "squirrel": 0.2, "mouse": 0.2},
+	"coopers_hawk.gd": {"robin": 0.9, "pigeon": 0.8, "blackbird": 0.8, "jay": 0.7, "cardinal": 0.7, "bluebird": 0.7, "finch": 0.7, "nestling": 0.5, "poult": 0.7, "squirrel": 0.6, "mouse": 0.4},
 	"barn_owl.gd": {"mouse": 1.0, "grasshopper": 0.15, "nymph": 0.1, "grub": 0.1, "spider": 0.05},
 	"eastern_screech_owl.gd": {"mouse": 1.0, "mouse_pup": 0.8, "grasshopper": 0.7, "nymph": 0.6, "caterpillar": 0.5, "grub": 0.4, "crayfish": 0.4, "frog": 0.4,
-			"snails": 0.2, "anole": 0.2, "fish": 0.15, "bluebird": 0.15, "blackbird": 0.1, "finch": 0.2, "hummingbird": 0.05, "nestling": 0.15, "bat": 0.15},
-	"great_horned_owl.gd": {"porcupette": 0.05, "armadillo_pup": 0.1, "gosling": 0.2, "hare": 1.0, "leveret": 0.9, "mouse": 0.8, "squirrel": 0.6, "poult": 0.4, "pigeon": 0.3, "blackbird": 0.1, "bat": 0.1},
+			"snails": 0.2, "anole": 0.2, "fish": 0.15, "bluebird": 0.15, "blackbird": 0.1, "cardinal": 0.15, "finch": 0.2, "hummingbird": 0.05, "nestling": 0.15, "bat": 0.15},
+	"great_horned_owl.gd": {"porcupette": 0.05, "armadillo_pup": 0.1, "gosling": 0.2, "hare": 1.0, "leveret": 0.9, "mouse": 0.8, "squirrel": 0.6, "poult": 0.4, "pigeon": 0.3, "jay": 0.15, "blackbird": 0.1, "bat": 0.1},
 	"bald_eagle.gd": {"fish": 1.0, "carcass": 0.8, "poult": 0.2, "hare": 0.2, "leveret": 0.2, "gosling": 0.3, "goose": 0.1},
 	"golden_eagle.gd": {"hare": 1.0, "leveret": 0.9, "squirrel": 0.7, "poult": 0.4, "carcass": 0.5},
 	"anole.gd": {"nymph": 0.8, "grasshopper": 0.7, "spider": 0.8, "caterpillar": 0.6, "grub": 0.3},
@@ -86,6 +86,9 @@ const EATS := {
 	"canada_goose.gd": {"graze": 1.0, "algae": 0.5}, # (grass, the water's weeds: its goslings' too)
 	"american_goldfinch.gd": {"forbs": 1.0, "flowers": 0.9}, # (seeds only, its young's too: Finch)
 	"house_finch.gd": {"forbs": 1.0, "flowers": 0.9, "berries": 0.6},
+	"northern_cardinal.gd": {"forbs": 1.0, "berries": 0.7, "flowers": 0.6, "caterpillar": 0.6, "grasshopper": 0.5, "nymph": 0.5, "beetle": 0.4, "snails": 0.15}, # (seeds above all; its young insects)
+	"blue_jay.gd": {"acorn": 1.0, "walnut": 0.5, "caterpillar": 0.6, "grasshopper": 0.6, "nymph": 0.5, "beetle": 0.5, "grub": 0.4, "snails": 0.3,
+			"berries": 0.3, "crabapple": 0.2}, # (mast its staple, cached; insects, its young's too)
 	"bat.gd": {"beetle": 1.0, "moth": 0.7, "flier": 0.5},
 	"american_toad.gd": {"ants": 1.0, "grub": 0.6, "spider": 0.7, "caterpillar": 0.6, "nymph": 0.6, "grasshopper": 0.4, "snails": 0.5},
 	"frog.gd": {"nymph": 0.8, "grasshopper": 1.0, "spider": 0.7, "caterpillar": 0.6, "grub": 0.4, "snails": 0.4},
@@ -119,6 +122,14 @@ const EATS := {
 	"mollies.gd": {"algae": 1.0},
 	"fish_school.gd": {"nymph": 1.0, "grasshopper": 0.8, "crayfish": 0.6, "mollies": 0.5, "fish": 0.3},
 }
+
+## Those that smell out what's buried (a jay's cached acorn: BlueJay).
+const DIGS_UP := ["fox_squirrel.gd", "grey_squirrel.gd", "mouse.gd", "black_bear.gd", "wild_turkey.gd"]
+
+
+static func _script_of(c: Node) -> String:
+	return (c.get_script() as Script).resource_path.get_file() if c and c.get_script() else ""
+
 
 ## (A kind that stands for several: "snails", any snail.)
 const ALIASES := {"snails": ["snails", "grass_snail", "tigersnail"]}
@@ -330,6 +341,10 @@ static func kind_of(n: Node) -> String:
 			k = "nestling" if young else "hummingbird"
 		"american_goldfinch.gd", "house_finch.gd":
 			k = "nestling" if young else "finch"
+		"northern_cardinal.gd":
+			k = "nestling" if young else "cardinal"
+		"blue_jay.gd":
+			k = "nestling" if young else "jay"
 		"june_beetles.gd":
 			k = "beetle"
 		"lady_beetles.gd":
@@ -372,6 +387,8 @@ static func find(c: Node3D, r := 30.0, kinds: Array = [], any_ := false) -> Node
 		if o.has_meta("hunted") and is_instance_valid(o.get_meta("hunted")) and o.get_meta("hunted") != c and k not in SHARED:
 			continue
 		if o.has_meta("taken") and not o.has_meta("keep"):
+			continue
+		if o.has_meta("buried") and _script_of(c) not in DIGS_UP: # (cached in the ground: found by a rodent's, a bear's, a turkey's nose; its cacher goes back to it of itself, BlueJay.caches)
 			continue
 		var d := _at(o as Node3D).distance_to(p)
 		if d >= r:

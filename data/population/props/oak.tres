@@ -15,7 +15,10 @@ radius = 0.6
 density = {
 "forest": 22.09,
 "prairie": 0.986,
-"taiga": 1.4
+"taiga": 0.35
+}
+thin_near = {
+"taiga": [600.0, 0.2]
 }
 height_range = Vector2(2, 1150)
 min_normal_y = 0.8

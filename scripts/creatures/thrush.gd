@@ -156,10 +156,39 @@ func thrush_shape(k: float, head: float, bill: float, legs: float, tail_len: flo
 	return S
 
 
+## A crest on its crown (shape's "crest": Bird): its foot along the crown's
+## middle from front to back (shares of the way from its forehead back to
+## its nape), sunk a little into it; tall (cm), leaning back (lean: 0
+## straight up), wide (its half width at its foot, cm); tips: loose feather
+## points about its top (a jay's brush); point: how sharp its tip (a
+## cardinal's spike, the more). Raised and lowered by the pose's crest.
+func crest_of(S: Dictionary, tall: float, front: float, back: float, lean: float, wide: float, tips := 0, point := 0.8) -> Dictionary:
+	var rings: Array = (S.spine as Array).filter(func(r: Array) -> bool: return float(r[4]) >= 3.2 and float(r[4]) < 5.0)
+	rings.sort_custom(func(a: Array, b: Array) -> bool: return float(a[1]) < float(b[1]))
+	var zf: float = (rings[0] as Array)[1] # (its forehead: the most forward)
+	var zb: float = (rings[rings.size() - 1] as Array)[1] # (its nape)
+	var top_at := func(z: float) -> float: # (the crown's top over z)
+		for i in rings.size() - 1:
+			var a: Array = rings[i]
+			var b: Array = rings[i + 1]
+			if z >= float(a[1]) and z <= float(b[1]):
+				var f := (z - float(a[1])) / maxf(float(b[1]) - float(a[1]), 1e-4)
+				return lerpf(float(a[0]) + float(a[3]), float(b[0]) + float(b[3]), f)
+		return float((rings[0] as Array)[0]) + float((rings[0] as Array)[3])
+	var z0 := lerpf(zf, zb, front)
+	var z1 := lerpf(zf, zb, back)
+	var zm := (z0 + z1) * 0.5
+	var y: float = minf(top_at.call(z0), top_at.call(z1)) - wide * 0.4
+	y = minf(y, float(top_at.call(zm)) - wide * 0.7) # (sunk: its foot under the crown all along)
+	return {"base": Vector3(0.0, y, zm), "len": (z1 - z0) * 0.5, "wide": wide, "up": Vector3(0.0, 1.0, lean), "tall": tall, "tips": tips, "point": point}
+
+
 func _build() -> void:
 	super()
 	if _mat:
 		_mat.set_shader_parameter("bill_cere", 0.0) # (no cere: the bill its own colour to its root)
+		if not colors.has("puff_cm"):
+			_mat.set_shader_parameter("puff_cm", 0.9 * body_k / 0.55) # (its feathers raised a songbird's centimetre, not a turkey's 4.5)
 	if not young:
 		want.pitch = stand_pitch
 		cur.pitch = stand_pitch

@@ -59,6 +59,8 @@ const OWL_SCRIPTS := {
 	"blackbird": preload("res://scripts/creatures/red_winged_blackbird.gd"),
 	"goldfinch": preload("res://scripts/creatures/american_goldfinch.gd"),
 	"house_finch": preload("res://scripts/creatures/house_finch.gd"),
+	"cardinal": preload("res://scripts/creatures/northern_cardinal.gd"),
+	"blue_jay": preload("res://scripts/creatures/blue_jay.gd"),
 	"hummingbird": preload("res://scripts/creatures/ruby_throated_hummingbird.gd"),
 }
 const GooseScript := preload("res://scripts/creatures/canada_goose.gd")
@@ -220,6 +222,8 @@ const CATALOGUE := [
 	["Birds", "red-winged blackbird (on a low post: D his song spread, or a rival male chased off; young: a nestling, in its nest in the reeds)", "blackbird", ["adult", "juvenile", "young"]],
 	["Birds", "American goldfinch (on a low post; E / H to the seed heads that are here: clinging, picking seeds, husking them; D his song, V his butterfly song flight, K courtship feeding; young: a nestling, in its cup in a fork)", "goldfinch", ["adult", "juvenile", "young"]],
 	["Birds", "house finch (on a low post; E / H to the seed heads or a berry bush that's here; D his warble, V his song flight, K courtship feeding; young: a nestling, in its cup on a ledge)", "house_finch", ["adult", "juvenile", "young"]],
+	["Birds", "northern cardinal (on a low post, its crest a point; E / H to the seed heads or a berry bush that's here; with nestlings, insects carried to them; D his song, or with a rival male near, counter-singing, then chasing it off; V his song flight; K courtship feeding; X a chip, its crest up, off; young: a nestling, in its cup in a fork)", "cardinal", ["adult", "juvenile", "young"]],
+	["Birds", "blue jay (on a low post; E an acorn that's here hammered open under its feet; V acorns cached: into its throat, flown off, each pushed into the ground and covered, dug up again when it's hungry; B foraging; X a hawk, owl, snake, fox or bobcat here mobbed (the jays near join in); D its pump-handle bobbing; M its calls, now and then a hawk's scream; K bobbing, courtship feeding; young: a nestling, in its cup in a fork)", "blue_jay", ["adult", "juvenile", "young"]],
 	["Birds", "ruby-throated hummingbird (on a twig; E / H hovering at the flowers that are here, its bill in each, licking; or a small insect snapped up in the air; D a rival male chased off; K his pendulum dives and shuttle for her; young: a nestling, in its tiny cup)", "hummingbird", ["adult", "juvenile", "young"]],
 	["Birds", "great blue heron (with its shallow pond, mollies in it: wading, stalking, waiting, its strike; E / H fishing (a fish, a frog, a crayfish that's here), D its croak, X its threat (wings spread, plumes up), F off (neck folded, legs trailing), K courting (his stretch display), 1 her nest high in a tree, 2 hatch; young: a nestling, in the nest)", "heron", ["adult", "juvenile", "young"]],
 	["Birds", "Canada goose (on the bank of its pond, grazing; to the water and swimming, upending, drinking; E graze / swim, D honk, X its threat, F fly off, V the geese here off in a V skein, K courting on the water, 1 her nest on the bank, 2 hatch, N brood; young: a gosling, after its mother)", "goose", ["adult", "juvenile", "young"]],
@@ -1475,7 +1479,7 @@ func _spawn_animal(key: String, at: Vector3, stage: String, male: bool, young: b
 			g.place(at, randf() * TAU)
 			g.call("forage")
 			return g
-		"peregrine", "coopers", "barn_owl", "horned_owl", "screech_owl", "bald_eagle", "golden_eagle", "robin", "bluebird", "pigeon", "blackbird", "goldfinch", "house_finch", "hummingbird":
+		"peregrine", "coopers", "barn_owl", "horned_owl", "screech_owl", "bald_eagle", "golden_eagle", "robin", "bluebird", "pigeon", "blackbird", "goldfinch", "house_finch", "cardinal", "blue_jay", "hummingbird":
 			var rs: GDScript = OWL_SCRIPTS[key] if OWL_SCRIPTS.has(key) else (FalconScript if key == "peregrine" else HawkScript)
 			var r: Raptor = rs.new(young, stage == "juvenile")
 			r.male = (male and not young) if not young else randf() < 0.5
@@ -2610,6 +2614,49 @@ func _raptor_do(r: Raptor, act_: String) -> void:
 					if o != hb and o is RubyThroatedHummingbird and o.male and not o.young and not o.dead and (o as Node3D).position.distance_to(p) < 15.0:
 						rv = o
 				hb.display(rv)
+				return
+	if r is NorthernCardinal and act_ == "display": # (a rival male near: counter-singing, then chased off; none, his song)
+		var rv: Node3D = null
+		for o in _creatures():
+			if o != r and o is NorthernCardinal and o.male and not o.young and not o.dead and r.male and (o as Node3D).position.distance_to(p) < 20.0:
+				rv = o
+		(r as NorthernCardinal).display(rv)
+		return
+	if r is BlueJay: # (a jay: its acorns eaten or cached; mobbing; its pump-handle; its calls)
+		var bj := r as BlueJay
+		match act_:
+			"eat", "play": # (E: hungry, an acorn eaten; V: not, cached)
+				bj.hunger = 1.0 if act_ == "eat" else 0.0
+				var nut := Diet.find(bj, 40.0, BlueJay.NUTS)
+				if nut and nut != bj:
+					bj.hunt(nut as Node3D)
+				elif act_ == "eat":
+					var prey: Node3D = _prey(bj, Diet.prey_of(bj), 0.0, 40.0)
+					if prey:
+						bj.hunt(prey)
+				else:
+					_no_food(bj)
+				return
+			"hunt":
+				var prey: Node3D = _prey(bj, Diet.prey_of(bj), 0.0, 40.0)
+				if prey:
+					bj.hunt(prey)
+				return
+			"forage":
+				bj.forage()
+				return
+			"display":
+				bj.display()
+				return
+			"mark":
+				bj.call_out(8.0)
+				return
+			"alarm":
+				var th := bj._threat_near(60.0)
+				if th:
+					bj.mob(th)
+				else:
+					bj.fly_off(cam.global_position if cam else p + Vector3(5.0, 0.0, 0.0))
 				return
 	if r is Finch: # (a finch: its seeds, its song, its song flight)
 		var fi := r as Finch

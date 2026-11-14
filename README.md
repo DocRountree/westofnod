@@ -1402,6 +1402,42 @@ Its cup of twigs and grass on a ledge; four pale blue eggs dotted
   black. Seeds, and berries pecked at; its song a jumbled warble ending in a burry wheer. In the sandbox under Birds,
   both: on a low post; E / H to the seed heads (a berry bush, the house finch) that are here (none: the no-food
   notice), D his song, V his song flight, K courting (courtship feeding, then mating), 1 lay, 2 hatch, N brood.
+  `northern_cardinal.gd` (`NorthernCardinal`, *Cardinalis cardinalis*): on the finch's make, 22 cm, 45 g, a long tail,
+  a great red-orange cone of a bill, a tall pointed crest (`bird.gd`'s `crest`: one tapering tuft on the crown's
+  middle, loose feather points at its top, raised and lowered in the shader with its mood: up singing, courting,
+  alarmed, at a rival; half up about its business; flat in flight and asleep). The male red, his back and wings
+  duller, a black mask round his bill, through his lores and down his chin to a bib (`mask`); the female warm buff
+  brown, her crest, wings and tail washed red, a dusky mask; the juvenile like her, its bill dark.
+
+<p align="center"><img src="docs/organisms/cardinal.jpg" width="240" alt="Northern cardinal, male"><img src="docs/organisms/cardinal_f.jpg" width="240" alt="Northern cardinal, female"><br><sub>Northern cardinal &nbsp; male, female</sub></p>
+
+Seeds from the seed heads that are here, clinging to their
+  stems (a black-eyed Susan's above all), berries from a bush; with nestlings, insects hunted on the ground and carried
+  whole to them, not seed. Its song loud slurred whistles (cheer cheer, birdie birdie), crest up; the female sings too,
+  and from the nest. A rival male near: counter-singing, turn and turn about, then chased off. Courtship feeding, his
+  song flight, a metallic chip of alarm. Its cup of twigs and bark strips low in a fork; three speckled eggs. Taken by
+  the Cooper's hawk, now and then the screech owl. In the sandbox under Birds: on a low post; E / H the seed heads or a
+  berry bush here, D his song (with a rival male near, counter-singing), V his song flight, K courting, X alarm, 1 lay,
+  2 hatch, N brood.
+  `blue_jay.gd` (`BlueJay`, *Cyanocitta cristata*): on the thrush's make, 27 cm, 85 g, a stout black bill, a bushy
+  crest, a long rounded tail. Lavender blue above, its crest and crown bright blue; greyish white below; a black line
+  from its bill through its eye joined to a black necklace across its throat (`mask`, `collar`); its wings bright blue
+  barred black (`cov_color`, `cov_bars`, `fl_top_bars`), a white bar and white-tipped secondaries (`fl_tip`); its
+  tail blue barred black, its corners white (`tail_tip_grad`).
+
+<p align="center"><img src="docs/organisms/blue_jay.jpg" width="360" alt="Blue jay"><br><sub>Blue jay</sub></p>
+
+Acorns its staple: hungry, one held down under its feet and
+  hammered open, the shell's bits flying; not, cached: up to three swallowed into its throat and one more in its bill,
+  flown off a way, each brought up, pushed into the ground, hammered down and covered with a dead leaf, the next a hop
+  or two off (`caches`: found again and dug up when it's hungry and nothing lies about; buried, hidden from all but
+  it and the rodents', bears' and turkeys' noses: `Diet.DIGS_UP`; those it never comes back to, the oaks it plants).
+  Insects for itself and its young. It mobs a hawk, an owl, a snake, a fox or a bobcat near (`mob`: close round it,
+  crest up, bobbing, wings and tail flicked, jeering; the jays near join in). Its jeers, and now and then a hawk's
+  kee-yer; its pump-handle display (bobbing, a squeaky bell call); courting by bobbing and courtship feeding. A twig
+  cup in a fork; four blue-green eggs spotted brown. In the sandbox under Birds: on a low post; E an acorn here eaten
+  (else what it hunts), V acorns cached, B foraging, X mobbing a threat here, D its pump-handle, M its calls, K
+  courting, 1 lay, 2 hatch, N brood.
   `wild_turkey.gd` (`WildTurkey`, *Meleagris gallopavo*): the tom bronze, copper and green, every feather edged
   black, flight feathers barred white, the fan brown with a black band and buff tip, the bare head red and blue,
   snood, wattle, caruncles, beard, spurs; the hen browner, edged buff; the poult downy, striped.
@@ -1499,7 +1535,8 @@ and islands; a pixel works out the two biomes with most of it, `biome_top`; `bio
 the borders also wander in kilometre-wide tongues and islands; the trees are
 picked by the same shares (`WorldData.biome_blend_at`), each read a few hundred
 metres off at random, so they thin out across a border into scattered oaks and
-copses, thinning out up the mountains. Past 250 m every standing tree is a card, its photograph from eight ways
+copses, thinning out up the mountains. The oaks give way to the taiga's spruce and pine: few in it, and fewer
+toward it for some 600 m (`PropKind.thin_near`: each spot gauged by how much of the ground round it is taiga). Past 250 m every standing tree is a card, its photograph from eight ways
 round, out to the tree render distance (3 km unless set otherwise; `FarTrees`: the trees where `Population`
 puts them, a 512 m cell of them, whatever their species, drawn at once), and the
 haze is thick (6.5 km), so distant land softens and blues. The pale

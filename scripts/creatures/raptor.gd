@@ -917,7 +917,7 @@ func _strike() -> void:
 		return
 	var kind := "mammal"
 	var path: String = (prey.get_script() as Script).resource_path.get_file() if prey.get_script() else ""
-	if path in ["wild_turkey.gd", "passenger_pigeon.gd", "red_winged_blackbird.gd", "american_robin.gd", "eastern_bluebird.gd", "american_goldfinch.gd", "house_finch.gd"]:
+	if path in ["wild_turkey.gd", "passenger_pigeon.gd", "red_winged_blackbird.gd", "american_robin.gd", "eastern_bluebird.gd", "american_goldfinch.gd", "house_finch.gd", "northern_cardinal.gd", "blue_jay.gd"]:
 		kind = "bird"
 	var sz := 0.09
 	match path:
@@ -931,7 +931,7 @@ func _strike() -> void:
 			sz = 0.4 if not prey.get("young") else 0.18
 		"passenger_pigeon.gd":
 			sz = 0.2 if not prey.get("young") else 0.1
-		"red_winged_blackbird.gd", "american_robin.gd", "eastern_bluebird.gd":
+		"red_winged_blackbird.gd", "american_robin.gd", "eastern_bluebird.gd", "northern_cardinal.gd", "blue_jay.gd":
 			sz = 0.11 if not prey.get("young") else 0.06
 		"american_goldfinch.gd", "house_finch.gd":
 			sz = 0.07 if not prey.get("young") else 0.04
@@ -949,6 +949,10 @@ func _strike() -> void:
 			col = Color(0.8, 0.72, 0.2)
 		"house_finch.gd":
 			col = Color(0.55, 0.4, 0.34)
+		"northern_cardinal.gd":
+			col = Color(0.75, 0.12, 0.08) if prey.get("male") else Color(0.68, 0.55, 0.42)
+		"blue_jay.gd":
+			col = Color(0.4, 0.52, 0.75)
 		"fox_squirrel.gd":
 			col = Color(0.6, 0.4, 0.22)
 		"grey_squirrel.gd":

@@ -109,7 +109,7 @@ static var _meshes := {}
 func _init() -> void:
 	rng.randomize()
 	for k: String in ["pitch", "drop", "roll", "head_pitch", "jaw", "tail_up", "tail_yaw", "tail_spread", "tail_arch", "puff", "flush", "snood",
-			"load", "droop", "crouch", "legs_tuck", "sway", "eye_shut", "fold_pitch"]:
+			"load", "droop", "crouch", "legs_tuck", "sway", "eye_shut", "fold_pitch", "crest"]:
 		cur[k] = 0.0
 		want[k] = 0.0
 	for s: String in ["l", "r"]:
@@ -526,7 +526,7 @@ func _solve(dt: float) -> void:
 		wl = wl.lerp(beat, _flap)
 		wr = wr.lerp(beat, _flap)
 	_mat.set_shader_parameter("wing", PackedVector4Array([wl, wr]))
-	for k: String in ["tail_spread", "tail_arch", "puff", "flush", "snood", "sway", "eye_shut", "fold_pitch"]:
+	for k: String in ["tail_spread", "tail_arch", "puff", "flush", "snood", "sway", "eye_shut", "fold_pitch", "crest"]:
 		_mat.set_shader_parameter(k, cur[k])
 	_mat.set_shader_parameter("feather_load", cur.load)
 	_mat.set_shader_parameter("wing_droop", cur.droop)
@@ -970,6 +970,61 @@ func _make_mesh() -> Array:
 					var a := TAU * k / 12.0
 					row.append([c0 + tb.x * cos(a) * wv * side + tb.z * sin(a) * dv, (tb.x * cos(a) * side / maxf(wv, 1e-4) + tb.z * sin(a) / maxf(dv, 1e-4)).normalized(),
 							Color(0, 0.93, 0.5 + 0.5 * cos(a), 2.0 + t), Color(0, J_HEAD, J_HEAD, 0), Color(0, 0, 0, 0), Vector2(cos(a) * tr.x, t * tr.y)])
+				trows.append(row)
+			_grid(st, trows)
+	# a crest (a cardinal's, a jay's): a tuft of feathers up from the crown's
+	# middle, one solid shape tapering to its point (or to a ragged brush),
+	# its foot sunk in the crown; built raised, laid back flat along the
+	# crown in the shader by how far it's raised (crest: 0 flat .. 1 up;
+	# crest_lay its angle down): S.crest = {"base": its foot's middle
+	# (cm, at rest), "len": its foot's half length fore and aft, "wide":
+	# its half width, "up": its way out (up and back), "tall": how far (cm),
+	# "tips": how many loose feathers' points at its top (a jay's brush),
+	# "point": how sharp (a cardinal's: a spike)}
+	if S.has("crest"):
+		var cr: Dictionary = S.crest
+		var cb: Vector3 = (cr.base as Vector3) * CM
+		var cu: Vector3 = (cr.up as Vector3).normalized()
+		var ct: float = float(cr.tall) * CM
+		var cl: float = float(cr.len) * CM
+		var cw: float = float(cr.wide) * CM
+		var cpt: float = float(cr.get("point", 0.8))
+		var root := cb + Vector3(0.0, 0.0, cl * 0.6) # (its pivot: its foot's back, on the crown)
+		var fwd_ := Vector3(0.0, cu.z, -cu.y) # (in its plane, across its way out: toward its front)
+		var crows := []
+		var NR := 10
+		for i in NR + 1:
+			var t := float(i) / NR
+			var shrink := pow(1.0 - t, cpt)
+			var cc := cb + cu * ct * t + Vector3(0.0, 0.0, ct * 0.1 * t * t) + fwd_ * cl * 0.35 * t # (its front edge steep, its back sweeping)
+			var hl := cl * shrink + 0.0004 * (1.0 - t)
+			var hw := cw * pow(1.0 - t, 0.65) + 0.0002
+			var row := []
+			for k in 17:
+				var a := TAU * k / 16.0
+				var d := fwd_ * cos(a) * hl + Vector3.RIGHT * sin(a) * hw
+				var nn := (fwd_ * cos(a) / maxf(hl, 1e-4) + Vector3.RIGHT * sin(a) / maxf(hw, 1e-4)).normalized()
+				nn = (nn + cu * 0.35 * (1.0 - shrink)).normalized()
+				row.append([cc + d, nn, Color(0, 0.93, 0.5 + 0.5 * cos(a), 4.0 + t * 0.85), Color(0, J_HEAD, J_HEAD, 0), Color(root.x, root.y, root.z, 1.0), Vector2(d.z * 2.0 + sin(a) * hw, t * ct)])
+			crows.append(row)
+		_grid(st, crows)
+		var trng := RandomNumberGenerator.new()
+		trng.seed = 3301
+		for k in int(cr.get("tips", 0)): # (loose feathers' points at its top: ragged)
+			var f := trng.randf_range(0.45, 0.85)
+			var at := cb + cu * ct * f + fwd_ * cl * (0.35 * f + trng.randf_range(-0.5, 0.4) * (1.0 - f)) + Vector3(trng.randf_range(-0.6, 0.6) * cw * (1.0 - f), 0.0, ct * 0.1 * f * f)
+			var dir := (cu + Vector3(trng.randf_range(-0.25, 0.25), 0.0, trng.randf_range(0.15, 0.6))).normalized()
+			var ln := ct * trng.randf_range(0.25, 0.45)
+			var trows := []
+			for i in 5:
+				var t := i / 4.0
+				var wv := cw * 0.45 * (1.0 - t)
+				var row := []
+				for q in 9:
+					var a := TAU * q / 8.0
+					var d := Vector3.RIGHT * sin(a) * wv + fwd_ * cos(a) * wv * 0.5
+					row.append([at + dir * ln * t + d, (Vector3.RIGHT * sin(a) + fwd_ * cos(a)).normalized(), Color(0, 0.93, 0.5, 4.0 + minf(f + t * (1.0 - f), 1.0)),
+							Color(0, J_HEAD, J_HEAD, 0), Color(root.x, root.y, root.z, 1.0), Vector2(d.x, t)])
 				trows.append(row)
 			_grid(st, trows)
 	if S.has("cere"): # (the bare waxy skin at the bill's root, the nostrils in it)

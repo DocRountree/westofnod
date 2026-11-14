@@ -135,6 +135,20 @@ uniform float disc_rim_sides = 0.0; // the rim only down its outer sides (a grea
 uniform vec3 tuft_dark : source_color = vec3(0.08, 0.06, 0.05); // an ear tuft's dark outer edge and tip
 uniform vec3 tuft_pale : source_color = vec3(0.75, 0.66, 0.52); // and its pale inner edge
 uniform float eye_lid = 0.0;       // the upper lid down over the eye (a horned owl's stare): 0 open .. 1 shut
+uniform float crest = 0.0;       // its crest raised: 0 laid flat back along the crown .. 1 up (a cardinal's, a jay's)
+uniform float crest_lay = 1.2;   // (rad: how far back it lies, laid flat)
+uniform vec4 crest_color = vec4(0.0); // its crest's own colour (w: how much; else the cap's)
+uniform vec4 crest_tip = vec4(0.0);   // toward its tip this colour (w: how much: a female cardinal's red-tipped crest)
+uniform vec4 mask = vec4(0.0);   // a mask about the bill (rgb; w: how much): its lores, round the eye, its chin (a cardinal's black face)
+uniform vec3 mask_at = vec3(0.001, 0.25, 0.003); // (its top edge: m above the eye's middle there, rising toward the bill this much per m forward; how far behind the eye it reaches, m)
+uniform float mask_low = 1.0;    // (m below the eye its lower edge: a jay's line through the eye a narrow one)
+uniform vec4 collar = vec4(0.0); // a necklace (rgb; w: how much): a band round the throat, up the sides of the neck (a blue jay's black)
+uniform vec4 collar_at = vec4(0.006, 0.003, 0.017, 0.0025); // (a ring round its throat and up its neck's sides seen from the side: its middle below and behind the eye (m), its radius, its half width; never over the face above it, nor across the nape)
+uniform vec4 cov_color = vec4(0.0); // the folded wing's coverts their own colour from above (w: how much: a jay's bright blue)
+uniform float cov_bars = 0.0;    // and barred black across, each feather (a jay's)
+uniform float cov_bar_n = 3.0;   // (bars to a feather)
+uniform vec4 fl_tip = vec4(0.0); // the secondaries and tertials tipped (rgb; w: how far along: a jay's white)
+uniform float tail_tip_grad = 0.0; // (its tail's pale tips broadest on its outer feathers, none on the middle pair: a jay's white corners)
 
 uniform float puff = 0.0;      // the body's feathers raised (strutting)
 uniform float puff_cm = 4.5;   // (how far, cm)
@@ -192,7 +206,16 @@ void vertex() {
 	suv = UV;
 	vec3 v = VERTEX;
 	vec3 n = NORMAL;
-	if (part == 0 && int(round(CUSTOM1.x)) == 0) {
+	if (part == 0 && int(round(CUSTOM1.x)) == 0 && CUSTOM2.w > 0.5) {
+		// the crest: laid back flat along the crown, bending down toward its
+		// tip, as far as it isn't raised
+		float t = clamp(CUSTOM0.w - 4.0, 0.0, 1.0);
+		float a = crest_lay * (1.0 - crest) * (0.85 + 0.3 * t);
+		mat3 r = rot_x(a);
+		v = CUSTOM2.xyz + r * (v - CUSTOM2.xyz);
+		n = r * n;
+	}
+	if (part == 0 && int(round(CUSTOM1.x)) == 0 && CUSTOM2.w < 0.5) {
 		// the body's feathers raised: fuller, most over its back and breast
 		float body = 1.0 - smoothstep(bare_from - 0.25, bare_from, CUSTOM0.y);
 		v += n * puff * puff_cm * 0.01 * mix(1.0, puff_head, smoothstep(0.84, 0.88, CUSTOM0.y)) * body * (0.55 + 0.45 * sin(CUSTOM0.z * 6.2832 - 1.5708));
@@ -331,6 +354,12 @@ void raptor(int pt, float u, float v, vec3 view, float ndv, vec3 vtx, vec3 nrm0,
 			bk = mix(bk, cov_bar_color * (0.82 + 0.3 * f.y), bar * pale);
 			bk = mix(bk, cov_lead.rgb * (0.85 + 0.25 * f.y), cov_lead.w * (1.0 - smoothstep(cov_lead_to - 0.25, cov_lead_to, v + 0.1 * f.y)) * (1.0 - smoothstep(0.7, 0.9, u)));
 			bk = mix(bk, cov_lead_edge.rgb * (0.88 + 0.2 * f.y), cov_lead_edge.w * smoothstep(cov_lead_to - 0.08, cov_lead_to, v + 0.1 * f.y) * (1.0 - smoothstep(cov_lead_to + 0.12, cov_lead_to + 0.2, v + 0.1 * f.y)) * (1.0 - smoothstep(0.7, 0.9, u)));
+		}
+		if (pt == 10 && (cov_color.w > 0.0 || cov_bars > 0.0)) { // (a jay's coverts: bright, barred black across each)
+			float lead = 1.0 - smoothstep(0.75, 0.9, u);
+			bk = mix(bk, cov_color.rgb * (0.88 + 0.22 * f.y), cov_color.w * lead * smoothstep(0.05, 0.2, v));
+			float cb = fract(f.x * cov_bar_n + 0.08 * f.z * f.z + 0.1 * f.y);
+			bk = mix(bk, vec3(0.03, 0.03, 0.04), cov_bars * smoothstep(0.0, 0.06, cb) * (1.0 - smoothstep(0.3, 0.38, cb)) * smoothstep(0.05, 0.25, f.x) * fade * lead * smoothstep(0.25, 0.45, v));
 		}
 		if (pt == 10 && wing_bars.w > 0.0) { // (two bars: a row of coverts tipped pale, each feather's tip)
 			float tipz = smoothstep(0.32, 0.0, f.x + 0.06 * (vnoise(p * 3.0 + f.y * 7.0) - 0.5));
@@ -487,6 +516,32 @@ void raptor(int pt, float u, float v, vec3 view, float ndv, vec3 vtx, vec3 nrm0,
 			c = mix(c, mix(vec3(0.03, 0.015, 0.012), throat_color.rgb * 1.25, glint), gorget * th * smoothstep(0.0, 0.25, f.x + 0.1));
 			metal = max(metal, 0.5 * gorget * th);
 		}
+		if (pt == 0 && mask.w > 0.0) { // (a mask: about the bill's root, its lores, round the eye, down its chin and throat, a bib narrowing below; its top edge rising to the forehead. Placed by where it is about the eye: the chin and throat are the neck's rings, not the head's)
+			vec3 q = rest - vec3(sign(rest.x) * eye_at.x, eye_at.y, eye_at.z);
+			float fwd = max(-q.z, 0.0);
+			float dn = max(-q.y, 0.0);
+			float top_ = mask_at.x + mask_at.y * fwd + 0.0006 * (vnoise(rest.yz * 700.0) - 0.5);
+			float zl = mask_at.z + 0.45 * dn + 0.0008 * (vnoise(rest.xy * 600.0) - 0.5);
+			float xl = abs(eye_at.x) * 1.7 - 0.55 * max(dn - 0.004, 0.0);
+			float m = (1.0 - smoothstep(top_ - 0.0008, top_ + 0.0008, q.y)) * (1.0 - smoothstep(zl - 0.001, zl + 0.001, q.z));
+			m *= smoothstep(-mask_low - 0.0012, -mask_low + 0.0008, q.y) * (1.0 - smoothstep(xl - 0.001, xl + 0.001, abs(rest.x)));
+			c = mix(c, mask.rgb * (0.92 + 0.12 * f.y), mask.w * m);
+		}
+		if (pt == 0 && collar.w > 0.0) { // (a necklace: across the throat, up the sides of the neck behind the face to the eye's line, never across the nape)
+			vec2 q = vec2(rest.z - eye_at.z - collar_at.y, rest.y - eye_at.y + collar_at.x);
+			float ring = abs(length(q) - collar_at.z + 0.0012 * (vnoise(rest.yz * 500.0) - 0.5));
+			float band = 1.0 - smoothstep(collar_at.w * 0.75, collar_at.w * 1.1, ring);
+			band *= 1.0 - smoothstep(eye_at.y - eye_rm * 0.2, eye_at.y + eye_rm * 0.6, rest.y); // (up to the eye's line, no higher)
+			band *= mix(1.0, smoothstep(0.25, 0.55, abs(rest_n.x)), smoothstep(0.0, collar_at.z * 0.5, q.x) * smoothstep(-collar_at.z * 0.6, 0.0, q.y)); // (behind, up the sides only)
+			band *= step(q.y, collar_at.z * 0.8) * (1.0 - step(0.0, -q.x) * step(0.0, q.y)); // (never round the front of the face)
+			c = mix(c, collar.rgb * (0.92 + 0.12 * f.y), collar.w * band * smoothstep(0.0, 0.08, f.x + 0.05));
+		}
+		if (pt == 0 && fc.z > 3.5) { // (the crest: the cap's colour or its own, toward its tip another; streaked along)
+			float tt = clamp(fc.z - 4.0, 0.0, 1.0);
+			vec3 cc = mix(cap_color, crest_color.rgb, crest_color.w);
+			cc = mix(cc, crest_tip.rgb, crest_tip.w * smoothstep(0.25, 0.9, tt));
+			c = cc * (0.86 + 0.24 * vnoise(vec2(fc.y * 40.0, tt * 14.0 + fc.y * 3.0))) * mix(0.8, 1.0, smoothstep(0.0, 0.3, tt));
+		}
 		if (pt == 0 && iridescence > 0.0) { // (its back, its crown: metallic green, golden where the light's caught, blue glancing)
 			float back_ = smoothstep(back_from, back_from + 0.06, v) * (1.0 - smoothstep(1.0 - back_from - 0.06, 1.0 - back_from, v));
 			float crown = smoothstep(0.78, 0.84, u) * smoothstep(eye_at.y - eye_rm, eye_at.y + eye_rm, rest.y);
@@ -524,7 +579,8 @@ void raptor(int pt, float u, float v, vec3 view, float ndv, vec3 vtx, vec3 nrm0,
 			float inner = smoothstep(0.1, 0.3, -v * sign(side_ + 1e-3)) * smoothstep(0.42, 0.55, u) * (1.0 - smoothstep(0.84, 0.92, u)) * smoothstep(0.15, 0.4, abs(side_));
 			tc = mix(tc, tail_inner.rgb, tail_inner.w * inner);
 			c = mix(tc, tail_band, band * (top ? 1.0 : 0.85));
-			c = mix(c, tail_tip_r, smoothstep(1.0 - tail_tip_w - 0.02, 1.0 - tail_tip_w, u));
+			float tw = tail_tip_w * mix(1.0, smoothstep(0.1, 1.0, tt), tail_tip_grad); // (a jay's: broadest outermost, the middle pair none)
+			c = mix(c, tail_tip_r, smoothstep(1.0 - tw - 0.02, 1.0 - tw, u) * step(0.001, tw));
 		} else if (pt == 15) {
 			c = (top ? mix(back_color, tail_cov.rgb, tail_cov.w) : mix(under_color, tail_cov.rgb, tail_cov.w * tail_cov_below)) * (0.9 + 0.2 * seed);
 		} else {
@@ -549,6 +605,9 @@ void raptor(int pt, float u, float v, vec3 view, float ndv, vec3 vtx, vec3 nrm0,
 				float wv = 0.03 * sin(v * 6.0 + seed * 9.0);
 				float wb = smoothstep(wing_bar_fl.x - 0.02, wing_bar_fl.x + 0.01, u + wv) * (1.0 - smoothstep(wing_bar_fl.y - 0.01, wing_bar_fl.y + 0.02, u + wv));
 				c = mix(c, wing_bars.rgb * (0.92 + 0.1 * seed), wing_bars.w * wb);
+			}
+			if (fl_tip.w > 0.0 && pt != 11) { // (tipped: a jay's white secondaries)
+				c = mix(c, fl_tip.rgb * (0.94 + 0.08 * seed), smoothstep(1.0 - fl_tip.w - 0.02, 1.0 - fl_tip.w + 0.01, u + 0.02 * sin(v * 5.0 + seed * 7.0)));
 			}
 			if (top && fl_edge.w > 0.0) { // (fringed pale: its outer web's edge and round its tip; a tertial's broad)
 				float bw = pt == 13 ? 0.42 : (pt == 12 ? 0.22 : 0.12);
