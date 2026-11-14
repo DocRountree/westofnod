@@ -95,8 +95,8 @@ static func variant_props(variant: int) -> Dictionary:
 	return species().variant_props(variant)
 
 
-static func near_multimesh(_variant := 0) -> Array:
-	return [] # (no sporophytes yet)
+static func near_multimesh(variant := 0) -> Array:
+	return species().near_multimesh(variant)
 
 
 static func choppable(variant: int) -> bool:

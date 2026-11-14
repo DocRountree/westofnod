@@ -24,8 +24,8 @@ extends RefCounted
 ## later be a prop's mesh_script as the oak is.
 ##
 ## In the game (data/population/props/: each species' .tres), with the oak's
-## far-off cards (FarTrees) and its cut variant for felling; not yet the
-## moss's sporophytes.
+## far-off cards (FarTrees), its cut variant for felling, and the moss's
+## sporophytes on its logs and stumps (near_multimesh).
 
 var name := ""
 var variants: Array = []
@@ -67,6 +67,7 @@ var twig_bark := true
 var _cache := {} # variant -> [mesh, lods]
 var _shadows := {}
 var _climb_cache := {}
+var _near_cache := {} # variant -> [MultiMesh, material] or [] (near_multimesh)
 var _bark_mats := {}
 var _leaf_mats := {}
 
@@ -117,6 +118,23 @@ func build(v: int) -> Mesh:
 
 func build_lods(v: int) -> Array[Mesh]:
 	return _models(v)[1]
+
+
+## A variant's sporophytes, as OakTree.near_multimesh: [MultiMesh, material]
+## for its logs and stumps (the kinds with moss: OakTree.COVER), standing on
+## their bark's moss as the oak's do; [] for the rest (no moss on a
+## standing tree).
+func near_multimesh(v: int) -> Array:
+	v = posmod(v, variants.size())
+	if not _near_cache.has(v):
+		var k := kind_of(v)
+		var near := []
+		if ((OakTree.COVER.get(k, OakTree.COVER.tree) as Array)[1] as float) > 0.0:
+			var mm := OakTree._sporophyte_multimesh(build(v) as ArrayMesh, int(variants[v].get("seed", v)))
+			if mm:
+				near = [mm, OakTree.sporophyte_material(k)]
+		_near_cache[v] = near
+	return _near_cache[v]
 
 
 ## The levels of detail as the oak's (OakTree.LOD): branches and clump

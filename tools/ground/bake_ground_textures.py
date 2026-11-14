@@ -281,41 +281,45 @@ def needle_litter(size=1024, ss=2):
     """As litter(), with pine needles: tileable every way."""
     S = size * ss
     canvas = np.array([52, 38, 26], np.float32)[None, None, :] * rng.uniform(0.8, 1.15, (S, S))[..., None]
-    return _scatter(canvas, S, lambda layer: _needles(S, layer, ss), 60, 500, 9000)
+    return _scatter(canvas, S, lambda layer: _needles(S, layer, ss), 30, 400, 9000)
 
 
 def _scatter(canvas, S, make, corners, edges, inside):
-    """Pieces made by make(layer) laid tileably every way (see litter())."""
-    for n in range(corners):
-        piece = make(rng.uniform(0.2, 1.0))
+    """Pieces made by make(layer) laid tileably every way (see litter()).
+    The pieces across the corners and edges are laid in among the ones
+    inside, each in its layer's turn (not all first, underneath: the edges
+    then showed as lines, every piece on top stopping short of them)."""
+    jobs = [(rng.uniform(0.2, 1.0), 0) for n in range(corners)] + [(rng.uniform(0.2, 1.0), 1) for n in range(edges)]
+    jobs += [(0.2 + 0.8 * n / inside, 2) for n in range(inside)]
+    jobs.sort(key=lambda j: j[0])
+    for layer, where in jobs:
+        piece = make(layer)
         P = piece[1].shape[0]
-        x0, y0 = int(rng.uniform(-P * 0.45, P * 0.45)) - P // 2, int(rng.uniform(-P * 0.45, P * 0.45)) - P // 2
-        four = []
-        for q in range(4):
-            four.append((x0, y0, q))
-            x0, y0 = y0, -x0 - P
-        for k in range(4):
-            for fx, fy, q in four:
-                tx, ty = _turn(fx, fy, P, S, k)
-                _paste(canvas, piece, tx, ty, q + k)
-    for n in range(edges):
-        piece = make(rng.uniform(0.2, 1.0))
-        P = piece[1].shape[0]
-        cx, cy = rng.uniform(P * 0.5 + 2, S / 2), rng.uniform(-P * 0.3, P * 0.3)
-        pair = [(int(cx) - P // 2, int(cy) - P // 2, 0)]
-        pair.append((S - pair[0][0] - P, -pair[0][1] - P, 2))
-        for k in range(4):
-            for x0, y0, kk in pair:
-                tx, ty = _turn(x0, y0, P, S, k)
-                _paste(canvas, piece, tx, ty, kk + k)
-    for n in range(inside):
-        piece = make(0.2 + 0.8 * n / inside)
-        ys, xs = np.nonzero(piece[1] > 0.01)
-        if xs.size == 0:
-            continue
-        x0 = int(rng.uniform(1 - xs.min(), S - 1 - xs.max()))
-        y0 = int(rng.uniform(1 - ys.min(), S - 1 - ys.max()))
-        _paste(canvas, piece, x0, y0, 0)
+        if where == 0:
+            x0, y0 = int(rng.uniform(-P * 0.45, P * 0.45)) - P // 2, int(rng.uniform(-P * 0.45, P * 0.45)) - P // 2
+            four = []
+            for q in range(4):
+                four.append((x0, y0, q))
+                x0, y0 = y0, -x0 - P
+            for k in range(4):
+                for fx, fy, q in four:
+                    tx, ty = _turn(fx, fy, P, S, k)
+                    _paste(canvas, piece, tx, ty, q + k)
+        elif where == 1:
+            cx, cy = rng.uniform(P * 0.5 + 2, S / 2), rng.uniform(-P * 0.3, P * 0.3)
+            pair = [(int(cx) - P // 2, int(cy) - P // 2, 0)]
+            pair.append((S - pair[0][0] - P, -pair[0][1] - P, 2))
+            for k in range(4):
+                for x0, y0, kk in pair:
+                    tx, ty = _turn(x0, y0, P, S, k)
+                    _paste(canvas, piece, tx, ty, kk + k)
+        else:
+            ys, xs = np.nonzero(piece[1] > 0.01)
+            if xs.size == 0:
+                continue
+            x0 = int(rng.uniform(1 - xs.min(), S - 1 - xs.max()))
+            y0 = int(rng.uniform(1 - ys.min(), S - 1 - ys.max()))
+            _paste(canvas, piece, x0, y0, 0)
     return Image.fromarray(canvas.clip(0, 255).astype(np.uint8)).reduce(2)
 
 
