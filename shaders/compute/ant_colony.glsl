@@ -21,6 +21,7 @@ layout(set = 0, binding = 0, std430) restrict readonly buffer Params {
 	vec4 a; // dt, time, how many, top speed (m/s)
 	vec4 b; // the cell (m: how far apart they keep), its body's height (m), its lay tilt (rad), how far from food it stands to feed (m)
 	vec4 hm; // the height grid: its corner x, z (m), its step (m), its samples a side (0: level, 0 m)
+	vec4 nest; // (its mind here) where they live, x y z; how wide their lanes to and from it (m)
 } prm;
 layout(set = 0, binding = 1, std430) restrict readonly buffer PosIn { float f[]; } pin;
 layout(set = 0, binding = 2, std430) restrict writeonly buffer PosOut { float f[]; } pout;
@@ -41,7 +42,7 @@ layout(set = 0, binding = 16, std430) restrict buffer GridSlots { int s[]; } gsl
 layout(set = 0, binding = 17, std430) restrict writeonly buffer Out { float f[]; } outb;
 layout(set = 0, binding = 18, std430) restrict readonly buffer Heights { float f[]; } hts;
 layout(set = 0, binding = 19, std430) restrict buffer Counters { uint c[]; } ctr;
-// each one's mind's own (push constant y 1: its mind here too): its wait (s), its place round the food (rad), the middle and the reach of where it wanders, 2 spare
+// each one's mind's own (push constant y 1: its mind here too), 12 floats: its wait (s), its place round the food (rad), the middle (3) and the reach of where it scouts, its heading (rad), its pause (> 0 stopped for another, < 0 just parted), its trip (0 to the food and at it, 1 home with its load, 2 in at the nest), 3 spare
 layout(set = 0, binding = 20, std430) restrict buffer Mind { float f[]; } mind;
 
 layout(push_constant, std430) uniform Push { ivec4 v; } pc;
@@ -107,39 +108,69 @@ void main() {
 	vec3 fwd = vec3(-sin(yaw), 0.0, -cos(yaw));
 	vec3 tg = vec3(tgt.f[i * 3u], tgt.f[i * 3u + 1u], tgt.f[i * 3u + 2u]);
 	vec3 fd = vec3(food.f[i * 3u], food.f[i * 3u + 1u], food.f[i * 3u + 2u]);
+	float pause = 0.0;
+	uint mb = i * 12u;
 	if (pc.v.y == 1) {
-		// its mind (AntColony._think's, here): wandering, a new place to make
-		// for when it's waited or come to the last (or a stop, to feel
-		// about); feeding, to its place round the food, its mouth to it once
-		// it's there, round to another place now and then. (Laying, 3, and
-		// steered, 4: told from the CPU.)
+		// its mind (AntColony._think's, an ant's, here). Scouting: a
+		// wandering line, its heading kept and drifting, a stop now and
+		// then, turned back in when it's far out. Foraging: to its place
+		// round the food, its mouth to it once it's there; fed, home along
+		// the line to the nest (to its own side of it), in a while, out
+		// again. (Laying, 3, and steered, 4: told from the CPU.)
 		int tk = task.i[i];
-		uint mb = i * 8u;
 		float wait = mind.f[mb] - dt;
 		float fk = feedk.f[i];
+		pause = mind.f[mb + 7u];
+		int ph = int(mind.f[mb + 8u]);
 		if (tk != 3) layk.f[i] = max(layk.f[i] - dt * 2.0, 0.0);
 		if (tk == 0) {
 			fk = max(fk - dt * 2.0, 0.0);
-			if (wait <= 0.0 || (distance(p0, tg) < 0.002 && wait > 1.0)) {
-				if (rnd(i, t, 1u) < 0.3) {
+			if (wait <= 0.0) {
+				if (rnd(i, t, 1u) < 0.2) {
 					tg = p0;
-					wait = mix(0.4, 1.5, rnd(i, t, 2u));
+					wait = mix(0.4, 1.2, rnd(i, t, 2u));
 				} else {
-					float a = rnd(i, t, 3u) * 6.2831853;
-					vec3 c = vec3(mind.f[mb + 2u], mind.f[mb + 3u], mind.f[mb + 4u]);
-					tg = c + vec3(cos(a), 0.0, sin(a)) * sqrt(rnd(i, t, 4u)) * mind.f[mb + 5u];
-					wait = mix(2.0, 6.0, rnd(i, t, 5u));
+					float hd = mind.f[mb + 6u] + mix(-0.9, 0.9, rnd(i, t, 3u));
+					vec3 off = p0 - vec3(mind.f[mb + 2u], mind.f[mb + 3u], mind.f[mb + 4u]);
+					if (length(off.xz) > mind.f[mb + 5u] * 0.85) {
+						float home = atan(off.x, off.z);
+						hd += wrap_pi(home - hd) * 0.7;
+					}
+					mind.f[mb + 6u] = hd;
+					tg = p0 + vec3(-sin(hd), 0.0, -cos(hd)) * mix(0.02, 0.06, rnd(i, t, 4u));
+					wait = mix(0.5, 1.4, rnd(i, t, 5u));
 				}
+			}
+		} else if (tk == 1 && ph > 0) {
+			fk = max(fk - dt * 2.0, 0.0);
+			if (ph == 1) {
+				vec3 along = fd - prm.nest.xyz;
+				along.y = 0.0;
+				vec3 lane = length(along) > 1e-4 ? cross(normalize(along), vec3(0.0, 1.0, 0.0)) * (sd - 0.5) * prm.nest.w : vec3(0.0);
+				tg = prm.nest.xyz + lane;
+				if (length(p0.xz - tg.xz) < 0.006 || wait <= 0.0) {
+					ph = 2;
+					wait = mix(1.0, 2.5, rnd(i, t, 9u));
+				}
+			} else if (wait <= 0.0) {
+				ph = 0;
+				mind.f[mb + 1u] = rnd(i, t, 10u) * 6.2831853;
+				wait = mix(3.0, 7.0, rnd(i, t, 11u));
 			}
 		} else if (tk == 1) {
 			float slot = mind.f[mb + 1u];
 			tg = fd + vec3(cos(slot), 0.0, sin(slot)) * prm.b.w;
-			bool there = length(p0.xz - tg.xz) < 0.003 && speed < 0.015;
-			fk = fk + clamp((there ? 1.0 : 0.0) - fk, -dt * 2.0, dt * 2.0);
+			bool there = length(p0.xz - tg.xz) < 0.003;
+			fk = fk + clamp((there && speed < 0.015 ? 1.0 : 0.0) - fk, -dt * 2.0, dt * 2.0);
 			if (wait <= 0.0) {
-				slot += mix(0.6, 1.8, rnd(i, t, 6u)) * (rnd(i, t, 7u) < 0.5 ? 1.0 : -1.0);
-				wait = mix(3.0, 7.0, rnd(i, t, 8u));
-				mind.f[mb + 1u] = slot;
+				if (there) { // (fed, its load taken up: home with it)
+					ph = 1;
+					wait = 40.0;
+				} else {
+					slot += mix(0.6, 1.8, rnd(i, t, 6u)) * (rnd(i, t, 7u) < 0.5 ? 1.0 : -1.0);
+					wait = mix(3.0, 7.0, rnd(i, t, 8u));
+					mind.f[mb + 1u] = slot;
+				}
 			}
 		} else {
 			fk = max(fk - dt * 2.0, 0.0);
@@ -147,7 +178,15 @@ void main() {
 		if (tk == 0 || tk == 1) {
 			tgt.f[i * 3u] = tg.x; tgt.f[i * 3u + 1u] = tg.y; tgt.f[i * 3u + 2u] = tg.z;
 		}
+		// (stopped for one it's met; then a while before it'll stop again)
+		if (pause > 0.0) {
+			pause -= dt;
+			if (pause <= 0.0) pause = -mix(2.0, 5.0, rnd(i, t, 12u));
+		} else if (pause < 0.0) {
+			pause = min(pause + dt, 0.0);
+		}
 		mind.f[mb] = wait;
+		mind.f[mb + 8u] = float(ph);
 		feedk.f[i] = fk;
 	}
 	vec3 to = tg - p0;
@@ -169,12 +208,15 @@ void main() {
 			yaw += clamp(turn, -4.0 * dt, 4.0 * dt);
 		}
 	}
-	speed = speed + clamp(want - speed, -dt * 0.6, dt * 0.6);
+	if (pause > 0.0) want = 0.0;
+	float ease = pause > 0.0 ? 2.0 : 0.6;
+	speed = speed + clamp(want - speed, -dt * ease, dt * ease);
 	vec3 p = p0 + fwd * speed * dt;
 	// kept apart from those near (round food hardly: they crowd round it)
 	float crowd = (task.i[i] == 1 && length(p.xz - fd.xz) < 0.04) ? 0.08 : 1.0;
 	ivec2 c = ivec2(floor(p.xz / cell));
 	vec3 push = vec3(0.0);
+	bool met = false;
 	for (int dz = -1; dz <= 1; dz++)
 	for (int dx = -1; dx <= 1; dx++) {
 		uint h = bucket(c + ivec2(dx, dz));
@@ -185,9 +227,16 @@ void main() {
 			vec3 off = p - P(j);
 			off.y = 0.0;
 			float l = length(off);
-			if (l < cell && l > 1e-6)
+			if (l < cell && l > 1e-6) {
 				push += off / l * min((cell - l) * min(dt * 6.0, 0.5), top * 0.4 * dt) * crowd;
+				met = true;
+			}
 		}
+	}
+	if (pc.v.y == 1) { // (met another, walking: a stop, now and then, feeling each other over)
+		if (met && pause == 0.0 && speed > 0.004 && task.i[i] != 4 && feedk.f[i] < 0.1 && rnd(i, t, 13u) < 1.2 * dt)
+			pause = mix(0.3, 0.9, rnd(i, t, 14u));
+		mind.f[mb + 7u] = pause;
 	}
 	p += push;
 	p.y = ground(p.x, p.z);

@@ -3536,6 +3536,11 @@ func _do(c: Node, act_: String) -> void:
 				return
 			ant_food = (c as Node3D).to_local((f as Node3D).global_position)
 			ant_food.y = 0.0
+		if act_ == "eat" and c.has_meta("ant") and ant_food != Vector3.INF and n > 2: # (a find, worked as ants work one: scouts, then more as they come back, to and fro to the nest)
+			col.forage(ant_food)
+			return
+		if act_ == "wander":
+			col.stop_foraging()
 		for i in n:
 			match act_:
 				"eat":

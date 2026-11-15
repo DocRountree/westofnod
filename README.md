@@ -1138,6 +1138,15 @@ Ambushing,
     A band with a mind of its own (the beetles, the snails, the ticks: `_think`) is as before, on a local device,
     read back, its minds here in turn once there are 120 (a quarter each frame). A compute shader's compiled once
     for all. (The fish, the mollies, the snails still move on the CPU.)
+  - An ant's ways (`AntColony`, the harvesters; the same on the CPU, `_think`, and on the card): scouting, it
+    keeps a heading that drifts (a wandering line, not a new way each step), stops now and then to feel about, and
+    turns back in when it's far from its middle; two that meet, walking, stop a moment, antennae to each other
+    (then not again for a few seconds). `forage(at, share)`: a find worked as ants work one: the two nearest go to
+    it; no more till a scout could be back at the nest; then a few at a time (a third as many again as are out,
+    those idle nearest the nest) till `share` of them (0.6) are at it, the rest about the nest. Each at the food
+    feeds a while, carries its load home along the line to the nest (`nest`; each a little to its own side of the
+    line, so they pass), goes in a moment, comes out and goes back (`trips_done`, counted on the CPU).
+    `stop_foraging()`. The sandbox's E for a colony is `forage` (W calls it off).
   - Records, bodies and brains (`scripts/creatures/species.gd`, `fauna_sim.gd`, `brain.gd`; in the sandbox: the
     Minds box, I; not in the game yet):
     - `Species.TABLE`: what's known of a kind apart from its body (its script, what it's called as food, its

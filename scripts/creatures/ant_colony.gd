@@ -74,6 +74,13 @@ var food := PackedVector3Array() # feeding: at this
 var slot := PackedFloat32Array() # feeding: its place round the food (rad)
 var feed_k := PackedFloat32Array() # 0..1 into feeding
 var wait := PackedFloat32Array() # s till it next changes its mind
+var heading := PackedFloat32Array() # an ant's: the way it's scouting (rad, as its yaw): kept, drifting, not a new way each time
+var pause := PackedFloat32Array() # an ant's: > 0 stopped, antennae to another it's met (s left); < 0 just parted (s till it'll stop for another)
+var phase := PackedInt32Array() # an ant's, foraging: 0 to the food and at it, 1 back to the nest with its load, 2 in at the nest
+var nest := Vector3.ZERO ## where they live (its own space): what's found is carried back here (setup: its middle)
+var trips_done := 0 ## loads brought back to the nest (counted on the CPU only)
+var _ant := false # (an ant's ways: scouting on a wandering line, trips to the nest, stopping for each other; not a beetle's, a snail's)
+var _forage := {} # (a find being worked: {at, left, t}: the foragers sent out a few at a time)
 var seed := PackedFloat32Array()
 var pace := PackedFloat32Array() # m/s (its pilot's: <= 0 its own)
 var _pilots := {} # i -> its pilot (pilot.gd)
@@ -109,9 +116,12 @@ func setup(n: int, c: Vector3, r: float) -> void:
 	material_override = m
 	cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 	_resize(n)
+	nest = c
+	_ant = _card_minds()
 	for i in n:
 		var a := rng.randf() * TAU
 		pos[i] = c + Vector3(cos(a), 0.0, sin(a)) * sqrt(rng.randf()) * r
+		heading[i] = rng.randf() * TAU
 		yaw[i] = rng.randf() * TAU
 		seed[i] = rng.randf()
 		wander(i, c, r)
@@ -138,6 +148,9 @@ func _resize(n: int) -> void:
 	lay_at.resize(n)
 	lay_wait.resize(n)
 	pace.resize(n)
+	heading.resize(n)
+	pause.resize(n)
+	phase.resize(n)
 
 
 ## Another one (just out of its pupa, say): at `at` (its own space), facing
@@ -174,6 +187,57 @@ func lay(i: int, at: Vector3) -> void:
 	_touch(i)
 
 
+## Food found at f (its own space): worked as ants work a find. A scout or
+## two to it first; each back at the nest with a load brings out a few
+## more, till `share` of them are going to and fro along the one line
+## between it and the nest, the rest about the nest as they were. (An ant
+## at it feeds a while, carries its load home, goes in, comes out, goes
+## back.) Till stop_foraging(), or wander() for each.
+func forage(f: Vector3, share := 0.6) -> void:
+	var n := pos.size()
+	# (no more till a scout could be back: there, a feed, home)
+	var back := Vector2(f.x - nest.x, f.z - nest.z).length() * 2.0 / maxf(top_speed * 0.75, 0.001) + 5.0
+	_forage = {"at": f, "left": maxi(int(ceilf(n * share)), 1), "t": -back}
+	# its scouts: the two nearest it
+	var order := range(n)
+	order.sort_custom(func(a: int, b: int) -> bool: return pos[a].distance_squared_to(f) < pos[b].distance_squared_to(f))
+	for k in mini(2, n):
+		_send(order[k])
+
+
+func stop_foraging() -> void:
+	_forage.clear()
+
+
+func _send(i: int) -> void:
+	var f: Vector3 = _forage.at
+	feed(i, f + Vector3(rng.randf_range(-1.0, 1.0), 0.0, rng.randf_range(-1.0, 1.0)) * reach * MM * 0.5)
+	_forage.left = int(_forage.left) - 1
+
+
+## (More sent out, as those out come back: a few at a time, those idle
+## nearest the nest.)
+func _forage_step(dt: float) -> void:
+	if _forage.is_empty() or int(_forage.left) <= 0:
+		return
+	_forage.t = float(_forage.t) + dt
+	if float(_forage.t) < 1.5:
+		return
+	_forage.t = 0.0
+	var out := 0
+	var idle: Array[int] = []
+	for i in pos.size():
+		if task[i] == 1:
+			out += 1
+		elif task[i] == 0:
+			idle.append(i)
+	if idle.is_empty():
+		return
+	idle.sort_custom(func(a: int, b: int) -> bool: return pos[a].distance_squared_to(nest) < pos[b].distance_squared_to(nest))
+	for k in mini(mini(maxi(int(ceilf(out * 0.3)), 1), int(_forage.left)), idle.size()):
+		_send(idle[k])
+
+
 ## Ant i to the food at f, and feeding on it.
 func feed(i: int, f: Vector3) -> void:
 	task[i] = 1
@@ -181,6 +245,7 @@ func feed(i: int, f: Vector3) -> void:
 	var d := pos[i] - f
 	slot[i] = atan2(d.z, d.x)
 	wait[i] = rng.randf_range(3.0, 7.0)
+	phase[i] = 0
 	_touch(i)
 
 
@@ -206,6 +271,7 @@ func _process(dt: float) -> void:
 		return
 	dt = minf(dt, 0.05)
 	_t += dt
+	_forage_step(dt)
 	for i in _pilots:
 		(_pilots[i] as PilotScript).tick(dt)
 	_gpu_read()
@@ -285,7 +351,7 @@ func _gpu_init() -> bool:
 		return false
 	_g.shader = _rd.shader_create_from_spirv(spirv)
 	_g.pipeline = _rd.compute_pipeline_create(_g.shader)
-	_g.params = _rd.storage_buffer_create(12 * 4)
+	_g.params = _rd.storage_buffer_create(16 * 4)
 	_g.gcount = _rd.storage_buffer_create(G_TABLE * 4)
 	_g.gslot = _rd.storage_buffer_create(G_TABLE * G_SLOTS * 4)
 	_g.ctr = _rd.storage_buffer_create(16)
@@ -347,7 +413,7 @@ func _gpu_alloc(n: int) -> void:
 	for k in _BUFS + ["out"]:
 		if _g.has(k):
 			_rd.free_rid(_g[k])
-	var per := {"pos_in": 12, "pos_out": 12, "target": 12, "food": 12, "out": 64, "mind": 32}
+	var per := {"pos_in": 12, "pos_out": 12, "target": 12, "food": 12, "out": 64, "mind": 48}
 	for k in _BUFS + ["out"]:
 		_g[k] = _rd.storage_buffer_create(_cap * int(per.get(k, 4)))
 	_gpu_set()
@@ -388,7 +454,7 @@ func _touch(i: int) -> void:
 
 
 func _mind_of(i: int) -> PackedFloat32Array:
-	return PackedFloat32Array([wait[i], slot[i], centre[i].x, centre[i].y, centre[i].z, radius[i], 0.0, 0.0])
+	return PackedFloat32Array([wait[i], slot[i], centre[i].x, centre[i].y, centre[i].z, radius[i], heading[i], pause[i], float(phase[i]), 0.0, 0.0, 0.0])
 
 
 ## (Its buffers made, for n, from what's here: the first time, and when
@@ -432,7 +498,7 @@ func _card_fetch(n: int) -> void:
 	var ss := _rd.buffer_get_data(_g.speed, 0, n * 4).to_float32_array()
 	var ts := _rd.buffer_get_data(_g.target, 0, n * 12).to_vector3_array()
 	var fk := _rd.buffer_get_data(_g.feed_k, 0, n * 4).to_float32_array()
-	var md := _rd.buffer_get_data(_g.mind, 0, n * 32).to_float32_array()
+	var md := _rd.buffer_get_data(_g.mind, 0, n * 48).to_float32_array()
 	for i in mini(n, pos.size()):
 		if _dirty.has(i):
 			continue # (told something not yet sent: as told)
@@ -442,8 +508,11 @@ func _card_fetch(n: int) -> void:
 		feed_k[i] = fk[i]
 		if task[i] == 0 or task[i] == 1:
 			target[i] = ts[i]
-			wait[i] = md[i * 8]
-			slot[i] = md[i * 8 + 1]
+			wait[i] = md[i * 12]
+			slot[i] = md[i * 12 + 1]
+			heading[i] = md[i * 12 + 6]
+			pause[i] = md[i * 12 + 7]
+			phase[i] = int(md[i * 12 + 8])
 
 
 ## (Where they are, come back from the card a frame or two on.)
@@ -471,6 +540,7 @@ func _card_got(data: PackedByteArray, what: int, n: int) -> void:
 
 func _card_step(dt: float) -> void:
 	_t += dt
+	_forage_step(dt)
 	for i in _pilots:
 		(_pilots[i] as PilotScript).tick(dt)
 	var n := pos.size()
@@ -496,10 +566,10 @@ func _card_step(dt: float) -> void:
 		_rd.buffer_update(_g.target, i * 12, 12, PackedVector3Array([target[i]]).to_byte_array())
 		_rd.buffer_update(_g.food, i * 12, 12, PackedVector3Array([food[i]]).to_byte_array())
 		_rd.buffer_update(_g.pace, i * 4, 4, PackedFloat32Array([pace[i]]).to_byte_array())
-		_rd.buffer_update(_g.mind, i * 32, 32, _mind_of(i).to_byte_array())
+		_rd.buffer_update(_g.mind, i * 48, 48, _mind_of(i).to_byte_array())
 	_dirty.clear()
 	var prm := PackedFloat32Array([dt, _t, float(n), top_speed, apart * MM, body_h * MM, lay_tilt, reach * MM,
-			_hm_at.x, _hm_at.y, _hm_at.z, _hm_at.w])
+			_hm_at.x, _hm_at.y, _hm_at.z, _hm_at.w, nest.x, nest.y, nest.z, apart * MM * 1.6])
 	_rd.buffer_update(_g.params, 0, prm.size() * 4, prm.to_byte_array())
 	var cl := _rd.compute_list_begin()
 	_rd.compute_list_bind_compute_pipeline(cl, _g.pipeline)
@@ -618,6 +688,7 @@ func _notification(what: int) -> void:
 ## (All of it here: without the GPU.)
 func _cpu_process(dt: float) -> void:
 	_t += dt
+	_forage_step(dt)
 	for i in _pilots:
 		(_pilots[i] as PilotScript).tick(dt)
 	var n := pos.size()
@@ -655,7 +726,15 @@ func _cpu_process(dt: float) -> void:
 				var f := food[i] - pos[i]
 				var turn := wrapf(atan2(-f.x, -f.z) - yaw[i], -PI, PI)
 				yaw[i] += clampf(turn, -4.0 * dt, 4.0 * dt)
-		speed[i] = move_toward(speed[i], want, dt * 0.6)
+		if _ant: # (stopped, antennae to one it's met)
+			if pause[i] > 0.0:
+				pause[i] -= dt
+				want = 0.0
+				if pause[i] <= 0.0:
+					pause[i] = -rng.randf_range(2.0, 5.0)
+			elif pause[i] < 0.0:
+				pause[i] = minf(pause[i] + dt, 0.0)
+		speed[i] = move_toward(speed[i], want, dt * (2.0 if _ant and pause[i] > 0.0 else 0.6))
 		var p := pos[i] + fwd * speed[i] * dt
 		# keeping apart: a push from any too near (at food hardly: they
 		# crowd round it)
@@ -671,6 +750,8 @@ func _cpu_process(dt: float) -> void:
 					var l := off.length()
 					if l < cell and l > 1e-6:
 						p += off / l * minf((cell - l) * minf(dt * 6.0, 0.5), top_speed * 0.4 * dt) * crowd # (never faster than they walk: a band going the same way shoved itself back)
+						if _ant and pause[i] == 0.0 and speed[i] > 0.004 and task[i] != 4 and feed_k[i] < 0.1 and rng.randf() < 1.2 * dt:
+							pause[i] = rng.randf_range(0.3, 0.9) # (met: a stop, feeling each other over)
 		p.y = height.call(p.x, p.z) if height.is_valid() else 0.0
 		pos[i] = p
 		var at := Transform3D(Basis(Vector3.UP, yaw[i]) * Basis(Vector3.RIGHT, lay_tilt * lay_k[i]), p + Vector3.UP * body_h * MM)
@@ -706,6 +787,38 @@ func _think(i: int, dt: float) -> void:
 	if task[i] == 4: # (its pilot's: going where it's sent, or holding)
 		feed_k[i] = move_toward(feed_k[i], 0.0, dt * 2.0)
 		return
+	if task[i] == 0 and _ant:
+		# scouting: a wandering line (its heading kept, drifting), a stop
+		# now and then to feel about; turned back in when it's far out
+		feed_k[i] = move_toward(feed_k[i], 0.0, dt * 2.0)
+		if wait[i] <= 0.0:
+			if rng.randf() < 0.2:
+				target[i] = pos[i]
+				wait[i] = rng.randf_range(0.4, 1.2)
+			else:
+				heading[i] += rng.randf_range(-0.9, 0.9)
+				var off := pos[i] - centre[i]
+				off.y = 0.0
+				if off.length() > radius[i] * 0.85:
+					heading[i] = lerp_angle(heading[i], atan2(off.x, off.z), 0.7) # (toward its middle)
+				target[i] = pos[i] + Vector3(-sin(heading[i]), 0.0, -cos(heading[i])) * rng.randf_range(0.02, 0.06)
+				wait[i] = rng.randf_range(0.5, 1.4)
+		return
+	if task[i] == 1 and _ant and phase[i] > 0:
+		# its load home: back along the line to the nest (to one side of
+		# it: those coming the other), in a while, out again to the food
+		feed_k[i] = move_toward(feed_k[i], 0.0, dt * 2.0)
+		if phase[i] == 1:
+			target[i] = nest + _lane(i)
+			if Vector2(pos[i].x - target[i].x, pos[i].z - target[i].z).length() < 0.006 or wait[i] <= 0.0:
+				phase[i] = 2
+				wait[i] = rng.randf_range(1.0, 2.5)
+				trips_done += 1
+		elif wait[i] <= 0.0:
+			phase[i] = 0
+			slot[i] = rng.randf() * TAU
+			wait[i] = rng.randf_range(3.0, 7.0)
+		return
 	if task[i] == 0:
 		feed_k[i] = move_toward(feed_k[i], 0.0, dt * 2.0)
 		if wait[i] <= 0.0 or (pos[i].distance_to(target[i]) < 0.002 and wait[i] > 1.0):
@@ -724,9 +837,23 @@ func _think(i: int, dt: float) -> void:
 	var there := Vector2(pos[i].x - at.x, pos[i].z - at.z).length() < 0.003
 	feed_k[i] = move_toward(feed_k[i], 1.0 if there and speed[i] < 0.015 else 0.0, dt * 2.0)
 	if wait[i] <= 0.0:
+		if _ant and there: # (fed, its load taken up: home with it)
+			phase[i] = 1
+			wait[i] = 40.0
+			return
 		# round to another place at it
 		slot[i] += rng.randf_range(0.6, 1.8) * (1.0 if rng.randf() < 0.5 else -1.0)
 		wait[i] = rng.randf_range(3.0, 7.0)
+
+
+## (Ant i's side of the line between the nest and its food: each keeps a
+## little to its own, so they pass.)
+func _lane(i: int) -> Vector3:
+	var along := food[i] - nest
+	along.y = 0.0
+	if along.length() < 1e-4:
+		return Vector3.ZERO
+	return along.normalized().cross(Vector3.UP) * (seed[i] - 0.5) * apart * MM * 1.6
 
 
 ## Laying: at the spot (shuffling a little about it), the gaster under,
