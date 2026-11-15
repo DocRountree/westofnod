@@ -224,7 +224,9 @@ void shade(bool front, vec3 vtx, vec3 up_v, inout vec3 nrm, out vec3 c, out floa
 		float ms = mating_scars * smoothstep(0.6, 0.9, vnoise(vec2(s * 90.0, h * 25.0))) * smoothstep(0.3, 0.55, s) * (1.0 - smoothstep(0.6, 0.72, s)) * smoothstep(-0.4, 0.1, h);
 		c = mix(c, vec3(0.7, 0.45, 0.42), ms * 0.7);
 	} else if (part == 6 || part == 7) { // a pectoral: grey above; white beneath, its trailing edge and tip dark (a pup's black)
-		bool under = dot(nrm, up_v) < 0.0; // (its normal, already turned to face the eye on either side, against its own up, rolled as it is)
+		vec3 gn = normalize(cross(dFdx(vtx), dFdy(vtx))); // (the face itself, turned to the eye: whichever way the sheet was wound)
+		gn *= sign(dot(gn, -vtx));
+		bool under = dot(gn, up_v) < 0.0; // (seen from beneath it, against its own up, rolled as it is)
 		float span = v_c.z;
 		float trail = v_c.w;
 		if (under) {
