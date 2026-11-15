@@ -125,6 +125,8 @@ var _bend := 0.0
 var _mode := "travel"
 var _t := 0.0
 var _goal := Vector3.ZERO
+var _pl_goal := Vector3.ZERO # (the pilot's)
+var _pl_pace := -1.0
 var _goal_t := 0.0
 var _vel := Vector3.ZERO
 var _air := false
@@ -374,7 +376,7 @@ func rest(secs := 40.0) -> void:
 
 
 ## (A male's.) Beside her, then rolled under her, belly to belly.
-func mate(female: Node3D) -> bool:
+func mate(female: Node3D, _secs_ := -1.0) -> bool:
 	if not male and female != null and is_instance_valid(female) and female.get("male"): # (hers: him to court her)
 		return bool(female.call("mate", self))
 	if not male or young or dead or female == null or not is_instance_valid(female) or female == self:
@@ -426,21 +428,101 @@ func behaviours() -> PackedStringArray:
 
 
 func is_busy() -> bool:
-	return _mode not in ["travel", "follow"]
+	return _mode not in ["travel", "follow", "piloted"] or (_pilot != null and _pilot.busy())
 
+
+# --- steering (pilot.gd) ----------------------------------------------------------------
+# (Sent somewhere: there at the pace asked, its depth its own; still up to
+# breathe when its air's low, then on again.)
 
 func _p_here() -> Vector3:
 	return _pos
 
 
+func _p_heading() -> Vector3:
+	return -global_transform.basis.z
+
+
+func _p_steer(point: Vector3, speed: float) -> void:
+	_pl_goal = _inside(Vector3(point.x, clampf(point.y, tank_min.y + _len() * 0.12, tank_max.y - _top() * 2.0) if point.y < tank_max.y - 0.01 else _pos.y, point.z))
+	_pl_pace = speed
+	if _mode in ["travel", "follow"]:
+		_to("piloted")
+
+
+func _p_hold() -> void:
+	_pl_goal = _pos
+	_pl_pace = 0.0
+	if _mode in ["travel", "follow"]:
+		_to("piloted")
+
+
+func _p_mobile() -> bool:
+	return not dead and not _air
+
+
+func _p_speed() -> float:
+	return _cruise()
+
+
+func _p_reach() -> float:
+	return _len() * 0.8
+
+
+func _p_behaviours() -> PackedStringArray:
+	return behaviours()
+
+
+func _p_act(name: String, args: Dictionary) -> bool:
+	if dead:
+		return false
+	match name:
+		"wander":
+			wander()
+		"feed":
+			var f: Variant = args.get("prey", args.get("food"))
+			if not (f is Node3D):
+				return false
+			feed(f)
+		"breach":
+			breach()
+		"tail_slap":
+			tail_slap()
+		"flipper_slap":
+			flipper_slap()
+		"spyhop":
+			spyhop()
+		"play":
+			play()
+		"sleep":
+			sleep(float(args.get("seconds", 40.0)))
+		"give_birth":
+			give_birth()
+		"nurse":
+			nurse()
+		_:
+			return false
+	return true
+
+
+func _p_act_done(_name: String) -> bool:
+	return _mode in ["travel", "follow", "piloted"]
+
+
+func is_mating() -> bool:
+	return _mode in ["court", "courted"]
+
+
 # --- the motor --------------------------------------------------------------------------------
 
 func tick(dt: float) -> void:
-	dt = minf(dt, 0.05)
+	dt = minf(dt, 0.25) # (a paced frame's is long: tick_every)
 	if _mi == null:
 		return
 	_t += dt
-	_age += dt
+	_age += dt * Fauna.life_rate
+	if _pilot:
+		_pilot.tick(dt)
 	var sp: Dictionary = S()
 	if young and not dead: # (a calf growing: weaned at about half grown, off on its own; grown, of age)
 		size = minf(size + dt * (_adult_k() - float(sp.calf_k)) / grow_secs, _adult_k())
@@ -507,10 +589,13 @@ func _think(dt: float) -> void:
 	var hi := tank_max
 	var surf_y := hi.y - _top() * 0.75 # (its middle, its blowhole just out)
 	# its air low: up (from all but what can't be left)
-	if o2 < 0.22 and not dead and _mode in ["travel", "follow", "chase", "lunge_to", "court", "courted", "flee", "nurse"]:
+	if o2 < 0.22 and not dead and _mode in ["travel", "piloted", "follow", "chase", "lunge_to", "court", "courted", "flee", "nurse"]:
 		_then = _mode if _mode in ["chase", "lunge_to"] else ""
 		_to("rise")
 	match _mode:
+		"piloted": # (steered: pilot.gd)
+			_goal = _pl_goal
+			_want = (_pl_pace if _pl_pace > 0.0 else _cruise()) if _pos.distance_to(_goal) > L * 0.5 else _cruise() * 0.15
 		"travel":
 			_want = _cruise()
 			for k: Node3D in calves:

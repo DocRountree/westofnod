@@ -1101,13 +1101,30 @@ Ambushing,
   read every creature's diet from it (E the nearest of all it eats, H its prey). A deer, E, snaps up a mouse pup in the grass by it
   (within 3 m; else it grazes; the pilot's act eat, its own). The sea otter's clams and urchins are real now (on the bottom:
   forage() dives for one that's there, false if none; a rock by it its anvil, if one lies there).
-- Steering, for a future state machine (`scripts/creatures/pilot.gd`): every creature (`Wasp`, the
-  lepidopterans, `Grasshopper`, `Mantis`, `Snake`, `Larva`; one of a colony: `AntColony.member(i)`) has the same
-  calls: `go(direction, speed, seconds)`, `go_to(point, speed)`, `face(direction)`, `stop()`, `act(name, args)`
-  (`behaviours()` lists its own: eat, lay, hop, fly, strike, watch, groom, coil, bask, feed, land, sting, ...),
-  `is_busy()`, the signal `action_finished(name, ok)`, and `height` (a Callable, the ground's y at x, z: for the
-  walkers and crawlers; the ants' already had it). Driven, a creature sets aside its own wandering, and holds still
-  once an order's done. (Its orders can be run one after another, each given once the last's done: `action_finished`.)
+- The framework under the animals, for a state machine and for populations to come (none in the game yet):
+  - `scripts/creatures/creature.gd` (`Creature`): the base of every animal with a body of its own (Hexapod's and so
+    the mammals', Bird's, Snake, Turtle, Frog, Bat, Wasp, Lepidoptera, Larva, Dragonfly, Cetacean, GreatWhiteShark,
+    SeaUrchin). Its frame is `tick(dt)` (what was each one's `_process`), called every frame or every
+    `tick_every`-th with the time since the last; `seen` false while it's out of sight (a walker's legs aren't posed
+    then: half its frame); `fauna_id` its number; `where()` its place.
+  - Steering, the same for all of them (`scripts/creatures/pilot.gd`): `go(direction, speed, seconds)`,
+    `go_to(point, speed)`, `face(direction)`, `stop()`, `act(name, args)` (`behaviours()` lists its own),
+    `is_busy()`, the signal `action_finished(name, ok)`. `act`'s `target` (a node, a point, or a body's number) is
+    given to the creature under whatever name it reads (prey, food, partner, at). `order()` is what it's been told
+    as data, `take_order()` gives it to another body of the same animal; `piloted()`, `release()`. The whales, the
+    shark and the urchin are steered now too. Driven, a creature sets aside its own wandering.
+  - `scripts/creatures/fauna.gd` (`Fauna`): the book of them. `Fauna.bodies`, `Fauna.body(id)`;
+    `Fauna.near(parent, point, r)`: what's round a point, from 8 m cells (`Diet.find` searches these, not every
+    sibling); `Fauna.listen(f)`: told of what changes the numbers ("killed" {prey, kind}, "died", "eaten" {kind},
+    "born" / "hatched" {young}, "laid" {eggs}); `Fauna.pace(focus, camera)`: each body's `tick_every` and `seen` by
+    its distance and the view (off until it's called; `pace(Vector3.INF)` everything every frame again);
+    `Fauna.life_rate`: how fast growing runs (the mammals', the whales', the shark's, the urchin's so far).
+  - Personal space (`personal_space.gd`) files everyone in 2 m cells once a frame and checks each against those
+    round it only: 300 deer were 650 ms a frame, now 50.
+  - A mammal's skin (`mammal_skin.gd`) is made once for each make (its kind, sex, age) and shared, its quills and
+    bristles (`strands.gd`) with it, and the lofted parts and ears: a second deer, wolf, bear or porcupine takes
+    about 3 ms to make, not 200 to 500. (Still their own each time: a moose's antlers, a beaver's tail, an otter's,
+    an armadillo's shell, a bat's wings: 30 to 40 ms.)
 - Life cycles (not yet in the game): eggs (`scripts/creatures/brood.gd`, `Brood`; `egg.gd`: rice grains, each kind
   its size and colour) laid by the butterflies one to a leaf (the clearwing hovering), by the wasp one to each cell of
   its comb, each egg filling its cell (`Wasp.comb`, `lay_eggs`; the demo's 1 lays in the next empty cell, one a lay), by the beetles in a cluster (`AntColony.lay`, a beetle's: tipped tail down; the

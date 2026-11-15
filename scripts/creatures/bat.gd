@@ -1015,7 +1015,7 @@ func _on_ground() -> bool:
 func tick(dt: float) -> void:
 	if dt <= 0.0 or _body == null:
 		return
-	dt = minf(dt, 0.05)
+	dt = minf(dt, 0.25) # (a paced frame's is long: tick_every)
 	_st += dt
 	_mt += dt
 	_breath += dt * (TAU * (0.6 if _mode in ["sleep"] else 2.5))

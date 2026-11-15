@@ -399,7 +399,7 @@ func tick(dt: float) -> void:
 	if dead:
 		_lie_dead(dt)
 		return
-	size = move_toward(size, _g_to, _g_rate * dt)
+	size = move_toward(size, _g_to, _g_rate * dt * Fauna.life_rate)
 	if _pilot:
 		_pilot.tick(dt)
 	if _mate_role == "male" and _mate_stage in ["mount", "joined", "part"]:

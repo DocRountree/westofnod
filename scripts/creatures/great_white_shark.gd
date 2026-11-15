@@ -81,6 +81,8 @@ var _bend := 0.0
 var _mode := "patrol"
 var _t := 0.0
 var _goal := Vector3.ZERO
+var _pl_goal := Vector3.ZERO # (the pilot's)
+var _pl_pace := -1.0
 var _goal_t := 0.0
 var _vel := Vector3.ZERO # (in the air: breaching)
 var _air := false
@@ -299,13 +301,15 @@ func flee(from: Vector3) -> void:
 # --- the motor --------------------------------------------------------------------------------
 
 func tick(dt: float) -> void:
-	dt = minf(dt, 0.05)
+	dt = minf(dt, 0.25) # (a paced frame's is long: tick_every)
 	if _mi == null:
 		return
 	_t += dt
 	_age += dt
+	if _pilot:
+		_pilot.tick(dt)
 	if young and size < 0.6: # (a pup growing)
-		size = minf(size + dt * 0.25 / grow_secs, 0.6)
+		size = minf(size + dt * Fauna.life_rate * 0.25 / grow_secs, 0.6)
 		scale = Vector3.ONE * size
 	hunger = minf(hunger + dt / 400.0, 1.0)
 	if _air:
@@ -337,6 +341,10 @@ func _think(dt: float) -> void:
 	var hi := tank_max
 	var L := _len()
 	match _mode:
+		"piloted": # (steered: pilot.gd; never still: slow, where it's held)
+			_goal = _pl_goal
+			_want = (_pl_pace if _pl_pace > 0.0 else _cruise()) if _pos.distance_to(_goal) > L * 0.5 else _cruise() * 0.4
+			_pose_to.jaw = 0.07
 		"patrol":
 			_want = _cruise()
 			_goal_t -= dt
@@ -764,12 +772,87 @@ func _p_here() -> Vector3:
 	return _pos
 
 
+func _p_heading() -> Vector3:
+	return -global_transform.basis.z
+
+
+func _p_steer(point: Vector3, speed: float) -> void:
+	_pl_goal = _inside(Vector3(point.x, point.y if point.y < tank_max.y - 0.01 else _pos.y, point.z))
+	_pl_pace = speed
+	if _mode == "patrol":
+		_to("piloted")
+
+
+func _p_hold() -> void: # (it can't stop: a slow turn where it is)
+	_pl_goal = _pos
+	_pl_pace = 0.0
+	if _mode == "patrol":
+		_to("piloted")
+
+
+func _p_mobile() -> bool:
+	return not dead
+
+
+func _p_speed() -> float:
+	return _cruise()
+
+
+func _p_reach() -> float:
+	return _len() * 0.6
+
+
+func _p_behaviours() -> PackedStringArray:
+	return behaviours()
+
+
+func _p_act(name: String, args: Dictionary) -> bool:
+	if dead:
+		return false
+	match name:
+		"wander":
+			patrol()
+		"hunt":
+			var f: Variant = args.get("prey", args.get("food"))
+			if not (f is Node3D):
+				return false
+			hunt(f)
+		"investigate":
+			var f: Variant = args.get("prey", args.get("food"))
+			investigate(f if f is Node3D else null, args.get("at", Vector3.INF))
+		"breach":
+			breach()
+		"spyhop":
+			spyhop()
+		"gape":
+			gape(float(args.get("seconds", 3.0)))
+		"tail_slap":
+			tail_slap()
+		"chafe":
+			chafe()
+		"rest":
+			rest(float(args.get("seconds", 30.0)))
+		"give_birth":
+			give_birth()
+		_:
+			return false
+	return true
+
+
+func _p_act_done(_name: String) -> bool:
+	return _mode in ["patrol", "piloted"]
+
+
+func is_mating() -> bool:
+	return _mode in ["court", "courted", "mate_f", "mate_"]
+
+
 func behaviours() -> PackedStringArray:
-	return PackedStringArray(["hunt", "investigate", "breach", "spyhop", "gape", "tail_slap", "chafe", "rest", "mate", "give_birth"])
+	return PackedStringArray(["wander", "hunt", "investigate", "breach", "spyhop", "gape", "tail_slap", "chafe", "rest", "mate", "give_birth"])
 
 
 func is_busy() -> bool:
-	return _mode != "patrol"
+	return _mode not in ["patrol", "piloted"] or (_pilot != null and _pilot.busy())
 
 
 func _physics_process(_dt: float) -> void:

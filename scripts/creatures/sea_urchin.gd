@@ -51,6 +51,8 @@ var _mode := "wander"
 var _t := 0.0
 var _until := 0.0
 var _dir := Vector3.FORWARD
+var _pl_goal := Vector3.ZERO # (the pilot's)
+var _pl_pace := -1.0
 var _threat := Vector3.ZERO
 var _threat_to := Vector3.ZERO
 var _graze := 0.0
@@ -162,6 +164,73 @@ func wander() -> void:
 	_to("wander", randf_range(20.0, 50.0))
 
 
+# --- steering (pilot.gd) ----------------------------------------------------------------
+
+func is_busy() -> bool:
+	return _mode in ["seek", "eat", "spawn", "defend"] or (_pilot != null and _pilot.busy())
+
+
+func _p_here() -> Vector3:
+	return position
+
+
+func _p_heading() -> Vector3:
+	return _dir
+
+
+func _p_steer(point: Vector3, speed: float) -> void:
+	_pl_goal = Vector3(point.x, position.y, point.z)
+	_pl_pace = speed
+	_to("piloted", 1e9)
+
+
+func _p_hold() -> void:
+	_pl_goal = position
+	_to("piloted", 1e9)
+
+
+func _p_mobile() -> bool:
+	return not (has_meta("taken") or has_meta("sink"))
+
+
+func _p_speed() -> float:
+	return 0.012 * (0.5 if young else 1.0)
+
+
+func _p_reach() -> float:
+	return 0.03 * maxf(size, 0.4)
+
+
+func _p_behaviours() -> PackedStringArray:
+	return behaviours()
+
+
+func _p_act(name: String, args: Dictionary) -> bool:
+	match name:
+		"wander":
+			wander()
+		"eat":
+			var f: Variant = args.get("food")
+			eat(f if f is Node3D else null)
+		"graze":
+			graze()
+		"defend":
+			defend(args.get("at", global_position + Vector3.FORWARD))
+		"spawn":
+			spawn()
+		_:
+			return false
+	return true
+
+
+func _p_act_done(name: String) -> bool:
+	return _mode in ["wander", "piloted"] or (name == "wander")
+
+
+func _p_act_secs(name: String) -> float:
+	return 20.0 if name in ["graze", "eat"] else -1.0
+
+
 func graze() -> void:
 	_to("graze", randf_range(10.0, 25.0))
 
@@ -242,6 +311,8 @@ func tick(dt: float) -> void:
 	if home == Vector3.INF:
 		home = position
 	_t += dt
+	if _pilot:
+		_pilot.tick(dt)
 	var held := has_meta("taken") or has_meta("sink")
 	if held:
 		_threat_to = Vector3.ZERO
@@ -254,7 +325,7 @@ func tick(dt: float) -> void:
 					defend((o as Node3D).global_position)
 					break
 		if young: # (growing)
-			size = minf(size + dt / grow_secs, 1.0)
+			size = minf(size + dt * Fauna.life_rate / grow_secs, 1.0)
 			_set_size()
 		match _mode:
 			"seek": # (to the kelp)
@@ -274,6 +345,13 @@ func tick(dt: float) -> void:
 					wander()
 				elif food.has_meta("drift_kelp"):
 					position.y = lerpf(position.y, home.y + 0.004 * size, 1.0 - exp(-dt)) # (up on the blade)
+			"piloted": # (steered: pilot.gd)
+				var to := _pl_goal - position
+				to.y = 0.0
+				if to.length() > 0.002:
+					_dir = to.normalized()
+					position += _dir * minf((_pl_pace if _pl_pace > 0.0 else _p_speed()) * dt, to.length())
+				_threat_to = Vector3.ZERO
 			"wander":
 				_dir = _dir.rotated(Vector3.UP, randf_range(-0.3, 0.3) * dt)
 				var off := position + _dir * 0.012 * dt - home
