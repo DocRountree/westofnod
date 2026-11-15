@@ -104,8 +104,8 @@ static func _pluteus() -> ArrayMesh:
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var body := SphereMesh.new() # (the body: a rounded pyramid)
-	body.radius = 0.16 * k
-	body.height = 0.36 * k
+	body.radius = 0.1 * k
+	body.height = 0.24 * k
 	body.radial_segments = 8
 	body.rings = 5
 	var arr := body.get_mesh_arrays()

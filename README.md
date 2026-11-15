@@ -325,6 +325,21 @@ Olive above, silvery sides, a net of scales with rows of dark
   something new with a mouthing test bite (`investigate`); courting and mating (`mate`: the male's hold on her
   pectoral, belly to belly); giving birth to live pups that swim straight off (`give_birth`); pups keep away from
   the grown sharks. In the sandbox's Fish (key `white_shark`: adult, or a pup).
+- `scripts/creatures/sea_urchin.gd` (`SeaUrchin`): a purple sea urchin, life size, alive (the sea otter's urchins
+  are these): its flattened, five-sided test beaded with tubercles, its paler ambulacra, the periproct on top; its
+  violet spines on their ball joints, longest round its middle, splayed flat beneath; its long translucent tube feet
+  with their suckers; Aristotle's lantern, its five white teeth (`shaders/render/urchin.gdshader`). Creeping over the
+  bottom; eating (`eat`: to a giant kelp's holdfast or a drift blade, up onto it, the blade pulled in under it by
+  its tube feet, the teeth working: the kelp never used up); grazing the film on the rock; its spines swung to point
+  at a sea otter near (`defend`); broadcast spawning (`spawn`: those near spawning with it, her eggs fertilized if a
+  male near is spawning). Its life (`scripts/creatures/urchin_larvae.gd`, `UrchinLarvae`, drawn at 6x life size):
+  eggs drifting up -> echinoplutei, glassy, eight-armed, swimming, their arms beating as they feed on the plankton
+  (microscopic: not drawn) -> sinking to settle, a few coming to the bottom as green, pale-spined spat -> growing
+  purple. In the sandbox's Sea floor (`sea_urchins`: adult, egg, larva, young).
+- `scripts/creatures/giant_kelp.gd` (`GiantKelp`): giant kelp, a plant from the bottom to the surface: the holdfast's
+  haptera, the fronds, a blade on its float every hand's breadth, the canopy out over the surface, swaying in the
+  swell (`shaders/render/kelp.gdshader`), drift blades lying about its base. In the sandbox's Sea floor
+  (`giant_kelp`).
 - `scripts/creatures/beetles.gd` (`Beetles`): beetles at twice life size, not yet in the game, the make they
   share: made and moved as the ants are (one mesh, the same shader, the same CPU side), each species its own shape,
   markings, colours and pace, walking, eating at a leaf and flying (the elytra, one

@@ -35,17 +35,17 @@ void vertex() {
 void fragment() {
 	// golden brown, darker down at the holdfast; a blade paler at its edges,
 	// its fine teeth, its wrinkles; the floats glossy
-	vec3 c = mix(vec3(0.2, 0.14, 0.05), vec3(0.45, 0.33, 0.1), smoothstep(0.0, 0.15, v_h));
+	vec3 c = mix(vec3(0.13, 0.09, 0.035), vec3(0.27, 0.19, 0.06), smoothstep(0.0, 0.15, v_h));
 	float rough = 0.55;
 	float sss = 0.3;
 	if (v_part > 0.9) {
 		float edge = smoothstep(0.7, 1.0, abs(v_across));
-		c = mix(vec3(0.42, 0.31, 0.09), vec3(0.6, 0.47, 0.16), edge * 0.6);
+		c = mix(vec3(0.3, 0.21, 0.06), vec3(0.42, 0.31, 0.1), edge * 0.6);
 		c *= 0.9 + 0.15 * sin(v_along * 90.0 + v_across * 3.0); // (its wrinkles)
-		c = mix(c, vec3(0.3, 0.22, 0.06), smoothstep(0.85, 1.0, v_along) * 0.5);
+		c = mix(c, vec3(0.2, 0.14, 0.04), smoothstep(0.85, 1.0, v_along) * 0.5);
 		sss = 0.6;
 	} else if (v_part > 0.4) {
-		c = vec3(0.5, 0.38, 0.12);
+		c = vec3(0.34, 0.25, 0.08);
 		rough = 0.25;
 	}
 	ALBEDO = c;

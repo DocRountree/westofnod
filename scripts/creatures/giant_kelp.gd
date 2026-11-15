@@ -96,7 +96,7 @@ static func build(d: float, sd: int) -> ArrayMesh:
 		_tube(st, spine, radii, d, ph, 0.0)
 		# its blades, alternate, every so often up it, each on its float
 		var side := 1.0
-		var stepping := 0.09
+		var stepping := 0.11
 		var along := 0.0
 		var total := 0.0
 		for j in spine.size() - 1:
@@ -123,7 +123,7 @@ static func build(d: float, sd: int) -> ArrayMesh:
 			var fl := at + aw * side * 0.012
 			_float(st, fl, up, d, ph, flat)
 			var bl := rng.randf_range(0.18, 0.32) * clampf(along / 0.3, 0.45, 1.0)
-			_blade(st, fl + bdir * 0.012, bdir, bl, rng.randf_range(0.03, 0.045), d, ph + float(j0) * 0.3, flat, rng)
+			_blade(st, fl + bdir * 0.012, bdir, bl, rng.randf_range(0.05, 0.07), d, ph + float(j0) * 0.3, flat, rng)
 			side = -side
 			along += stepping * rng.randf_range(0.8, 1.2)
 	st.index()

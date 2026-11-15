@@ -27,15 +27,14 @@ void fragment() {
 		ALPHA = 0.85;
 		EMISSION = vec3(0.12, 0.06, 0.02);
 	} else if (v_kind > 0.9) { // an arm: glassy, its skeletal rod bright
-		ALBEDO = vec3(0.85, 0.9, 0.95);
-		ALPHA = 0.35 + 0.5 * rim;
-		EMISSION = vec3(0.05);
+		ALBEDO = vec3(0.7, 0.75, 0.8);
+		ALPHA = 0.25 + 0.5 * rim;
 	} else if (v_kind > 0.4) { // its gut: green brown with what it's eaten
 		ALBEDO = vec3(0.45, 0.42, 0.2);
 		ALPHA = 0.9;
 	} else { // its body: glassy, faintly orange
-		ALBEDO = vec3(0.92, 0.85, 0.78);
-		ALPHA = 0.25 + 0.55 * rim;
+		ALBEDO = vec3(0.75, 0.68, 0.6);
+		ALPHA = 0.12 + 0.5 * rim;
 	}
 	ROUGHNESS = 0.2;
 	SPECULAR = 0.6;

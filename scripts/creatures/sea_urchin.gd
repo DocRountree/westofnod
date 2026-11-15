@@ -113,11 +113,11 @@ static func drift_kelp() -> Node3D:
 			var n: Vector3 = (q[1] - q[0]).cross(q[3] - q[0]).normalized()
 			if n.y < 0.0:
 				n = -n
-			for k: int in [0, 1, 2, 0, 2, 3]:
+			for k: int in [0, 2, 1, 0, 3, 2]: # (wound to face up, its lit side)
 				st.set_normal(n)
 				st.add_vertex(q[k])
 	var m := StandardMaterial3D.new()
-	m.albedo_color = Color(0.36, 0.3, 0.1)
+	m.albedo_color = Color(0.3, 0.21, 0.07)
 	m.roughness = 0.55
 	m.cull_mode = BaseMaterial3D.CULL_DISABLED
 	var mi := MeshInstance3D.new()
