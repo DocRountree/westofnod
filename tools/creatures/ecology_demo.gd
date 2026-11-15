@@ -128,6 +128,9 @@ const CrayScript := preload("res://scripts/creatures/crayfish.gd")
 const RedCrayScript := preload("res://scripts/creatures/red_swamp_crayfish.gd")
 const VirileCrayScript := preload("res://scripts/creatures/virile_crayfish.gd")
 const ShrimpScript := preload("res://scripts/creatures/shrimp.gd")
+const UrchinScript := preload("res://scripts/creatures/sea_urchin.gd")
+const UrchinLarvaeScript := preload("res://scripts/creatures/urchin_larvae.gd")
+const GiantKelpScript := preload("res://scripts/creatures/giant_kelp.gd")
 const SHRIMP := {"white_shrimp": preload("res://scripts/creatures/white_shrimp.gd"), "brown_shrimp": preload("res://scripts/creatures/brown_shrimp.gd"), "pink_shrimp": preload("res://scripts/creatures/pink_shrimp.gd")}
 
 const PersonalSpace := preload("res://scripts/creatures/personal_space.gd")
@@ -190,8 +193,9 @@ const CATALOGUE := [
 	["Crustaceans", "red swamp crayfish", "red_crayfish", ["adult", "young"]],
 	["Crustaceans", "virile crayfish", "virile_crayfish", ["adult", "young"]],
 	["Sea floor", "clams (a few, on the bottom of a sea: a sea otter's food; young: newly settled spat)", "sea_clams", ["adult", "young"]],
-	["Sea floor", "sea urchins (a few, on the bottom of a sea; young: tiny juveniles)", "sea_urchins", ["adult", "young"]],
+	["Sea floor", "purple sea urchins (a few, on the bottom of a sea; egg: fertilized eggs drifting up; larva: echinoplutei swimming, 6x life size; young: greenish spat)", "sea_urchins", ["adult", "egg", "larva", "young"]],
 	["Sea floor", "a rock on the bottom (a sea otter's anvil)", "sea_rock", ["adult"]],
+	["Sea floor", "giant kelp (a plant, bottom to surface; drift blades about it: the urchins' food)", "giant_kelp", ["adult"]],
 	["Crustaceans", "white shrimp (in the sea)", "white_shrimp", ["adult", "young"]],
 	["Crustaceans", "brown shrimp (in the sea)", "brown_shrimp", ["adult", "young"]],
 	["Crustaceans", "pink shrimp (in the sea)", "pink_shrimp", ["adult", "young"]],
@@ -1397,20 +1401,40 @@ func _spawn_animal(key: String, at: Vector3, stage: String, male: bool, young: b
 				ot.call("grow", 0.5, 500.0)
 			ot.call("wander", bank, 0.8)
 			return ot
+		"giant_kelp": # (rooted on the bottom of the sea here, up to its surface)
+			var q := _pond_for(at, "sea")
+			var bottom := -float(q.deep) + 0.012
+			var kp: Node3D = GiantKelpScript.new(POND - bottom)
+			kp.set_meta("prop", true)
+			add_child(kp)
+			var c0: Vector3 = q.c
+			kp.position = Vector3(clampf(at.x, c0.x - float(q.hw) * 0.8, c0.x + float(q.hw) * 0.8), bottom, clampf(at.z, c0.z - float(q.hd) * 0.8, c0.z + float(q.hd) * 0.8))
+			return kp
 		"sea_clams", "sea_urchins", "sea_rock": # (on the bottom of the sea here: a sea dug if there's none)
 			var q := _pond_for(at, "sea")
 			var bottom := -float(q.deep) + 0.012
 			var first: Node3D = null
+			if key == "sea_urchins" and stage in ["egg", "larva"]: # (out in the water: eggs, or larvae)
+				var lv: Node3D = UrchinLarvaeScript.new(stage, 120 if stage == "egg" else 60, true)
+				add_child(lv)
+				var c1: Vector3 = q.c
+				lv.position = Vector3(clampf(at.x, c1.x - float(q.hw) * 0.7, c1.x + float(q.hw) * 0.7), bottom + 0.15, clampf(at.z, c1.z - float(q.hd) * 0.7, c1.z + float(q.hd) * 0.7))
+				lv.call("set_water", bottom, POND)
+				return lv
 			var spat := young and key != "sea_rock" # (the young: newly settled, a few mm to a couple of cm, too small for an otter to bother with)
 			for k in (1 if key == "sea_rock" else (12 if spat else 4)):
-				var o: Node3D = SeaOtterScript.rock() if key == "sea_rock" else (SeaOtterScript.clam() if key == "sea_clams" else SeaOtterScript.urchin())
+				var o: Node3D = SeaOtterScript.rock() if key == "sea_rock" else (SeaOtterScript.clam() if key == "sea_clams" else SeaOtterScript.urchin(spat))
 				if key == "sea_rock":
 					o.set_meta("otter_rock", true)
 				elif spat:
-					o.scale = Vector3.ONE * randf_range(0.18, 0.35)
+					if key == "sea_clams":
+						o.scale = Vector3.ONE * randf_range(0.18, 0.35)
 				else:
 					o.set_meta("shellfish", "clam" if key == "sea_clams" else "urchin")
-				o.set_meta("prop", true)
+				if key != "sea_urchins": # (an urchin's alive: one of the creatures, its own doings)
+					o.set_meta("prop", true)
+				else:
+					o.set_meta("depth", POND - bottom)
 				add_child(o)
 				var c0: Vector3 = q.c
 				o.position = Vector3(clampf(at.x, c0.x - float(q.hw) * 0.8, c0.x + float(q.hw) * 0.8), bottom, clampf(at.z, c0.z - float(q.hd) * 0.8, c0.z + float(q.hd) * 0.8)) + Vector3(randf_range(-0.25, 0.25), 0.0, randf_range(-0.25, 0.25)) * float(k > 0) * (1.6 if spat else 1.0)
@@ -3193,6 +3217,35 @@ func _do(c: Node, act_: String) -> void:
 	if c.has_meta("carcass"): # (a carcass: 2 takes it a stage further on; nothing else)
 		if act_ == "hatch":
 			CarcassScript.set_stage(c as Node3D, int(c.get_meta("carcass")) % 3 + 1)
+		return
+	if c is UrchinLarvaeScript: # (2: the next stage now)
+		if act_ in ["hatch", "lay"]:
+			c.call("develop")
+		return
+	if c is UrchinScript: # (its own: on the bottom of its sea)
+		match act_:
+			"eat", "hunt": # (to kelp: a torn blade dropped near it if there's none)
+				var has := false
+				for o in get_children():
+					if o is Node3D and (o.has_meta("drift_kelp") or o.has_meta("kelp_plant")) and (o as Node3D).position.distance_to(p) < 3.0:
+						has = true
+				if not has:
+					var kb := UrchinScript.drift_kelp()
+					add_child(kb)
+					var a2 := randf() * TAU
+					kb.position = (c as Node3D).position + Vector3(cos(a2), 0.0, sin(a2)) * 0.3 * maxf(float(c.get("size")), 0.3)
+					kb.position.y = (c as Node3D).position.y
+					kb.rotation.y = randf() * TAU
+				c.call("eat")
+			"forage", "groom": c.call("graze")
+			"alarm", "display": # (its spines to the nearest sea otter, or to the eye)
+				var ot: Node3D = null
+				for o in get_children():
+					if o is SeaOtterScript and (ot == null or (o as Node3D).position.distance_to(p) < ot.position.distance_to(p)):
+						ot = o
+				c.call("defend", ot.global_position if ot else get_viewport().get_camera_3d().global_position)
+			"mate", "lay": c.call("spawn")
+			_: c.call("wander")
 		return
 	if c is SharkScript: # (its own: in its sea)
 		_shark_do(c, act_, p)

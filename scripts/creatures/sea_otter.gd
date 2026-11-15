@@ -166,45 +166,10 @@ static func clam(open := false) -> Node3D:
 	return root
 
 
-## A purple sea urchin: a flattened ball, bristling with spines.
-static func urchin() -> Node3D:
-	var root := Node3D.new()
-	var m := StandardMaterial3D.new()
-	m.albedo_color = Color(0.28, 0.12, 0.3)
-	m.roughness = 0.5
-	var s := SphereMesh.new()
-	s.radius = 0.5
-	s.height = 1.0
-	var b := MeshInstance3D.new()
-	b.mesh = s
-	b.material_override = m
-	b.scale = Vector3(0.05, 0.032, 0.05)
-	root.add_child(b)
-	var sp := StandardMaterial3D.new()
-	sp.albedo_color = Color(0.42, 0.2, 0.46)
-	sp.roughness = 0.45
-	var c := CylinderMesh.new()
-	c.top_radius = 0.0
-	c.bottom_radius = 0.0016
-	c.height = 0.03
-	c.radial_segments = 4
-	c.rings = 1
-	var mm := MultiMesh.new()
-	mm.transform_format = MultiMesh.TRANSFORM_3D
-	mm.mesh = c
-	mm.instance_count = 80
-	for i in 80:
-		var y := 1.0 - 2.0 * (float(i) + 0.5) / 80.0
-		var r := sqrt(1.0 - y * y)
-		var a := float(i) * 2.39996
-		var n := Vector3(cos(a) * r, y * 0.7, sin(a) * r).normalized()
-		var at := Vector3(n.x * 0.025, n.y * 0.016, n.z * 0.025)
-		mm.set_instance_transform(i, Transform3D(Basis(Quaternion(Vector3.UP, n)), at + n * 0.015))
-	var mi := MultiMeshInstance3D.new()
-	mi.multimesh = mm
-	mi.material_override = sp
-	root.add_child(mi)
-	return root
+## A purple sea urchin (SeaUrchin, sea_urchin.gd): alive, creeping over the
+## bottom, its spines turned to an otter coming.
+static func urchin(young := false) -> Node3D:
+	return (load("res://scripts/creatures/sea_urchin.gd") as GDScript).new(young)
 
 
 ## A rock to crack shells on: a flattish cobble, grey.
@@ -502,7 +467,7 @@ func _forage(dt: float) -> void:
 			var secs := 8.0
 			if is_instance_valid(_food):
 				for ch in _food.get_children():
-					if ch is MeshInstance3D and (ch as MeshInstance3D).material_override and ((ch as MeshInstance3D).material_override as StandardMaterial3D).albedo_color.r > 0.8 and ((ch as MeshInstance3D).material_override as StandardMaterial3D).albedo_color.g < 0.7:
+					if ch is MeshInstance3D and (ch as MeshInstance3D).material_override is StandardMaterial3D and ((ch as MeshInstance3D).material_override as StandardMaterial3D).albedo_color.r > 0.8 and ((ch as MeshInstance3D).material_override as StandardMaterial3D).albedo_color.g < 0.7:
 						ch.scale = ch.scale.lerp(Vector3.ONE * 0.0001, dt / secs * 2.0) # (the clam's flesh, going)
 				if not _clam:
 					_food.scale = _food_s * lerpf(1.0, 0.35, clampf(_st / secs, 0.0, 1.0))
