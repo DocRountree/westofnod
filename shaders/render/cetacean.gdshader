@@ -154,7 +154,7 @@ void shade(bool front, vec3 vtx, inout vec3 nrm, out vec3 c, out float rough, ou
 		vec2 q = vec2(rp.z * 60.0, rp.y * 60.0 + rp.x * 40.0 + seed * 10.0);
 		float mot = fbm(q);
 		float mot2 = fbm(q * 2.7 + 3.0);
-		c = vec3(0.36, 0.44, 0.52) * (0.85 + 0.25 * mot);
+		c = vec3(0.28, 0.36, 0.45) * (0.85 + 0.25 * mot);
 		c = mix(c, vec3(0.56, 0.62, 0.67), smoothstep(0.62, 0.78, mot2) * 0.35); // (its pale mottles)
 		c = mix(c, c * 1.18 + vec3(0.03, 0.03, 0.0), smoothstep(0.1, -0.6, up) * 0.6);
 		c = mix(c, vec3(0.62, 0.6, 0.42), smoothstep(-0.6, -0.95, up) * 0.25 * (1.0 - calf));
@@ -201,8 +201,8 @@ void shade(bool front, vec3 vtx, inout vec3 nrm, out vec3 c, out float rough, ou
 		rough = 0.3;
 		spec = 0.6;
 	} else { // a bottlenose dolphin: its dark cape along its back, grey flanks, its belly pale pink white
-		vec3 cape = vec3(0.22, 0.25, 0.28);
-		vec3 flank = vec3(0.47, 0.5, 0.53);
+		vec3 cape = vec3(0.16, 0.18, 0.21);
+		vec3 flank = vec3(0.38, 0.41, 0.44);
 		vec3 belly = vec3(0.9, 0.87, 0.86);
 		float cap_edge = mix(0.55, 0.3, smoothstep(0.1, 0.4, s));
 		cap_edge = mix(cap_edge, 0.55, smoothstep(0.5, 0.7, s));
