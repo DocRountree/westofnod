@@ -17,7 +17,12 @@ extends RefCounted
 ## - its reflex: a hunter of its kind near, it runs (whatever it was at),
 ##   and what it was at is dropped.
 ## think(): when its clock comes round (FaunaSim.wake). done(): its order's
-## finished (ok) or failed. Mating and young aren't a brain's yet.
+## finished (ok) or failed.
+## Breeding: a male, fed and rested, goes to a female of his kind who'd have
+## him, and mates (their bodies' own mating, if they have them); she
+## carries her young for her kind's time (a state on her record: nothing of
+## it shows), then they're born (her body's own birth, if it has one);
+## they're hers till they're grown (young()), then their own.
 
 const HUNGRY := 0.6
 const STARVING := 0.9
@@ -80,22 +85,26 @@ static func think(sim: FaunaSim, a: FaunaSim.Agent) -> void:
 			sim.wake(a, sim.now + LOOK * 0.5)
 		return
 	if a.doing != "": # (something in hand: only looking about)
-		if a.body and a.doing != "go_to" and sim.now > a.until + 25.0: # (its body never said it was done)
+		if a.body and not a.held and a.doing != "go_to" and sim.now > a.until + 25.0: # (its body never said it was done)
 			sim.halt(a)
 		else:
 			if a.state == &"hunt" and a.body == null:
 				_chase(sim, a)
 				return
 			var look := (LOOK_ASLEEP if a.doing == "sleep" else LOOK) if sim.hunted(a) else 6.0
-			sim.wake(a, minf(a.until, sim.now + look) if a.body == null else sim.now + look)
+			sim.wake(a, minf(a.until, sim.now + look) if (a.body == null or a.held) else sim.now + look)
 			return
 	a.target = 0
+	if a.pregnant_until > 0.0 and sim.now >= a.pregnant_until: # (her time's come)
+		_birth(sim, a)
+		if a.doing != "":
+			return
 	var sleepy := a.tired > SLEEPY or not _its_hour(sim, a) # (out of its hour: one sleep after another till it comes round)
 	if a.hunger > HUNGRY and not (sleepy and a.hunger < STARVING):
 		_feed(sim, a)
 	elif sleepy:
 		_rest(sim, a)
-	else:
+	elif not _breed(sim, a):
 		_idle(sim, a)
 	if a.doing == "": # (nothing came of it: again in a while)
 		a.state = &"idle"
@@ -133,6 +142,25 @@ static func done(sim: FaunaSim, a: FaunaSim.Agent, what: String, ok: bool) -> vo
 		&"sleep":
 			if what == "sleep":
 				a.tired = minf(a.tired, 0.15)
+		&"court":
+			if what == "go_to": # (by her: if she'll still have him)
+				var f: FaunaSim.Agent = sim.agents.get(a.target)
+				if ok and f != null and _receptive(sim, f) and sim.where(f).distance_to(sim.where(a)) < float(a.sp.len) * 3.0 + 2.0:
+					_mate(sim, a, f)
+					return
+				a.target = 0
+		&"mate":
+			if what == "mate":
+				var f: FaunaSim.Agent = sim.agents.get(a.target)
+				a.target = 0
+				if f != null and f.alive:
+					if f.state == &"mated": # (hers over too)
+						f.doing = ""
+						f.held = false
+						f.state = &"idle"
+						sim.wake(f, sim.now + randf_range(0.5, 1.5))
+					if ok and f.pregnant_until <= 0.0:
+						_conceive(sim, f, a)
 	a.state = &"idle"
 	sim.wake(a, sim.now + randf_range(0.3, 1.2))
 
@@ -168,10 +196,7 @@ static func _feed(sim: FaunaSim, a: FaunaSim.Agent) -> void:
 		if not sim.act(a, "eat", float(a.sp.meal), {"centre": sim.where(a), "radius": 2.0}):
 			# (a body with no doing for it: stood there, as eating)
 			sim.halt(a)
-			a.doing = "eat"
-			a.doing_name = "eat"
-			a.until = sim.now + float(a.sp.meal)
-			sim.wake(a, sim.now + LOOK)
+			sim.hold(a, "eat", float(a.sp.meal))
 		return
 	if a.body:
 		# what's really there (its steering finds it: Diet.find), or on to look elsewhere
@@ -288,10 +313,7 @@ static func _sleep(sim: FaunaSim, a: FaunaSim.Agent) -> void:
 	a.state = &"sleep"
 	if not sim.act(a, "sleep", float(a.sp.nap) * randf_range(0.8, 1.2)):
 		sim.halt(a) # (a body with no sleep of its own: still, a while)
-		a.doing = "sleep"
-		a.doing_name = "sleep"
-		a.until = sim.now + float(a.sp.nap)
-		sim.wake(a, sim.now + LOOK_ASLEEP)
+		sim.hold(a, "sleep", float(a.sp.nap))
 
 
 static func _idle(sim: FaunaSim, a: FaunaSim.Agent) -> void:
@@ -327,6 +349,111 @@ static func _idle(sim: FaunaSim, a: FaunaSim.Agent) -> void:
 	else:
 		a.state = &"idle"
 		sim.act(a, "social", randf_range(4.0, 8.0))
+
+
+# --- breeding ---------------------------------------------------------------------
+# (Carrying young is a state on her record and nothing else: nothing of it
+# shows on her, with a body or without.)
+
+## Whether she'd mate now: grown, not carrying, none at her side, long
+## enough since her last, not too many of her kind about her.
+static func _receptive(sim: FaunaSim, f: FaunaSim.Agent) -> bool:
+	if f.male or f.young or not f.alive or f.pregnant_until > 0.0 or not f.brood.is_empty() or f.state == &"flee" or f.state == &"mated":
+		return false
+	if (sim.now - f.bred_at) * Fauna.life_rate < float(f.sp.breed_gap):
+		return false
+	var n := 0
+	for o: FaunaSim.Agent in sim.near(sim.where(f), float(f.sp.range) * 2.0):
+		if o.key == f.key:
+			n += 1
+	return n <= int(f.sp.crowd)
+
+
+## A male, fed and rested, now and then: to a female of his kind near who'd
+## have him. True: he's on his way.
+static func _breed(sim: FaunaSim, a: FaunaSim.Agent) -> bool:
+	if not a.male or a.young or a.hunger > 0.5 or a.tired > 0.6 or randf() > 0.35:
+		return false
+	var p := sim.where(a)
+	var best: FaunaSim.Agent = null
+	var bd := INF
+	for o: FaunaSim.Agent in sim.near(p, float(a.sp.sense)):
+		if o.key != a.key or not _receptive(sim, o):
+			continue
+		var d := sim.where(o).distance_to(p)
+		if d < bd:
+			bd = d
+			best = o
+	if best == null:
+		return false
+	a.state = &"court"
+	a.target = best.id
+	var to := sim.where(best)
+	var off := (p - to)
+	off.y = 0.0
+	sim.go_to(a, to + (off.normalized() if off.length() > 0.01 else Vector3.RIGHT) * (float(a.sp.len) * 0.8 + 0.3), false)
+	return true
+
+
+static func _mate(sim: FaunaSim, a: FaunaSim.Agent, f: FaunaSim.Agent) -> void:
+	var secs := float(a.sp.mate)
+	if (a.body != null or f.body != null) and sim.space != null: # (one with a body: both)
+		sim.embody(a)
+		sim.embody(f)
+		a.pinned = sim.now + secs + 30.0
+		f.pinned = sim.now + secs + 30.0
+	a.state = &"mate"
+	a.target = f.id
+	if f.doing != "":
+		sim.halt(f)
+	f.state = &"mated"
+	f.doing = "mate"
+	f.doing_name = "mate"
+	f.until = sim.now + secs + 6.0
+	f.held = true
+	var with_bodies := a.body != null and f.body != null
+	if not (with_bodies and sim.act(a, "mate", secs, {"partner": f.body})):
+		# (no bodies, or bodies with no mating of their own: by her, its time kept here)
+		if a.body:
+			sim.halt(a)
+		sim.hold(a, "mate", secs)
+	sim.wake(f, f.until)
+
+
+static func _conceive(sim: FaunaSim, f: FaunaSim.Agent, by: FaunaSim.Agent) -> void:
+	f.pregnant_until = sim.now + float(f.sp.gest) / maxf(Fauna.life_rate, 0.001)
+	f.sire = by.id
+
+
+## Her young born: her body's own birth if it has one (they come to
+## FaunaSim as they're born), else there by her.
+static func _birth(sim: FaunaSim, a: FaunaSim.Agent) -> void:
+	var lit: Array = a.sp.litter
+	var n := randi_range(int(lit[0]), int(lit[1]))
+	a.pregnant_until = 0.0
+	a.bred_at = sim.now
+	a.state = &"birth"
+	if a.body and sim.act(a, "birth", 30.0, {"n": n}):
+		return
+	sim.bear(a, n)
+	sim.act(a, "alert", 4.0)
+
+
+## A young one's clock: grown at its time; its mother lost while it's
+## small, it dies.
+static func young(sim: FaunaSim, a: FaunaSim.Agent) -> void:
+	if sim.now >= a.grow_at:
+		sim.grow_up(a)
+		return
+	if a.mother != 0 and not sim.agents.has(a.mother):
+		if sim.now - a.born_at < (a.grow_at - a.born_at) * 0.5:
+			sim.kill(a)
+			return
+		a.mother = 0 # (old enough: on its own where it is, till it's grown)
+		var p := sim.where(a)
+		a.p0 = p
+		a.p1 = p
+	sim.wake(a, minf(a.grow_at, sim.now + 10.0))
 
 
 ## A place in its range (k: so many times as wide).

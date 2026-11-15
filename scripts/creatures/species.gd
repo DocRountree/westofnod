@@ -15,6 +15,9 @@ extends RefCounted
 ##   sense: m at which a hunter finds its prey,
 ##   meal: s a meal takes; fast: s from full to hungry; awake: s from rested to tired; nap: s a sleep lasts
 ##   herd: keeps with its own kind,
+##   gest: s she carries her young (a state only: nothing of it shows); litter: [fewest, most] born;
+##   wean: s a young one's young (with its mother; then grown, its own); breed_gap: s after a birth before
+##   she'll mate again; crowd: with this many of her kind about her she won't; mate: s a mating takes
 ## }
 ## Times are the sandbox's (quick to watch); Fauna.life_rate scales them.
 ## Only what's here has a brain: add a line for another (its script's
@@ -22,25 +25,26 @@ extends RefCounted
 
 const DIR := "res://scripts/creatures/"
 const DEFAULTS := {"kind": "", "young_kind": "", "len": 1.0, "walk": 0.6, "run": 2.5, "active": "any", "range": 8.0, "wary": 6.0, "sense": 12.0,
-		"meal": 25.0, "fast": 150.0, "awake": 300.0, "nap": 40.0, "herd": false}
+		"meal": 25.0, "fast": 600.0, "awake": 300.0, "nap": 40.0, "herd": false,
+		"gest": 150.0, "litter": [1, 2], "wean": 240.0, "breed_gap": 300.0, "crowd": 8, "mate": 14.0}
 const TABLE := {
-	"deer": {"script": "deer.gd", "kind": "deer", "young_kind": "fawn", "len": 1.8, "walk": 0.9, "run": 4.5, "range": 10.0, "wary": 8.0, "fast": 90.0, "herd": true},
-	"moose": {"script": "moose.gd", "young_kind": "moose_calf", "len": 2.8, "walk": 1.0, "run": 4.0, "range": 10.0, "wary": 5.0, "fast": 90.0},
-	"bison": {"script": "bison.gd", "young_kind": "bison_calf", "len": 3.0, "walk": 0.75, "run": 4.0, "range": 10.0, "wary": 4.0, "fast": 80.0, "herd": true},
-	"wolf": {"script": "grey_wolf.gd", "young_kind": "wolf_pup", "len": 1.5, "walk": 0.8, "run": 5.0, "range": 11.0, "sense": 16.0, "fast": 240.0, "active": "night", "herd": true},
-	"coyote": {"script": "coyote.gd", "kind": "coyote", "len": 1.1, "walk": 0.7, "run": 4.5, "range": 10.0, "fast": 200.0, "active": "night"},
-	"fox": {"script": "red_fox.gd", "kind": "fox", "young_kind": "fox_kit", "len": 0.9, "walk": 0.6, "run": 4.0, "range": 9.0, "fast": 180.0, "active": "night"},
-	"bobcat": {"script": "bobcat.gd", "young_kind": "bobcat_kit", "len": 0.9, "walk": 0.55, "run": 4.5, "range": 9.0, "fast": 220.0, "active": "night"},
-	"black_bear": {"script": "black_bear.gd", "young_kind": "black_cub", "len": 1.7, "walk": 0.75, "run": 3.5, "range": 10.0, "fast": 160.0, "active": "day"},
-	"brown_bear": {"script": "brown_bear.gd", "len": 2.2, "walk": 0.8, "run": 3.5, "range": 10.0, "fast": 160.0, "active": "day"},
-	"hare": {"script": "hare.gd", "kind": "hare", "young_kind": "leveret", "len": 0.5, "walk": 0.9, "run": 5.0, "range": 7.0, "wary": 7.0, "fast": 80.0, "active": "night"},
-	"mouse": {"script": "mouse.gd", "kind": "mouse", "young_kind": "mouse_pup", "len": 0.09, "walk": 0.14, "run": 0.6, "range": 2.0, "wary": 2.5, "fast": 60.0, "active": "night"},
-	"fox_squirrel": {"script": "fox_squirrel.gd", "kind": "squirrel", "len": 0.3, "walk": 0.85, "run": 2.5, "range": 6.0, "wary": 5.0, "fast": 80.0, "active": "day"},
-	"grey_squirrel": {"script": "grey_squirrel.gd", "kind": "squirrel", "len": 0.28, "walk": 0.9, "run": 2.5, "range": 6.0, "wary": 5.0, "fast": 80.0, "active": "day"},
-	"opossum": {"script": "opossum.gd", "len": 0.5, "walk": 0.24, "run": 1.0, "range": 6.0, "fast": 140.0, "active": "night"},
-	"porcupine": {"script": "porcupine.gd", "kind": "porcupine", "young_kind": "porcupette", "len": 0.7, "walk": 0.19, "run": 0.6, "range": 5.0, "wary": 2.0, "fast": 120.0, "active": "night"},
-	"armadillo": {"script": "armadillo.gd", "kind": "armadillo", "young_kind": "armadillo_pup", "len": 0.5, "walk": 0.22, "run": 1.5, "range": 6.0, "wary": 3.0, "fast": 100.0, "active": "night"},
-	"turkey": {"script": "wild_turkey.gd", "kind": "turkey", "young_kind": "poult", "len": 1.0, "walk": 0.7, "run": 3.0, "range": 8.0, "wary": 7.0, "fast": 90.0, "active": "day", "herd": true},
+	"deer": {"litter": [1, 2], "crowd": 10, "script": "deer.gd", "kind": "deer", "young_kind": "fawn", "len": 1.8, "walk": 0.9, "run": 4.5, "range": 10.0, "wary": 8.0, "fast": 360.0, "herd": true},
+	"moose": {"litter": [1, 1], "script": "moose.gd", "young_kind": "moose_calf", "len": 2.8, "walk": 1.0, "run": 4.0, "range": 10.0, "wary": 5.0, "fast": 360.0},
+	"bison": {"litter": [1, 1], "script": "bison.gd", "young_kind": "bison_calf", "len": 3.0, "walk": 0.75, "run": 4.0, "range": 10.0, "wary": 4.0, "fast": 320.0, "herd": true},
+	"wolf": {"litter": [3, 5], "crowd": 8, "script": "grey_wolf.gd", "young_kind": "wolf_pup", "len": 1.5, "walk": 0.8, "run": 5.0, "range": 11.0, "sense": 16.0, "fast": 960.0, "active": "night", "herd": true},
+	"coyote": {"litter": [3, 5], "script": "coyote.gd", "kind": "coyote", "len": 1.1, "walk": 0.7, "run": 4.5, "range": 10.0, "fast": 800.0, "active": "night"},
+	"fox": {"litter": [3, 5], "script": "red_fox.gd", "kind": "fox", "young_kind": "fox_kit", "len": 0.9, "walk": 0.6, "run": 4.0, "range": 9.0, "fast": 720.0, "active": "night"},
+	"bobcat": {"litter": [2, 3], "script": "bobcat.gd", "young_kind": "bobcat_kit", "len": 0.9, "walk": 0.55, "run": 4.5, "range": 9.0, "fast": 880.0, "active": "night"},
+	"black_bear": {"litter": [1, 3], "script": "black_bear.gd", "young_kind": "black_cub", "len": 1.7, "walk": 0.75, "run": 3.5, "range": 10.0, "fast": 640.0, "active": "day"},
+	"brown_bear": {"litter": [1, 3], "script": "brown_bear.gd", "len": 2.2, "walk": 0.8, "run": 3.5, "range": 10.0, "fast": 640.0, "active": "day"},
+	"hare": {"litter": [2, 4], "crowd": 10, "script": "hare.gd", "kind": "hare", "young_kind": "leveret", "len": 0.5, "walk": 0.9, "run": 5.0, "range": 7.0, "wary": 7.0, "fast": 320.0, "active": "night"},
+	"mouse": {"litter": [3, 6], "crowd": 14, "script": "mouse.gd", "kind": "mouse", "young_kind": "mouse_pup", "len": 0.09, "walk": 0.14, "run": 0.6, "range": 2.0, "wary": 2.5, "fast": 240.0, "active": "night"},
+	"fox_squirrel": {"litter": [2, 4], "script": "fox_squirrel.gd", "kind": "squirrel", "len": 0.3, "walk": 0.85, "run": 2.5, "range": 6.0, "wary": 5.0, "fast": 320.0, "active": "day"},
+	"grey_squirrel": {"litter": [2, 4], "script": "grey_squirrel.gd", "kind": "squirrel", "len": 0.28, "walk": 0.9, "run": 2.5, "range": 6.0, "wary": 5.0, "fast": 320.0, "active": "day"},
+	"opossum": {"litter": [5, 8], "script": "opossum.gd", "len": 0.5, "walk": 0.24, "run": 1.0, "range": 6.0, "fast": 560.0, "active": "night"},
+	"porcupine": {"litter": [1, 1], "script": "porcupine.gd", "kind": "porcupine", "young_kind": "porcupette", "len": 0.7, "walk": 0.19, "run": 0.6, "range": 5.0, "wary": 2.0, "fast": 480.0, "active": "night"},
+	"armadillo": {"litter": [4, 4], "script": "armadillo.gd", "kind": "armadillo", "young_kind": "armadillo_pup", "len": 0.5, "walk": 0.22, "run": 1.5, "range": 6.0, "wary": 3.0, "fast": 400.0, "active": "night"},
+	"turkey": {"litter": [6, 10], "crowd": 14, "script": "wild_turkey.gd", "kind": "turkey", "young_kind": "poult", "len": 1.0, "walk": 0.7, "run": 3.0, "range": 8.0, "wary": 7.0, "fast": 360.0, "active": "day", "herd": true},
 }
 ## A brain's verbs, each by the names the animals have for it (the first
 ## its body has, Creature.behaviours()).
@@ -52,6 +56,8 @@ const VERBS := {
 	"alert": ["alert", "freeze", "stand", "flick"],
 	"flee": ["flee"],
 	"social": ["mark", "howl", "strut", "gobble", "thump", "rub"],
+	"mate": ["mate"],
+	"birth": ["birth"],
 }
 
 static var _full := {} # key -> its entry, filled in
@@ -148,3 +154,20 @@ static func verb(c: Creature, canon: String) -> String:
 		if has.has(n):
 			return n
 	return ""
+
+
+## A young one's body made its mother's: hers to follow, among her young
+## (each kind's own names for them).
+static func link(mom: Creature, y: Creature) -> void:
+	for f: String in ["_mother", "mother"]:
+		if f in y:
+			y.set(f, mom)
+			break
+	for f: String in ["young_ones", "leverets", "pups", "kits"]:
+		if f in mom:
+			var l: Array = mom.get(f)
+			if not l.has(y):
+				l.append(y)
+			break
+	if y.get("_mode") is String and y.get("_mode") in ["idle", "wander", ""]:
+		y.set("_mode", "follow")

@@ -23,9 +23,12 @@ extends Node
 ##   sim.add("deer", at)         # a record (a body when it's near the focus)
 ##   sim.adopt(creature)         # a record for a body already there (the sandbox's)
 ##   sim.focus = camera's place (the space's)   # INF: bodies left as they are
-## signal died(agent, by): one's dead (hunted down: by its hunter's record).
+## signal died(agent, by): one's dead (hunted down: by its hunter's record);
+## born(agent, mother); grown(agent): a young one's come of age.
 
 signal died(agent: Agent, by: Agent)
+signal born(agent: Agent, mother: Agent)
+signal grown(agent: Agent)
 
 const SLOT := 0.2 ## s: the clock's grain
 const CELL := 16.0 ## m: the records' own cells
@@ -65,6 +68,16 @@ class Agent:
 	var stamp := 0 # (its latest waking: older ones in the clock are let go)
 	var cell := Vector2i.MAX
 	var issuing := false
+	var held := false ## (with a body: its order's only its time, kept here; the body stood still)
+	# breeding: carrying young is a state (till pregnant_until), nothing more
+	var pregnant_until := 0.0 ## (0: not)
+	var sire := 0
+	var bred_at := -1e9 ## when she last gave birth
+	var brood: Array[int] = [] ## her young, still with her (ids)
+	var mother := 0 ## a young one's
+	var born_at := 0.0
+	var grow_at := 0.0 ## a young one's: when it's grown
+	var slot := 0 # (a young one's place by its mother, with no body)
 	var on_finished: Callable
 	var on_gone: Callable
 
@@ -149,6 +162,59 @@ func remove(a: Agent) -> void:
 	a.stamp += 1
 	agents.erase(a.id)
 	_unfile(a)
+	var m: Agent = agents.get(a.mother) if a.mother != 0 else null
+	if m != null:
+		m.brood.erase(a.id)
+
+
+## n young born to m, where she is (with bodies, if she has one: hers to
+## follow). Her body's own birth, where it has one, is Brain's to ask for:
+## those young come here as they're born (Fauna's "born").
+func bear(m: Agent, n: int) -> void:
+	var p := where(m)
+	for i in n:
+		var y := _young(m, p + Vector3(randf_range(-1, 1), 0.0, randf_range(-1, 1)) * float(m.sp.len) * 0.5)
+		if m.body:
+			embody(y)
+
+
+func _young(m: Agent, at: Vector3) -> Agent:
+	var y := add(m.key, at, randf() < 0.5, true)
+	y.mother = m.id
+	y.slot = m.brood.size()
+	y.born_at = now
+	y.grow_at = now + float(m.sp.wean) / maxf(Fauna.life_rate, 0.001)
+	y.hunger = 0.0
+	m.brood.append(y.id)
+	wake(y, minf(y.grow_at, now + 10.0))
+	born.emit(y, m)
+	return y
+
+
+## A young one grown: its own from now (its body, if it has one, a grown one's).
+func grow_up(a: Agent) -> void:
+	var p := where(a)
+	var m: Agent = agents.get(a.mother)
+	if m != null:
+		m.brood.erase(a.id)
+	a.young = false
+	a.mother = 0
+	a.home = p
+	a.p0 = p
+	a.p1 = p
+	a.t1 = now
+	a.hunger = 0.4
+	_hunters.clear()
+	if a.body:
+		var old := a.body
+		var kept := a.kept
+		_detach(a)
+		old.queue_free()
+		a.kept = false
+		if not embody(a):
+			a.kept = kept
+	grown.emit(a)
+	wake(a, now + randf_range(0.2, 1.0))
 
 
 ## The record of a body (null: it has none).
@@ -160,6 +226,11 @@ func agent_of(c: Creature) -> Agent:
 func where(a: Agent) -> Vector3:
 	if a.body:
 		return a.body.where()
+	if a.young and a.mother != 0: # (with no body: by its mother)
+		var m: Agent = agents.get(a.mother)
+		if m != null:
+			var ang := float(a.slot) * 2.4
+			return where(m) + Vector3(cos(ang), 0.0, sin(ang)) * float(m.sp.len) * 0.6
 	if now >= a.t1 or a.t1 <= a.t0:
 		return a.p1
 	return a.p0.lerp(a.p1, (now - a.t0) / (a.t1 - a.t0))
@@ -268,9 +339,13 @@ func _process(dt: float) -> void:
 
 func _woken(a: Agent) -> void:
 	_file(a)
-	if a.body == null and a.doing != "" and now >= a.until - 1e-3: # (with no body: its order's time is up)
+	if a.young:
+		Brain.young(self, a)
+		return
+	if (a.body == null or a.held) and a.doing != "" and now >= a.until - 1e-3: # (with no body, or one only held still: its order's time is up)
 		var d := a.doing
 		a.doing = ""
+		a.held = false
 		Brain.done(self, a, d, true)
 		return
 	thinks += 1
@@ -295,7 +370,7 @@ func _tiers() -> void:
 	for k in mini(48, _sweep.size() - _sweep_at):
 		var a: Agent = _sweep[_sweep_at]
 		_sweep_at += 1
-		if not a.alive:
+		if not a.alive or (a.young and agents.has(a.mother)): # (a young one: as its mother)
 			continue
 		var p := where(a)
 		var d := Vector2(p.x - focus.x, p.z - focus.z).length()
@@ -322,6 +397,13 @@ func embody(a: Agent) -> bool:
 	_attach(a, c)
 	a.doing = ""
 	wake(a, now + 0.1)
+	var m: Agent = agents.get(a.mother) if a.young else null
+	if m != null and m.body:
+		Species.link(m.body, c)
+	for id: int in a.brood: # (her young with her)
+		var y: Agent = agents.get(id)
+		if y != null and y.body == null:
+			embody(y)
 	return true
 
 
@@ -341,6 +423,10 @@ func disembody(a: Agent) -> void:
 	a.yaw = atan2(-h.x, -h.z)
 	a.doing = ""
 	wake(a, now + 0.1)
+	for id: int in a.brood:
+		var y: Agent = agents.get(id)
+		if y != null and y.body and not y.kept:
+			disembody(y)
 
 
 func _attach(a: Agent, c: Creature) -> void:
@@ -389,6 +475,12 @@ func _told(what: StringName, who: Node, data: Dictionary) -> void:
 		if a != null:
 			var by: Variant = data.get("by")
 			_dead(a, _by_body.get((by as Creature).fauna_id) if by is Creature else null)
+	elif (what == &"born" or what == &"hatched") and who is Creature and data.get("young") is Creature:
+		var m: Agent = _by_body.get((who as Creature).fauna_id)
+		var yc: Creature = data["young"]
+		if m != null and not _by_body.has(yc.fauna_id) and Species.key_of(yc) == m.key:
+			var y := _young(m, yc.where())
+			_attach(y, yc)
 	elif what == &"killed" and data.get("prey") is Creature:
 		var a: Agent = _by_body.get((data["prey"] as Creature).fauna_id)
 		if a != null:
@@ -405,6 +497,9 @@ func _dead(a: Agent, by: Agent) -> void:
 	agents.erase(a.id)
 	_unfile(a)
 	_hunters.clear()
+	var m: Agent = agents.get(a.mother) if a.mother != 0 else null
+	if m != null:
+		m.brood.erase(a.id)
 	died.emit(a, by)
 
 
@@ -426,6 +521,7 @@ func kill(a: Agent, by: Agent = null) -> void:
 ## a to go to point (running: its fastest). Done: Brain.done(a, "go_to", ok).
 func go_to(a: Agent, point: Vector3, running := false) -> void:
 	point = _on_ground(point)
+	a.held = false
 	a.doing = "go_to"
 	a.doing_name = "go_to"
 	if a.body:
@@ -452,6 +548,7 @@ func go_to(a: Agent, point: Vector3, running := false) -> void:
 ## args: its body's (from, target: another record's body). False: with a
 ## body, and its body has no such doing, or couldn't (nothing to eat).
 func act(a: Agent, verb: String, secs: float, args := {}) -> bool:
+	a.held = false
 	if a.body:
 		var n := Species.verb(a.body, verb)
 		if n == "":
@@ -480,6 +577,16 @@ func act(a: Agent, verb: String, secs: float, args := {}) -> bool:
 	return true
 
 
+## a kept at verb for secs, its time kept here (a body that has no doing
+## of its own for it: stood still the while). Done as any order.
+func hold(a: Agent, verb: String, secs: float) -> void:
+	a.doing = verb
+	a.doing_name = verb
+	a.held = true
+	a.until = now + secs
+	wake(a, minf(a.until, now + 4.0) if hunted(a) else a.until)
+
+
 ## a to stop what it's doing (nothing told of it).
 func halt(a: Agent) -> void:
 	if a.body:
@@ -492,3 +599,4 @@ func halt(a: Agent) -> void:
 		a.p1 = p
 		a.t1 = now
 	a.doing = ""
+	a.held = false
