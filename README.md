@@ -1146,7 +1146,18 @@ Ambushing,
     those idle nearest the nest) till `share` of them (0.6) are at it, the rest about the nest. Each at the food
     feeds a while, carries its load home along the line to the nest (`nest`; each a little to its own side of the
     line, so they pass), goes in a moment, comes out and goes back (`trips_done`, counted on the CPU).
-    `stop_foraging()`. The sandbox's E for a colony is `forage` (W calls it off).
+    `stop_foraging()`. The sandbox's E for a colony is `forage` (W calls it off). More go out only as each comes
+    home (one or two for each load brought in: on the card the loads taken up and brought home are counted by
+    the shader and told here as they come); one with a load carries it in its jaws (the mesh's part 28, drawn
+    only then: `load_color`); `forage(at, share, source)`: what the ants can take of a thing is kept count of on
+    it, out of sight (its meta `ant_loads`: 40 loads, a dead animal 60, a carcass 600), a load less each time
+    one's taken up, the thing itself untouched (still whole, still the player's to pick up); none left, they go
+    home and leave it. `auto_forage`: a colony left to itself looks for what it eats near its nest and works it.
+  - For the game (docs/fauna_in_game.md): `FaunaSim.for_world(world, holder, seed)` (the land's ground, the sea
+    and cliffs kept off, the land seeded by each kind's `density` per biome: each 128 m cell once, when it first
+    lies 150 to 420 m from the focus; `prime()` for the start), `to_dict()` / `from_dict()`, `walkable`.
+    `Species.register()`; in the table now, the ground birds too (robin, blackbird, cardinal, jay, pigeon,
+    goose). Tested on the game's own land, headless.
   - Records, bodies and brains (`scripts/creatures/species.gd`, `fauna_sim.gd`, `brain.gd`; in the sandbox: the
     Minds box, I; not in the game yet):
     - `Species.TABLE`: what's known of a kind apart from its body (its script, what it's called as food, its

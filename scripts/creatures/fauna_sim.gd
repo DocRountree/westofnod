@@ -23,6 +23,8 @@ extends Node
 ##   sim.add("deer", at)         # a record (a body when it's near the focus)
 ##   sim.adopt(creature)         # a record for a body already there (the sandbox's)
 ##   sim.focus = camera's place (the space's)   # INF: bodies left as they are
+## For the game: FaunaSim.for_world(world, holder) (the land seeded round
+## the focus, the sea and cliffs kept off), prime(), to_dict() / from_dict().
 ## signal died(agent, by): one's dead (hunted down: by its hunter's record);
 ## born(agent, mother); grown(agent): a young one's come of age.
 
@@ -36,6 +38,7 @@ const RING_PER_M := 45.0 ## a body's ring: so many metres for each of its length
 const RING_MIN := 18.0
 const RING_MAX := 260.0
 const RING_OUT := 1.35 ## freed again past its ring by this much
+const SEED_CELL := 128.0 ## m
 
 class Agent:
 	var id := 0
@@ -83,6 +86,17 @@ class Agent:
 
 var space: Node3D ## the bodies' parent
 var height: Callable ## (x, z) -> the ground's y
+var walkable: Callable ## (x, z) -> whether one can stand there (not the sea, not a cliff); none: anywhere
+## Seeding (the land's animals put there as records, once, as the focus
+## comes near; none: nothing's seeded): {density: Callable (key, x, z) ->
+## how many to the square kilometre there, inner: m (nearer the focus than
+## this nothing's seeded: it would be seen to appear), outer: m (as far as
+## it's seeded), seed: int}. Each SEED_CELL square is seeded once (the same
+## animals in the same places for the same seed), when it first lies
+## between inner and outer; never again (seeded: kept by to_dict()).
+## prime(): everything within outer now, inner or not (a game beginning,
+## behind its loading screen).
+var seeding := {}
 var bounds := Rect2() ## where they keep to (x, z; none: anywhere)
 var focus := Vector3.INF ## bodies made within their rings of this (the space's); INF: none made, none freed
 var ring_scale := 1.0
@@ -100,6 +114,10 @@ var _grid := {} # Vector2i -> Array[Agent]
 var _sweep: Array = []
 var _sweep_at := 0
 var _pace_t := 0.0
+var seeded := {} # Vector2i -> true: the cells seeded already
+var _seed_ring: Array = []
+var _seed_from := Vector2i.MAX
+var _seed_at := 0
 var _hunters := {} # a kind's key -> whether anything here hunts it (looked up as they're added)
 
 
@@ -236,6 +254,27 @@ func where(a: Agent) -> Vector3:
 	return a.p0.lerp(a.p1, (now - a.t0) / (a.t1 - a.t0))
 
 
+## Whether one can stand at p.
+func can_stand(p: Vector3) -> bool:
+	return not walkable.is_valid() or bool(walkable.call(p.x, p.z))
+
+
+## (As far toward `to` from `from` as the ground can be walked: a walk
+## never set across the sea, up a cliff.)
+func _reach(from: Vector3, to: Vector3) -> Vector3:
+	if not walkable.is_valid():
+		return to
+	var d := Vector2(to.x - from.x, to.z - from.z).length()
+	var n := clampi(int(ceilf(d / 6.0)), 1, 16)
+	var last := from
+	for k in range(1, n + 1):
+		var q := from.lerp(to, float(k) / n)
+		if not bool(walkable.call(q.x, q.z)):
+			return last
+		last = q
+	return to
+
+
 func _on_ground(p: Vector3) -> Vector3:
 	if bounds.size != Vector2.ZERO:
 		p.x = clampf(p.x, bounds.position.x, bounds.end.x)
@@ -320,6 +359,7 @@ func _process(dt: float) -> void:
 			_pace_t = 0.5
 			Fauna.pace(space.to_global(focus), get_viewport().get_camera_3d() if is_inside_tree() else null)
 	_tiers()
+	_seed_tick()
 	var t0 := Time.get_ticks_usec()
 	var top := int(floorf(now / SLOT))
 	while _slot <= top:
@@ -520,7 +560,7 @@ func kill(a: Agent, by: Agent = null) -> void:
 
 ## a to go to point (running: its fastest). Done: Brain.done(a, "go_to", ok).
 func go_to(a: Agent, point: Vector3, running := false) -> void:
-	point = _on_ground(point)
+	point = _on_ground(_reach(where(a), point))
 	a.held = false
 	a.doing = "go_to"
 	a.doing_name = "go_to"
@@ -600,3 +640,166 @@ func halt(a: Agent) -> void:
 		a.t1 = now
 	a.doing = ""
 	a.held = false
+
+
+# --- the land seeded, round the focus ---------------------------------------------
+
+static func for_world(world: WorldData, holder: Node3D, seed_ := 1) -> FaunaSim:
+	## A FaunaSim for the game's land: its bodies under holder (a node under
+	## Origin.root, unmoved: its space the map's), the ground WorldData's,
+	## the sea and the cliffs kept off, the land seeded by each kind's
+	## density in its biome (Species.TABLE). To be added to the tree; each
+	## frame: focus = the player's place (the map's), daylight = 1 - night.
+	var sim := FaunaSim.new()
+	sim.space = holder
+	sim.height = world.height_at
+	sim.walkable = func(x: float, z: float) -> bool:
+		var sf := world.surface_at(x, z) # (its height, its normal)
+		return sf.x > 0.3 and sf.z > 0.6
+	sim.seeding = {"density": func(key: String, x: float, z: float) -> float: return Species.density_in(key, world.biome_at(x, z)),
+			"inner": 150.0, "outer": 420.0, "seed": seed_}
+	return sim
+
+
+## Every cell within the seeding's outer of the focus seeded now, near or
+## not (a game beginning: behind its loading screen).
+func prime() -> void:
+	if seeding.is_empty() or focus == Vector3.INF:
+		return
+	var outer := float(seeding.get("outer", 400.0))
+	var c := Vector2i(floori(focus.x / SEED_CELL), floori(focus.z / SEED_CELL))
+	var r := int(ceilf(outer / SEED_CELL))
+	for dx in range(-r, r + 1):
+		for dz in range(-r, r + 1):
+			var k := c + Vector2i(dx, dz)
+			if not seeded.has(k) and Vector2(dx, dz).length() * SEED_CELL <= outer:
+				_seed_cell(k)
+
+
+## (A few cells looked at a frame: one not yet seeded, between inner and
+## outer of the focus, seeded.)
+func _seed_tick() -> void:
+	if seeding.is_empty() or focus == Vector3.INF:
+		return
+	var c := Vector2i(floori(focus.x / SEED_CELL), floori(focus.z / SEED_CELL))
+	var inner := float(seeding.get("inner", 150.0))
+	var outer := float(seeding.get("outer", 400.0))
+	if c != _seed_from:
+		_seed_from = c
+		_seed_ring.clear()
+		_seed_at = 0
+		var r := int(ceilf(outer / SEED_CELL))
+		for dx in range(-r, r + 1):
+			for dz in range(-r, r + 1):
+				if not seeded.has(c + Vector2i(dx, dz)):
+					_seed_ring.append(c + Vector2i(dx, dz))
+	for n in mini(2, _seed_ring.size() - _seed_at):
+		var k: Vector2i = _seed_ring[_seed_at]
+		_seed_at += 1
+		if seeded.has(k):
+			continue
+		var mid := Vector2((k.x + 0.5) * SEED_CELL, (k.y + 0.5) * SEED_CELL)
+		var d := mid.distance_to(Vector2(focus.x, focus.z))
+		if d >= inner + SEED_CELL * 0.71 and d <= outer:
+			_seed_cell(k)
+	if _seed_at >= _seed_ring.size() and not _seed_ring.is_empty():
+		_seed_from = Vector2i.MAX # (round again: those too near then may be far enough now)
+
+
+func _seed_cell(k: Vector2i) -> void:
+	seeded[k] = true
+	var dens: Callable = seeding.get("density", Callable())
+	if not dens.is_valid():
+		return
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash([int(seeding.get("seed", 1)), k.x, k.y])
+	var x0 := k.x * SEED_CELL
+	var z0 := k.y * SEED_CELL
+	var area := SEED_CELL * SEED_CELL / 1e6 # km2
+	for key: String in Species.keys():
+		var sp := Species.of(key)
+		var per := float(dens.call(key, x0 + SEED_CELL * 0.5, z0 + SEED_CELL * 0.5))
+		if per <= 0.0:
+			continue
+		var group := 4.0 if bool(sp.herd) else 1.0 # (those that keep together: put down together)
+		var want := per * area / group
+		var groups := int(want) + (1 if rng.randf() < want - int(want) else 0)
+		for g in groups:
+			var at := Vector3(x0 + rng.randf() * SEED_CELL, 0.0, z0 + rng.randf() * SEED_CELL)
+			if not can_stand(at):
+				continue
+			var n := rng.randi_range(2, 6) if bool(sp.herd) else 1
+			for i in n:
+				var p := at + Vector3(rng.randf_range(-1.0, 1.0), 0.0, rng.randf_range(-1.0, 1.0)) * float(sp.len) * 3.0 * (0.0 if n == 1 else 1.0)
+				if can_stand(p):
+					add(key, p, rng.randf() < 0.5)
+
+
+# --- kept, and brought back --------------------------------------------------------
+
+## Everything of it to keep (a saved game's): its records (not those
+## adopted: bodies someone else's), the cells seeded, its clock.
+func to_dict() -> Dictionary:
+	var list := []
+	for a: Agent in agents.values():
+		if a.kept:
+			continue
+		var p := where(a)
+		list.append({"id": a.id, "key": a.key, "male": a.male, "young": a.young, "at": [p.x, p.y, p.z], "yaw": a.yaw,
+				"home": [a.home.x, a.home.y, a.home.z], "hunger": a.hunger, "tired": a.tired,
+				"carrying": maxf(a.pregnant_until - now, 0.001) if a.pregnant_until > 0.0 else 0.0, "sire": a.sire,
+				"bred": now - a.bred_at, "mother": a.mother, "brood": a.brood.duplicate(), "age": now - a.born_at,
+				"grows": maxf(a.grow_at - now, 0.0), "slot": a.slot})
+	var cells := []
+	for k: Vector2i in seeded:
+		cells.append([k.x, k.y])
+	return {"now": now, "next": _next, "agents": list, "seeded": cells}
+
+
+## As to_dict() gave it: its records as they were (none with a body yet:
+## those near the focus given theirs as ever).
+func from_dict(d: Dictionary) -> void:
+	for a: Agent in agents.values().duplicate():
+		if not a.kept:
+			if a.body and is_instance_valid(a.body):
+				var c := a.body
+				_detach(a)
+				c.queue_free()
+			remove(a)
+	now = float(d.get("now", 0.0))
+	_slot = int(floorf(now / SLOT))
+	_clock.clear()
+	seeded.clear()
+	for c: Array in d.get("seeded", []):
+		seeded[Vector2i(int(c[0]), int(c[1]))] = true
+	_seed_from = Vector2i.MAX
+	_next = maxi(int(d.get("next", 1)), _next) + 1000000 # (those made here numbered clear of the ones kept, till each has its own again)
+	for e: Dictionary in d.get("agents", []):
+		var at: Array = e["at"]
+		var a := add(String(e["key"]), Vector3(at[0], at[1], at[2]), bool(e.get("male", false)), bool(e.get("young", false)))
+		if a == null:
+			continue
+		agents.erase(a.id)
+		a.id = int(e["id"])
+		agents[a.id] = a
+		a.p0 = Vector3(at[0], at[1], at[2]) # (as it was: not set on the ground again)
+		a.p1 = a.p0
+		var h: Array = e.get("home", at)
+		a.home = Vector3(h[0], h[1], h[2])
+		a.yaw = float(e.get("yaw", 0.0))
+		a.hunger = float(e.get("hunger", 0.3))
+		a.tired = float(e.get("tired", 0.2))
+		var carrying := float(e.get("carrying", 0.0))
+		a.pregnant_until = now + carrying if carrying > 0.0 else 0.0
+		a.sire = int(e.get("sire", 0))
+		a.bred_at = now - float(e.get("bred", 1e9))
+		a.mother = int(e.get("mother", 0))
+		a.brood.assign((e.get("brood", []) as Array).map(func(v: Variant) -> int: return int(v)))
+		a.born_at = now - float(e.get("age", 0.0))
+		a.grow_at = now + float(e.get("grows", 0.0))
+		a.slot = int(e.get("slot", 0))
+		if a.young:
+			wake(a, minf(a.grow_at, now + 10.0))
+	_next = int(d.get("next", 1))
+	for id: int in agents:
+		_next = maxi(_next, id + 1)

@@ -83,7 +83,10 @@ var _ant := false # (an ant's ways: scouting on a wandering line, trips to the n
 var _forage := {} # (a find being worked: {at, left: how many more may go, loads: what's left of it for them (-1: no end), source})
 var _homing := {} # i -> true: bringing in a last load from a find worked out
 var _homing_t := 0.0
-var home_r := 0.1 ## how far about the nest they scout (setup's)
+var scout_r := 0.1 ## how far about the nest they scout (setup's)
+var auto_forage := false ## left to themselves: they look for what they eat within forage_range of the nest, and work it (the game's; the sandbox tells them, E)
+var forage_range := 3.0 ## m
+var _auto_t := 3.0
 var seed := PackedFloat32Array()
 var pace := PackedFloat32Array() # m/s (its pilot's: <= 0 its own)
 var _pilots := {} # i -> its pilot (pilot.gd)
@@ -120,7 +123,7 @@ func setup(n: int, c: Vector3, r: float) -> void:
 	cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 	_resize(n)
 	nest = c
-	home_r = r
+	scout_r = r
 	_ant = _card_minds()
 	for i in n:
 		var a := rng.randf() * TAU
@@ -239,6 +242,31 @@ func stop_foraging() -> void:
 	_forage.clear()
 
 
+## (Left to themselves, auto_forage: the nearest thing of their diet within
+## forage_range of the nest that they can still take from, worked.)
+func _look_for_food() -> void:
+	var par := get_parent() as Node3D
+	if par == null:
+		return
+	var here := position + nest
+	var kinds := Diet.expand(Diet.of(self))
+	var best: Node3D = null
+	var bd := forage_range
+	for o: Node in Fauna.near(par, here, forage_range):
+		if o == self or not is_instance_valid(o) or not (o is Node3D) or int(o.get_meta("ant_loads", 1)) == 0:
+			continue
+		if not kinds.has(Diet.kind_of(o)):
+			continue
+		var d := Diet._at(o as Node3D).distance_to(here)
+		if d < bd:
+			bd = d
+			best = o
+	if best != null:
+		var f := to_local(best.global_position)
+		f.y = nest.y
+		forage(f, 0.6, best)
+
+
 ## Whether ant i has a load in its jaws (on its way home with it: shown).
 func carrying(i: int) -> bool:
 	return _ant and task[i] == 1 and phase[i] == 1
@@ -298,7 +326,7 @@ func _worked_out() -> void:
 		if task[i] != 1:
 			continue
 		if phase[i] == 0:
-			wander(i, nest, home_r)
+			wander(i, nest, scout_r)
 		else:
 			_homing[i] = true
 
@@ -306,6 +334,11 @@ func _worked_out() -> void:
 ## (Those still bringing the last loads in: about the nest again once
 ## they're there.)
 func _forage_step(dt: float) -> void:
+	if auto_forage and _ant and _forage.is_empty() and _homing.is_empty() and pos.size() > 2:
+		_auto_t -= dt
+		if _auto_t <= 0.0:
+			_auto_t = rng.randf_range(8.0, 15.0)
+			_look_for_food()
 	if _homing.is_empty():
 		return
 	_homing_t += dt
@@ -318,11 +351,11 @@ func _forage_step(dt: float) -> void:
 		elif not _card: # (its trip's known here: in with it)
 			if phase[i] != 1:
 				_homing.erase(i)
-				wander(i, nest, home_r)
+				wander(i, nest, scout_r)
 		elif Vector2(pos[i].x - nest.x, pos[i].z - nest.z).length() < apart * MM * 2.0: # (on the card: by where it is)
 			_homing.erase(i)
 			trips_done += 1
-			wander(i, nest, home_r)
+			wander(i, nest, scout_r)
 
 
 ## Ant i to the food at f, and feeding on it.
