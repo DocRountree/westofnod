@@ -252,6 +252,9 @@ func _floor(x: float, z: float) -> float:
 
 
 func _process(dt: float) -> void:
+	dt = Fauna.swarm_dt(self, dt) # (paced: far off, every few frames)
+	if dt <= 0.0:
+		return
 	if multimesh == null or dt <= 0.0:
 		return
 	_t += dt

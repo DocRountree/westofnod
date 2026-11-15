@@ -147,6 +147,9 @@ static func _pluteus() -> ArrayMesh:
 
 
 func _process(dt: float) -> void:
+	dt = Fauna.swarm_dt(self, dt) # (paced: far off, every few frames)
+	if dt <= 0.0:
+		return
 	_t += dt
 	var n := pos.size()
 	var lo := bottom - global_position.y

@@ -175,6 +175,9 @@ func feed(i: int, f: Vector3) -> void:
 
 
 func _process(dt: float) -> void:
+	dt = Fauna.swarm_dt(self, dt) # (paced: far off, every few frames)
+	if dt <= 0.0:
+		return
 	if multimesh == null or dt <= 0.0:
 		return
 	if pos.size() < gpu_from: # (a small colony: cheaper here than the GPU's round trip)
@@ -194,18 +197,23 @@ func _process(dt: float) -> void:
 		(_pilots[i] as PilotScript).tick(dt)
 	_gpu_read()
 	var n := pos.size()
+	var turn_of := THINK_EVERY if n >= THINK_FROM else 1
+	var fr := Engine.get_process_frames()
 	_air_flags.resize(n)
 	for i in n:
 		if _air(i, dt): # (a beetle flying: its own; the GPU leaves it be)
 			_air_flags[i] = 1
 			continue
 		_air_flags[i] = 0
-		_think(i, dt)
+		if turn_of == 1 or (i + fr) % turn_of == 0:
+			_think(i, dt * turn_of)
 	_gpu_submit(dt)
 
 
 # --- on the GPU ------------------------------------------------------------------
 
+const THINK_FROM := 120 ## from this many, each one's mind (_think) only every THINK_EVERY-th frame, in turn
+const THINK_EVERY := 4
 ## On the GPU from this many (fewer: here, its round trip dearer than they are).
 var gpu_from := 150
 const G_TABLE := 16384
@@ -249,7 +257,19 @@ func _gpu_init() -> bool:
 ## A compute shader compiled from its own source (path: a .glsl file), not
 ## its import (none needed: the editor may not have imported it, the
 ## .import files aren't kept). Its SPIR-V, or null (and why, pushed).
+static var _spirv := {} # path -> its SPIR-V: compiled once, for every colony and pool
+
+
 static func compute_spirv(rd: RenderingDevice, path: String) -> RDShaderSPIRV:
+	if _spirv.has(path):
+		return _spirv[path]
+	var out := _compile_spirv(rd, path)
+	if out != null:
+		_spirv[path] = out
+	return out
+
+
+static func _compile_spirv(rd: RenderingDevice, path: String) -> RDShaderSPIRV:
 	var f := FileAccess.open(path, FileAccess.READ)
 	if f == null:
 		var sf := load(path) as RDShaderFile if ResourceLoader.exists(path) else null # (an export with it imported)
@@ -415,10 +435,13 @@ func _cpu_process(dt: float) -> void:
 		if not grid.has(k):
 			grid[k] = []
 		grid[k].append(i)
+	var turn_of := THINK_EVERY if n >= THINK_FROM else 1 # (many: each one's mind in its turn, not every frame)
+	var fr := Engine.get_process_frames()
 	for i in n:
 		if _air(i, dt): # (a beetle flying: moved there, not walking)
 			continue
-		_think(i, dt)
+		if turn_of == 1 or (i + fr) % turn_of == 0:
+			_think(i, dt * turn_of)
 		var fwd := Vector3(-sin(yaw[i]), 0.0, -cos(yaw[i]))
 		var to := target[i] - pos[i]
 		to.y = 0.0

@@ -195,6 +195,36 @@ static func report(what: StringName, who: Node, data := {}) -> void:
 
 # --- pacing ---------------------------------------------------------------------
 
+static var _swarms := {} # instance id -> [node, every, time kept, the frame it last asked]
+
+
+## A swarm's frame (a colony, a school, a pool: everything of its kind in
+## one node, not a Creature): the time to step by now, or 0 to leave this
+## frame out (paced: far off, every few frames, with all the time since).
+## Asked first thing in its _process; asked again the same frame (its
+## parent class's), dt as it is.
+static func swarm_dt(node: Node, dt: float) -> float:
+	var id := node.get_instance_id()
+	var e: Variant = _swarms.get(id)
+	var f := Engine.get_process_frames()
+	if e == null:
+		e = [node, 1, 0.0, -1, 0.0]
+		_swarms[id] = e
+		node.tree_exited.connect(func() -> void: _swarms.erase(id), CONNECT_ONE_SHOT)
+	if e[3] == f:
+		return e[4]
+	e[3] = f
+	e[4] = dt
+	if int(e[1]) > 1:
+		e[2] = float(e[2]) + dt
+		if (f + id) % int(e[1]) != 0:
+			e[4] = 0.0
+		else:
+			e[4] = minf(float(e[2]), 0.25)
+			e[2] = 0.0
+	return e[4]
+
+
 ## Each body's pace by how far it is from focus (the world's space: the
 ## camera): tick_every set; and whether it's seen (within pace_near, or
 ## in cam's view within pace_sight). Called now and then (a few times a
@@ -209,3 +239,13 @@ static func pace(focus: Vector3, cam: Camera3D = null) -> void:
 		var d := at.distance_to(focus)
 		c.tick_every = 1 if d < pace_near else (pace_mid_every if d < pace_far else pace_far_every)
 		c.seen = d < pace_near or (d < pace_sight and (cam == null or cam.is_position_in_frustum(at)))
+	for id: int in _swarms:
+		var e: Array = _swarms[id]
+		var n := e[0] as Node3D
+		if n == null or not is_instance_valid(n) or not n.is_inside_tree():
+			continue
+		if focus == Vector3.INF:
+			e[1] = 1
+			continue
+		var d := n.global_position.distance_to(focus) - float(n.get_meta("swarm_reach", 0.0)) # (its members' reach from its own place, if it says)
+		e[1] = 1 if d < pace_near else (pace_mid_every if d < pace_far else pace_far_every)

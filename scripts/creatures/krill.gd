@@ -16,10 +16,13 @@ extends Node3D
 ## joining when they drift together, breaking apart when they're scattered
 ## or the current parts them.
 ##
-## On the GPU (shaders/compute/krill_swarm.glsl, on a local RenderingDevice:
-## a hashed neighbour grid, then each krill steered; one frame behind,
-## read back as two MultiMeshes' buffers, whole): thousands at well under a
-## millisecond. Drawn as two MultiMeshes: the near (build_mesh: legs,
+## On the GPU (shaders/compute/krill_swarm.glsl: a hashed neighbour grid,
+## then each krill steered): on the renderer's own device, written straight
+## into the two MultiMeshes' instance buffers (nothing read back but how
+## many are near and how many far, eight bytes, come when they're ready; the
+## CPU's copy fetched only when something asks: engulf, take, add); or, where
+## that can't be had, on a local device, one frame behind, read back whole.
+## Thousands at well under a millisecond. Drawn as two MultiMeshes: the near (build_mesh: legs,
 ## bristles, swimmerets) and, past FAR m from the camera, the far
 ## (build_far_mesh: the body, the eyes, the fan), each posed by
 ## shaders/render/krill.gdshader (the swimmerets beating, the basket
@@ -58,6 +61,7 @@ var _t := 0.0
 var _events := {} # name -> [Vector4, Vector4]: asked this frame (the GPU's params)
 var _gpu := false
 var _rd: RenderingDevice
+var _direct := false # (on the renderer's own device, writing the meshes' buffers themselves)
 var _rids := {} # name -> RID
 var _sets: Array[RID] = []
 var _parity := 0
@@ -231,6 +235,9 @@ func _cam_local() -> Vector3:
 
 
 func _process(dt: float) -> void:
+	dt = Fauna.swarm_dt(self, dt) # (paced: far off, every few frames)
+	if dt <= 0.0:
+		return
 	if count == 0 or dt <= 0.0:
 		return
 	dt = minf(dt, 0.05)
@@ -244,13 +251,25 @@ func _process(dt: float) -> void:
 
 # --- on the GPU ------------------------------------------------------------------
 
+## (false: never the renderer's own device, always a local one read back.)
+static var direct_ok := true
+
+
 func _gpu_init() -> bool:
-	_rd = RenderingServer.create_local_rendering_device()
+	# The renderer's own device, if it can be had: the steering writes
+	# straight into the two MultiMeshes' instance buffers, nothing read
+	# back, nothing waited for. Else a local device (one frame behind, its
+	# results read back), else here on the CPU.
+	var main_rd := RenderingServer.get_rendering_device()
+	_direct = direct_ok and main_rd != null and RenderingServer.has_method("multimesh_get_buffer_rd_rid") \
+			and int(ProjectSettings.get_setting("rendering/driver/threads/thread_model", 1)) != 2
+	_rd = main_rd if _direct else RenderingServer.create_local_rendering_device()
 	if _rd == null:
 		return false
 	var spirv := AntColony.compute_spirv(_rd, "res://shaders/compute/krill_swarm.glsl") # (from its source: no import needed)
 	if spirv == null:
-		_rd.free()
+		if not _direct:
+			_rd.free()
 		_rd = null
 		return false
 	_rids.shader = _rd.shader_create_from_spirv(spirv)
@@ -271,15 +290,24 @@ func _gpu_buffers() -> void:
 	for k in ["a", "b", "near", "far"]:
 		if _rids.has(k):
 			_rd.free_rid(_rids[k])
+			_rids.erase(k)
 	_sets.clear()
 	var bytes := _state.to_byte_array()
 	_rids.a = _rd.storage_buffer_create(bytes.size(), bytes)
 	_rids.b = _rd.storage_buffer_create(bytes.size(), bytes)
-	_rids.near = _rd.storage_buffer_create(count * 64)
-	_rids.far = _rd.storage_buffer_create(count * 64)
+	var out_near: RID
+	var out_far: RID
+	if _direct: # (the meshes' own instance buffers: 16 floats an instance, as the steering writes them)
+		out_near = RenderingServer.multimesh_get_buffer_rd_rid(_near.multimesh.get_rid())
+		out_far = RenderingServer.multimesh_get_buffer_rd_rid(_far.multimesh.get_rid())
+	else:
+		_rids.near = _rd.storage_buffer_create(count * 64)
+		_rids.far = _rd.storage_buffer_create(count * 64)
+		out_near = _rids.near
+		out_far = _rids.far
 	for pair in [[_rids.a, _rids.b], [_rids.b, _rids.a]]:
 		var us: Array[RDUniform] = []
-		var ids := [_rids.params, pair[0], pair[1], _rids.gcount, _rids.gslot, _rids.near, _rids.far, _rids.ctr]
+		var ids := [_rids.params, pair[0], pair[1], _rids.gcount, _rids.gslot, out_near, out_far, _rids.ctr]
 		for b in ids.size():
 			var u := RDUniform.new()
 			u.uniform_type = RenderingDevice.UNIFORM_TYPE_STORAGE_BUFFER
@@ -294,7 +322,7 @@ func _gpu_buffers() -> void:
 ## Last frame's results drawn (read back: the krill as they are now, near
 ## and far), then this frame's steering sent off.
 func _gpu_step(dt: float) -> void:
-	if _pending:
+	if _pending and not _direct:
 		_rd.sync()
 		_pending = false
 		var cnt := _rd.buffer_get_data(_rids.ctr, 0, 8).to_int32_array()
@@ -331,8 +359,25 @@ func _gpu_step(dt: float) -> void:
 		_rd.compute_list_dispatch(cl, ceili(n / 64.0), 1, 1)
 		_rd.compute_list_add_barrier(cl)
 	_rd.compute_list_end()
+	if _direct:
+		# (run with the frame: its results the meshes' buffers, and the other
+		# state buffer; only how many are near and how many far asked for, to
+		# come when it's ready, a frame or two on: no waiting)
+		_parity = 1 - _parity
+		_state_stale = true
+		_rd.buffer_get_data_async(_rids.ctr, _counted.bind(count), 0, 8)
+		return
 	_rd.submit()
 	_pending = true
+
+
+## (How many near, how many far, a frame or two ago: so many of each mesh drawn.)
+func _counted(data: PackedByteArray, n: int) -> void:
+	if n != count or data.size() < 8 or _near == null:
+		return
+	var cnt := data.to_int32_array()
+	_near.multimesh.visible_instance_count = clampi(cnt[0], 0, count)
+	_far.multimesh.visible_instance_count = clampi(cnt[1], 0, count)
 
 
 ## (The CPU's copy brought up to date: read back from the GPU.)
@@ -369,7 +414,8 @@ func _exit_tree() -> void:
 				_rd.free_rid(_rids[k])
 		_rd.free_rid(_rids.pipeline)
 		_rd.free_rid(_rids.shader)
-		_rd.free()
+		if not _direct: # (the renderer's own isn't ours to free)
+			_rd.free()
 		_rd = null
 		_gpu = false
 

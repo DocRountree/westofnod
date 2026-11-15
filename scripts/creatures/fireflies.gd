@@ -169,6 +169,9 @@ func _resize(n: int) -> void:
 
 
 func _process(dt: float) -> void:
+	dt = Fauna.swarm_dt(self, dt) # (paced: far off, every few frames)
+	if dt <= 0.0:
+		return
 	if multimesh != null and dt > 0.0:
 		_court(minf(dt, 0.05))
 	super(dt)

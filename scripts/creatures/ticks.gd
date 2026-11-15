@@ -208,6 +208,9 @@ func is_dead(i: int) -> bool:
 # --- each frame -------------------------------------------------------------------
 
 func _process(dt: float) -> void:
+	dt = Fauna.swarm_dt(self, dt) # (paced: far off, every few frames)
+	if dt <= 0.0:
+		return
 	if multimesh == null or dt <= 0.0:
 		return
 	for i in pos.size():
