@@ -311,7 +311,7 @@ func _hosts() -> void:
 		return
 	var hosts := []
 	for n in parent.get_children():
-		if n is Node3D and n.get("_skin") != null and n.get("_body") is Node3D and not bool(n.get("dead")):
+		if n is Node3D and n.get("_skin") != null and n.get("_body") is Node3D and n.get("dead") != true:
 			hosts.append(n)
 	if hosts.is_empty():
 		return

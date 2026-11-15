@@ -25,6 +25,10 @@ extends MultiMeshInstance3D
 ##   bottom, nose down, pecking at it a few seconds; then back up
 ## - displaying (a male's: display(i), or now and then): beside a female,
 ##   matching her, his sail raised, quivering
+## - their young: livebearers. A female gives birth (give_birth(i)): her fry
+##   dropped from her one by one, about a centimetre, glassy grey, their
+##   eyes big; at once on their own, keeping low by the bottom and the
+##   edges, away from the grown (who'd eat them), growing (add_fry(n, at))
 ## - steered, each on its own (member(i): every creature's calls, go,
 ##   go_to, face, stop, act (graze {at, seconds}, display {seconds}),
 ##   behaviours, is_busy, action_finished: pilot.gd)
@@ -41,6 +45,7 @@ const DISPLAY := 2
 const PILOT := 3
 const HOLD := 4
 const TAKEN := 5 # (caught: out of the school)
+const FRY := 6 # (newborn: on its own, low, away from the grown)
 
 var tank_min := Vector3(-0.5, 0.02, -0.5) ## the water (its own space): the bottom's corner
 var tank_max := Vector3(0.5, 0.45, 0.5) ## and the surface's
@@ -122,6 +127,42 @@ func setup(n: int, centre: Vector3, spread := 0.1) -> void:
 
 
 ## The school to `point` (its own space), schooling there.
+## n fry at `at` (its own space): newborns, on their own.
+func add_fry(n: int, at: Vector3) -> void:
+	var old := pos.size()
+	var tot := old + n
+	for arr in [pos, vel, aim, heading, seed, size, task_t, pace, graze_k, display_k, turn, male, task, partner]:
+		arr.resize(tot)
+	for i in range(old, tot):
+		pos[i] = at + Vector3(rng.randf_range(-1, 1), rng.randf_range(-0.5, 0.2), rng.randf_range(-1, 1)) * 0.012
+		var a := rng.randf() * TAU
+		heading[i] = Vector3(cos(a), 0.0, sin(a))
+		vel[i] = heading[i] * cruise * 0.5 + Vector3(0.0, -0.02, 0.0)
+		seed[i] = rng.randf()
+		male[i] = 0
+		size[i] = rng.randf_range(0.14, 0.18)
+		task[i] = FRY
+		task_t[i] = rng.randf_range(2.0, 5.0)
+		partner[i] = -1
+		pace[i] = -1.0
+	multimesh.instance_count = tot
+
+
+## (A female's: fish i.) Her fry born, dropped from her one by one.
+func give_birth(i := -1) -> void:
+	if i < 0:
+		for j in pos.size():
+			if male[j] == 0 and size[j] > 0.75 and task[j] != TAKEN and task[j] != FRY:
+				i = j
+				break
+	if i < 0:
+		return
+	_births.append([i, rng.randi_range(6, 12), 0.0])
+
+
+var _births: Array = [] # ([the mother, fry left, s till the next])
+
+
 func swim_to(point: Vector3) -> void:
 	goal = point
 	_goal_t = 20.0
@@ -167,6 +208,8 @@ func nearest(p: Vector3) -> int:
 
 ## Fish i back with the school (whatever it was doing).
 func rejoin(i: int) -> void:
+	if task[i] == FRY: # (a fry keeps to itself)
+		return
 	task[i] = SCHOOL
 	partner[i] = -1
 	task_t[i] = rng.randf_range(8.0, 25.0)
@@ -174,6 +217,8 @@ func rejoin(i: int) -> void:
 
 ## Fish i down to the bottom at `at` (or under it), grazing there.
 func graze(i: int, at := Vector3.INF) -> void:
+	if task[i] == FRY: # (a fry keeps to itself)
+		return
 	task[i] = GRAZE
 	var p := at if at != Vector3.INF else pos[i] + Vector3(rng.randf_range(-0.05, 0.05), 0.0, rng.randf_range(-0.05, 0.05))
 	aim[i] = Vector3(p.x, _floor(p.x, p.z) + 0.006, p.z)
@@ -182,6 +227,8 @@ func graze(i: int, at := Vector3.INF) -> void:
 
 ## (A male) beside the nearest female, his sail raised.
 func display(i: int) -> void:
+	if task[i] == FRY: # (a fry keeps to itself)
+		return
 	if male[i] == 0:
 		return
 	var best := -1
@@ -232,6 +279,27 @@ func _process(dt: float) -> void:
 	for i in n:
 		if task[i] != TAKEN:
 			_place(i, dt)
+	# births: a fry at a time from under her; the fry growing
+	for b: Array in _births.duplicate():
+		b[2] = float(b[2]) - dt
+		var mi: int = b[0]
+		if mi >= pos.size() or task[mi] == TAKEN:
+			_births.erase(b)
+			continue
+		task[mi] = HOLD # (still, a little nose up, while they come)
+		aim[mi] = pos[mi]
+		if float(b[2]) <= 0.0:
+			b[2] = rng.randf_range(0.6, 1.6)
+			b[1] = int(b[1]) - 1
+			add_fry(1, pos[mi] + Vector3(0.0, -0.008, 0.006))
+			if int(b[1]) <= 0:
+				task[mi] = SCHOOL
+				_births.erase(b)
+	for i in n:
+		if task[i] == FRY:
+			size[i] = minf(size[i] + dt * 0.6 / 900.0, 0.8)
+			if size[i] >= 0.6:
+				task[i] = SCHOOL
 
 
 ## Fish i's steering: its neighbours (apart, along with them, with them),
@@ -315,6 +383,22 @@ func _steer(i: int, dt: float, grid: Dictionary) -> void:
 		HOLD:
 			acc = acc * 0.3 + (aim[i] - p) * 4.0 - v * 3.0
 			want = 0.0
+		FRY: # (low by the bottom, near the edges; away from the grown; darting, stopping)
+			acc = sep * 2.0
+			if task_t[i] <= 0.0:
+				task_t[i] = rng.randf_range(1.5, 5.0)
+				var lo2 := tank_min + Vector3(0.03, 0.0, 0.03)
+				var hi2 := tank_max - Vector3(0.03, 0.0, 0.03)
+				var ex := lo2.x if rng.randf() < 0.5 else hi2.x
+				aim[i] = Vector3(lerpf(ex, rng.randf_range(lo2.x, hi2.x), 0.3), 0.0, rng.randf_range(lo2.z, hi2.z))
+				aim[i].y = _floor(aim[i].x, aim[i].z) + 0.012
+			acc += ((aim[i] - p).normalized() * cruise * 0.6 - v) * 2.0
+			for j in range(0, mini(pos.size(), 64)):
+				if task[j] != FRY and task[j] != TAKEN and size[j] > 0.6:
+					var off := p - pos[j]
+					if off.length() < 0.06:
+						acc += off.normalized() * 1.2
+			want = cruise * 0.6
 	display_k[i] = move_toward(display_k[i], 1.0 if t == DISPLAY else 0.0, dt * 1.5)
 	if t != GRAZE:
 		graze_k[i] = move_toward(graze_k[i], 0.0, dt * 2.0)

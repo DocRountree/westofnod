@@ -42,6 +42,7 @@ varying float v_u;
 varying vec3 v_rest;
 varying vec3 v_rn;
 varying float v_male;
+varying float v_grown; // (0 a newborn fry, about 1 cm: glassy, grey, its eyes big and dark .. 1 grown: by its size)
 
 void turn(inout vec3 v, inout vec3 n, vec3 o, vec3 axis, float a) {
 	vec3 k = normalize(axis);
@@ -66,6 +67,7 @@ void vertex() {
 	vec3 v = VERTEX;
 	vec3 n = NORMAL;
 	v_rest = VERTEX;
+	v_grown = smoothstep(0.25, 0.6, length(MODEL_MATRIX[0].xyz));
 	v_rn = NORMAL;
 	// (the other sex's fins: folded away to nothing)
 	if ((part == 3 || part == 10) && male)
@@ -204,6 +206,14 @@ void fragment() {
 		}
 		rough = 0.5;
 		spec = 0.3;
+	}
+	if (v_grown < 1.0 && part != 1 && part != 2) { // (a fry: glassy grey, a few dark spots, its spine faint through it)
+		float ny2 = normalize(v_rn).y;
+		vec3 fc = mix(vec3(0.62, 0.62, 0.58), vec3(0.42, 0.42, 0.36), smoothstep(0.3, 0.9, ny2));
+		fc *= 1.0 - 0.35 * step(0.93, fract(sin(dot(floor(v_rest.zy * 900.0), vec2(12.9898, 78.233))) * 43758.5453));
+		c = mix(fc, c, v_grown);
+		metal *= v_grown;
+		rim = mix(0.7, rim, v_grown);
 	}
 	ALBEDO = c;
 	ROUGHNESS = rough;

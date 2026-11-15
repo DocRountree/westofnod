@@ -32,6 +32,7 @@ global uniform float night;
 varying float v_part;
 varying vec3 v_rest;
 varying float v_out;
+varying float v_grown; // (0 a larva (a furcilia, about 1 cm: pale, glassy, its eyes big for it) .. 1 grown: by its size)
 
 void rot(inout vec3 v, inout vec3 n, vec3 o, vec3 axis, float a) {
 	vec3 k = normalize(axis);
@@ -56,6 +57,7 @@ void vertex() {
 	vec3 v = VERTEX;
 	vec3 n = NORMAL;
 	v_rest = VERTEX;
+	v_grown = smoothstep(0.36, 0.55, length(MODEL_MATRIX[0].xyz));
 	v_part = float(part);
 	v_out = out_;
 	if (part == 2) { // (a swimmeret: its beat, a wave from the back pair forward)
@@ -104,11 +106,20 @@ void fragment() {
 		c = mix(c, gut, g * 0.75);
 		if (part == 6) c = mix(shell, fleck, 0.35);
 	}
+	// (a larva: glassy and pale, a few flecks, its gut a dark thread, its eyes dark)
+	if (v_grown < 1.0 && part != 1) {
+		vec3 glass = vec3(0.86, 0.84, 0.8);
+		float fl = step(0.93, h3(floor(v_rest * 1600.0)));
+		vec3 lc = mix(glass, fleck, fl * 0.7);
+		lc = mix(lc, vec3(0.4, 0.42, 0.3), smoothstep(0.0012, 0.0, abs(v_rest.y - 0.001)) * step(abs(v_rest.x), 0.0012) * 0.6);
+		c = mix(lc, c, v_grown);
+		emit *= v_grown;
+	}
 	ALBEDO = c;
 	ROUGHNESS = rough;
 	SPECULAR = 0.5;
 	EMISSION = emit;
-	// (see-through: a soft rim of light round it)
-	RIM = 0.4;
+	// (see-through: a soft rim of light round it; a larva's the more)
+	RIM = mix(0.8, 0.4, v_grown);
 	RIM_TINT = 0.5;
 }

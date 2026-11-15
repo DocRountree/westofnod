@@ -99,8 +99,9 @@ func _make() -> void:
 	_gpu = _gpu_init()
 
 
-## n more krill, a swarm round centre (its own space), spread across.
-func add(n: int, centre: Vector3, spread := 0.22) -> void:
+## n more krill, a swarm round centre (its own space), spread across;
+## young: larvae (furcilia: about 1 cm, glassy, swarming as the grown do).
+func add(n: int, centre: Vector3, spread := 0.22, young := false) -> void:
 	_sync_state()
 	var a := rng.randf() * TAU
 	var way := Vector3(cos(a), 0.0, sin(a)) # (a swarm all facing the one way)
@@ -110,7 +111,7 @@ func add(n: int, centre: Vector3, spread := 0.22) -> void:
 	for i in range(old, count):
 		var p := centre + Vector3(rng.randf_range(-1, 1), rng.randf_range(-0.6, 0.6), rng.randf_range(-1, 1)) * spread
 		var b := i * STRIDE
-		var vals := [p.x, p.y, p.z, rng.randf_range(0.65, 0.9), # (about 4 cm)
+		var vals := [p.x, p.y, p.z, rng.randf_range(0.2, 0.3) if young else rng.randf_range(0.65, 0.9), # (about 4 cm; a larva about 1)
 				way.x * cruise, 0.0, way.z * cruise, rng.randf(),
 				way.x, 0.0, way.z, 0.0,
 				way.x * cruise, 0.0, way.z * cruise, 0.0,

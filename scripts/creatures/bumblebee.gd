@@ -293,6 +293,60 @@ func _begin() -> int:
 ## Its nest's mouth: a hole in the ground (an old mouse burrow's), a little
 ## crumbled soil round it, moss and dead grass over it. Its origin the
 ## hole's middle, on the ground.
+## Its brood clump, the nest opened to show it: lumps of brown wax (the
+## cells, the larvae in them, some opened), a few wax honey pots, on a bed
+## of dry grass. Its larvae (Larva "bee": fat, creamy, C-curled grubs) are
+## put on it: brood_spots(clump) where.
+static func brood_clump() -> Node3D:
+	var root := Node3D.new()
+	var wax := StandardMaterial3D.new()
+	wax.albedo_color = Color(0.52, 0.36, 0.16)
+	wax.roughness = 0.55
+	var pot := StandardMaterial3D.new()
+	pot.albedo_color = Color(0.62, 0.45, 0.2)
+	pot.roughness = 0.35
+	var grass := StandardMaterial3D.new()
+	grass.albedo_color = Color(0.62, 0.55, 0.38)
+	grass.roughness = 0.95
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 41
+	var s := SphereMesh.new()
+	s.radius = 0.5
+	s.height = 1.0
+	s.radial_segments = 12
+	s.rings = 6
+	var bed := MeshInstance3D.new()
+	bed.mesh = s
+	bed.material_override = grass
+	bed.scale = Vector3(0.11, 0.02, 0.1)
+	root.add_child(bed)
+	var spots := []
+	for k in 9: # (the cells: lumps of wax, each a larva's)
+		var a := TAU * k / 9.0 + rng.randf_range(-0.2, 0.2)
+		var r := rng.randf_range(0.0, 0.032)
+		var c := MeshInstance3D.new()
+		c.mesh = s
+		c.material_override = wax
+		var sz := rng.randf_range(0.016, 0.022)
+		c.scale = Vector3(sz, sz * 0.8, sz)
+		c.position = Vector3(cos(a) * r, 0.012 + sz * 0.3, sin(a) * r)
+		root.add_child(c)
+		spots.append(c.position + Vector3(0.0, sz * 0.45, 0.0))
+	for k in 3: # (honey pots: taller, open)
+		var a := rng.randf() * TAU
+		var p := MeshInstance3D.new()
+		var cy := CylinderMesh.new()
+		cy.top_radius = 0.006
+		cy.bottom_radius = 0.008
+		cy.height = 0.016
+		p.mesh = cy
+		p.material_override = pot
+		p.position = Vector3(cos(a) * 0.045, 0.02, sin(a) * 0.045)
+		root.add_child(p)
+	root.set_meta("brood_spots", spots)
+	return root
+
+
 static func nest() -> Node3D:
 	var root := Node3D.new()
 	var soil := StandardMaterial3D.new()

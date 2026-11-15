@@ -105,6 +105,8 @@ const KINDS := {
 			"head_scale": 1.35, "wrinkle": 0.22, "annulets": 3.0, "spiracles": true, "bristles": true},
 	"wasp": {"style": "curl", "n": 9, "len": 15.0, "w": 5.5, "shape": [0.65, 0.9, 1.0, 1.0, 0.95, 0.7],
 			"pattern": 4, "base": Color(0.95, 0.93, 0.86), "head": Color(0.75, 0.62, 0.4), "curl": 2.4, "crease": 0.08},
+	"bee": {"style": "curl", "n": 10, "len": 16.0, "w": 6.8, "shape": [0.7, 0.92, 1.05, 1.1, 1.0, 0.75], "round_tail": true,
+			"pattern": 4, "base": Color(0.96, 0.92, 0.8), "head": Color(0.9, 0.84, 0.66), "curl": 2.8, "crease": 0.12, "wrinkle": 0.15, "annulets": 2.0},
 	"carpenter": {"style": "curl", "n": 8, "len": 8.0, "w": 3.6, "shape": [0.4, 0.55, 0.85, 1.0, 1.0, 0.85],
 			"pattern": 4, "base": Color(0.96, 0.95, 0.9), "head": Color(0.92, 0.88, 0.78), "curl": 1.8, "neck": true, "crease": 0.03},
 	"harvester": {"style": "curl", "n": 8, "len": 5.0, "w": 2.3, "shape": [0.4, 0.55, 0.85, 1.0, 1.0, 0.85],
@@ -118,6 +120,7 @@ var kind := "monarch"
 ## A caterpillar stung by an ichneumon wasp, her egg in it: its pupa gives
 ## an ichneumon, not a butterfly or a moth (Pupa.infest).
 var parasitized := false
+var parasitoid := "ichneumon" ## (what's in it, parasitized: an ichneumon's larva in a caterpillar; a trigonalid's in a paper wasp's grub)
 var height: Callable ## (x, z) -> the ground's y (none: level, where it was put)
 var _pilot: PilotScript
 var _pace := -1.0
@@ -255,6 +258,8 @@ func threat(secs := 3.0) -> void:
 ## tighter, still, a while, then their skin worked off, their pupa (in its
 ## cell, its cocoon; the wasp's, under its cell's cap: `at` its mouth) there.
 func pupate(at: Vector3, via := [], after := Callable()) -> void:
+	if kind == "bee": # (a bumble bee's grub spins its cocoon in its brood clump: not drawn yet)
+		return
 	_mode = "pupate"
 	_pp_way = via.duplicate()
 	_pp_way.append([at, Vector3.DOWN if kind in ["monarch", "cloak"] else Vector3.UP])
@@ -1036,7 +1041,7 @@ func _pupate_clock(dt: float) -> void:
 func _new_pupa() -> void:
 	var pupa: Node3D = load("res://scripts/creatures/pupa.gd").new(kind)
 	if parasitized:
-		pupa.call("infest", "ichneumon")
+		pupa.call("infest", parasitoid)
 	get_parent().add_child(pupa)
 	var ln := float(K.len) * MM * _g
 	match kind:

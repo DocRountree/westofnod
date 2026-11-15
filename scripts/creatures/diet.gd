@@ -113,6 +113,7 @@ const EATS := {
 	"cecropia_moth.gd": {},
 	"polyphemus_moth.gd": {},
 	"sea_turtle.gd": {}, # (its seagrass isn't in the game)
+	"great_white_shark.gd": {"tuna": 1.0, "fish": 0.8, "dead_fish": 0.4}, # (its seals, sea lions and whale carcasses aren't in the game; a sea otter it bites to try, and lets go)
 	"larva.gd": {"leaf": 1.0},
 	"grasshopper.gd": {"graze": 1.0},
 	"isopod.gd": {"litter": 1.0},
@@ -146,7 +147,7 @@ const COPIES_FOR := {"american_toad.gd": ["ants"], "american_robin.gd": ["ants"]
 ## What isn't hunted (no animal to run down: carrion, plants, the game's
 ## items, a colony eaten whole where it is, what's always under it).
 const NOT_PREY := ["carcass", "dead_mouse", "dead_fish", "berries", "forbs", "flowers", "sapling", "stick", "ants", "wasp_comb",
-		"fish", "mollies", "clam", "urchin", "acorn", "walnut", "pawpaw", "crabapple", "morel", "fly_agaric", "chicken_of_the_woods",
+		"fish", "tuna", "mollies", "clam", "urchin", "acorn", "walnut", "pawpaw", "crabapple", "morel", "fly_agaric", "chicken_of_the_woods",
 		"little_brown", "graze", "leaf", "litter", "algae", "blood"]
 
 ## (A plant's: eaten from where it grows, nothing taken off it (a bush's
@@ -304,7 +305,9 @@ static func kind_of(n: Node) -> String:
 		"snake.gd":
 			k = "snake_young" if young else "snake"
 		"fish_school.gd":
-			k = "fish" if String(n.get("kind")) in ["rainbow", "chinook"] else ""
+			k = "fish" if String(n.get("kind")) in ["rainbow", "chinook"] else ("tuna" if String(n.get("kind")) == "bluefin" else "")
+		"great_white_shark.gd":
+			k = "shark_pup" if young else "shark"
 		"mollies.gd":
 			k = "mollies"
 		"trigonalid.gd", "ichneumon.gd", "wasp.gd":

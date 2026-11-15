@@ -81,6 +81,7 @@ const MouseScript := preload("res://scripts/creatures/mouse.gd")
 const MolliesScript := preload("res://scripts/creatures/mollies.gd")
 const KrillScript := preload("res://scripts/creatures/krill.gd")
 const FishScript := preload("res://scripts/creatures/fish_school.gd")
+const SharkScript := preload("res://scripts/creatures/great_white_shark.gd")
 const HareScript := preload("res://scripts/creatures/hare.gd")
 const FoxScript := preload("res://scripts/creatures/red_fox.gd")
 const BatScript := preload("res://scripts/creatures/bat.gd")
@@ -164,9 +165,9 @@ const CATALOGUE := [
 	["Insects", "cecropia moth", "cecropia", ["adult", "young", "pupa"]],
 	["Insects", "polyphemus moth", "polyphemus", ["adult", "young", "pupa"]],
 	["Insects", "paper wasp", "wasp", ["adult", "young"]],
-	["Insects", "common eastern bumble bee", "bee", ["adult", "queen"]],
-	["Insects", "trigonalid wasp", "trig", ["adult"]],
-	["Insects", "ichneumon wasp", "ichneumon", ["adult"]],
+	["Insects", "common eastern bumble bee (young: grubs in the brood clump of an opened nest)", "bee", ["adult", "queen", "young"]],
+	["Insects", "trigonalid wasp (young: its larva in a paper wasp's grub, in the comb; the wasp's pupa gives a trigonalid)", "trig", ["adult", "young"]],
+	["Insects", "ichneumon wasp (young: its larva in a monarch caterpillar, feeding on it from within; the monarch's pupa gives an ichneumon)", "ichneumon", ["adult", "young"]],
 	["Insects", "carpenter ant (queen)", "carpenter", ["adult", "young"]],
 	["Insects", "red harvester (queen)", "harvester", ["adult", "young"]],
 	["Insects", "June bugs (a pair)", "june", ["adult", "young"]],
@@ -188,19 +189,20 @@ const CATALOGUE := [
 	["Snails", "lovely grass snails (a few)", "grass_snail", ["adult", "young"]],
 	["Crustaceans", "red swamp crayfish", "red_crayfish", ["adult", "young"]],
 	["Crustaceans", "virile crayfish", "virile_crayfish", ["adult", "young"]],
-	["Sea floor", "clams (a few, on the bottom of a sea: a sea otter's food)", "sea_clams", ["adult"]],
-	["Sea floor", "sea urchins (a few, on the bottom of a sea)", "sea_urchins", ["adult"]],
+	["Sea floor", "clams (a few, on the bottom of a sea: a sea otter's food; young: newly settled spat)", "sea_clams", ["adult", "young"]],
+	["Sea floor", "sea urchins (a few, on the bottom of a sea; young: tiny juveniles)", "sea_urchins", ["adult", "young"]],
 	["Sea floor", "a rock on the bottom (a sea otter's anvil)", "sea_rock", ["adult"]],
 	["Crustaceans", "white shrimp (in the sea)", "white_shrimp", ["adult", "young"]],
 	["Crustaceans", "brown shrimp (in the sea)", "brown_shrimp", ["adult", "young"]],
 	["Crustaceans", "pink shrimp (in the sea)", "pink_shrimp", ["adult", "young"]],
-	["Crustaceans", "Antarctic krill (a swarm, in the sea)", "krill", ["adult"]],
-	["Fish", "sailfin mollies (a school)", "mollies", ["adult"]],
-	["Fish", "Chinook salmon, at sea (a school)", "chinook", ["adult"]],
-	["Fish", "Chinook salmon, spawning (a few)", "chinook_spawning", ["adult"]],
-	["Fish", "rainbow trout, in a stream (a few)", "rainbow", ["adult"]],
-	["Fish", "steelhead, in a stream (a few)", "steelhead", ["adult"]],
-	["Fish", "Atlantic bluefin tuna (a school)", "bluefin", ["adult"]],
+	["Crustaceans", "Antarctic krill (a swarm, in the sea; young: a swarm of furcilia larvae, about a centimetre, glassy)", "krill", ["adult", "young"]],
+	["Fish", "sailfin mollies (a school; 1 a female's live fry born; young: a brood of fry, low by the bottom)", "mollies", ["adult", "young"]],
+	["Fish", "Chinook salmon, at sea (a school; young: parr in a stream, their parr marks)", "chinook", ["adult", "young"]],
+	["Fish", "Chinook salmon, spawning (a few; young: parr in a stream)", "chinook_spawning", ["adult", "young"]],
+	["Fish", "rainbow trout, in a stream (a few; young: parr, their parr marks)", "rainbow", ["adult", "young"]],
+	["Fish", "steelhead, in a stream (a few; young: parr, before they go to sea)", "steelhead", ["adult", "young"]],
+	["Fish", "Atlantic bluefin tuna (a school; young: a school of juveniles, about 30 cm, barred)", "bluefin", ["adult", "young"]],
+	["Fish", "great white shark (in the open sea, patrolling; E / H a tuna or salmon here, stalked from deep below, rushed, seized: at the surface, a breach; F a breach of its own; B investigating (circling, closer, a test bite); D gaping, or a spyhop; X a tail slap; G rubbing on the bottom; Z resting near the bottom; K mating (he bites her pectoral, the two belly to belly); 1 her live pups; young: a pup)", "white_shark", ["adult", "young"]],
 	["Amphibians and reptiles", "northern leopard frog", "frog", ["adult", "young"]],
 	["Amphibians and reptiles", "American toad", "toad", ["adult", "young"]],
 	["Amphibians and reptiles", "green anole", "anole", ["adult", "young"]],
@@ -232,8 +234,8 @@ const CATALOGUE := [
 	["Birds", "eastern screech owl (grey or rufous; dozing by day, awake at dusk and by night: T; young: an owlet, in its nest)", "screech_owl", ["adult", "young"]],
 	["Mammals", "deer mouse", "mouse", ["adult", "young"]],
 	["Mammals", "snowshoe hare", "hare", ["adult", "young"]],
-	["Mammals", "eastern fox squirrel", "fox_squirrel", ["adult"]],
-	["Mammals", "eastern grey squirrel", "grey_squirrel", ["adult"]],
+	["Mammals", "eastern fox squirrel (young: a kit, in the drey: pink, naked, blind, growing)", "fox_squirrel", ["adult", "young"]],
+	["Mammals", "eastern grey squirrel (young: a kit, in the drey)", "grey_squirrel", ["adult", "young"]],
 	["Mammals", "North American beaver", "beaver", ["adult", "young"]],
 	["Mammals", "North American river otter", "river_otter", ["adult", "young"]],
 	["Mammals", "sea otter (in the sea)", "sea_otter", ["adult", "young"]],
@@ -956,6 +958,20 @@ func _spawn_animal(key: String, at: Vector3, stage: String, male: bool, young: b
 			w.land(at + Vector3(0.1, 0.0, 0.08))
 			return w
 		"bee": # (a worker, or a drone (male); queen: a new queen, to mate)
+			if young: # (grubs in the brood clump of a nest, opened)
+				var clump: Node3D = BeeScript.brood_clump()
+				clump.position = at
+				add_child(clump)
+				var spots: Array = clump.get_meta("brood_spots")
+				var first: Node3D = null
+				for k in 4:
+					var g := LarvaScript.new("bee", randf_range(0.45, 1.0))
+					_org(g, at, false)
+					g.place(at + (spots[k] as Vector3), Vector3.FORWARD.rotated(Vector3.UP, randf() * TAU))
+					if first == null:
+						first = g
+						g.set_meta("kit", {"clump": clump})
+				return first
 			var b: Node3D = BeeScript.new(stage == "queen" and not male)
 			b.set("male", male)
 			_org(b, at, false)
@@ -970,6 +986,13 @@ func _spawn_animal(key: String, at: Vector3, stage: String, male: bool, young: b
 				b.call("forage", _heads_near(at), nest.position)
 			return b
 		"trig", "ichneumon":
+			if young: # (its larva inside its host: a stung caterpillar; a paper wasp's grub in its cell)
+				var host: Node = _spawn_animal("monarch" if key == "ichneumon" else "wasp", at, "young", false, true)
+				if host:
+					host.set("parasitized", true)
+					host.set("parasitoid", "ichneumon" if key == "ichneumon" else "trigonalid")
+					host.set_meta("placed", key)
+				return host
 			var t: Node3D = (IchScript if key == "ichneumon" else TrigScript).new()
 			t.set("male", male)
 			_org(t, at, false)
@@ -1145,10 +1168,30 @@ func _spawn_animal(key: String, at: Vector3, stage: String, male: bool, young: b
 				pb.grow(0.5, 60.0)
 			pb.wander(at, 0.1)
 			return pb
+		"white_shark": # (in the open sea, dug by it if there's none)
+			var oq := _pond_near(at, 0.2)
+			if oq.is_empty() or String(oq.kind) != "ocean":
+				var d: Array = PONDS.ocean
+				var dc := at + Vector3(float(d[0]) + 0.3, 0.0, 0.0)
+				dc.x = clampf(dc.x, -HALF + float(d[0]) + 0.2, HALF - float(d[0]) - 0.2)
+				dc.z = clampf(dc.z, -HALF + float(d[1]) + 0.2, HALF - float(d[1]) - 0.2)
+				oq = _dig_pond(dc, d[0], d[1], d[2], "ocean")
+			var sk: Node3D = SharkScript.new(young)
+			sk.set("male", male and not young)
+			var oc: Vector3 = oq.c
+			var od := float(oq.deep)
+			sk.call("set_water", oc + Vector3(-float(oq.hw) + 0.1, POND - od + 0.02, -float(oq.hd) + 0.1), oc + Vector3(float(oq.hw) - 0.1, POND - 0.03, float(oq.hd) - 0.1))
+			_org(sk, oc, false)
+			sk.call("place", oc + Vector3(randf_range(-2.0, 2.0), POND - od * (0.35 if young else 0.5), randf_range(-1.5, 1.5)), randf() * TAU)
+			sk.set_meta("pond", oc)
+			return sk
 		"chinook", "chinook_spawning", "rainbow", "steelhead", "bluefin": # (each in its own water, dug by it: a deep pool; a stream, flowing; the open sea)
 			var fk: String = {"chinook": "chinook", "chinook_spawning": "chinook", "rainbow": "rainbow", "steelhead": "rainbow", "bluefin": "bluefin"}[key]
 			var fv: String = {"chinook": "ocean", "chinook_spawning": "spawning", "rainbow": "", "steelhead": "steelhead", "bluefin": ""}[key]
 			var water: String = {"chinook": "salmon", "rainbow": "trout", "bluefin": "ocean"}[fk]
+			if young: # (a salmon's, a trout's parr: in a stream; a tuna's juveniles at sea)
+				fv = ""
+				water = "ocean" if fk == "bluefin" else "trout"
 			var fq := _pond_near(at, 0.2)
 			if fq.is_empty() or String(fq.kind) != water:
 				var d: Array = PONDS[water]
@@ -1156,7 +1199,7 @@ func _spawn_animal(key: String, at: Vector3, stage: String, male: bool, young: b
 				dc.x = clampf(dc.x, -HALF + float(d[0]) + 0.2, HALF - float(d[0]) - 0.2) # (all of it on the plain)
 				dc.z = clampf(dc.z, -HALF + float(d[1]) + 0.2, HALF - float(d[1]) - 0.2)
 				fq = _dig_pond(dc, d[0], d[1], d[2], water)
-			var fs: Node3D = FishScript.new(fk, fv)
+			var fs: Node3D = FishScript.new(fk, fv, young)
 			var fc: Vector3 = fq.c
 			var fd := float(fq.deep)
 			fs.set("tank_min", fc + Vector3(-float(fq.hw) + 0.1, POND - fd + 0.02, -float(fq.hd) + 0.1))
@@ -1165,6 +1208,8 @@ func _spawn_animal(key: String, at: Vector3, stage: String, male: bool, young: b
 				fs.set("current", Vector3(0.3, 0.0, 0.0))
 			_org(fs, fc, false)
 			var n: int = {"chinook": 8 if fv == "ocean" else 4, "rainbow": 5, "bluefin": 10}[fk]
+			if young:
+				n = {"chinook": 14, "rainbow": 12, "bluefin": 16}[fk]
 			fs.call("setup", n, fc + Vector3(0.0, POND - fd * 0.5, 0.0), minf(float(fq.hw), float(fq.hd)) * 0.4)
 			fs.set_meta("pond", fc)
 			return fs
@@ -1173,6 +1218,8 @@ func _spawn_animal(key: String, at: Vector3, stage: String, male: bool, young: b
 			if q.is_empty():
 				q = _dig_pond(at, PONDS.fishing[0], PONDS.fishing[1], PONDS.fishing[2], "fishing")
 			if is_instance_valid(q.mollies):
+				if young:
+					(q.mollies as Node).call("add_fry", 10, (q.c as Vector3) + Vector3(0.0, POND - float(q.deep) + 0.03, 0.0))
 				return q.mollies
 			var mol := MolliesScript.new()
 			var c0: Vector3 = q.c
@@ -1182,6 +1229,8 @@ func _spawn_animal(key: String, at: Vector3, stage: String, male: bool, young: b
 			_org(mol, c0, false)
 			mol.setup(14, c0 + Vector3(0.0, POND - minf(0.12, dp * 0.5), 0.0), 0.08)
 			q.mollies = mol
+			if young: # (a brood of fry, newborn)
+				mol.add_fry(10, c0 + Vector3(0.0, POND - dp + 0.03, 0.0))
 			return mol
 		"krill": # (a swarm, in the sea: the sea's pool of them, more put in it)
 			var q := _pond_for(at, "sea")
@@ -1197,7 +1246,7 @@ func _spawn_animal(key: String, at: Vector3, stage: String, male: bool, young: b
 			var lo: Vector3 = kr.get("tank_min")
 			var hi: Vector3 = kr.get("tank_max")
 			var at2 := Vector3(clampf(at.x, lo.x + 0.3, hi.x - 0.3), POND - dp * 0.5, clampf(at.z, lo.z + 0.3, hi.z - 0.3))
-			kr.call("add", 220, at2, 0.22)
+			kr.call("add", 300 if young else 220, at2, 0.16 if young else 0.22, young)
 			return kr
 		"frog", "toad":
 			var q := _pond_for(at, "small_pond")
@@ -1278,7 +1327,31 @@ func _spawn_animal(key: String, at: Vector3, stage: String, male: bool, young: b
 			h.wander(at, 0.6)
 			return h
 		"fox_squirrel", "grey_squirrel":
-			var q: Node3D = (SquirrelScript if key == "fox_squirrel" else GreySqScript).new()
+			var qs: GDScript = SquirrelScript if key == "fox_squirrel" else GreySqScript
+			if young: # (a kit: in its mother's drey, if she's here; else a drey of its own, up a tree)
+				var mom: Node3D = null
+				for o in get_children():
+					if o.get_script() == qs and not o.get("male") and not o.get("young") and (o as Node3D).position.distance_to(at) < 8.0 and o.get("drey") != Vector3.INF:
+						mom = o
+				var dr: Vector3
+				if mom:
+					dr = mom.get("drey")
+				else:
+					var t0: Node3D = _plant_near(at, ["g_oak"], 4.0, Vector3(0.6, 0.0, -0.6))
+					_drey_in(t0)
+					dr = t0.position + (t0.get_meta("drey") as Vector3)
+				var kit: Node3D = qs.new(true)
+				add_child(kit)
+				kit.set_meta("home", at)
+				var ka := randf() * TAU
+				kit.call("place", dr + Vector3(cos(ka), -0.05, sin(ka)) * 0.05, randf() * TAU)
+				kit.set("ground_y", dr.y - 0.08)
+				kit.call("grow", 0.33 if key == "grey_squirrel" else 0.3, 900.0)
+				if mom:
+					kit.set("_mother", mom)
+					(mom.get("kits") as Array).append(kit)
+				return kit
+			var q: Node3D = qs.new()
 			q.set("male", male)
 			_sinks(q)
 			_org(q, at, false)
@@ -1328,16 +1401,19 @@ func _spawn_animal(key: String, at: Vector3, stage: String, male: bool, young: b
 			var q := _pond_for(at, "sea")
 			var bottom := -float(q.deep) + 0.012
 			var first: Node3D = null
-			for k in (1 if key == "sea_rock" else 4):
+			var spat := young and key != "sea_rock" # (the young: newly settled, a few mm to a couple of cm, too small for an otter to bother with)
+			for k in (1 if key == "sea_rock" else (12 if spat else 4)):
 				var o: Node3D = SeaOtterScript.rock() if key == "sea_rock" else (SeaOtterScript.clam() if key == "sea_clams" else SeaOtterScript.urchin())
 				if key == "sea_rock":
 					o.set_meta("otter_rock", true)
+				elif spat:
+					o.scale = Vector3.ONE * randf_range(0.18, 0.35)
 				else:
 					o.set_meta("shellfish", "clam" if key == "sea_clams" else "urchin")
 				o.set_meta("prop", true)
 				add_child(o)
 				var c0: Vector3 = q.c
-				o.position = Vector3(clampf(at.x, c0.x - float(q.hw) * 0.8, c0.x + float(q.hw) * 0.8), bottom, clampf(at.z, c0.z - float(q.hd) * 0.8, c0.z + float(q.hd) * 0.8)) + Vector3(randf_range(-0.25, 0.25), 0.0, randf_range(-0.25, 0.25)) * float(k > 0)
+				o.position = Vector3(clampf(at.x, c0.x - float(q.hw) * 0.8, c0.x + float(q.hw) * 0.8), bottom, clampf(at.z, c0.z - float(q.hd) * 0.8, c0.z + float(q.hd) * 0.8)) + Vector3(randf_range(-0.25, 0.25), 0.0, randf_range(-0.25, 0.25)) * float(k > 0) * (1.6 if spat else 1.0)
 				o.rotation.y = randf() * TAU
 				if first == null:
 					first = o
@@ -2738,6 +2814,65 @@ func _raptor_do(r: Raptor, act_: String) -> void:
 
 
 
+## A great white shark's ways (GreatWhiteShark): E / H a tuna or salmon
+## that's here (its school in its sea), stalked from below, rushed, seized
+## (at the surface, out of the water: a breach); F a breach of its own; B
+## investigating (a sea otter here, else the spot under the camera:
+## circled, closer, a test bite); D gaping, or a spyhop; X a tail slap; G
+## rubbing on the bottom; Z resting; K (a male) mating with the nearest
+## female; 1 (a female) her pups born; U dead; W patrolling.
+func _shark_do(c: Node, act_: String, p: Vector3) -> void:
+	if c.get("dead"):
+		return
+	match act_:
+		"eat", "hunt":
+			var f := Diet.find(c as Node3D, 80.0, ["tuna", "fish"])
+			if f and f != c:
+				c.call("hunt", f)
+			else:
+				_no_food(c)
+		"fly":
+			c.call("breach")
+		"forage", "play":
+			var t: Node3D = null
+			for o in _creatures():
+				if o is SeaOtterScript and not o.young and (o as Node3D).position.distance_to(p) < 30.0:
+					t = o
+			if t:
+				c.call("investigate", t)
+			else:
+				var at := _on(cam.global_position) if cam else p
+				var lo: Vector3 = c.get("tank_min")
+				var hi: Vector3 = c.get("tank_max")
+				c.call("investigate", null, Vector3(clampf(at.x, lo.x + 2.0, hi.x - 2.0), lerpf(lo.y, hi.y, 0.7), clampf(at.z, lo.z + 2.0, hi.z - 2.0)))
+		"display", "mark":
+			if randf() < 0.5:
+				c.call("gape", 3.0)
+			else:
+				c.call("spyhop")
+		"alarm":
+			c.call("tail_slap")
+		"groom":
+			c.call("chafe")
+		"sleep", "sit":
+			c.call("rest", 40.0)
+		"mate":
+			if c.get("male") and not c.get("young"):
+				var best: Node3D = null
+				for o in _creatures():
+					if o is SharkScript and o != c and not o.male and not o.young and not o.dead:
+						if best == null or (o as Node3D).position.distance_to(p) < best.position.distance_to(p):
+							best = o
+				if best:
+					c.call("mate", best)
+		"lay":
+			c.call("give_birth")
+		"unusual":
+			c.call("die")
+		_:
+			c.call("patrol")
+
+
 ## A big brown bat's ways (Bat): E / H out after what it eats that's here
 ## (a flying insect hawked, a beetle on the ground gleaned; none set out);
 ## B a drink at a pond near (skimming it), or out foraging; F out flying; D /
@@ -3059,6 +3194,9 @@ func _do(c: Node, act_: String) -> void:
 		if act_ == "hatch":
 			CarcassScript.set_stage(c as Node3D, int(c.get_meta("carcass")) % 3 + 1)
 		return
+	if c is SharkScript: # (its own: in its sea)
+		_shark_do(c, act_, p)
+		return
 	if c is CrayScript: # (its own: in its pond)
 		_crayfish_do(c, act_, young, p)
 		return
@@ -3230,6 +3368,8 @@ func _do(c: Node, act_: String) -> void:
 			"alarm":
 				var q := _pond_near(p, 0.5)
 				c.call("scatter", (q.c as Vector3) + Vector3(0.0, POND, 0.0) if not q.is_empty() else p)
+			"lay", "hatch": # (a female's fry born)
+				c.call("give_birth")
 		return
 	match act_:
 		"wander":

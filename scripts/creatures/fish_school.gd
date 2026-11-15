@@ -58,7 +58,12 @@ const KINDS := {
 }
 const VARIANTS := {"ocean": 0, "spawning": 1, "steelhead": 1}
 
+## (Its young: a salmon's or a trout's parr, in a stream, its parr marks;
+## a tuna's juveniles at sea, barred. Their size, of a grown one's.)
+const YOUNG_SIZE := {"chinook": 0.1, "rainbow": 0.15, "bluefin": 0.15}
+
 var kind := "chinook"
+var young := false ## (its young: parr, juveniles)
 var variant := 0
 var K: Dictionary
 var tank_min := Vector3(-5.0, 0.0, -5.0) ## the water (its own space): the bottom's corner
@@ -91,10 +96,18 @@ var _t := 0.0
 static var _built := {} # kind:variant -> [mesh, pec pivots, jaw pivot, z_head, z_tail]
 
 
-func _init(kind_ := "chinook", variant_ := "ocean") -> void:
+func _init(kind_ := "chinook", variant_ := "ocean", young_ := false) -> void:
 	kind = kind_ if KINDS.has(kind_) else "chinook"
-	K = KINDS[kind]
+	K = KINDS[kind].duplicate()
 	variant = int(VARIANTS.get(variant_, 0))
+	young = young_
+	if young: # (its distances its size's, its pace a little less than in proportion)
+		var f: float = YOUNG_SIZE[kind]
+		for k: String in ["near", "apart", "half_h"]:
+			K[k] = float(K[k]) * f
+		for k: String in ["cruise", "top"]:
+			K[k] = float(K[k]) * sqrt(f)
+		K["scale"] = float(K["scale"]) * f
 
 
 func setup(n: int, centre: Vector3, spread := 1.0) -> void:
@@ -118,7 +131,8 @@ func setup(n: int, centre: Vector3, spread := 1.0) -> void:
 	m.set_shader_parameter("z_tail", B[4])
 	m.set_shader_parameter("stiff", float(K.stiff))
 	m.set_shader_parameter("spot_cell", float(K.spot))
-	m.set_shader_parameter("half_h", float(K.half_h))
+	m.set_shader_parameter("half_h", float(KINDS[kind].half_h)) # (the mesh's own, not its size's)
+	m.set_shader_parameter("young", 1.0 if young else 0.0)
 	material_override = m
 	pos.resize(n)
 	vel.resize(n)
@@ -137,7 +151,7 @@ func setup(n: int, centre: Vector3, spread := 1.0) -> void:
 		heading[i] = Vector3(cos(a), 0.0, sin(a))
 		vel[i] = heading[i] * float(K.cruise)
 		seed[i] = rng.randf()
-		size[i] = rng.randf_range(0.8, 1.1)
+		size[i] = rng.randf_range(0.8, 1.1) * (float(YOUNG_SIZE[kind]) if young else 1.0)
 		task[i] = HOLD if current.length() > 0.01 else SCHOOL
 		aim[i] = pos[i]
 		task_t[i] = rng.randf_range(5.0, 20.0)

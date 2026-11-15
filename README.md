@@ -291,14 +291,16 @@ Olive above, silvery sides, a net of scales with rows of dark
   spots; the males iridescent, orange throated, their gonopodium; the females' small dorsal and fan of an anal fin.
   The CPU side schools them (keeping apart, going their neighbours' way, staying together; the school wandering the
   water it's given, `swim_to`, `scatter`), sends one down to graze now and then, a male to display beside a female;
-  each steerable (`member(i)`, pilot.gd). `tools/creatures/molly_demo.tscn` (a tank of them; keys: 1 school, 2 graze,
+  each steerable (`member(i)`, pilot.gd). Live-bearing: `give_birth()` holds a female still while her fry drop one
+  by one (glassy grey, 6 mm), which keep low and to the edges, away from the grown fish, growing until they join the
+  school (`add_fry`; the sandbox's young stage). `tools/creatures/molly_demo.tscn` (a tank of them; keys: 1 school, 2 graze,
   3 the males display, S scatter, M move the school, P one steered, + / - more or fewer); a few in the life cycle
   demo's pond.
 - `scripts/creatures/fish_school.gd` (`FishSchool`): fish in schools, life size, made and moved as the mollies are
   (one mesh, every fish an instance, posed by `shaders/render/fish.gdshader`: the body's wave, a tuna's beat all in its
   tail; the turns; the pectorals; the jaw opening to feed and with each breath), a school a draw call.
 
-<p align="center"><img src="docs/organisms/chinook.jpg" width="140" alt="Chinook salmon, at sea (a school)"><img src="docs/organisms/chinook_spawning.jpg" width="140" alt="Chinook salmon, spawning (a few)"><img src="docs/organisms/rainbow.jpg" width="140" alt="Rainbow trout, in a stream (a few)"><img src="docs/organisms/steelhead.jpg" width="140" alt="Steelhead, in a stream (a few)"><img src="docs/organisms/bluefin.jpg" width="140" alt="Atlantic bluefin tuna (a school)"><br><sub>Chinook salmon, at sea (a school) &nbsp; Chinook salmon, spawning (a few) &nbsp; Rainbow trout, in a stream (a few) &nbsp; Steelhead, in a stream (a few) &nbsp; Atlantic bluefin tuna (a school)</sub></p>
+<p align="center"><img src="docs/organisms/chinook.jpg" width="140" alt="Chinook salmon, at sea (a school)"><img src="docs/organisms/chinook_spawning.jpg" width="140" alt="Chinook salmon, spawning (a few)"><img src="docs/organisms/rainbow.jpg" width="140" alt="Rainbow trout, in a stream (a few)"><img src="docs/organisms/steelhead.jpg" width="140" alt="Steelhead, in a stream (a few)"><img src="docs/organisms/bluefin.jpg" width="140" alt="Atlantic bluefin tuna (a school)"><img src="docs/organisms/white_shark.jpg" width="140" alt="Great white shark"><br><sub>Chinook salmon, at sea (a school) &nbsp; Chinook salmon, spawning (a few) &nbsp; Rainbow trout, in a stream (a few) &nbsp; Steelhead, in a stream (a few) &nbsp; Atlantic bluefin tuna (a school) &nbsp; Great white shark</sub></p>
 
 
   `FishSchool.new(kind, variant)`: `"chinook"`, a Chinook salmon (at sea dark blue green, silver, white, black spots
@@ -310,6 +312,19 @@ Olive above, silvery sides, a net of scales with rows of dark
   (`current`); rising to the surface to sip, a ring spreading on the water (`rise`); the school through a bait ball,
   mouths open (`feed`); each steerable (`member(i)`). `tools/creatures/fish_demo.tscn` (a water for each; keys: Tab
   the next, 1 school, 2 rise / feed, 3 scatter, 4 the other variant, P one steered, + / - more or fewer).
+  `FishSchool.new(kind, "", true)`: the young (salmon and trout parr, olive gold with their dark parr marks along
+  the side; a juvenile bluefin, its pale bars bold), smaller, schooling closer.
+- `scripts/creatures/great_white_shark.gd` (`GreatWhiteShark`): a great white shark, life size (a female 4.6 m, a
+  male smaller, with claspers; a pup 1.3 m, growing), one mesh posed by `shaders/render/shark.gdshader`: the
+  thunniform beat all in the stalk and tail, the jaw dropping, the snout lifting and the upper jaw thrown forward to
+  bite, the eyes rolled back white as it does, the gills flaring, the pectorals; slate grey above, the ragged line to
+  the white belly, five gill slits, the black axillary spot, the dark-tipped pectorals, the snout's pores, old scars
+  (and the female's mating scars), two rows of serrated teeth. Patrolling, mouth a little open; hunting from below
+  (`hunt`: stalking deep, then the rush up, the bite and, at the surface, clean out of the water); breaching of its
+  own (`breach`), spyhopping (`spyhop`), gaping (`gape`), the tail slap, chafing, resting in a current; investigating
+  something new with a mouthing test bite (`investigate`); courting and mating (`mate`: the male's hold on her
+  pectoral, belly to belly); giving birth to live pups that swim straight off (`give_birth`); pups keep away from
+  the grown sharks. In the sandbox's Fish (key `white_shark`: adult, or a pup).
 - `scripts/creatures/beetles.gd` (`Beetles`): beetles at twice life size, not yet in the game, the make they
   share: made and moved as the ants are (one mesh, the same shader, the same CPU side), each species its own shape,
   markings, colours and pace, walking, eating at a leaf and flying (the elytra, one

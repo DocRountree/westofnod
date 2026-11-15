@@ -25,6 +25,7 @@ render_mode cull_disabled;
 
 uniform int species = 0;
 uniform int variant = 0;
+uniform float young = 0.0; // (its young: a salmon's or a trout's parr (olive gold, its parr marks: dark ovals along its side); a tuna's juveniles (its pale bars bold))
 uniform float z_head = -0.45;
 uniform float z_tail = 0.45;
 uniform float stiff = 0.0;
@@ -163,6 +164,26 @@ void fragment() {
 			rough = 0.22;
 			if (part == 13)
 				c = vec3(0.05);
+		}
+		if (young > 0.5) {
+			if (species < 2) { // (parr: olive above, gold-silver down the sides, white below; the dark parr marks, tall ovals astride the lateral line; few spots)
+				vec3 pc = mix(vec3(0.72, 0.68, 0.5), vec3(0.3, 0.32, 0.2), smoothstep(0.0, 0.7, hy));
+				pc = mix(pc, white, 1.0 - smoothstep(-0.75, -0.35, hy));
+				float L = z_tail - z_head;
+				float n = species == 0 ? 10.0 : 9.0;
+				float u = (v_rest.z - z_head) / L;
+				float k = fract(u * n * 1.25 - 0.15);
+				float mark = (1.0 - smoothstep(0.28, 0.4, abs(k - 0.5))) * (1.0 - smoothstep(0.35, 0.6, abs(hy - 0.05) / (species == 0 ? 0.85 : 0.65))) * smoothstep(0.12, 0.2, u) * (1.0 - smoothstep(0.78, 0.84, u));
+				pc = mix(pc, vec3(0.16, 0.17, 0.14), mark * 0.75);
+				if (species == 1) // (a trout's: a faint pink along them, its back spotted)
+					pc = mix(pc, vec3(0.8, 0.5, 0.45), (1.0 - smoothstep(0.1, 0.3, abs(hy + 0.05))) * 0.25);
+				float sp2 = spots(sp, spot_cell, 0.3) * smoothstep(0.35, 0.6, hy);
+				c = mix(pc, vec3(0.05), sp2 * 0.6);
+				metal = 0.35;
+			} else { // (a juvenile tuna: silver, its pale bars and dots bold down its sides, its back blue)
+				float jb = step(0.55, fract(v_rest.z / 0.07)) * (1.0 - smoothstep(0.1, 0.35, hy)) * smoothstep(-0.75, -0.45, hy);
+				c = mix(c, white, jb * 0.75);
+			}
 		}
 		// (the gill cover's edge; the lateral line)
 		float gill = 1.0 - smoothstep(0.0, 0.004, abs(v_rest.z - (z_head + (z_tail - z_head) * 0.2 - abs(v_rest.y) * 0.25)));
