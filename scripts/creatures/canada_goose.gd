@@ -708,6 +708,13 @@ func _guard(_dt: float) -> void:
 		forage()
 
 
+## An egg of hers taken from her nest (Foraging): her last, off her nest, to graze.
+func egg_taken(e: Node3D) -> void:
+	eggs_laid.erase(e)
+	if eggs_laid.is_empty() and _mode == "incubate":
+		forage()
+
+
 func _make_nest() -> Node3D:
 	# a wide low bowl of dry grass and reeds pulled in round her; its hollow
 	# lined with her down (more as she lays): nest.gd

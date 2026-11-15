@@ -1300,9 +1300,6 @@ func _make_nest() -> Node3D:
 	return TreeNest.of(TreeNest.kind_of(self), nest_scale, rng.randi() % 1000) # (its kind's: nest.gd)
 
 
-static var _egg_mats := {}
-
-
 func _make_egg() -> Node3D:
 	var mi := MeshInstance3D.new()
 	var sm := SphereMesh.new()
@@ -1311,31 +1308,32 @@ func _make_egg() -> Node3D:
 	sm.radial_segments = 14
 	sm.rings = 8
 	mi.mesh = sm
-	var key := "%s" % [egg_colors]
-	if not _egg_mats.has(key):
-		var sh := Shader.new()
-		sh.code = """shader_type spatial;
-uniform vec3 ground : source_color;
-uniform vec3 blotch : source_color;
-varying vec3 p;
-float hash(vec3 q) { return fract(sin(dot(q, vec3(127.1, 311.7, 74.7))) * 43758.5453); }
-float noise(vec3 q) { vec3 i = floor(q); vec3 f = fract(q); f = f * f * (3.0 - 2.0 * f);
-	return mix(mix(mix(hash(i), hash(i + vec3(1,0,0)), f.x), mix(hash(i + vec3(0,1,0)), hash(i + vec3(1,1,0)), f.x), f.y),
-		mix(mix(hash(i + vec3(0,0,1)), hash(i + vec3(1,0,1)), f.x), mix(hash(i + vec3(0,1,1)), hash(i + vec3(1,1,1)), f.x), f.y), f.z); }
-void vertex() { p = VERTEX; VERTEX.xz *= 1.0 - 0.15 * smoothstep(0.0, 0.03, VERTEX.y); }
-void fragment() {
-	float n = noise(p * 160.0) * 0.6 + noise(p * 420.0) * 0.4;
-	float b = smoothstep(0.5, 0.62, n);
-	ALBEDO = mix(ground, blotch, b * float(length(blotch - ground) > 0.05));
-	ROUGHNESS = 0.55;
-}"""
-		var m := ShaderMaterial.new()
-		m.shader = sh
-		m.set_shader_parameter("ground", egg_colors[0])
-		m.set_shader_parameter("blotch", egg_colors[1])
-		_egg_mats[key] = m
-	mi.material_override = _egg_mats[key]
+	mi.material_override = Items.egg_material(egg_colors[0], egg_colors[1], egg_size.x)
+	_tag_egg(mi)
 	return mi
+
+
+## The item an egg of its is, taken (Items: its kind's egg).
+func egg_item() -> String:
+	var f := (get_script() as Script).resource_path.get_file()
+	var k := TreeNest.kind_of(self)
+	var id := ("golden_eagle" if f == "golden_eagle.gd" else ("bald_eagle" if k == "eagle" else k)) + "_egg"
+	return id if Items.exists(id) else ""
+
+
+## (One of its eggs, laid: one the player can take from the nest, Foraging.)
+func _tag_egg(e: Node3D) -> void:
+	e.add_to_group("nest_egg")
+	e.set_meta("egg_item", egg_item())
+	e.set_meta("egg_of", self)
+
+
+## An egg of hers taken from her nest (Foraging): gone from her clutch; her
+## last, she leaves the nest.
+func egg_taken(e: Node3D) -> void:
+	eggs_laid.erase(e)
+	if eggs_laid.is_empty() and _mode == "incubate":
+		perch()
 
 
 # --- steering (pilot.gd) ----------------------------------------------------------

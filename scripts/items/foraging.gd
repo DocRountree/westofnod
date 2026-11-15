@@ -10,7 +10,9 @@ extends Node
 ## a hand free, looking at one of the fruit itself within reach (PICK_REACH:
 ## up in a tall tree's crown, climb it), picks that one into the hand; what's
 ## picked is gone from the tree till the next day, when it bears again. Saved
-## with the game (to_dict).
+## with the game (to_dict). A bird's egg, in its nest (the ecology sandbox's
+## nesting birds, for now: up the tree to it), taken the same way (egg_at):
+## gone from her clutch for good, never to hatch; her last, she leaves it.
 
 const PICK_REACH := 2.8 ## m from the eye a fruit can be picked
 const PICK_SLACK := 0.04 ## m round a fruit the view may pass and still pick it
@@ -104,7 +106,31 @@ func fruit_at(eye: Vector3, fwd: Vector3) -> Dictionary:
 				continue
 			if (eye + fwd * t).distance_to(c) <= r:
 				best_t = t
-				best = {"tree": tree, "spot": i, "fruit": tree.fruit}
+				best = {"tree": tree, "spot": i, "fruit": tree.fruit, "t": t}
+	return best
+
+
+## The egg in a nest (group "nest_egg": a bird's, laid; its item, meta
+## "egg_item") the view from eye along fwd (unit; the drawn space, where the
+## creatures are) meets first within PICK_REACH: {egg, item, t}, or {} none.
+func egg_at(eye: Vector3, fwd: Vector3) -> Dictionary:
+	var best := {}
+	var best_t := INF
+	for e: Node in get_tree().get_nodes_in_group("nest_egg"):
+		if not (e is Node3D) or not (e as Node3D).is_visible_in_tree():
+			continue
+		var id := String(e.get_meta("egg_item", ""))
+		if id == "":
+			continue
+		var c := (e as Node3D).global_position
+		var size: Vector3 = Items.KINDS[id].size
+		var r := size.y * 0.5 + PICK_SLACK
+		var t := (c - eye).dot(fwd)
+		if t < 0.0 or t > PICK_REACH + r or t >= best_t:
+			continue
+		if (eye + fwd * t).distance_to(c) <= r:
+			best_t = t
+			best = {"egg": e, "item": id, "t": t}
 	return best
 
 
@@ -117,12 +143,19 @@ func _unhandled_input(event: InputEvent) -> void:
 	var inv: Inventory = main.inventory
 	var eye := Origin.map(p.camera.global_position)
 	var fwd := -p.camera.global_basis.z
-	# a fruit looked at, else a fungus, else a flower or a cattail
+	# an egg in a nest or a fruit looked at (the nearer), else a fungus, else a flower or a cattail
 	var fruit := fruit_at(eye, fwd)
+	var egg := egg_at(p.camera.global_position, fwd)
+	if not egg.is_empty() and (fruit.is_empty() or float(egg.t) < float(fruit.get("t", INF))):
+		fruit = {}
+	else:
+		egg = {}
 	var plant := {}
 	var fungus := {}
 	var id := ""
-	if fruit.is_empty():
+	if not egg.is_empty():
+		id = egg.item
+	elif fruit.is_empty():
 		fungus = main.population.pickable_at(eye, fwd, PICK_REACH)
 	if not fruit.is_empty():
 		id = fruit.fruit
@@ -140,7 +173,14 @@ func _unhandled_input(event: InputEvent) -> void:
 	if hand < 0:
 		return # (no hand free: nothing to pick with)
 	get_viewport().set_input_as_handled()
-	if not fruit.is_empty():
+	if not egg.is_empty(): # (out of its nest: gone from its mother's clutch, never to hatch)
+		var e: Node3D = egg.egg
+		var mom: Object = e.get_meta("egg_of", null)
+		if is_instance_valid(mom) and mom.has_method("egg_taken"):
+			mom.call("egg_taken", e)
+		e.remove_from_group("nest_egg")
+		e.queue_free()
+	elif not fruit.is_empty():
 		var tree: Dictionary = fruit.tree
 		var kind: PropKind = tree.kind
 		var spots: int = kind.mesh_script.fruit_spots(tree.variant).size()
@@ -162,7 +202,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	if n > 1:
 		main.chat.say("Picked %d %s." % [n, nm + ("" if nm.ends_with("s") or nm == "chicken of the woods" else "s")], Color(0.8, 1.0, 0.75))
 	else:
-		main.chat.say("Picked %s %s." % ["an" if nm.left(1) in ["a", "e", "i", "o", "u"] else "a", nm], Color(0.8, 1.0, 0.75))
+		main.chat.say("%s %s %s." % ["Took" if not egg.is_empty() else "Picked", "an" if nm.left(1) in ["a", "e", "i", "o", "u"] else "a", nm], Color(0.8, 1.0, 0.75))
 
 
 ## Whether a hand holding `held` can take one more of id.

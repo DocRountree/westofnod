@@ -348,7 +348,10 @@ Olive above, silvery sides, a net of scales with rows of dark
   `OakTree._climb_lines` gives them): a platform out on a limb where it leaves the trunk, high up; a cup toward a
   limb's end; a hollow in the trunk's side below the first limbs; a drey in an upper crotch; never where another
   nest is. In the ecology sandbox a nesting bird's nest (and a squirrel's drey) is built in the nearest oak (one
-  planted for it if there's none); not yet in the game. The ground homes (dens, burrows, the beaver's lodge, the
+  planted for it if there's none); not yet in the game. Her eggs can be taken from it as fruit is picked (a left
+  click with a hand free, looking at one within reach: up the tree to it; `Foraging.egg_at`): each bird's own egg
+  item (`Items`: robin egg, eagle egg, ...; held life size, coloured and marked as laid), gone from her clutch, never
+  to hatch; her last taken, she leaves the nest. The ground homes (dens, burrows, the beaver's lodge, the
   otter's holt, the mouse's and bumblebee's nests, the crayfish's chimney) have no model for now: the animals still
   go to the spot to sleep or give birth.
 - `scripts/creatures/giant_kelp.gd` (`GiantKelp`): giant kelp, a plant from the bottom to the surface: the holdfast's

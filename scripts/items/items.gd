@@ -1,7 +1,8 @@
 class_name Items
 ## What can be carried: each kind of item, by id. The axe fells trees
 ## (Felling); the rest, for now, are only things to carry (/give in the chat;
-## the pawpaw, crabapple, walnut and acorn picked from their trees, the flowers
+## the pawpaw, crabapple, walnut and acorn picked from their trees, the birds'
+## eggs taken from their nests, the flowers
 ## and cattails where they grow, the fungi on the ground and on the wood:
 ## Foraging; the lily pads and their flowers, LilyPad, once they're placed).
 ##
@@ -46,6 +47,27 @@ const KINDS := {
 	"water_lily": {"name": "Water lily", "stack": 8, "shape": "lily", "size": Vector3(0.1, 0.18, 0.1), "color": Color(0.96, 0.95, 0.92)},
 	"spatterdock": {"name": "Spatterdock", "stack": 8, "shape": "lily", "size": Vector3(0.05, 0.16, 0.05), "color": Color(0.93, 0.76, 0.1)},
 	"cattail": {"name": "Cattail", "stack": 16, "shape": "cattail", "size": Vector3(0.024, 0.75, 0.16), "color": Color(0.36, 0.22, 0.12)},
+	# birds' eggs (taken from their nests, Foraging: each bird's own, Raptor.egg_item; held, as laid):
+	# size: its width, its length (y); blotch: its markings (none: as its ground)
+	"bald_eagle_egg": {"name": "Eagle egg", "stack": 4, "shape": "egg", "size": Vector3(0.054, 0.073, 0.054), "color": Color(0.93, 0.92, 0.86), "blotch": Color(0.93, 0.92, 0.86)},
+	"golden_eagle_egg": {"name": "Eagle egg", "stack": 4, "shape": "egg", "size": Vector3(0.058, 0.074, 0.058), "color": Color(0.92, 0.9, 0.84), "blotch": Color(0.55, 0.32, 0.2)},
+	"hawk_egg": {"name": "Hawk egg", "stack": 8, "shape": "egg", "size": Vector3(0.038, 0.048, 0.038), "color": Color(0.86, 0.88, 0.86), "blotch": Color(0.86, 0.88, 0.86)},
+	"owl_egg": {"name": "Owl egg", "stack": 4, "shape": "egg", "size": Vector3(0.047, 0.056, 0.047), "color": Color(0.95, 0.94, 0.9), "blotch": Color(0.95, 0.94, 0.9)},
+	"screech_owl_egg": {"name": "Owl egg", "stack": 8, "shape": "egg", "size": Vector3(0.03, 0.036, 0.03), "color": Color(0.95, 0.94, 0.9), "blotch": Color(0.95, 0.94, 0.9)},
+	"barn_owl_egg": {"name": "Owl egg", "stack": 8, "shape": "egg", "size": Vector3(0.033, 0.043, 0.033), "color": Color(0.95, 0.94, 0.9), "blotch": Color(0.95, 0.94, 0.9)},
+	"falcon_egg": {"name": "Falcon egg", "stack": 4, "shape": "egg", "size": Vector3(0.041, 0.052, 0.041), "color": Color(0.66, 0.44, 0.33), "blotch": Color(0.42, 0.15, 0.08)},
+	"heron_egg": {"name": "Heron egg", "stack": 4, "shape": "egg", "size": Vector3(0.045, 0.064, 0.045), "color": Color(0.64, 0.8, 0.8), "blotch": Color(0.64, 0.8, 0.8)},
+	"pigeon_egg": {"name": "Pigeon egg", "stack": 8, "shape": "egg", "size": Vector3(0.028, 0.038, 0.028), "color": Color(0.96, 0.95, 0.92), "blotch": Color(0.96, 0.95, 0.92)},
+	"robin_egg": {"name": "Robin egg", "stack": 12, "shape": "egg", "size": Vector3(0.02, 0.028, 0.02), "color": Color(0.45, 0.74, 0.8), "blotch": Color(0.45, 0.74, 0.8)},
+	"jay_egg": {"name": "Jay egg", "stack": 12, "shape": "egg", "size": Vector3(0.021, 0.028, 0.021), "color": Color(0.62, 0.72, 0.64), "blotch": Color(0.4, 0.31, 0.22)},
+	"cardinal_egg": {"name": "Cardinal egg", "stack": 12, "shape": "egg", "size": Vector3(0.018, 0.025, 0.018), "color": Color(0.86, 0.85, 0.78), "blotch": Color(0.42, 0.36, 0.3)},
+	"finch_egg": {"name": "Finch egg", "stack": 12, "shape": "egg", "size": Vector3(0.014, 0.019, 0.014), "color": Color(0.72, 0.86, 0.9), "blotch": Color(0.08, 0.07, 0.08)},
+	"goldfinch_egg": {"name": "Goldfinch egg", "stack": 12, "shape": "egg", "size": Vector3(0.012, 0.016, 0.012), "color": Color(0.86, 0.92, 0.92), "blotch": Color(0.86, 0.92, 0.92)},
+	"blackbird_egg": {"name": "Blackbird egg", "stack": 12, "shape": "egg", "size": Vector3(0.018, 0.025, 0.018), "color": Color(0.72, 0.86, 0.86), "blotch": Color(0.1, 0.08, 0.08)},
+	"hummingbird_egg": {"name": "Hummingbird egg", "stack": 12, "shape": "egg", "size": Vector3(0.009, 0.013, 0.009), "color": Color(0.97, 0.96, 0.93), "blotch": Color(0.97, 0.96, 0.93)},
+	"bluebird_egg": {"name": "Bluebird egg", "stack": 12, "shape": "egg", "size": Vector3(0.016, 0.021, 0.016), "color": Color(0.72, 0.85, 0.9), "blotch": Color(0.72, 0.85, 0.9)},
+	"goose_egg": {"name": "Goose egg", "stack": 4, "shape": "egg", "size": Vector3(0.058, 0.086, 0.058), "color": Color(0.94, 0.92, 0.84), "blotch": Color(0.94, 0.92, 0.84)},
+	"turkey_egg": {"name": "Turkey egg", "stack": 4, "shape": "egg", "size": Vector3(0.045, 0.063, 0.045), "color": Color(0.86, 0.8, 0.66), "blotch": Color(0.42, 0.26, 0.14), "speckle": 1.0},
 }
 
 
@@ -77,6 +99,8 @@ static func model(id: String) -> Node3D:
 		return _stick()
 	if k.shape in ["pawpaw", "crabapple", "walnut", "acorn", "cherry", "raspberry", "blueberry", "prickly_pear"]:
 		return _fruit(k)
+	if k.shape == "egg":
+		return _egg(k)
 	if k.shape == "flower":
 		return _flower(k)
 	if k.shape == "cattail":
@@ -125,6 +149,39 @@ static func model(id: String) -> Node3D:
 	mi.material_override = mat
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	return mi
+
+
+static var _egg_mats := {}
+
+
+## An egg's material (shaders/render/egg.gdshader): shared by its colours and length.
+static func egg_material(ground: Color, blotch: Color, length: float, speckle := 0.0) -> ShaderMaterial:
+	var key := "%s %s %.3f %.1f" % [ground, blotch, length, speckle]
+	if not _egg_mats.has(key):
+		var m := ShaderMaterial.new()
+		m.shader = load("res://shaders/render/egg.gdshader")
+		m.set_shader_parameter("ground", ground)
+		m.set_shader_parameter("blotch", blotch)
+		m.set_shader_parameter("speckle", speckle)
+		m.set_shader_parameter("half_len", length * 0.5)
+		_egg_mats[key] = m
+	return _egg_mats[key]
+
+
+## An egg, held: life size, its small end up.
+static func _egg(k: Dictionary) -> Node3D:
+	var sm := SphereMesh.new()
+	sm.radius = k.size.x * 0.5
+	sm.height = k.size.y
+	sm.radial_segments = 14
+	sm.rings = 8
+	var mi := MeshInstance3D.new()
+	mi.mesh = sm
+	mi.material_override = egg_material(k.color, k.get("blotch", k.color), k.size.y, float(k.get("speckle", 0.0)))
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	var holder := Node3D.new()
+	holder.add_child(mi)
+	return holder
 
 
 ## An axe, of stone: a stick for a handle, 60 cm, held a third of the way

@@ -351,6 +351,14 @@ func lay() -> void:
 	walk_to(nest.position, walk_speed)
 
 
+## An egg of hers taken from her nest (Foraging): gone from her clutch; her
+## last, she leaves the nest.
+func egg_taken(e: Node3D) -> void:
+	clutch_eggs.erase(e)
+	if clutch_eggs.is_empty() and _mode == "incubate":
+		forage()
+
+
 ## Her eggs opening: a poult from each, hers to lead.
 func hatch() -> void:
 	if clutch_eggs.is_empty():
@@ -944,6 +952,9 @@ void fragment() {
 		_egg_mat = ShaderMaterial.new()
 		_egg_mat.shader = sh
 	mi.material_override = _egg_mat
+	mi.add_to_group("nest_egg") # (one the player can take, Foraging)
+	mi.set_meta("egg_item", "turkey_egg")
+	mi.set_meta("egg_of", self)
 	return mi
 
 
