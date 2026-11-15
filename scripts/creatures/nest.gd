@@ -174,7 +174,7 @@ static func site(lines: Array, kind: String, seed_ := 1, taken: Array = [], radi
 			var want_h := 0.75 if kind in ["eagle", "heron", "hawk", "owl", "falcon"] else 0.5
 			var score := -absf(base.y / maxf(trunk_top.y, 0.1) - want_h) + ln[3] * (2.0 if kind == "eagle" else 0.5) + rng.randf() * 0.1
 			# (out along the limb till the nest clears the trunk: resting on the limb, the trunk at its back)
-			var need := tr.w + radius * 0.8
+			var need := tr.w + radius * 1.05
 			var at := Vector3(ln[0], ln[1], ln[2])
 			var lr := ln[3]
 			for k in range(1, ln.size() / 4):
@@ -195,14 +195,14 @@ static func site(lines: Array, kind: String, seed_ := 1, taken: Array = [], radi
 	else: # (a cup: out along a limb, well out from the trunk; the low nesters on the lowest limbs)
 		for ln: PackedFloat32Array in limbs:
 			var m := ln.size() / 4
-			for f: float in [0.45, 0.65, 0.85]:
+			for f: float in [0.7, 0.85, 1.0]: # (toward its end, where it's thin and forks)
 				var k := clampi(int(round(f * float(m - 1))), 1, m - 1)
 				var p := Vector3(ln[k * 4], ln[k * 4 + 1], ln[k * 4 + 2])
 				var prev := Vector3(ln[(k - 1) * 4], ln[(k - 1) * 4 + 1], ln[(k - 1) * 4 + 2])
 				var out := Vector3(p.x - prev.x, 0.0, p.z - prev.z)
 				out = out.normalized() if out.length() > 0.01 else Vector3.RIGHT
 				var low := kind in ["cardinal", "blackbird", "goldfinch", "robin"]
-				var score := (-p.y * 0.15 if low else -absf(p.y / maxf(trunk_top.y, 0.1) - 0.7)) + f * 0.3 + rng.randf() * 0.15
+				var score := (-p.y * 0.15 if low else -absf(p.y / maxf(trunk_top.y, 0.1) - 0.7)) + f * 0.6 + Vector2(p.x - trunk[0], p.z - trunk[2]).length() * 0.2 + rng.randf() * 0.15
 				cands.append([p + Vector3(0.0, ln[k * 4 + 3] * 0.85, 0.0), out, score])
 		if cands.is_empty():
 			cands.append([trunk_top, Vector3.RIGHT, 0.0])
@@ -471,12 +471,12 @@ static func _cup(st: SurfaceTool, rng: RandomNumberGenerator, kind: String, r: f
 			var p := Vector3(cos(a) * rad, y, sin(a) * rad)
 			_scrap(st, p, Vector3(-sin(a), rng.randf_range(-0.4, 0.2), cos(a)).normalized(), Vector3(cos(a), 0.2, sin(a)).normalized(), r * rng.randf_range(0.5, 0.9), r * 0.3, _tint(rng, Color(0.4, 0.28, 0.16), Color(0.56, 0.42, 0.24)))
 	if kind == "hummingbird": # (shingled with lichen, grey green)
-		for k in 70:
+		for k in 260:
 			var a := rng.randf() * TAU
 			var y := h * rng.randf_range(0.0, 0.98)
 			var rad := maxf(r * sin(acos(clampf(1.0 - y / h, 0.0, 1.0))), r * 0.3) + 0.0008
 			var p := Vector3(cos(a) * rad, y, sin(a) * rad)
-			_scrap(st, p, Vector3(-sin(a), rng.randf_range(-0.5, 0.5), cos(a)).normalized(), Vector3(cos(a), 0.0, sin(a)), r * rng.randf_range(0.25, 0.4), r * 0.3, _tint(rng, Color(0.55, 0.62, 0.52), Color(0.72, 0.78, 0.68)), false)
+			_scrap(st, p, Vector3(-sin(a), rng.randf_range(-0.5, 0.5), cos(a)).normalized(), Vector3(cos(a), 0.0, sin(a)), r * rng.randf_range(0.1, 0.2), r * 0.14, _tint(rng, Color(0.5, 0.58, 0.48), Color(0.7, 0.76, 0.66)), false)
 	if kind in ["goldfinch", "finch"]: # (tufts of down at its rim)
 		for k in (16 if kind == "goldfinch" else 6):
 			var a := rng.randf() * TAU
@@ -515,8 +515,20 @@ static func _cavity(st: SurfaceTool, rng: RandomNumberGenerator, kind: String, s
 	var NA := 28
 	var NP := 18
 	var c := Vector3(0.0, ri * tall * 0.78, 0.0)
-	for inside in [false, true]:
+	var sn := sqrt(1.0 - mouth * mouth)
+	# (a way out from its middle, to the shell there: the knot's lumps outside, smooth within; a way into the mouth brought to its edge)
+	var shell := func(d: Vector3, inside: bool) -> Vector3:
+		if d.dot(axis) > mouth:
+			var perp := d - axis * d.dot(axis)
+			perp = perp.normalized() if perp.length() > 1e-4 else axis.cross(Vector3.FORWARD).normalized()
+			d = axis * mouth + perp * sn
+		var th := atan2(d.z, d.x)
+		var ph := acos(clampf(d.y, -1.0, 1.0))
 		var rr := ri if inside else ro
+		var lump := 1.0 + (0.07 * sin(th * 5.0 + ph * 3.0) + 0.05 * sin(ph * 9.0 + th * 2.0)) * (0.0 if inside else 1.0)
+		var taper := 1.0 - 0.3 * absf(d.y) * (0.0 if inside else 1.0) # (run out into the trunk above and below)
+		return c + Vector3(d.x * rr * lump * taper, d.y * rr * tall * lump * (1.25 if not inside else 1.0), d.z * rr * lump * taper * 0.92)
+	for inside in [false, true]:
 		var grid := []
 		var cols := []
 		for i in NP + 1:
@@ -526,10 +538,7 @@ static func _cavity(st: SurfaceTool, rng: RandomNumberGenerator, kind: String, s
 			for j in NA + 1:
 				var th := TAU * float(j % NA) / NA
 				var d := Vector3(sin(ph) * cos(th), cos(ph), sin(ph) * sin(th))
-				var lump := 1.0 + (0.07 * sin(th * 5.0 + ph * 3.0) + 0.05 * sin(ph * 9.0 + th * 2.0)) * (0.0 if inside else 1.0)
-				var taper := 1.0 - 0.3 * absf(d.y) * (0.0 if inside else 1.0) # (run out into the trunk above and below)
-				var p := c + Vector3(d.x * rr * lump * taper, d.y * rr * tall * lump * (1.25 if not inside else 1.0), d.z * rr * lump * taper * 0.92)
-				row.append([p, d.dot(axis)])
+				row.append([shell.call(d, inside), d.dot(axis)])
 				var ridged := 0.75 + 0.35 * absf(sin(th * 9.0 + sin(ph * 4.0) * 1.5)) # (the bark's ridges, running up it)
 				var col := _tint(rng, bark_a, bark_b, 0.06) * ridged
 				if inside:
@@ -552,13 +561,14 @@ static func _cavity(st: SurfaceTool, rng: RandomNumberGenerator, kind: String, s
 	# its lip: the bark grown in round the mouth, a rolled rim (the callus of an old wound), outside to inside
 	var u := axis.cross(Vector3.FORWARD).normalized()
 	var w := axis.cross(u)
-	var sn := sqrt(1.0 - mouth * mouth)
 	var lip := []
-	for j in NA + 1:
-		var a := TAU * float(j % NA) / NA
+	for j in 37:
+		var a := TAU * float(j % 36) / 36.0
 		var d := axis * mouth + (u * cos(a) + w * sin(a)) * sn
-		lip.append([c + Vector3(d.x * ro, d.y * ro * tall, d.z * ro) + d * 0.012, c + Vector3(d.x * ri, d.y * ri * tall, d.z * ri), c + Vector3(d.x * (ro + ri) * 0.5, d.y * (ro + ri) * 0.5 * tall, d.z * (ro + ri) * 0.5) + axis * 0.02])
-	for j in NA:
+		var po: Vector3 = shell.call(d, false)
+		var pi_: Vector3 = shell.call(d, true)
+		lip.append([po, pi_, (po + pi_) * 0.5 + axis * (0.012 + ri * 0.08)])
+	for j in 36:
 		var lc := _tint(rng, Color(0.3, 0.24, 0.18), Color(0.42, 0.35, 0.27), 0.05)
 		for t: Array in [[lip[j][0], lip[j + 1][0], lip[j + 1][2]], [lip[j][0], lip[j + 1][2], lip[j][2]], [lip[j][2], lip[j + 1][2], lip[j + 1][1]], [lip[j][2], lip[j + 1][1], lip[j][1]]]:
 			for v: Vector3 in t:
@@ -608,7 +618,12 @@ static func _drey(st: SurfaceTool, rng: RandomNumberGenerator, r: float) -> Arra
 			for j in NA + 1:
 				var th := TAU * float(j % NA) / NA
 				var d := Vector3(sin(ph) * cos(th), cos(ph), sin(ph) * sin(th))
-				row.append([c + d * rr * Vector3(1.0, 0.92, 1.0), d.dot(axis), _tint(rng, Color(0.2, 0.15, 0.1), Color(0.32, 0.25, 0.17), 0.06) if not inside else _tint(rng, Color(0.36, 0.28, 0.19), Color(0.5, 0.4, 0.28), 0.06)])
+				var d0 := d
+				if d.dot(axis) > mouth: # (into its way in: brought to its edge, a clean round)
+					var perp := (d - axis * d.dot(axis))
+					perp = perp.normalized() if perp.length() > 1e-4 else Vector3.FORWARD
+					d = axis * mouth + perp * sqrt(1.0 - mouth * mouth)
+				row.append([c + d * rr * Vector3(1.0, 0.92, 1.0), d0.dot(axis), _tint(rng, Color(0.2, 0.15, 0.1), Color(0.32, 0.25, 0.17), 0.06) if not inside else _tint(rng, Color(0.36, 0.28, 0.19), Color(0.5, 0.4, 0.28), 0.06)])
 			grid.append(row)
 		for i in NP:
 			for j in NA:
@@ -626,7 +641,7 @@ static func _drey(st: SurfaceTool, rng: RandomNumberGenerator, r: float) -> Arra
 		var ln := r * rng.randf_range(0.7, 1.3)
 		var p := c + d * r * 0.93
 		_strand(st, [p - t * ln * 0.5 + d * r * 0.1, p + d * r * 0.03, p + t * ln * 0.5 + d * r * 0.12], 0.004, 0.002, _tint(rng, Color(0.26, 0.2, 0.14), Color(0.42, 0.34, 0.25)), 4)
-	for k in 420: # (its leaves: dead oak leaves, overlapping, brown and tan, curled)
+	for k in 700: # (its leaves: dead oak leaves, overlapping, brown and tan, curled)
 		var d := Vector3(rng.randf_range(-1, 1), rng.randf_range(-1, 1), rng.randf_range(-1, 1)).normalized()
 		if d.dot(axis) > mouth + 0.04:
 			continue
@@ -635,7 +650,7 @@ static func _drey(st: SurfaceTool, rng: RandomNumberGenerator, r: float) -> Arra
 		var col := _tint(rng, Color(0.36, 0.24, 0.12), Color(0.6, 0.45, 0.24), 0.15)
 		if rng.randf() < 0.12:
 			col = _tint(rng, Color(0.3, 0.36, 0.14), Color(0.42, 0.44, 0.18)) # (a few still green: cut fresh)
-		_scrap(st, p - t * r * 0.2, (t + d * rng.randf_range(0.0, 0.35)).normalized(), d, r * rng.randf_range(0.4, 0.62), r * rng.randf_range(0.2, 0.3), col)
+		_scrap(st, p - t * r * 0.15, (t + d * rng.randf_range(0.0, 0.35)).normalized(), d, r * rng.randf_range(0.3, 0.45), r * rng.randf_range(0.14, 0.22), col)
 	var floor_y := c.y - r * 0.74 * 0.92 + r * 0.12
 	_dish(st, rng, r * 0.55, floor_y, r * 0.12, Color(0.4, 0.31, 0.2), Color(0.56, 0.45, 0.3))
 	return [floor_y, r * 0.4]
