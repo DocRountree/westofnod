@@ -21,7 +21,7 @@ extends Node3D
 ## G groom, Z sleep / rest, F fly / hop / climb, X alarm (flee, roll up,
 ## coil, sting, play dead, withdraw), D display / call (fireflies: flash), V the young play, N nurse, B
 ## forage (home, gather, swim, cache, wade), S spin a web, M mark, A sit, W
-## back to their own ways; Space slow motion; T day, dusk, night.
+## back to their own ways; Space slow motion; T day, dusk, night; I minds (those with a brain left to it: FaunaSim, Brain).
 ##
 ## What each needs and isn't here is put down for it, close by, the first
 ## time it needs it (a den, a nest, a comb, a web's moorings, a pond, a
@@ -335,6 +335,8 @@ var _no_food_last := ""
 var _ring_mesh: TorusMesh
 var _ring_mat: StandardMaterial3D
 var _worker_colonies := {} # (each queen's (or larva's kind's) workers: kind -> colony)
+var _sim: FaunaSim # (minds on: the brains' clock, a record for each animal here that has one: Species.TABLE)
+var _ui_minds: CheckBox
 
 
 func _ready() -> void:
@@ -695,7 +697,42 @@ func spawn(key: String, at: Vector3, stage := "adult", male := false) -> Node:
 	n.set_meta("placed", key)
 	if n is Node3D and not n.has_meta("home"):
 		n.set_meta("home", at)
+	if _sim and n is Creature:
+		_sim.adopt(n)
 	return n
+
+
+## Minds on: every animal here that has a brain (Species.TABLE: the deer,
+## the wolf, the foxes, the bears, the hare, the mouse, ...) left to it:
+## feeding when it's hungry, hunting what it hunts that's here, sleeping at
+## its hour (T: the hour), running from what hunts it; those put down
+## after, too. Off: each back to its own doings (the keys').
+func set_minds(on: bool) -> void:
+	if on == (_sim != null):
+		return
+	if not on:
+		for a: FaunaSim.Agent in _sim.agents.values():
+			if a.body and is_instance_valid(a.body):
+				a.body.release()
+		_sim.queue_free()
+		_sim = null
+		_status = "minds off"
+		_say()
+		return
+	_sim = FaunaSim.new()
+	_sim.space = self
+	if world:
+		_sim.height = _height
+	else:
+		_sim.bounds = Rect2(-HALF + 1.0, -HALF + 1.0, HALF * 2.0 - 2.0, HALF * 2.0 - 2.0)
+	_sim.daylight = [1.0, 0.45, 0.0][_night_step]
+	add_child(_sim)
+	var n := 0
+	for c in get_children():
+		if c is Creature and _sim.adopt(c) != null:
+			n += 1
+	_status = "minds on: %d with a brain" % n
+	_say()
 
 
 func _plant_flowers(kind: String, at: Vector3) -> Node3D:
@@ -3301,6 +3338,8 @@ func _dusk() -> void:
 			env.ambient_light_energy = [1.0, 0.35, 0.08][_night_step]
 			env.glow_enabled = _night_step > 0
 			env.glow_hdr_threshold = 1.2
+	if _sim:
+		_sim.daylight = [1.0, 0.45, 0.0][_night_step]
 	_status = ["day", "dusk", "night"][_night_step]
 	_say()
 
@@ -4364,6 +4403,10 @@ func _unhandled_input(e: InputEvent) -> void:
 				_center()
 			KEY_T:
 				_dusk()
+			KEY_I:
+				set_minds(_sim == null)
+				if _ui_minds:
+					_ui_minds.set_pressed_no_signal(_sim != null)
 			KEY_SPACE:
 				Engine.time_scale = 0.2 if Engine.time_scale > 0.5 else 1.0
 		return
@@ -4815,6 +4858,12 @@ func _build_ui() -> void:
 	clr.focus_mode = Control.FOCUS_NONE
 	clr.pressed.connect(clear_all)
 	row2.add_child(clr)
+	_ui_minds = CheckBox.new()
+	_ui_minds.text = "Minds (I)"
+	_ui_minds.tooltip_text = "Those with a brain left to it: feeding, hunting, sleeping, running from what hunts them"
+	_ui_minds.focus_mode = Control.FOCUS_NONE
+	_ui_minds.toggled.connect(set_minds)
+	row2.add_child(_ui_minds)
 	if world: # (in the game: no keys of its own, so a button to stop placing)
 		var done := Button.new()
 		done.text = "Done"

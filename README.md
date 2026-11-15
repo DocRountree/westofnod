@@ -1125,6 +1125,37 @@ Ambushing,
     bristles (`strands.gd`) with it, and the lofted parts and ears: a second deer, wolf, bear or porcupine takes
     about 3 ms to make, not 200 to 500. (Still their own each time: a moose's antlers, a beaver's tail, an otter's,
     an armadillo's shell, a bat's wings: 30 to 40 ms.)
+  - Swarms (everything of a kind in one node: colonies, schools, pools): each asks `Fauna.swarm_dt(self, dt)` first
+    thing in its frame and so is paced with the bodies (far off, every few frames). The krill are steered on the
+    renderer's own device where there is one, the compute shader writing straight into the two MultiMeshes' instance
+    buffers (`RenderingServer.multimesh_get_buffer_rd_rid`): nothing read back each frame but how many are near and
+    how many far (eight bytes, asked for and come when ready); their state is fetched only when something asks
+    (`engulf`, `take`, `add`). Else a local device, read back, as before; else the CPU. An ant colony's or a beetle
+    band's minds (`_think`) take turns once there are 120 of them, a quarter each frame; a compute shader's compiled
+    once for all. (The ants are still read back each frame, and their minds are still here, not on the card; the
+    fish, the mollies, the snails still move on the CPU.)
+  - Records, bodies and brains (`scripts/creatures/species.gd`, `fauna_sim.gd`, `brain.gd`; in the sandbox: the
+    Minds box, I; not in the game yet):
+    - `Species.TABLE`: what's known of a kind apart from its body (its script, what it's called as food, its
+      length, its paces, its hour, its range, how wary, how far it senses prey, how long a meal, a fast, a day, a
+      sleep): the deer, moose, bison, wolf, coyote, fox, bobcat, both bears, hare, mouse, both squirrels, opossum,
+      porcupine, armadillo, turkey so far. `Species.make()` its body; `Species.hunts(a, b)` from `Diet.EATS`.
+    - `FaunaSim` (a Node): an animal is a record (`Agent`: kind, sex, where, hunger, tiredness, state, order).
+      `add(key, at)` a record; `adopt(creature)` one for a body already there. Within its ring of `focus` (45 m
+      for each metre of its length, 18 to 260 m) a record is given a body (one a frame at most), and freed of it
+      past 1.35 rings; the record goes on either way. Its two orders, `go_to(agent, point, running)` and
+      `act(agent, verb, seconds, args)`, are the same with a body (its steering: `Creature.go_to`, `act` by the
+      body's own name for the verb, `Species.VERBS`) and with none (a walk is a line and a time, nothing done each
+      frame; an act a time and what comes of it). A hunt with either one embodied gives both bodies. What the
+      bodies report (`Fauna`'s "killed", "died") ends the record; `died(agent, by)`.
+    - `Brain`: thinks only when its clock comes round (`FaunaSim.wake`: an order done, a time set, a look about),
+      within `budget_ms` a frame. Drives: hunger and tiredness, by `Fauna.life_rate`. Out of its hour or worn out
+      it goes home and sleeps; hungry, a hunter goes after what it hunts within its sense, a grazer eats where it
+      stands, the rest look for what they eat (a body: what's really there, `Diet.find`; none: found as often as
+      not); else it wanders its range, keeps with its kind, grooms, stands alert, calls or marks. A hunter of its
+      kind near (asleep or fed: only almost on it), it runs, whatever it was at. No mating, no young, by a brain yet.
+    - Measured, headless: 1080 records with no bodies (deer, hares, mice, turkeys, wolves, foxes, bobcats, bears),
+      0.34 ms a frame, about 8 thinks a frame.
 - Life cycles (not yet in the game): eggs (`scripts/creatures/brood.gd`, `Brood`; `egg.gd`: rice grains, each kind
   its size and colour) laid by the butterflies one to a leaf (the clearwing hovering), by the wasp one to each cell of
   its comb, each egg filling its cell (`Wasp.comb`, `lay_eggs`; the demo's 1 lays in the next empty cell, one a lay), by the beetles in a cluster (`AntColony.lay`, a beetle's: tipped tail down; the

@@ -90,7 +90,7 @@ static func think(sim: FaunaSim, a: FaunaSim.Agent) -> void:
 			sim.wake(a, minf(a.until, sim.now + look) if a.body == null else sim.now + look)
 			return
 	a.target = 0
-	var sleepy := a.tired > SLEEPY or (not _its_hour(sim, a) and a.tired > 0.25)
+	var sleepy := a.tired > SLEEPY or not _its_hour(sim, a) # (out of its hour: one sleep after another till it comes round)
 	if a.hunger > HUNGRY and not (sleepy and a.hunger < STARVING):
 		_feed(sim, a)
 	elif sleepy:
