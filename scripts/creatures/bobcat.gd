@@ -67,25 +67,10 @@ func _init(young_ := false) -> void:
 ## A bobcat's den: a shelter under rocks, a hollow out of the wind. Its
 ## origin on the ground at its mouth.
 static func den() -> Node3D:
-	var root := Node3D.new()
-	var s := SphereMesh.new()
-	s.radius = 0.5
-	s.height = 1.0
-	s.radial_segments = 10
-	s.rings = 6
-	var rock := StandardMaterial3D.new()
-	rock.albedo_color = Color(0.5, 0.48, 0.44)
-	rock.roughness = 0.9
-	for p in [[Vector3(-0.45, 0.25, 0.3), Vector3(0.7, 0.55, 0.8), 0.3], [Vector3(0.45, 0.22, 0.35), Vector3(0.6, 0.5, 0.7), -0.4],
-			[Vector3(0.0, 0.55, 0.45), Vector3(1.3, 0.3, 0.75), 0.1], [Vector3(0.0, 0.2, 0.85), Vector3(1.0, 0.45, 0.4), 0.0]]:
-		var mi := MeshInstance3D.new()
-		mi.mesh = s
-		mi.position = p[0]
-		mi.scale = p[1]
-		mi.rotation.y = p[2]
-		mi.material_override = rock
-		root.add_child(mi)
-	return root
+	# (No model for now: only where it is. Its home on the ground is to be made again, as part of the world.)
+	var n := Node3D.new()
+	n.set_meta("prop", true)
+	return n
 
 
 # --- its own ways --------------------------------------------------------------------

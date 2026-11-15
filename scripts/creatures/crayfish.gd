@@ -1051,6 +1051,7 @@ func _dig() -> void:
 		_hole.material_override = _mat(Color(0.03, 0.025, 0.02), 1.0)
 		parent.add_child(_hole)
 	_hole.position = Vector3(_at.x, g + 0.0006, _at.z)
+	_hole.visible = false # (no burrow drawn for now: to be made again as part of the ground)
 	if _chimney != null and is_instance_valid(_chimney):
 		_chimney.queue_free()
 	var mm := MultiMesh.new()
@@ -1074,6 +1075,7 @@ func _dig() -> void:
 	var mud := _mat(Color(0.32, 0.24, 0.15), 0.95)
 	_chimney.material_override = mud
 	parent.add_child(_chimney)
+	_chimney.visible = false
 	_chimney.position = Vector3(_at.x, g, _at.z)
 	_pellets = 0
 

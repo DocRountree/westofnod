@@ -2309,24 +2309,20 @@ func _sapling_near(p: Vector3, offset := Vector3(1.2, 0.0, 0.6)) -> Node3D:
 	return _plant_near(p, ["s_maple"], 4.0, offset) as Node3D
 
 
-## A squirrel's drey in the game oak tree (once): in its trunk's first fork,
-## against the trunk (its trunk's line, OakTree's climbing one).
+## A squirrel's drey in the game oak tree (once): in an upper crotch, where
+## a limb leaves the trunk (Nest.site), its way in turned out.
 func _drey_in(tree: Node3D) -> void:
 	if tree.has_meta("drey"):
 		return
 	var v := int((tree.get_meta("game_tree") as Array)[1])
-	var line: PackedFloat32Array = OakTree._climb_lines(v)[0]
-	var at := Vector3(line[0], line[1], line[2])
-	var r := 0.2
-	var want := float(OakTree.VARIANTS[v].get("trunk_h", 3.0)) * 0.9
-	for k in range(0, line.size(), 4):
-		at = Vector3(line[k], line[k + 1], line[k + 2])
-		r = line[k + 3]
-		if at.y >= want:
-			break
+	var taken: Array = tree.get_meta("nest_sites", [])
+	var got := TreeNest.site(OakTree._climb_lines(v), "drey", randi(), taken, 0.2)
+	var place: Vector3 = (got.pos as Vector3) + Vector3(0.0, 0.18, 0.0) # (its middle: sat in the crotch)
+	taken.append(got.pos)
+	tree.set_meta("nest_sites", taken)
 	var d := SquirrelScript.drey_nest()
-	var place := at + Vector3(r * 0.9, 0.0, 0.0)
 	d.position = place
+	d.rotation.y = atan2(-(got.out as Vector3).z, (got.out as Vector3).x)
 	tree.add_child(d)
 	tree.set_meta("drey", place)
 
@@ -2993,8 +2989,11 @@ func _dog_do(d: Dog, act_: String, p: Vector3, near: Vector3) -> bool:
 	return true
 
 
-## (A raptor's nest site, the world's to give it: here a pole stood near its
-## perch, a ledge on it for a falcon's scrape; given it once.)
+## (A bird's nest site, the world's to give it: in a tree near its perch
+## (one here, or one planted for it), where its kind builds: a platform in a
+## high crotch, a cup out on a limb, a hollow in the trunk's side
+## (Nest.site); not where another nest already is. A goose's and a turkey's:
+## on the ground. Given it once.)
 func _raptor_nest_site(r: Raptor) -> void:
 	if r.nest_site != Vector3.INF:
 		return
@@ -3004,15 +3003,24 @@ func _raptor_nest_site(r: Raptor) -> void:
 		var at := Vector3(pd.end.x + 0.7, 0.0, clampf(gp.z, pd.position.y + 0.3, pd.end.y - 0.3)) if pd.has_area() else gp + Vector3(1.0, 0.0, 0.0)
 		r.set_nest_site(_on(at))
 		return
-	var site: Node3D = _kit(r, "nest_site", func() -> Node3D:
-		var base: Vector3 = r.home_perch if r.home_perch != Vector3.INF else r.get("_pos")
-		var a := randf() * TAU
-		var at := _on(base + Vector3(cos(a), 0.0, sin(a)) * 3.0)
-		var pole: Node3D = Raptor.nest_pole(r.nest_height, r.nest_style == "scrape", sqrt(r.nest_scale), String(r.get("site_style")) if r is Thrush else "")
-		pole.position = at
-		add_child(pole)
-		return pole)
-	r.set_nest_site(site.position + (site.get_meta("site_top") as Vector3))
+	var base: Vector3 = r.home_perch if r.home_perch != Vector3.INF else r.get("_pos")
+	var a := randf() * TAU
+	var tree: Node3D = _plant_near(_on(base), ["g_oak"], 12.0, Vector3(cos(a), 0.0, sin(a)) * 3.0)
+	var got := _nest_site_in(tree, TreeNest.kind_of(r), r.nest_scale)
+	r.set_meta("nest_out", got.out)
+	r.set_nest_site(got.pos)
+
+
+## A place for a nest of this kind in a game oak (its place taken: no other
+## built there): {pos (here), out}.
+func _nest_site_in(tree: Node3D, kind: String, scale := 1.0) -> Dictionary:
+	var v := int((tree.get_meta("game_tree") as Array)[1])
+	var taken: Array = tree.get_meta("nest_sites", [])
+	var got := TreeNest.site(OakTree._climb_lines(v), kind, randi(), taken, TreeNest.radius_of(kind, scale))
+	taken.append(got.pos)
+	tree.set_meta("nest_sites", taken)
+	var xf := tree.transform
+	return {"pos": xf * (got.pos as Vector3), "out": (xf.basis * (got.out as Vector3)).normalized()}
 
 
 ## (A fallen fruit or a nut eaten by c where it lies (eat_at): eaten away

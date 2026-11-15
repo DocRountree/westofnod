@@ -33,7 +33,7 @@ extends "res://scripts/creatures/bird.gd" # (by path: found whether or not the e
 ##   her; she leans forward, he's on her back, wings beating for balance; a
 ##   while; she's carrying eggs
 ## - nesting (lay(), a female's): to its nest site (set_nest_site: the
-##   world's, given it: a ledge, a tree's crotch; Raptor.nest_pole stands one
+##   world's, given it: a tree's crotch, a limb, its trunk's side: Nest.site finds one
 ##   in for a test bed; none, she can't nest: lay() false), her nest built
 ##   there the first time (the falcon's a scrape in its gravel; the hawk's,
 ##   the eagle's, a platform of sticks), her clutch laid an egg at a time, sat on; hatch(): the
@@ -375,7 +375,10 @@ func _ensure_nest() -> bool:
 	nest = _make_nest()
 	get_parent().add_child(nest)
 	nest.position = nest_site
-	nest_top = nest_site + Vector3(0.0, {"sticks": 0.04 * nest_scale, "cup": 0.012, "box": 0.012}.get(nest_style, 0.004), 0.0)
+	if has_meta("nest_out"): # (in a tree: a hollow's mouth, a drey's, turned out from the trunk)
+		var o: Vector3 = get_meta("nest_out")
+		nest.rotation.y = atan2(-o.z, o.x)
+	nest_top = nest_site + Vector3(0.0, float(nest.get_meta("top", 0.004)), 0.0)
 	return true
 
 
@@ -1292,204 +1295,7 @@ static var _wood: StandardMaterial3D
 ## gravel of its ledge, the hawk's (an eagle's: nest_scale) platform of
 ## sticks, crisscrossed, a cup in the middle.
 func _make_nest() -> Node3D:
-	var n := Node3D.new()
-	n.set_meta("prop", true)
-	if nest_style in ["cup", "box"]: # (a thrush's: a cup of dry grass, the robin's walled with mud inside; in its box, the bluebird's)
-		var grass := StandardMaterial3D.new()
-		grass.albedo_color = Color(0.62, 0.53, 0.36) if cup_colors.is_empty() else cup_colors[0]
-		grass.roughness = 1.0
-		var mud := StandardMaterial3D.new()
-		mud.albedo_color = (Color(0.3, 0.24, 0.17) if nest_style == "cup" else Color(0.55, 0.47, 0.32)) if cup_colors.is_empty() else cup_colors[1]
-		mud.roughness = 1.0
-		var r := 0.075 * nest_scale / 0.35
-		var wall := MeshInstance3D.new()
-		var tm := TorusMesh.new()
-		tm.inner_radius = r * 0.55
-		tm.outer_radius = r
-		tm.rings = 18
-		tm.ring_segments = 8
-		wall.mesh = tm
-		wall.scale = Vector3(1.0, 1.6, 1.0)
-		wall.position = Vector3(0.0, r * 0.3, 0.0)
-		wall.material_override = grass
-		n.add_child(wall)
-		var bowl := MeshInstance3D.new()
-		var cm := CylinderMesh.new()
-		cm.top_radius = r * 0.62
-		cm.bottom_radius = r * 0.45
-		cm.height = r * 0.25
-		bowl.mesh = cm
-		bowl.position = Vector3(0.0, r * 0.12, 0.0)
-		bowl.material_override = mud
-		n.add_child(bowl)
-		for k in 14: # (loose stems, sticking out of it)
-			var st := MeshInstance3D.new()
-			var sm := CylinderMesh.new()
-			sm.top_radius = 0.0012
-			sm.bottom_radius = 0.0015
-			sm.height = r * rng.randf_range(0.6, 1.0)
-			sm.radial_segments = 4
-			sm.rings = 1
-			st.mesh = sm
-			var a := rng.randf() * TAU
-			st.position = Vector3(cos(a) * r * 0.85, r * 0.3, sin(a) * r * 0.85)
-			st.rotation = Vector3(PI * 0.5 + rng.randf_range(-0.4, 0.4), a + PI * 0.5 + rng.randf_range(-0.5, 0.5), 0.0)
-			st.material_override = grass
-			n.add_child(st)
-		return n
-	if nest_style == "scrape":
-		var gravel := MeshInstance3D.new()
-		var gm := BoxMesh.new()
-		gm.size = Vector3(0.4, 0.008, 0.32)
-		gravel.mesh = gm
-		var gmat := StandardMaterial3D.new()
-		gmat.albedo_color = Color(0.58, 0.54, 0.48)
-		gmat.roughness = 1.0
-		gravel.material_override = gmat
-		gravel.position = Vector3(0.0, 0.002, 0.0)
-		n.add_child(gravel)
-	else:
-		var st := SurfaceTool.new()
-		st.begin(Mesh.PRIMITIVE_TRIANGLES)
-		var stick := CylinderMesh.new()
-		var nsc := nest_scale
-		stick.top_radius = 0.007 * sqrt(nsc) * 1.4 if nsc > 1.0 else 0.007
-		stick.bottom_radius = 0.009 * sqrt(nsc) * 1.4 if nsc > 1.0 else 0.009
-		stick.height = 1.0
-		stick.radial_segments = 5
-		stick.rings = 1
-		var sa := stick.get_mesh_arrays()
-		for k in int(70 * nsc * nsc):
-			var a := rng.randf() * TAU
-			var r := rng.randf_range(0.04, 0.26) * nsc
-			var c := Vector3(cos(a) * r, (rng.randf_range(0.0, 0.08) + (0.04 if r > 0.15 * nsc else 0.0)) * nsc - (rng.randf_range(0.0, 0.2) * (nsc - 1.0) * (1.0 - r / (0.26 * nsc)) if nsc > 1.0 else 0.0), sin(a) * r)
-			var b := Basis(Vector3.UP, rng.randf() * TAU) * Basis(Vector3.RIGHT, PI * 0.5 + rng.randf_range(-0.25, 0.25)) * Basis.from_scale(Vector3(1.0, rng.randf_range(0.3, 0.6) * nsc, 1.0))
-			var vs: PackedVector3Array = sa[Mesh.ARRAY_VERTEX]
-			var ns: PackedVector3Array = sa[Mesh.ARRAY_NORMAL]
-			for i in sa[Mesh.ARRAY_INDEX]:
-				st.set_normal((b * ns[i]).normalized())
-				st.set_color(Color(0.33, 0.27, 0.2).lerp(Color(0.5, 0.43, 0.34), rng.randf()))
-				st.add_vertex(b * vs[i] + c)
-		var nm := MeshInstance3D.new()
-		nm.mesh = st.commit()
-		var sm := StandardMaterial3D.new()
-		sm.vertex_color_use_as_albedo = true
-		sm.roughness = 0.95
-		nm.material_override = sm
-		nm.position = Vector3(0.0, -0.04, 0.0)
-		n.add_child(nm)
-	return n
-
-
-## A stand-in for a nest site (a cliff's ledge, a tree's crotch): a pole,
-## a ledge on its top for a scrape; its origin on the ground, the site at
-## its top (site_top). Not the bird's: the world's (a test bed's, here).
-static func nest_pole(height: float, scrape: bool, thick := 1.0, style := "") -> Node3D:
-	var n := Node3D.new()
-	n.set_meta("prop", true)
-	if _wood == null:
-		_wood = StandardMaterial3D.new()
-		_wood.albedo_color = Color(0.36, 0.3, 0.24)
-		_wood.roughness = 0.95
-	if style == "reeds": # (a blackbird's: a stand of cattail stems, its cup woven between them at height)
-		var rm := StandardMaterial3D.new()
-		rm.albedo_color = Color(0.55, 0.52, 0.33)
-		rm.roughness = 0.9
-		for i in 6:
-			var a := TAU * i / 6.0 + 0.3
-			var rr := 0.045 + 0.02 * float(i % 2)
-			var tall := height + 0.5 + 0.25 * float(i % 3)
-			var st := MeshInstance3D.new()
-			var sc := CylinderMesh.new()
-			sc.top_radius = 0.003
-			sc.bottom_radius = 0.006
-			sc.height = tall
-			sc.radial_segments = 5
-			sc.rings = 1
-			st.mesh = sc
-			st.material_override = rm
-			st.position = Vector3(cos(a) * rr, tall * 0.5, sin(a) * rr)
-			st.rotation = Vector3(0.04 * sin(a * 3.0), 0.0, 0.04 * cos(a * 2.0))
-			n.add_child(st)
-			if i % 2 == 0: # (a cattail's brown head on the taller ones)
-				var hd := MeshInstance3D.new()
-				var hc := CylinderMesh.new()
-				hc.top_radius = 0.011
-				hc.bottom_radius = 0.011
-				hc.height = 0.14
-				hc.radial_segments = 6
-				hd.mesh = hc
-				var hm := StandardMaterial3D.new()
-				hm.albedo_color = Color(0.32, 0.2, 0.12)
-				hm.roughness = 1.0
-				hd.material_override = hm
-				hd.position = Vector3(cos(a) * rr, tall - 0.18, sin(a) * rr)
-				n.add_child(hd)
-		n.set_meta("site_top", Vector3(0.0, height, 0.0))
-		return n
-	var pole := MeshInstance3D.new()
-	var cm := CylinderMesh.new()
-	cm.top_radius = 0.07 * thick
-	cm.bottom_radius = 0.1 * thick
-	cm.height = height
-	pole.mesh = cm
-	pole.material_override = _wood
-	pole.position = Vector3(0.0, height * 0.5, 0.0)
-	n.add_child(pole)
-	n.set_meta("site_top", Vector3(0.0, height, 0.0))
-	if style == "fork": # (a tree's branches, stood in for: a fork of three at the pole's top, a pigeon's platform laid across them)
-		for i in 3:
-			var a := TAU * i / 3.0
-			var br := MeshInstance3D.new()
-			var bc := CylinderMesh.new()
-			bc.top_radius = 0.008
-			bc.bottom_radius = 0.022 * thick
-			bc.height = 0.45
-			br.mesh = bc
-			br.material_override = _wood
-			br.position = Vector3(cos(a) * 0.15, height + 0.08, sin(a) * 0.15)
-			br.rotation = Vector3(sin(a) * 1.05, 0.0, -cos(a) * 1.05)
-			n.add_child(br)
-		return n
-	if style == "box": # (a nest box on its post: open topped, its roof lifted off it, a hole in its front)
-		var wood := StandardMaterial3D.new()
-		wood.albedo_color = Color(0.58, 0.47, 0.33)
-		wood.roughness = 0.9
-		var w := 0.13
-		var h := 0.16
-		for b: Array in [[Vector3(0.0, height + 0.006, 0.0), Vector3(w, 0.012, w)], [Vector3(w * 0.5, height + h * 0.5, 0.0), Vector3(0.012, h, w)],
-				[Vector3(-w * 0.5, height + h * 0.5, 0.0), Vector3(0.012, h, w)], [Vector3(0.0, height + h * 0.5, w * 0.5), Vector3(w, h, 0.012)],
-				[Vector3(0.0, height + h * 0.18, -w * 0.5), Vector3(w, h * 0.36, 0.012)], [Vector3(-w * 0.22, height + h * 0.68, -w * 0.5), Vector3(w * 0.56, h * 0.64, 0.012)],
-				[Vector3(w * 0.42, height + h * 0.68, -w * 0.5), Vector3(w * 0.16, h * 0.64, 0.012)]]:
-			var mi := MeshInstance3D.new()
-			var bm := BoxMesh.new()
-			bm.size = b[1]
-			mi.mesh = bm
-			mi.position = b[0]
-			mi.material_override = wood
-			n.add_child(mi)
-		n.set_meta("site_top", Vector3(0.0, height + 0.012, 0.0))
-		return n
-	if style == "shelf": # (a robin's: a ledge on its post, as under eaves, in a fork)
-		var shelf := MeshInstance3D.new()
-		var sb := BoxMesh.new()
-		sb.size = Vector3(0.2, 0.02, 0.18)
-		shelf.mesh = sb
-		shelf.material_override = _wood
-		shelf.position = Vector3(0.0, height, 0.0)
-		n.add_child(shelf)
-		n.set_meta("site_top", Vector3(0.0, height + 0.01, 0.0))
-		return n
-	if scrape:
-		var tray := MeshInstance3D.new()
-		var bm := BoxMesh.new()
-		bm.size = Vector3(0.6, 0.06, 0.5)
-		tray.mesh = bm
-		tray.material_override = _wood
-		tray.position = Vector3(0.0, height, 0.0)
-		n.add_child(tray)
-		n.set_meta("site_top", Vector3(0.0, height + 0.03, 0.0))
-	return n
+	return TreeNest.of(TreeNest.kind_of(self), nest_scale, rng.randi() % 1000) # (its kind's: nest.gd)
 
 
 static var _egg_mats := {}

@@ -430,27 +430,10 @@ static func ball(parent: Node3D, from: Vector3, to: Vector3) -> Node3D:
 
 ## A whelping box: low sides, a blanket in it. Its origin on the ground at its middle.
 static func bed(scale_ := 1.0) -> Node3D:
-	var root := Node3D.new()
-	var wood := StandardMaterial3D.new()
-	wood.albedo_color = Color(0.6, 0.48, 0.32)
-	wood.roughness = 0.8
-	var cloth := StandardMaterial3D.new()
-	cloth.albedo_color = Color(0.36, 0.42, 0.55)
-	cloth.roughness = 1.0
-	var w := 1.0 * scale_
-	var d := 0.8 * scale_
-	var h := 0.22 * scale_
-	for p: Array in [[Vector3(0.0, 0.01, 0.0), Vector3(w, 0.02, d), wood], [Vector3(0.0, 0.03, 0.0), Vector3(w * 0.94, 0.03, d * 0.92), cloth],
-			[Vector3(w * 0.5, h * 0.5, 0.0), Vector3(0.025, h, d), wood], [Vector3(-w * 0.5, h * 0.5, 0.0), Vector3(0.025, h, d), wood],
-			[Vector3(0.0, h * 0.5, d * 0.5), Vector3(w, h, 0.025), wood], [Vector3(0.0, h * 0.25, -d * 0.5), Vector3(w, h * 0.5, 0.025), wood]]:
-		var mi := MeshInstance3D.new()
-		var bm := BoxMesh.new()
-		bm.size = p[1]
-		mi.mesh = bm
-		mi.position = p[0]
-		mi.material_override = p[2]
-		root.add_child(mi)
-	return root
+	# (No model for now: only where it is. Its home on the ground is to be made again, as part of the world.)
+	var n := Node3D.new()
+	n.set_meta("prop", true)
+	return n
 
 
 func _p_behaviours() -> PackedStringArray:

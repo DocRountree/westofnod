@@ -125,52 +125,10 @@ func _build_extra() -> void:
 ## Its holt: a den dug into the bank among a tree's roots, a dark way in
 ## (its origin at the way in, on the ground; the bank behind, -z).
 static func holt() -> Node3D:
-	var root := Node3D.new()
-	var earth := StandardMaterial3D.new()
-	earth.albedo_color = Color(0.3, 0.24, 0.17)
-	earth.roughness = 1.0
-	var s := SphereMesh.new()
-	s.radius = 0.5
-	s.height = 1.0
-	s.is_hemisphere = true
-	var mound := MeshInstance3D.new()
-	mound.mesh = s
-	mound.material_override = earth
-	mound.scale = Vector3(0.5, 0.25, 0.4)
-	mound.position = Vector3(0.0, 0.0, -0.2)
-	root.add_child(mound)
-	var hole := MeshInstance3D.new()
-	var hs := SphereMesh.new()
-	hs.radius = 0.5
-	hs.height = 1.0
-	hole.mesh = hs
-	var dark := StandardMaterial3D.new()
-	dark.albedo_color = Color(0.03, 0.025, 0.02)
-	dark.roughness = 1.0
-	hole.material_override = dark
-	hole.scale = Vector3(0.16, 0.12, 0.1)
-	hole.position = Vector3(0.0, 0.05, 0.05)
-	root.add_child(hole)
-	var bark := StandardMaterial3D.new()
-	bark.albedo_color = Color(0.32, 0.26, 0.2)
-	bark.roughness = 0.9
-	var rng := RandomNumberGenerator.new()
-	rng.seed = 7
-	for k in 5: # (the roots over and round it)
-		var a := lerpf(-1.2, 1.2, float(k) / 4.0) + rng.randf_range(-0.15, 0.15)
-		var c := CylinderMesh.new()
-		c.top_radius = 0.008
-		c.bottom_radius = 0.02
-		c.height = 0.45
-		c.radial_segments = 6
-		var r := MeshInstance3D.new()
-		r.mesh = c
-		r.material_override = bark
-		var from := Vector3(sin(a) * 0.08, 0.24, -0.24)
-		var to := Vector3(sin(a) * 0.36, 0.0, cos(a) * 0.08 - 0.08)
-		r.transform = Transform3D(Basis(Quaternion(Vector3.UP, (from - to).normalized())), (from + to) * 0.5)
-		root.add_child(r)
-	return root
+	# (No model for now: only where it is. Its home on the ground is to be made again, as part of the world.)
+	var n := Node3D.new()
+	n.set_meta("prop", true)
+	return n
 
 
 func _sleep_home() -> Node3D:

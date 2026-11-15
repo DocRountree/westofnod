@@ -17,25 +17,10 @@ extends "res://scripts/creatures/carnivore.gd" # (by path: found whether or not 
 ## its spoil fanned out before it (a fox's; scale: a coyote's, a wolf's,
 ## bigger). Its origin on the ground at its middle.
 static func den(scale_ := 1.0) -> Node3D:
-	var root := Node3D.new()
-	var s := SphereMesh.new()
-	s.radius = 0.5
-	s.height = 1.0
-	var earth := StandardMaterial3D.new()
-	earth.albedo_color = Color(0.42, 0.32, 0.22)
-	earth.roughness = 1.0
-	var dark := StandardMaterial3D.new()
-	dark.albedo_color = Color(0.05, 0.04, 0.03)
-	dark.roughness = 1.0
-	for p in [[Vector3(0.0, 0.0, 0.0), Vector3(1.2, 0.5, 1.0), earth], [Vector3(0.0, 0.0, -0.55), Vector3(0.9, 0.12, 0.6), earth],
-			[Vector3(0.0, 0.1, -0.47), Vector3(0.24, 0.22, 0.1), dark]]:
-		var mi := MeshInstance3D.new()
-		mi.mesh = s
-		mi.position = (p[0] as Vector3) * scale_
-		mi.scale = (p[1] as Vector3) * scale_
-		mi.material_override = p[2]
-		root.add_child(mi)
-	return root
+	# (No model for now: only where it is. Its home on the ground is to be made again, as part of the world.)
+	var n := Node3D.new()
+	n.set_meta("prop", true)
+	return n
 
 
 # --- its own ways --------------------------------------------------------------------

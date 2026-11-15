@@ -143,25 +143,10 @@ func _build() -> void:
 ## A burrow's mouth in a low mound of dug earth, its origin on the ground
 ## at the mouth (its tunnel down along -z).
 static func burrow(scale_ := 1.0) -> Node3D:
-	var root := Node3D.new()
-	var s := SphereMesh.new()
-	s.radius = 0.5
-	s.height = 1.0
-	var earth := StandardMaterial3D.new()
-	earth.albedo_color = Color(0.62, 0.48, 0.34)
-	earth.roughness = 1.0
-	var dark := StandardMaterial3D.new()
-	dark.albedo_color = Color(0.06, 0.045, 0.035)
-	dark.roughness = 1.0
-	for p: Array in [[Vector3(0.0, 0.0, -0.16), Vector3(0.5, 0.14, 0.42), earth], [Vector3(0.0, 0.0, 0.12), Vector3(0.36, 0.05, 0.3), earth],
-			[Vector3(0.0, 0.035, -0.02), Vector3(0.13, 0.08, 0.06), dark]]:
-		var mi := MeshInstance3D.new()
-		mi.mesh = s
-		mi.position = (p[0] as Vector3) * scale_
-		mi.scale = (p[1] as Vector3) * scale_
-		mi.material_override = p[2]
-		root.add_child(mi)
-	return root
+	# (No model for now: only where it is. Its home on the ground is to be made again, as part of the world.)
+	var n := Node3D.new()
+	n.set_meta("prop", true)
+	return n
 
 
 ## Asleep in its burrow, if it has one (to its mouth, in, out of sight, a
@@ -189,7 +174,7 @@ func _think(dt: float) -> void:
 					_st = 0.0
 			1: # (in: out of sight)
 				_hidden = true
-				visible = false
+				pass # (no burrow drawn for now: asleep at its mouth, in sight)
 				_target = _pos
 				if _wait <= 0.0:
 					_stage = 2

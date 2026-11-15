@@ -710,39 +710,8 @@ func _guard(_dt: float) -> void:
 
 func _make_nest() -> Node3D:
 	# a wide low bowl of dry grass and reeds pulled in round her; its hollow
-	# lined with her down (more as she lays)
-	var n := Node3D.new()
-	n.set_meta("prop", true)
-	var grass := StandardMaterial3D.new()
-	grass.albedo_color = Color(0.6, 0.53, 0.38)
-	grass.roughness = 1.0
-	var rim := MeshInstance3D.new()
-	var tm := TorusMesh.new()
-	tm.inner_radius = 0.13
-	tm.outer_radius = 0.3
-	tm.rings = 20
-	tm.ring_segments = 10
-	rim.mesh = tm
-	rim.scale = Vector3(1.0, 0.45, 1.0)
-	rim.position = Vector3(0.0, 0.03, 0.0)
-	rim.material_override = grass
-	n.add_child(rim)
-	for k in 30: # (loose stems)
-		var st := MeshInstance3D.new()
-		var sm := CylinderMesh.new()
-		sm.top_radius = 0.002
-		sm.bottom_radius = 0.003
-		sm.height = rng.randf_range(0.12, 0.22)
-		sm.radial_segments = 4
-		sm.rings = 1
-		st.mesh = sm
-		var a := rng.randf() * TAU
-		var r := rng.randf_range(0.17, 0.3)
-		st.position = Vector3(cos(a) * r, 0.04, sin(a) * r)
-		st.rotation = Vector3(PI * 0.5 + rng.randf_range(-0.3, 0.3), a + PI * 0.5 + rng.randf_range(-0.7, 0.7), 0.0)
-		st.material_override = grass
-		n.add_child(st)
-	return n
+	# lined with her down (more as she lays): nest.gd
+	return TreeNest.of("goose", 0.85, rng.randi() % 1000)
 
 
 ## (A tuft of her down, plucked from her breast, into the nest's hollow.)

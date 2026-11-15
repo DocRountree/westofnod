@@ -235,46 +235,10 @@ func _set_fur(f: float) -> void:
 ## Its den: a hollow log, fallen, its open end (the origin, on the ground)
 ## facing -z, the log running back along +z.
 static func den() -> Node3D:
-	var root := Node3D.new()
-	var bark := StandardMaterial3D.new()
-	bark.albedo_color = Color(0.36, 0.3, 0.24)
-	bark.roughness = 0.95
-	var c := CylinderMesh.new()
-	c.top_radius = 0.12
-	c.bottom_radius = 0.135
-	c.height = 0.85
-	c.radial_segments = 14
-	var log_ := MeshInstance3D.new()
-	log_.mesh = c
-	log_.material_override = bark
-	log_.rotation.x = PI * 0.5
-	log_.position = Vector3(0.0, 0.115, 0.42)
-	root.add_child(log_)
-	var hole := CylinderMesh.new() # (its mouth: the rotten heart dark, a rim of pale wood)
-	hole.top_radius = 0.1
-	hole.bottom_radius = 0.1
-	hole.height = 0.004
-	var rim := MeshInstance3D.new()
-	rim.mesh = hole
-	var wood := StandardMaterial3D.new()
-	wood.albedo_color = Color(0.62, 0.52, 0.38)
-	rim.material_override = wood
-	rim.rotation.x = PI * 0.5
-	rim.position = Vector3(0.0, 0.115, -0.004)
-	root.add_child(rim)
-	var dark := MeshInstance3D.new()
-	var h2 := CylinderMesh.new()
-	h2.top_radius = 0.085
-	h2.bottom_radius = 0.085
-	h2.height = 0.006
-	dark.mesh = h2
-	var dm := StandardMaterial3D.new()
-	dm.albedo_color = Color(0.05, 0.04, 0.03)
-	dark.material_override = dm
-	dark.rotation.x = PI * 0.5
-	dark.position = Vector3(0.0, 0.112, -0.007)
-	root.add_child(dark)
-	return root
+	# (No model for now: only where it is. Its home on the ground is to be made again, as part of the world.)
+	var n := Node3D.new()
+	n.set_meta("prop", true)
+	return n
 
 
 ## A dead branch leaning from the ground at foot up to top (radius r), a

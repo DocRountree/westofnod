@@ -348,43 +348,10 @@ static func brood_clump() -> Node3D:
 
 
 static func nest() -> Node3D:
-	var root := Node3D.new()
-	var soil := StandardMaterial3D.new()
-	soil.albedo_color = Color(0.3, 0.22, 0.15)
-	soil.roughness = 0.95
-	var dark := StandardMaterial3D.new()
-	dark.albedo_color = Color(0.03, 0.02, 0.015)
-	var moss := StandardMaterial3D.new()
-	moss.albedo_color = Color(0.3, 0.38, 0.14)
-	moss.roughness = 0.95
-	var s := SphereMesh.new()
-	s.radius = 0.5
-	s.height = 1.0
-	s.radial_segments = 12
-	s.rings = 6
-	var mound := MeshInstance3D.new()
-	mound.mesh = s
-	mound.material_override = soil
-	mound.scale = Vector3(0.09, 0.016, 0.08)
-	root.add_child(mound)
-	var hole := MeshInstance3D.new()
-	var c := CylinderMesh.new()
-	c.top_radius = 0.011
-	c.bottom_radius = 0.011
-	c.height = 0.004
-	hole.mesh = c
-	hole.material_override = dark
-	hole.position = Vector3(0.0, 0.007, 0.0)
-	root.add_child(hole)
-	for k in 6: # (moss and dead grass round its back)
-		var m := MeshInstance3D.new()
-		m.mesh = s
-		m.material_override = moss if k % 2 == 0 else soil
-		var a := PI * 0.2 + float(k) * 0.42
-		m.position = Vector3(cos(a), 0.0, sin(a)) * 0.04
-		m.scale = Vector3(0.03, 0.022, 0.025)
-		root.add_child(m)
-	return root
+	# (No model for now: only where it is. Its home on the ground is to be made again, as part of the world.)
+	var n := Node3D.new()
+	n.set_meta("prop", true)
+	return n
 
 
 # --- its pose -------------------------------------------------------------------

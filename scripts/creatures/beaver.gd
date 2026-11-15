@@ -184,48 +184,10 @@ func _home_door(h: Node3D) -> Vector3:
 
 
 static func lodge_of() -> Node3D:
-	var root := Node3D.new()
-	var mud := StandardMaterial3D.new()
-	mud.albedo_color = Color(0.25, 0.2, 0.15)
-	mud.roughness = 1.0
-	var s := SphereMesh.new()
-	s.radius = 1.0
-	s.height = 1.6
-	s.is_hemisphere = true
-	var dome := MeshInstance3D.new()
-	dome.mesh = s
-	dome.material_override = mud
-	dome.scale = Vector3(0.9, 0.88, 0.82) # (under its sticks)
-	root.add_child(dome)
-	var rng := RandomNumberGenerator.new()
-	rng.seed = 3
-	var mm := MultiMesh.new()
-	mm.transform_format = MultiMesh.TRANSFORM_3D
-	mm.use_colors = true
-	var c := CylinderMesh.new()
-	c.top_radius = 0.5
-	c.bottom_radius = 0.5
-	c.height = 1.0
-	c.radial_segments = 5
-	mm.mesh = c
-	mm.instance_count = 260
-	for i in 260:
-		var a := rng.randf() * TAU
-		var e := rng.randf_range(0.05, 1.35)
-		var n := Vector3(cos(a) * cos(e), sin(e), sin(a) * cos(e) * 0.9).normalized()
-		var at := Vector3(n.x, n.y * 0.8, n.z) * 1.0
-		var t := n.cross(Vector3.UP if absf(n.y) < 0.95 else Vector3.RIGHT).normalized().rotated(n, rng.randf_range(-1.2, 1.2))
-		var b := Basis(t.cross(n), t, n).orthonormalized() * Basis.from_scale(Vector3(0.028, rng.randf_range(0.45, 1.3), 0.028))
-		mm.set_instance_transform(i, Transform3D(b, at))
-		mm.set_instance_color(i, Color(0.42, 0.36, 0.28).darkened(rng.randf_range(0.0, 0.4)))
-	var mmi := MultiMeshInstance3D.new()
-	mmi.multimesh = mm
-	var sm := StandardMaterial3D.new()
-	sm.vertex_color_use_as_albedo = true
-	sm.roughness = 0.95
-	mmi.material_override = sm
-	root.add_child(mmi)
-	return root
+	# (No model for now: only where it is. Its home on the ground is to be made again, as part of the world.)
+	var n := Node3D.new()
+	n.set_meta("prop", true)
+	return n
 
 
 # --- in the water ----------------------------------------------------------------

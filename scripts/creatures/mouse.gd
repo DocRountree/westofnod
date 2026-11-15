@@ -348,54 +348,10 @@ static func sunflower_seed() -> Node3D:
 ## across, hollow, its way in at one side (-z), lined; its origin at its
 ## middle on the ground.
 static func nest() -> Node3D:
-	var root := Node3D.new()
-	var rng := RandomNumberGenerator.new()
-	rng.seed = 11
-	var mm := MultiMesh.new()
-	mm.transform_format = MultiMesh.TRANSFORM_3D
-	mm.use_colors = true
-	var blade := BoxMesh.new()
-	blade.size = Vector3(0.0012, 0.0004, 0.03)
-	mm.mesh = blade
-	const N := 420
-	mm.instance_count = N
-	var R := 0.05
-	for i in N:
-		# (a point on the ball, not where the way in is)
-		var p := Vector3.ZERO
-		for tries in 8:
-			p = Vector3(rng.randf_range(-1, 1), rng.randf_range(-0.2, 1), rng.randf_range(-1, 1)).normalized()
-			if not (p.z < -0.7 and p.y < 0.55):
-				break
-		var r := R * rng.randf_range(0.82, 1.08)
-		var at := Vector3(p.x * r, maxf(p.y * r * 0.85, 0.0) + R * 0.08, p.z * r)
-		# (lying round the ball, along it, every way)
-		var t := p.cross(Vector3.UP if absf(p.y) < 0.9 else Vector3.RIGHT).normalized().rotated(p, rng.randf() * TAU)
-		var b := Basis(t.cross(p).normalized(), p, t)
-		mm.set_instance_transform(i, Transform3D(b.orthonormalized() * Basis.from_scale(Vector3(1.0, 1.0, rng.randf_range(0.6, 1.4))), at))
-		mm.set_instance_color(i, Color(0.72, 0.62, 0.4).darkened(rng.randf_range(0.0, 0.3)))
-	var mmi := MultiMeshInstance3D.new()
-	mmi.multimesh = mm
-	var m := StandardMaterial3D.new()
-	m.vertex_color_use_as_albedo = true
-	m.roughness = 0.95
-	m.cull_mode = BaseMaterial3D.CULL_DISABLED
-	mmi.material_override = m
-	root.add_child(mmi)
-	# its lining, a floor of finer stuff
-	var floor_ := MeshInstance3D.new()
-	var c := CylinderMesh.new()
-	c.top_radius = R * 0.85
-	c.bottom_radius = R * 0.9
-	c.height = 0.006
-	floor_.mesh = c
-	floor_.position.y = 0.003
-	var lm := StandardMaterial3D.new()
-	lm.albedo_color = Color(0.8, 0.74, 0.6)
-	lm.roughness = 1.0
-	floor_.material_override = lm
-	root.add_child(floor_)
-	return root
+	# (No model for now: only where it is. Its home on the ground is to be made again, as part of the world.)
+	var n := Node3D.new()
+	n.set_meta("prop", true)
+	return n
 
 
 # --- what it does --------------------------------------------------------------

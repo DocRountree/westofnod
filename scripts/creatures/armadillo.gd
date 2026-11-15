@@ -283,45 +283,10 @@ func _build_shell() -> void:
 ## ground (its mouth facing -z), the earth it's dug fanned out in front
 ## of it, loose, fresh. Its origin at its mouth, on the ground.
 static func burrow() -> Node3D:
-	var root := Node3D.new()
-	var s := SphereMesh.new()
-	s.radius = 0.5
-	s.height = 1.0
-	var earth := StandardMaterial3D.new()
-	earth.albedo_color = Color(0.42, 0.32, 0.22)
-	earth.roughness = 1.0
-	var dark := StandardMaterial3D.new()
-	dark.albedo_color = Color(0.03, 0.025, 0.02)
-	var fan := MeshInstance3D.new() # (the loose earth thrown out, a fan before it)
-	fan.mesh = s
-	fan.material_override = earth
-	fan.position = Vector3(0.0, 0.0, -0.22)
-	fan.scale = Vector3(0.5, 0.07, 0.45)
-	root.add_child(fan)
-	var mound := MeshInstance3D.new() # (the bank over it)
-	mound.mesh = s
-	mound.material_override = earth
-	mound.position = Vector3(0.0, 0.0, 0.18)
-	mound.scale = Vector3(0.42, 0.18, 0.4)
-	root.add_child(mound)
-	var hole := MeshInstance3D.new()
-	hole.mesh = s
-	hole.material_override = dark
-	hole.position = Vector3(0.0, 0.045, 0.0)
-	hole.scale = Vector3(0.2, 0.15, 0.06)
-	hole.rotation.x = -0.5
-	root.add_child(hole)
-	var rr := RandomNumberGenerator.new()
-	rr.seed = 3
-	for k in 12: # (clods)
-		var c := MeshInstance3D.new()
-		c.mesh = s
-		c.material_override = earth
-		var a := rr.randf_range(-1.2, 1.2)
-		c.position = Vector3(sin(a) * rr.randf_range(0.1, 0.35), 0.01, -0.1 - cos(a) * rr.randf_range(0.05, 0.3))
-		c.scale = Vector3.ONE * rr.randf_range(0.02, 0.045)
-		root.add_child(c)
-	return root
+	# (No model for now: only where it is. Its home on the ground is to be made again, as part of the world.)
+	var n := Node3D.new()
+	n.set_meta("prop", true)
+	return n
 
 
 func _sleep_home() -> Node3D:

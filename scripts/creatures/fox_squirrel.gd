@@ -326,36 +326,10 @@ static func tree(r := 0.12, h := 4.5) -> Array:
 
 ## A drey: a ball of leaves and twigs about 40 cm across, its way in at one side.
 static func drey_nest() -> Node3D:
-	var root := Node3D.new()
-	var rng := RandomNumberGenerator.new()
-	rng.seed = 5
-	var mm := MultiMesh.new()
-	mm.transform_format = MultiMesh.TRANSFORM_3D
-	mm.use_colors = true
-	var leaf := SphereMesh.new()
-	leaf.radius = 0.5
-	leaf.height = 1.0
-	leaf.radial_segments = 6
-	leaf.rings = 3
-	mm.mesh = leaf
-	mm.instance_count = 160
-	for i in 160:
-		var p := Vector3(rng.randf_range(-1, 1), rng.randf_range(-1, 1), rng.randf_range(-1, 1)).normalized()
-		var at := p * 0.18 * rng.randf_range(0.85, 1.05)
-		var t := p.cross(Vector3.UP if absf(p.y) < 0.9 else Vector3.RIGHT).normalized().rotated(p, rng.randf() * TAU)
-		mm.set_instance_transform(i, Transform3D(Basis(t, p, t.cross(p)).orthonormalized() * Basis.from_scale(Vector3(0.07, 0.006, 0.05)), at))
-		mm.set_instance_color(i, Color(0.45, 0.34, 0.2).darkened(rng.randf_range(0.0, 0.35)))
-	var mmi := MultiMeshInstance3D.new()
-	mmi.multimesh = mm
-	var m := StandardMaterial3D.new()
-	m.vertex_color_use_as_albedo = true
-	m.roughness = 0.95
-	mmi.material_override = m
-	root.add_child(mmi)
-	return root
+	var d := TreeNest.of("drey", 1.0, 5) # (nest.gd)
+	(d.get_child(0) as Node3D).position.y = -0.18 # (its origin at its middle: where the squirrel lies in it)
+	return d
 
-
-# --- its ways ----------------------------------------------------------------------
 
 func eat(food: Node3D) -> void:
 	super(food)

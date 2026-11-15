@@ -139,42 +139,10 @@ func _home_door(h: Node3D) -> Vector3:
 
 
 static func den(scale_ := 1.0) -> Node3D:
-	var root := Node3D.new()
-	var s := SphereMesh.new()
-	s.radius = 0.5
-	s.height = 1.0
-	var earth := StandardMaterial3D.new()
-	earth.albedo_color = Color(0.36, 0.28, 0.2)
-	earth.roughness = 1.0
-	var dark := StandardMaterial3D.new()
-	dark.albedo_color = Color(0.04, 0.035, 0.03)
-	var root_m := StandardMaterial3D.new()
-	root_m.albedo_color = Color(0.4, 0.32, 0.22)
-	for p in [[Vector3(0.0, 0.0, 0.0), Vector3(2.6, 1.1, 2.2), earth], [Vector3(0.0, 0.25, -1.0), Vector3(0.9, 0.7, 0.3), dark]]:
-		var mi := MeshInstance3D.new()
-		mi.mesh = s
-		mi.position = (p[0] as Vector3) * scale_
-		mi.scale = (p[1] as Vector3) * scale_
-		mi.material_override = p[2]
-		root.add_child(mi)
-	var c := CylinderMesh.new()
-	c.top_radius = 0.5
-	c.bottom_radius = 0.5
-	c.height = 1.0
-	c.radial_segments = 5
-	for k in 7: # (roots arching over its mouth)
-		var a := lerpf(-1.2, 1.2, float(k) / 6.0)
-		var p0 := Vector3(sin(a) * 0.6, 0.0, -1.05) * scale_
-		var p1 := Vector3(sin(a) * 0.3, 0.75, -0.95) * scale_
-		var mi := MeshInstance3D.new()
-		mi.mesh = c
-		var d := p1 - p0
-		var y := d.normalized()
-		var x := y.cross(Vector3.FORWARD).normalized()
-		mi.transform = Transform3D(Basis(x * 0.04 * scale_, d, x.cross(y) * 0.04 * scale_), (p0 + p1) * 0.5)
-		mi.material_override = root_m
-		root.add_child(mi)
-	return root
+	# (No model for now: only where it is. Its home on the ground is to be made again, as part of the world.)
+	var n := Node3D.new()
+	n.set_meta("prop", true)
+	return n
 
 
 # --- its own ways --------------------------------------------------------------------

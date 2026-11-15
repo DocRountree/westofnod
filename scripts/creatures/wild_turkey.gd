@@ -907,32 +907,7 @@ func _landed() -> void:
 # --- the nest, the eggs -----------------------------------------------------------
 
 func _make_nest() -> Node3D:
-	var n := Node3D.new()
-	n.set_meta("prop", true)
-	var mi := MeshInstance3D.new()
-	var st := SurfaceTool.new()
-	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	# a shallow scrape, a rim of dead leaves round it
-	for i in 24:
-		var a0 := TAU * i / 24.0
-		var a1 := TAU * (i + 1) / 24.0
-		var prof := [[0.0, -0.004], [0.1, 0.0], [0.17, 0.022], [0.23, 0.012], [0.27, 0.0]]
-		for k in prof.size() - 1:
-			for q: Array in [[a0, k], [a1, k], [a1, k + 1], [a0, k], [a1, k + 1], [a0, k + 1]]:
-				var pr: Array = prof[q[1]]
-				var wob := 1.0 + 0.12 * sin(float(q[0]) * 5.0 + float(q[1]))
-				st.set_normal(Vector3.UP)
-				st.set_color(Color(0.3, 0.2, 0.11).lerp(Color(0.45, 0.33, 0.18), 0.5 + 0.5 * sin(float(q[0]) * 9.0 + float(q[1]) * 2.0)))
-				st.add_vertex(Vector3(cos(q[0]) * float(pr[0]) * wob, float(pr[1]) + 0.003, sin(q[0]) * float(pr[0]) * wob))
-	st.generate_normals()
-	mi.mesh = st.commit()
-	var m := StandardMaterial3D.new()
-	m.vertex_color_use_as_albedo = true
-	m.roughness = 0.95
-	m.cull_mode = BaseMaterial3D.CULL_DISABLED
-	mi.material_override = m
-	n.add_child(mi)
-	return n
+	return TreeNest.of("turkey", 0.9, rng.randi() % 1000) # (a shallow scrape among dead leaves: nest.gd)
 
 
 static var _egg_mat: ShaderMaterial
