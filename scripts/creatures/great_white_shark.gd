@@ -1,5 +1,5 @@
 class_name GreatWhiteShark
-extends Node3D
+extends "res://scripts/creatures/creature.gd"
 ## A great white shark (Carcharodon carcharias), life size: a grown female
 ## 4.6 m (the mesh's), about 1,100 kg; a male smaller (3.8 m), his claspers
 ## under him; a pup born 1.3 m, its pectorals black tipped beneath.
@@ -283,6 +283,7 @@ func die() -> void:
 	if dead:
 		return
 	dead = true
+	Fauna.report(&"died", self)
 	_to("dead")
 
 
@@ -297,7 +298,7 @@ func flee(from: Vector3) -> void:
 
 # --- the motor --------------------------------------------------------------------------------
 
-func _process(dt: float) -> void:
+func tick(dt: float) -> void:
 	dt = minf(dt, 0.05)
 	if _mi == null:
 		return
@@ -657,6 +658,7 @@ func _seize() -> void:
 		_held = _prey.call("take", _prey_i)
 		_prey_i = -1
 	elif _prey and is_instance_valid(_prey):
+		Fauna.report(&"killed", self, {"prey": _prey, "kind": Diet.kind_of(_prey)})
 		if _prey.has_method("die"):
 			_prey.call("die")
 		_held = _prey
@@ -740,6 +742,7 @@ func _splash(at: Vector3, k: float) -> void:
 func _bear_one() -> void:
 	_born += 1
 	var pup := (get_script() as Script).new(true) as Node3D
+	Fauna.report.call_deferred(&"born", self, {"young": pup})
 	pup.set("male", rng.randf() < 0.5)
 	pup.set("mother", self)
 	pup.set("tank_min", tank_min)

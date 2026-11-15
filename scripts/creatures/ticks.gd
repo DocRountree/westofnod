@@ -157,6 +157,7 @@ func lay(i: int, _at := Vector3.ZERO) -> void:
 	target[i] = pos[i]
 	var fwd := Vector3(-sin(yaw[i]), 0.0, -cos(yaw[i]))
 	var mass := TickEggsScript.new()
+	Fauna.report.call_deferred(&"laid", self, {"eggs": mass})
 	mass.colony = self
 	mass.yellow = stage_color_egg()
 	add_child(mass)

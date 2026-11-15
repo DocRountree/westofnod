@@ -419,7 +419,7 @@ func _catch(dt: float) -> void:
 			_neck_to = Vector2(clampf((lp.y - _mouth().y) * 6.0, -0.9, 0.4), 0.0)
 			var m := _mouth()
 			if m.distance_to(p) < 0.1 * size / 0.5 + 0.04 or (to.length() < absf(float(S.mouth_z)) * MM * size * 1.1 and _st > 4.0) or _st > 14.0:
-				MealScript.subdue(_prey)
+				MealScript.subdue(_prey, self)
 				_held = true
 				_stage = 1
 				_st = 0.0

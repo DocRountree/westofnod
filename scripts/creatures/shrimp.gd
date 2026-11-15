@@ -360,7 +360,7 @@ func _release() -> void:
 	_cloud.set_meta("t", 0.0)
 
 
-func _process(dt: float) -> void:
+func tick(dt: float) -> void:
 	super(dt)
 	if is_instance_valid(_cloud): # (the eggs drifting down, spreading, gone)
 		var t: float = float(_cloud.get_meta("t")) + dt

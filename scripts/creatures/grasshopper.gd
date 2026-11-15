@@ -420,6 +420,7 @@ func _drop_pod() -> void:
 		return
 	var tip := _out(_abdomen.position + Vector3(0.0, -0.5, 19.0))
 	var pod := Pod.new()
+	Fauna.report.call_deferred(&"laid", self, {"eggs": pod})
 	pod.maker = get_script()
 	parent.add_child(pod)
 	pod.position = Vector3(tip.x, ground_y, tip.z)
@@ -520,6 +521,7 @@ class Pod extends Node3D:
 			_left -= 1
 			var parent := get_parent() as Node3D
 			var ny: Node3D = maker.new(true, 0.22)
+			Fauna.report.call_deferred(&"hatched", self, {"young": ny})
 			parent.add_child(ny)
 			ny.call("place", position, randf() * TAU)
 			ny.call("wander", position, 0.12)

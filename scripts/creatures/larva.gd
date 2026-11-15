@@ -1,5 +1,5 @@
 class_name Larva
-extends Node3D
+extends "res://scripts/creatures/creature.gd"
 ## The larvae of every creature so far, drawn at twice life size: the body
 ## one smooth skin (a tube, built once a kind, bent along its spine by
 ## larva.gdshader, its creases between segments shallow) and a head
@@ -113,7 +113,6 @@ const KINDS := {
 			"pattern": 4, "base": Color(0.96, 0.95, 0.9), "head": Color(0.92, 0.88, 0.78), "curl": 1.8, "neck": true, "crease": 0.03},
 }
 
-signal action_finished(name: String, ok: bool)
 const PilotScript := preload("res://scripts/creatures/pilot.gd")
 
 var kind := "monarch"
@@ -122,7 +121,6 @@ var kind := "monarch"
 var parasitized := false
 var parasitoid := "ichneumon" ## (what's in it, parasitized: an ichneumon's larva in a caterpillar; a trigonalid's in a paper wasp's grub)
 var height: Callable ## (x, z) -> the ground's y (none: level, where it was put)
-var _pilot: PilotScript
 var _pace := -1.0
 var K: Dictionary
 var rng := RandomNumberGenerator.new()
@@ -756,7 +754,7 @@ static func _flat(c: Color, rough: float) -> StandardMaterial3D:
 
 # --- moving --------------------------------------------------------------------
 
-func _process(dt: float) -> void:
+func tick(dt: float) -> void:
 	if dt <= 0.0 or _holders.is_empty():
 		return
 	_t += dt
@@ -1213,41 +1211,6 @@ static func _seg_xf(a: Vector3, b: Vector3, r: float, stretch := 1.0) -> Transfo
 
 
 # --- steering: a state machine's (pilot.gd) ---------------------------------------
-
-func _pl() -> PilotScript:
-	if _pilot == null:
-		_pilot = PilotScript.new(self)
-		_pilot.finished = action_finished.emit
-	return _pilot
-
-
-func go(direction: Vector3, speed := -1.0, seconds := -1.0) -> void:
-	_pl().go(direction, speed, seconds)
-
-
-func go_to(point: Vector3, speed := -1.0) -> void:
-	_pl().go_to(point, speed)
-
-
-func face(direction: Vector3) -> void:
-	_pl().face(direction)
-
-
-func stop() -> void:
-	_pl().stop()
-
-
-func act(name: String, args := {}) -> bool:
-	return _pl().act(name, args)
-
-
-func behaviours() -> PackedStringArray:
-	return _p_behaviours()
-
-
-func is_busy() -> bool:
-	return _pilot != null and _pilot.busy()
-
 
 func _p_here() -> Vector3:
 	return _pos

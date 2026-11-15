@@ -1,5 +1,5 @@
 class_name SeaUrchin
-extends Node3D
+extends "res://scripts/creatures/creature.gd"
 ## A purple sea urchin (Strongylocentrotus purpuratus), life size: its test
 ## (shell) 5-6 cm across, flattened, a little five-sided seen from above, deep
 ## purple, beaded with the tubercles its spines sit on, the five paler double
@@ -77,8 +77,8 @@ func _init(young_ := false) -> void:
 	_dir = Vector3.FORWARD.rotated(Vector3.UP, randf() * TAU)
 
 
-func behaviours() -> Array:
-	return ["wander", "eat", "graze", "defend", "spawn"]
+func behaviours() -> PackedStringArray:
+	return PackedStringArray(["wander", "eat", "graze", "defend", "spawn"])
 
 
 func _set_size() -> void:
@@ -238,7 +238,7 @@ func _to(m: String, secs: float) -> void:
 	_until = secs
 
 
-func _process(dt: float) -> void:
+func tick(dt: float) -> void:
 	if home == Vector3.INF:
 		home = position
 	_t += dt

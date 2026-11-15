@@ -448,7 +448,7 @@ func _think(dt: float) -> void:
 					_look_to = Vector2(0.0, -0.4)
 					if to.length() <= reach * 1.15 and _speed < 0.01:
 						_turn_to = atan2(-to.x, -to.z)
-						MealScript.subdue(_seed) # (an insect, a grub: bitten, still)
+						MealScript.subdue(_seed, self) # (an insect, a grub: bitten, still)
 						_stage = 1
 						_st = 0.0
 				1: # its head down to it
@@ -552,6 +552,7 @@ func _pup() -> void:
 	if parent == null:
 		return
 	var p: Node3D = (get_script() as Script).new(true)
+	Fauna.report.call_deferred(&"born", self, {"young": p})
 	parent.add_child(p)
 	# (by her side, under her flank, each a little apart)
 	var k := _litter.size()

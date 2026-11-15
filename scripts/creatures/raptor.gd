@@ -394,6 +394,7 @@ func hatch() -> void:
 		if not is_instance_valid(e):
 			continue
 		var y: Raptor = (get_script() as GDScript).new(true)
+		Fauna.report.call_deferred(&"hatched", self, {"young": y})
 		y.male = rng.randf() < 0.5
 		y.height = height
 		y.ground_y = ground_y
@@ -430,6 +431,7 @@ func die() -> void:
 		_drop_carry()
 	_to("dead")
 	dead = true
+	Fauna.report(&"died", self)
 	_flap = 0.0
 	halt()
 	_speed = 0.0
@@ -967,6 +969,7 @@ func _strike() -> void:
 		"wild_turkey.gd":
 			col = Color(0.62, 0.5, 0.32)
 	var at := _prey_pos()
+	Fauna.report(&"killed", self, {"prey": prey, "kind": Diet.kind_of(prey)})
 	if prey.has_method("die"):
 		prey.call("die")
 	prey.queue_free()
@@ -1171,6 +1174,7 @@ func _nest(_dt: float) -> void:
 				if _n > 0:
 					_n -= 1
 					var e := _make_egg()
+					Fauna.report.call_deferred(&"laid", self, {"eggs": e})
 					nest.add_child(e)
 					var k := eggs_laid.size()
 					var a := k * 2.4

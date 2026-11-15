@@ -23,7 +23,34 @@ extends RefCounted
 const UP_SAG := 0.25 ## (raised, how much less it droops)
 
 
+static var _grown := {} # [the skin's mesh, n, seed] -> [mesh, its box]: grown once on each skin, shared as the skin is
+
+
 static func grow(skin_mi: MeshInstance3D, n: int, pick: Callable, seed_ := 1) -> MeshInstance3D:
+	# (the skin's mesh is one make's alone: its kind, its sex, its age; so
+	# what's grown on it with the same count and seed is the same)
+	var key := [skin_mi.mesh, n, seed_]
+	var had: Variant = _grown.get(key) if MammalSkin.sharing else null
+	if had == null:
+		had = _grow_mesh(skin_mi, n, pick, seed_)
+		if MammalSkin.sharing:
+			_grown[key] = had
+	var mi := MeshInstance3D.new()
+	mi.mesh = had[0]
+	var mat := ShaderMaterial.new()
+	mat.shader = preload("res://shaders/render/strands.gdshader")
+	mi.material_override = mat
+	var skel := skin_mi.get_parent() as Skeleton3D
+	skel.add_child(mi)
+	mi.skin = skin_mi.skin
+	mi.skeleton = mi.get_path_to(skel)
+	var bb: AABB = had[1]
+	mi.custom_aabb = bb.grow(bb.size.length() * 0.6)
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	return mi
+
+
+static func _grow_mesh(skin_mi: MeshInstance3D, n: int, pick: Callable, seed_ := 1) -> Array:
 	var src := skin_mi.mesh as ArrayMesh
 	var a := src.surface_get_arrays(0)
 	var V: PackedVector3Array = a[Mesh.ARRAY_VERTEX]
@@ -158,16 +185,4 @@ static func grow(skin_mi: MeshInstance3D, n: int, pick: Callable, seed_ := 1) ->
 	m.blend_shape_mode = Mesh.BLEND_SHAPE_MODE_NORMALIZED
 	m.add_blend_shape("erect")
 	m.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays, [shape])
-	var mi := MeshInstance3D.new()
-	mi.mesh = m
-	var mat := ShaderMaterial.new()
-	mat.shader = preload("res://shaders/render/strands.gdshader")
-	mi.material_override = mat
-	var skel := skin_mi.get_parent() as Skeleton3D
-	skel.add_child(mi)
-	mi.skin = skin_mi.skin
-	mi.skeleton = mi.get_path_to(skel)
-	var bb := AABB(lo, hi - lo)
-	mi.custom_aabb = bb.grow(bb.size.length() * 0.6)
-	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
-	return mi
+	return [m, AABB(lo, hi - lo)]

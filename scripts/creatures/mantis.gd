@@ -342,7 +342,7 @@ func _think(dt: float) -> void:
 							_pin_at = Vector3(m.x, 0.0, m.z) + fw * 4.0 * MM * size
 							_pin_k = 0.0
 						else: # (a live insect: still in her grip)
-							MealScript.subdue(_prey)
+							MealScript.subdue(_prey, self)
 					if _st > 0.6:
 						_stage = 4 if _prey else 5
 						_st = 0.0
@@ -756,6 +756,7 @@ class Ootheca extends Node3D:
 			_left -= 1
 			var parent := get_parent() as Node3D
 			var ny: Node3D = maker.new(true, 0.18)
+			Fauna.report.call_deferred(&"hatched", self, {"young": ny})
 			parent.add_child(ny)
 			var from := global_transform * (Vector3(randf_range(-1.0, 1.0), 6.0 + randf() * 14.0, -5.5) * MM)
 			from = parent.to_local(from)

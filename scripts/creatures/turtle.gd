@@ -1,5 +1,5 @@
 class_name Turtle
-extends Node3D
+extends "res://scripts/creatures/creature.gd"
 ## An eastern box turtle (Terrapene carolina carolina), drawn at twice life
 ## size (modelled at life size, its shell about 14 cm long: MM), on a
 ## species' make (SPEC: SnappingTurtle has its own). Built from parts,
@@ -44,7 +44,6 @@ extends Node3D
 ## is_busy, action_finished.
 ## Its position is set every frame: put it under a node that isn't moved.
 
-signal action_finished(name: String, ok: bool)
 const PilotScript := preload("res://scripts/creatures/pilot.gd")
 const PersonalSpace := preload("res://scripts/creatures/personal_space.gd")
 const MM := 0.002 ## m drawn per model mm (twice life size)
@@ -128,7 +127,6 @@ var _food: Node3D
 var _mate: Turtle
 var _role := ""
 var _mate_len := 12.0 # (how long a mating lasts, s)
-var _pilot: PilotScript
 var _piloting := false
 var rng := RandomNumberGenerator.new()
 # the parts
@@ -923,7 +921,7 @@ func _ground_at(x: float, z: float) -> float:
 	return float(height.call(x, z)) if height.is_valid() else 0.0
 
 
-func _process(dt: float) -> void:
+func tick(dt: float) -> void:
 	if dt <= 0.0 or _body == null:
 		return
 	_t += dt
@@ -1049,7 +1047,7 @@ func _eat_think(_dt: float) -> void:
 		_bite_neck = 1.2
 		_meal = null
 		if not keep:
-			MealScript.subdue(_food) # (a live one: caught in its jaws)
+			MealScript.subdue(_food, self) # (a live one: caught in its jaws)
 			# (an insect, a snail: one bite, gone; a fruit, a weed bitten at)
 			var small := _food.has_method("act") and not MealScript.is_vertebrate(_food)
 			_meal = MealScript.of(_food, 1 if small else 3)
@@ -1330,41 +1328,6 @@ func _pose_leg_extra(_L: Array, out: Vector3, foot: Vector3) -> Array:
 
 # --- steering (pilot.gd) -------------------------------------------------------
 
-func _pl() -> PilotScript:
-	if _pilot == null:
-		_pilot = PilotScript.new(self)
-		_pilot.finished = action_finished.emit
-	return _pilot
-
-
-func go(direction: Vector3, speed := -1.0, seconds := -1.0) -> void:
-	_pl().go(direction, speed, seconds)
-
-
-func go_to(point: Vector3, speed := -1.0) -> void:
-	_pl().go_to(point, speed)
-
-
-func face(direction: Vector3) -> void:
-	_pl().face(direction)
-
-
-func stop() -> void:
-	_pl().stop()
-
-
-func act(name: String, args := {}) -> bool:
-	return _pl().act(name, args)
-
-
-func behaviours() -> PackedStringArray:
-	return _p_behaviours()
-
-
-func is_busy() -> bool:
-	return _pilot != null and _pilot.busy()
-
-
 func _p_here() -> Vector3:
 	return _pos
 
@@ -1551,6 +1514,7 @@ class Nest extends Node3D:
 		var tt := turtle as Turtle
 		for k in n:
 			var y: Node3D = maker.new(true)
+			Fauna.report.call_deferred(&"hatched", self, {"young": y})
 			if is_instance_valid(tt):
 				for p in ["water_y", "floor_y", "pond", "height", "basks"]:
 					y.set(p, tt.get(p))

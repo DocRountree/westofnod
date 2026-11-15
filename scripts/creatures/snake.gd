@@ -1,5 +1,5 @@
 class_name Snake
-extends Node3D
+extends "res://scripts/creatures/creature.gd"
 ## Snakes, life size (unlike the insects: not doubled): an eastern
 ## diamondback rattlesnake (Crotalus adamanteus: Snake.new("rattler")) or an
 ## eastern milk snake (Lampropeltis triangulum: Snake.new("milk")); young:
@@ -36,7 +36,6 @@ extends Node3D
 ## action_finished; height (the ground under every point of it).
 ## Put it under a node that isn't moved: its own transform stays identity.
 
-signal action_finished(name: String, ok: bool)
 const PilotScript := preload("res://scripts/creatures/pilot.gd")
 
 const SPINE := 40
@@ -53,7 +52,6 @@ var young := false
 var size := 1.0
 var ground_y := 0.0
 var height: Callable ## (x, z) -> the ground's y (none: level, at ground_y)
-var _pilot: PilotScript
 var _pace := -1.0
 var rng := RandomNumberGenerator.new()
 var eggs: Array[Node3D] = [] ## its eggs (or birth sacs) laid, in its parent
@@ -488,7 +486,7 @@ static func _loft(keys: Array, sq := 2.0) -> ArrayMesh:
 
 # --- moving ------------------------------------------------------------------------
 
-func _process(dt: float) -> void:
+func tick(dt: float) -> void:
 	if dt <= 0.0 or _skin == null:
 		return
 	_t += dt
@@ -750,41 +748,6 @@ func _mate_pose() -> void:
 
 # --- steering: a state machine's (pilot.gd) ---------------------------------------
 
-func _pl() -> PilotScript:
-	if _pilot == null:
-		_pilot = PilotScript.new(self)
-		_pilot.finished = action_finished.emit
-	return _pilot
-
-
-func go(direction: Vector3, speed := -1.0, seconds := -1.0) -> void:
-	_pl().go(direction, speed, seconds)
-
-
-func go_to(point: Vector3, speed := -1.0) -> void:
-	_pl().go_to(point, speed)
-
-
-func face(direction: Vector3) -> void:
-	_pl().face(direction)
-
-
-func stop() -> void:
-	_pl().stop()
-
-
-func act(name: String, args := {}) -> bool:
-	return _pl().act(name, args)
-
-
-func behaviours() -> PackedStringArray:
-	return _p_behaviours()
-
-
-func is_busy() -> bool:
-	return _pilot != null and _pilot.busy()
-
-
 func _p_here() -> Vector3:
 	return _pos
 
@@ -913,7 +876,7 @@ func _eat(dt: float) -> bool:
 			_strike_k = k * k * (3.0 - 2.0 * k)
 			_gape = _strike_k * 0.9
 			if _st > 0.14:
-				MealScript.subdue(_prey) # (a live animal: struck, still)
+				MealScript.subdue(_prey, self) # (a live animal: struck, still)
 				_stage = 3 if kind == "rattler" else 4
 				_st = 0.0
 		3: # (the rattler) back, waiting for its venom to work, the tongue going
@@ -1057,6 +1020,7 @@ func _drop_egg() -> void:
 		return
 	var vent: Vector3 = _pts[int(SPINE * 0.85)]
 	var e := Egg.new()
+	Fauna.report.call_deferred(&"laid", self, {"eggs": e})
 	e.kind = K.egg
 	e.mother = self
 	parent.add_child(e)
@@ -1265,6 +1229,7 @@ class Egg extends Node3D:
 			return
 		var mk: String = mother.get("kind")
 		var y: Node3D = (mother.get_script() as Script).new(mk, true) # (its mother's kind: the snake script, not named here)
+		Fauna.report.call_deferred(&"hatched", self, {"young": y})
 		get_parent().add_child.call_deferred(y)
 		young = y
 		var out := (global_transform.basis * Vector3.FORWARD).normalized()

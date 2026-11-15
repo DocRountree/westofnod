@@ -1,5 +1,5 @@
 class_name Bird
-extends Node3D
+extends "res://scripts/creatures/creature.gd"
 ## A bird, the make they share (docs/birds.md; the wild turkey its first:
 ## WildTurkey), life size: one mesh, posed in its shader (bird.gdshader,
 ## bird_rig.gdshaderinc), no Skeleton3D. This is the body and the motors
@@ -33,7 +33,6 @@ extends Node3D
 ## Steering (pilot.gd): go, go_to, face, stop, act, behaviours, is_busy,
 ## action_finished.
 
-signal action_finished(name: String, ok: bool)
 
 const SHADER := preload("res://shaders/render/bird.gdshader")
 const PilotScript := preload("res://scripts/creatures/pilot.gd")
@@ -101,7 +100,6 @@ var _phase := 0.0 # the wingbeat's
 var _flap := 0.0 # 0 wings as posed .. 1 beating
 var _fly := {} # a flight under way
 var _air := false
-var _pilot: PilotScript
 var _bill_shift := Vector3.ZERO # (its bill brought forward of the shape's, the face tapering to it: _make_mesh)
 var _piloted := false
 static var _meshes := {}
@@ -213,7 +211,7 @@ func fly_to(to: Vector3, top := -1.0) -> void:
 	_yaw = atan2(-(to.x - _pos.x), -(to.z - _pos.z))
 
 
-func _process(dt: float) -> void:
+func tick(dt: float) -> void:
 	if _mat == null or dt <= 0.0:
 		return
 	_t += dt
@@ -557,41 +555,6 @@ func bill_tip() -> Vector3:
 
 
 # --- steering (pilot.gd) ----------------------------------------------------------
-
-func _pl() -> PilotScript:
-	if _pilot == null:
-		_pilot = PilotScript.new(self)
-		_pilot.finished = action_finished.emit
-	return _pilot
-
-
-func go(direction: Vector3, speed := -1.0, seconds := -1.0) -> void:
-	_pl().go(direction, speed, seconds)
-
-
-func go_to(point: Vector3, speed := -1.0) -> void:
-	_pl().go_to(point, speed)
-
-
-func face(direction: Vector3) -> void:
-	_pl().face(direction)
-
-
-func stop() -> void:
-	_pl().stop()
-
-
-func act(name: String, args := {}) -> bool:
-	return _pl().act(name, args)
-
-
-func behaviours() -> PackedStringArray:
-	return _p_behaviours()
-
-
-func is_busy() -> bool:
-	return _pilot != null and _pilot.busy()
-
 
 func _p_here() -> Vector3:
 	return _pos

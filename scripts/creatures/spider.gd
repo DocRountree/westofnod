@@ -472,7 +472,7 @@ func _think(dt: float) -> void:
 				2: # holding it in its jaws (once landed)
 					if not airborne:
 						_held = false # (bitten where it is, not lifted)
-						MealScript.subdue(_prey) # (a live insect: still, bitten)
+						MealScript.subdue(_prey, self) # (a live insect: still, bitten)
 						_pace = -1.0
 						_target = _pos
 						_stage = 3
@@ -526,6 +526,7 @@ func _lay(_dt: float) -> void:
 	match _stage:
 		0:
 			var sac := EggSac.new()
+			Fauna.report.call_deferred(&"laid", self, {"eggs": sac})
 			sac.kind = kind
 			sac.mother = self
 			_abd.add_child(sac)
@@ -536,12 +537,21 @@ func _lay(_dt: float) -> void:
 			_stage = 1
 			_st = 0.0
 		1: # spinning it: the abdomen bobbing and swaying, the sac growing
+			if not is_instance_valid(_carry): # (taken from her as she spun it)
+				_abd.rotation = Vector3.ZERO
+				_carry = null
+				_mode = "hub" if _in_orb else "idle"
+				return
 			_abd.rotation = Vector3(0.25 * sin(_st * 4.0), 0.2 * sin(_st * 2.3), 0.0)
 			_carry.scale = Vector3.ONE * clampf(_st / 8.0, 0.01, 1.0) / (MM * size)
 			if _st > 8.0:
 				_abd.rotation = Vector3.ZERO
 				_stage = 2
 		2:
+			if not is_instance_valid(_carry):
+				_carry = null
+				_mode = "hub" if _in_orb else "idle"
+				return
 			var sac := _carry
 			match kind:
 				"wolf": # (on its spinnerets, carried)
@@ -561,7 +571,7 @@ func _lay(_dt: float) -> void:
 			_mode = "hub" if _in_orb else "idle"
 
 
-func _process(dt: float) -> void:
+func tick(dt: float) -> void:
 	if dead and _hang != null:
 		_hung(dt)
 		return
@@ -703,7 +713,7 @@ func _orb(dt: float) -> void:
 						if _st > 3.5:
 							_abd.rotation.x = 0.0
 							_held = false # (eaten where it hangs, wrapped: not carried)
-							MealScript.subdue(_prey) # (a live insect: still, wrapped)
+							MealScript.subdue(_prey, self) # (a live insect: still, wrapped)
 							_stage = 3
 							_st = 0.0
 					2: # back to the hub with it
@@ -1235,6 +1245,7 @@ class EggSac extends Node3D:
 			_left -= 1
 			var parent := (mother.get_parent() if is_instance_valid(mother) else get_parent()) as Node3D
 			var sl: Node3D = (mother.get_script() as Script).new(kind, true) if is_instance_valid(mother) else null
+			Fauna.report.call_deferred(&"hatched", self, {"young": sl})
 			if sl == null:
 				_left = 0
 				return

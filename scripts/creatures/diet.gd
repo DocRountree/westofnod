@@ -225,6 +225,9 @@ static func expand(kinds: Array) -> Array:
 	return out
 
 
+static var _files := {} # script -> its file's name
+
+
 ## A thing named as food (or "", nothing to eat).
 static func kind_of(n: Node) -> String:
 	if n == null or not is_instance_valid(n):
@@ -253,8 +256,12 @@ static func kind_of(n: Node) -> String:
 	var sc: Script = n.get_script()
 	if sc == null:
 		return "dead_fish" if n.name == "fish" and n.get_meta("dead", false) else ""
-	var f := sc.resource_path.get_file()
-	var young: bool = n.get("young") == true
+	var f: String = _files.get(sc, "")
+	if f == "":
+		f = sc.resource_path.get_file()
+		_files[sc] = f
+	var yv: Variant = n.get("young")
+	var young: bool = yv is bool and yv
 	var k := ""
 	match f:
 		"mouse.gd":
@@ -365,7 +372,8 @@ static func kind_of(n: Node) -> String:
 			k = "tigersnail"
 		"snails.gd":
 			k = "snails"
-	if k != "" and n.get("dead") == true:
+	var dv: Variant = n.get("dead")
+	if k != "" and dv is bool and dv:
 		return "dead_" + k
 	return k
 
@@ -388,8 +396,8 @@ static func find(c: Node3D, r := 30.0, kinds: Array = [], any_ := false) -> Node
 	var bd := INF
 	var all := []
 	var weights := []
-	for o in c.get_parent().get_children():
-		if o == c or not (o is Node3D):
+	for o: Node in Fauna.near(c.get_parent(), p, r): # (those filed round it: not every sibling)
+		if o == c or not is_instance_valid(o):
 			continue
 		var k := kind_of(o)
 		if k == "" or not want.has(k):

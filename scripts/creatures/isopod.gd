@@ -329,6 +329,7 @@ func _think(dt: float) -> void:
 				_hatching -= 1
 				var parent := get_parent() as Node3D
 				var y: Node3D = (get_script() as Script).new(true)
+				Fauna.report.call_deferred(&"hatched", self, {"young": y})
 				parent.add_child(y)
 				var fwd := Vector3(-sin(_yaw), 0.0, -cos(_yaw))
 				y.call("place", _pos + fwd * 0.004, _yaw + rng.randf_range(-1.2, 1.2))

@@ -188,6 +188,7 @@ func _process(dt: float) -> void:
 						if _settled < settle_max and randf() < (1.0 if i % 4 == 0 else 0.25):
 							_settled += 1
 							var spat: Node3D = (load("res://scripts/creatures/sea_urchin.gd") as GDScript).new(true)
+							Fauna.report.call_deferred(&"hatched", self, {"young": spat})
 							spat.set("size", 0.06)
 							spat.call("_set_size")
 							get_parent().add_child(spat)

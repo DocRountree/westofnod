@@ -433,7 +433,17 @@ func _belly_y(z: float) -> float:
 ## bones there, blended where they meet. Rest: the head and neck as it most
 ## often holds them, its legs standing, its tail carried.
 func _build_skin(mat: ShaderMaterial) -> void:
-	var K: SkinScript = SkinScript.new()
+	# (one of its make already made: its skin again, shared, nothing worked out)
+	var make := [(get_script() as Script).resource_path, S, young, male, legs, body_h].hash()
+	var K: SkinScript = SkinScript.again(make)
+	if K != null:
+		_sb = K.extra
+		_skin = K
+		mat.set_shader_parameter("skin", true)
+		_torso = K.finish(_body, mat)
+		return
+	K = SkinScript.new()
+	K.remember = make
 	var torso := K.bone("torso", Transform3D())
 	var nrest := Transform3D(Basis.from_euler(Vector3(float(S.neck_pitch), 0.0, 0.0)), S.neck_at)
 	var hrest := nrest * Transform3D(Basis.from_euler(Vector3(-float(S.neck_pitch) * 0.85, 0.0, 0.0)), S.head_at)
@@ -544,6 +554,7 @@ func _build_skin(mat: ShaderMaterial) -> void:
 		_sb["leg%d" % i] = bones
 		K.tube(SkinScript.smooth(_leg_rings(i, J, torso, bones), 2), 16)
 	_skin = K
+	K.extra = _sb
 	mat.set_shader_parameter("skin", true)
 	_torso = K.finish(_body, mat)
 
@@ -727,7 +738,20 @@ func _build_extra() -> void:
 
 ## An ear (mm: up its own y, len long, width across its base; point: how
 ## pointed), open forward (-z), its back +z.
+static var _ear_meshes := {}
+
+
 static func _ear_mesh(len_: float, width: float, point: float, thick := 0.22, cup := 0.35) -> ArrayMesh:
+	var hk := [len_, width, point, thick, cup].hash()
+	var had: ArrayMesh = _ear_meshes.get(hk)
+	if had != null:
+		return had
+	had = _ear_mesh_make(len_, width, point, thick, cup)
+	_ear_meshes[hk] = had
+	return had
+
+
+static func _ear_mesh_make(len_: float, width: float, point: float, thick := 0.22, cup := 0.35) -> ArrayMesh:
 	const RINGS := 7
 	const ROUND := 10
 	var st := SurfaceTool.new()
@@ -1166,7 +1190,7 @@ func _hunt(dt: float) -> void:
 				if Vector2(nose.x - p.x, nose.z - p.z).length() < 0.35 * size / 0.5 + 0.05:
 					if _prey.has_method("bitten") and bool(_prey.call("bitten", self)): # (its defence: a porcupine's quills in its face)
 						return
-					MealScript.subdue(_prey)
+					MealScript.subdue(_prey, self)
 					_held = false # (every kill eaten where it fell: not carried off in its jaws)
 					_stage = 5
 					_st = 0.0
@@ -1182,7 +1206,7 @@ func _hunt(dt: float) -> void:
 					_target = _pos
 					_turn_to = atan2(-to.x, -to.z)
 					_lay = Vector3(p.x, _ground(p.x, p.z), p.z)
-					MealScript.subdue(_prey) # (food still alive, set before it: killed)
+					MealScript.subdue(_prey, self) # (food still alive, set before it: killed)
 					_lay_down(_prey, _lay)
 					_stage = 6
 					_st = 0.0
@@ -1454,6 +1478,7 @@ func _young_one() -> void:
 	if parent == null:
 		return
 	var y: Node3D = (get_script() as Script).new(true)
+	Fauna.report.call_deferred(&"born", self, {"young": y})
 	parent.add_child(y)
 	var k := young_ones.size()
 	var belly := _out(Vector3(-float(S.body_w) * 0.9, -body_h, -60.0 + 70.0 * k))

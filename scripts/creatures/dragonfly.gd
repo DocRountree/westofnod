@@ -1,5 +1,5 @@
 class_name Dragonfly
-extends Node3D
+extends "res://scripts/creatures/creature.gd"
 ## A common green darner (Anax junius), drawn at twice life size (its parts
 ## modelled at life size, about 75 mm long, 100 mm across its wings: MM).
 ## Built from parts, posed every frame by hand (procedural: no clips).
@@ -46,7 +46,6 @@ extends Node3D
 ## crawl, strike {at}, emerge), behaviours, is_busy, action_finished.
 ## Its position is set every frame: put it under a node that isn't moved.
 
-signal action_finished(name: String, ok: bool)
 const PilotScript := preload("res://scripts/creatures/pilot.gd")
 const MM := 0.002 ## m drawn per model mm (twice life size)
 const BODY_H := 4.0 ## mm its thorax's middle over a perch
@@ -109,7 +108,6 @@ var _teneral := 1.0 # (just out: 0 pale and soft .. 1 hardened)
 var _wings_out := 1.0 # (0 crumpled .. 1 spread)
 var _climb := 0.0
 var _stem: Array = []
-var _pilot: PilotScript
 var _piloting := false
 var _p_done := false
 # the parts
@@ -572,7 +570,7 @@ func _carry(dt: float) -> void:
 
 # --- the motor -------------------------------------------------------------------
 
-func _process(dt: float) -> void:
+func tick(dt: float) -> void:
 	if dt <= 0.0 or _body == null:
 		return
 	_t += dt
@@ -792,6 +790,7 @@ func _mate_think(_dt: float) -> void:
 ## Its eggs put into a stem under the water (a row of pale specks).
 func _eggs_into(stem: Array) -> void:
 	var e := Eggs.new()
+	Fauna.report.call_deferred(&"laid", self, {"eggs": e})
 	e.maker = get_script()
 	e.at = Vector3((stem[0] as Vector3).x, water_y - 0.012, (stem[0] as Vector3).z)
 	e.dragonfly = self
@@ -1029,41 +1028,6 @@ func _pose(dt: float) -> void:
 
 # --- steering (pilot.gd) -------------------------------------------------------
 
-func _pl() -> PilotScript:
-	if _pilot == null:
-		_pilot = PilotScript.new(self)
-		_pilot.finished = action_finished.emit
-	return _pilot
-
-
-func go(direction: Vector3, speed := -1.0, seconds := -1.0) -> void:
-	_pl().go(direction, speed, seconds)
-
-
-func go_to(point: Vector3, speed := -1.0) -> void:
-	_pl().go_to(point, speed)
-
-
-func face(direction: Vector3) -> void:
-	_pl().face(direction)
-
-
-func stop() -> void:
-	_pl().stop()
-
-
-func act(name: String, args := {}) -> bool:
-	return _pl().act(name, args)
-
-
-func behaviours() -> PackedStringArray:
-	return _p_behaviours()
-
-
-func is_busy() -> bool:
-	return _pilot != null and _pilot.busy()
-
-
 func _p_here() -> Vector3:
 	return _pos
 
@@ -1205,6 +1169,7 @@ class Eggs extends Node3D:
 		var d := dragonfly as Dragonfly
 		for k in n:
 			var ny: Node3D = maker.new(true)
+			Fauna.report.call_deferred(&"hatched", self, {"young": ny})
 			if is_instance_valid(d):
 				for p in ["water_y", "floor_y", "pond", "stems", "perches", "height"]:
 					ny.set(p, d.get(p))

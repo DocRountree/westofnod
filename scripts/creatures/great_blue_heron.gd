@@ -424,7 +424,7 @@ func _take_it() -> void:
 		_school = null
 		_fish_i = -1
 	elif _prey and is_instance_valid(_prey):
-		Meal.subdue(_prey)
+		Meal.subdue(_prey, self)
 		f = _prey
 		_prey = null
 	if f == null:
@@ -666,7 +666,7 @@ func _watch(_dt: float) -> void:
 	forage()
 
 
-func _process(dt: float) -> void:
+func tick(dt: float) -> void:
 	super(dt)
 	_hold_fish()
 

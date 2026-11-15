@@ -462,7 +462,7 @@ func _eat_nut(dt: float) -> void:
 			if to.length() <= reach * 1.2 and _speed < 0.05:
 				_target = _pos
 				_turn_to = atan2(-to.x, -to.z)
-				MealScript.subdue(_food) # (a caterpillar, a mouse pup: bitten, still)
+				MealScript.subdue(_food, self) # (a caterpillar, a mouse pup: bitten, still)
 				_stage = 1
 				_st = 0.0
 		1: # (its head down to it)
@@ -672,6 +672,7 @@ func _kit() -> void:
 	if parent == null:
 		return
 	var k: Node3D = (get_script() as Script).new(true)
+	Fauna.report.call_deferred(&"born", self, {"young": k})
 	parent.add_child(k)
 	var a := kits.size() * 2.1
 	k.call("place", drey + Vector3(cos(a), -0.05, sin(a)) * 0.05, rng.randf() * TAU)

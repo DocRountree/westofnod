@@ -1,5 +1,5 @@
 class_name Bat
-extends Node3D
+extends "res://scripts/creatures/creature.gd"
 ## A big brown bat (Eptesicus fuscus), life size: nose to rump 68 mm, its
 ## tail 40 more, its forearm 47 mm, 33 cm across its spread wings, 18 g. Its
 ## model in mm (its body: -z its nose, +y its back, +x its right).
@@ -67,7 +67,6 @@ extends Node3D
 ## Steering (pilot.gd): act hunt {prey}, forage {seconds}, drink {at},
 ## sleep {seconds}, groom {seconds}, alarm, roost, mate {partner}, birth {n}.
 
-signal action_finished(name: String, ok: bool)
 
 const PilotScript := preload("res://scripts/creatures/pilot.gd")
 const SkinScript := preload("res://scripts/creatures/mammal_skin.gd")
@@ -139,7 +138,6 @@ var _patch := Vector3.ZERO # (its foraging beat's middle)
 var _drink_at := Vector3.INF
 var _phase := 0.0 # (the wingbeat's)
 var _call_t := 0.0
-var _pilot: PilotScript
 var _piloted := false
 var _rng := RandomNumberGenerator.new()
 var _last_pouch := Vector3.INF
@@ -1001,6 +999,7 @@ func die() -> void:
 	if dead:
 		return
 	dead = true
+	Fauna.report(&"died", self)
 	if _held and is_instance_valid(_held):
 		_held.queue_free()
 	_held = null
@@ -1013,7 +1012,7 @@ func _on_ground() -> bool:
 
 # --- each frame ---------------------------------------------------------------------------
 
-func _process(dt: float) -> void:
+func tick(dt: float) -> void:
 	if dt <= 0.0 or _body == null:
 		return
 	dt = minf(dt, 0.05)
@@ -1474,7 +1473,7 @@ func _reach_mouth_to(p: Vector3, dt: float) -> void:
 
 
 func _take(prey: Node3D, where: String) -> void:
-	MealScript.subdue(prey)
+	MealScript.subdue(prey, self)
 	_held = prey
 	_held_in = where
 	_prey = null
@@ -1589,6 +1588,7 @@ func _birth(dt: float) -> void:
 				_secs -= 1.0
 				_st = 0.0
 				var p: Bat = (get_script() as GDScript).new(true)
+				Fauna.report.call_deferred(&"born", self, {"young": p})
 				p.height = height
 				p.male = _rng.randf() < 0.5
 				get_parent().add_child(p)
@@ -1761,41 +1761,6 @@ static func roost_snag(h := 2.6) -> Node3D:
 
 
 # --- steering (pilot.gd) ----------------------------------------------------------------
-
-func _pl() -> PilotScript:
-	if _pilot == null:
-		_pilot = PilotScript.new(self)
-		_pilot.finished = action_finished.emit
-	return _pilot
-
-
-func go(direction: Vector3, speed := -1.0, seconds := -1.0) -> void:
-	_pl().go(direction, speed, seconds)
-
-
-func go_to(point: Vector3, speed := -1.0) -> void:
-	_pl().go_to(point, speed)
-
-
-func face(direction: Vector3) -> void:
-	_pl().face(direction)
-
-
-func stop() -> void:
-	_pl().stop()
-
-
-func act(name: String, args := {}) -> bool:
-	return _pl().act(name, args)
-
-
-func behaviours() -> PackedStringArray:
-	return _p_behaviours()
-
-
-func is_busy() -> bool:
-	return _pilot != null and _pilot.busy()
-
 
 func _p_here() -> Vector3:
 	return _pos

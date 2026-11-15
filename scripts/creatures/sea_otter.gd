@@ -613,6 +613,7 @@ func _pup() -> void:
 	if parent == null:
 		return
 	var y: Node3D = (get_script() as Script).new(true)
+	Fauna.report.call_deferred(&"born", self, {"young": y})
 	y.set("wet", wet)
 	y.set("water_y", water_y)
 	y.set("floor_y", floor_y)
@@ -656,7 +657,7 @@ func _pup_think(dt: float) -> bool:
 	return true
 
 
-func _process(dt: float) -> void:
+func tick(dt: float) -> void:
 	if dt <= 0.0 or _body == null:
 		return
 	if _carrier != null:

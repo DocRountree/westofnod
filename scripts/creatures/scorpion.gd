@@ -602,7 +602,7 @@ func _hunt(dt: float) -> void:
 			_grip = 0.0 if _st < 0.12 else 1.0
 			if _st > 0.25:
 				_held = false # (gripped where it lies, not lifted)
-				MealScript.subdue(_prey) # (a live insect: still in its chelae)
+				MealScript.subdue(_prey, self) # (a live insect: still in its chelae)
 				_stung = 0
 				_prey_box = AABB()
 				_stage = 3
@@ -699,6 +699,7 @@ func _scorpling() -> void:
 	if parent == null:
 		return
 	var y: Node3D = (get_script() as Script).new(true)
+	Fauna.report.call_deferred(&"born", self, {"young": y})
 	parent.add_child(y)
 	y.call("place", _pos, _yaw + rng.randf_range(-PI, PI))
 	y.set("height", height)
@@ -706,7 +707,7 @@ func _scorpling() -> void:
 	brood.append(y)
 
 
-func _process(dt: float) -> void:
+func tick(dt: float) -> void:
 	if _mother != null:
 		_ride(dt)
 		return

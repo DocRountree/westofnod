@@ -1,5 +1,5 @@
 class_name Lepidoptera
-extends Node3D
+extends "res://scripts/creatures/creature.gd"
 ## A butterfly or a moth, drawn at twice life size as the wasp and the ants
 ## are (its parts in model mm: MM): built from parts, posed every frame by
 ## hand (no clips), its four wings cut to their outlines
@@ -41,7 +41,6 @@ extends Node3D
 ## action_finished.
 ## Its position is set every frame: put it under a node that isn't moved.
 
-signal action_finished(name: String, ok: bool)
 const PilotScript := preload("res://scripts/creatures/pilot.gd")
 const MM := 0.002 ## m drawn per model mm (twice life size)
 const WINGS := preload("res://scripts/creatures/lepidoptera_wings.gd")
@@ -68,7 +67,6 @@ var fore_hinge := Vector3(0.9, 1.0, -1.2) ## mm: the right forewing's root on th
 var hind_hinge := Vector3(0.9, 1.0, 1.0)
 
 var rng := RandomNumberGenerator.new()
-var _pilot: PilotScript
 var _own_speed := -1.0 # (its max_speed, the pilot's set aside)
 var flying := true
 var _pos := Vector3.ZERO # the body's middle (its parent's space)
@@ -477,7 +475,7 @@ func take_off() -> void:
 		_target = _pos + _surface_n * 0.05
 
 
-func _process(dt: float) -> void:
+func tick(dt: float) -> void:
 	if dt <= 0.0 or _body == null:
 		return
 	_t += dt
@@ -927,41 +925,6 @@ func _mate_think(dt: float) -> void:
 
 
 # ---- steering: a state machine's (pilot.gd) -------------------------------------
-
-func _pl() -> PilotScript:
-	if _pilot == null:
-		_pilot = PilotScript.new(self)
-		_pilot.finished = action_finished.emit
-	return _pilot
-
-
-func go(direction: Vector3, speed := -1.0, seconds := -1.0) -> void:
-	_pl().go(direction, speed, seconds)
-
-
-func go_to(point: Vector3, speed := -1.0) -> void:
-	_pl().go_to(point, speed)
-
-
-func face(direction: Vector3) -> void:
-	_pl().face(direction)
-
-
-func stop() -> void:
-	_pl().stop()
-
-
-func act(name: String, args := {}) -> bool:
-	return _pl().act(name, args)
-
-
-func behaviours() -> PackedStringArray:
-	return _p_behaviours()
-
-
-func is_busy() -> bool:
-	return _pilot != null and _pilot.busy()
-
 
 func _p_here() -> Vector3:
 	return _pos

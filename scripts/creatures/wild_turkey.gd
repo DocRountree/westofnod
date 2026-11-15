@@ -368,6 +368,7 @@ func hatch() -> void:
 		if not is_instance_valid(e):
 			continue
 		var p: WildTurkey = (get_script() as GDScript).new(true)
+		Fauna.report.call_deferred(&"hatched", self, {"young": p})
 		p.height = height
 		p.ground_y = ground_y
 		par.add_child(p)
@@ -410,6 +411,7 @@ func die() -> void:
 		return
 	_to("dead")
 	dead = true
+	Fauna.report(&"died", self)
 	_air = false
 	_flap = 0.0
 	halt()
@@ -821,6 +823,7 @@ func _nest(dt: float) -> void:
 				if _n > 0:
 					_n -= 1
 					var e := _make_egg()
+					Fauna.report.call_deferred(&"laid", self, {"eggs": e})
 					nest.add_child(e)
 					var k := clutch_eggs.size()
 					var a := k * 2.4

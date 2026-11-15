@@ -1,4 +1,4 @@
-extends Node3D
+extends "res://scripts/creatures/creature.gd"
 const PersonalSpace := preload("res://scripts/creatures/personal_space.gd") ## (its personal space: kept off the others)
 ## A walking arthropod built from parts (the grasshopper, the mantis, the
 ## spiders, the pill bug: their
@@ -29,7 +29,6 @@ const PersonalSpace := preload("res://scripts/creatures/personal_space.gd") ## (
 ## and its walking). Its transform is set every frame: put it under a node
 ## that isn't moved.
 
-signal action_finished(name: String, ok: bool)
 const PilotScript := preload("res://scripts/creatures/pilot.gd")
 
 const MM := 0.002
@@ -55,7 +54,6 @@ var height: Callable ## (x, z) -> the ground's y (none: level, at ground_y)
 ## water it may blunder into (INF: none). Where the ground is under it, it
 ## doesn't walk on the water: it sinks, slowly, to the floor.
 var sink_water := INF
-var _pilot: PilotScript
 var _pace := -1.0 # (m/s, the pilot's: -1 its own)
 var rng := RandomNumberGenerator.new()
 
@@ -305,7 +303,20 @@ static func _surface_x(keys: Array, z: float, y: float) -> float:
 
 ## A smooth body lofted through keys ([z, y, half width, half height] each,
 ## mm), round (sq 2) or squarer; a mesh in mm.
+static var _lofts := {} # (its keys' hash -> the mesh: made once for each shape, shared)
+
+
 static func _loft(keys: Array, sq := 2.0) -> ArrayMesh:
+	var hk := [keys, sq].hash()
+	var had: ArrayMesh = _lofts.get(hk)
+	if had != null:
+		return had
+	had = _loft_make(keys, sq)
+	_lofts[hk] = had
+	return had
+
+
+static func _loft_make(keys: Array, sq := 2.0) -> ArrayMesh:
 	const RING := 14
 	const STEPS := 20
 	var K := keys.size()
@@ -381,7 +392,7 @@ func _build_legs(femur_mat: Material, tibia_mat: Material) -> void:
 
 # --- the motor ------------------------------------------------------------------
 
-func _process(dt: float) -> void:
+func tick(dt: float) -> void:
 	if dt <= 0.0 or _body == null:
 		return
 	_t += dt
@@ -406,7 +417,8 @@ func _process(dt: float) -> void:
 	_pose(dt)
 	if not airborne:
 		_gait(dt)
-	_pose_legs()
+	if seen: # (its legs' pose: only for the eye)
+		_pose_legs()
 
 
 func _walk(dt: float) -> void:
@@ -622,41 +634,6 @@ func _ground(x: float, z: float) -> float:
 
 
 # --- steering: a state machine's (pilot.gd) ---------------------------------------
-
-func _pl() -> PilotScript:
-	if _pilot == null:
-		_pilot = PilotScript.new(self)
-		_pilot.finished = action_finished.emit
-	return _pilot
-
-
-func go(direction: Vector3, speed := -1.0, seconds := -1.0) -> void:
-	_pl().go(direction, speed, seconds)
-
-
-func go_to(point: Vector3, speed := -1.0) -> void:
-	_pl().go_to(point, speed)
-
-
-func face(direction: Vector3) -> void:
-	_pl().face(direction)
-
-
-func stop() -> void:
-	_pl().stop()
-
-
-func act(name: String, args := {}) -> bool:
-	return _pl().act(name, args)
-
-
-func behaviours() -> PackedStringArray:
-	return _p_behaviours()
-
-
-func is_busy() -> bool:
-	return _pilot != null and _pilot.busy()
-
 
 func _p_here() -> Vector3:
 	return _pos
@@ -967,6 +944,7 @@ func die() -> void:
 		if her != null and is_instance_valid(her) and her.get("_mate_role") != "":
 			her.call("_end_mate")
 	dead = true
+	Fauna.report(&"died", self)
 	_dead_t = 0.0
 	airborne = false
 	_speed = 0.0

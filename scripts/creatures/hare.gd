@@ -589,6 +589,7 @@ func _leveret() -> void:
 	if parent == null:
 		return
 	var l: Node3D = (get_script() as Script).new(true)
+	Fauna.report.call_deferred(&"born", self, {"young": l})
 	parent.add_child(l)
 	var k := leverets.size()
 	var off := Basis(Vector3.UP, _yaw) * Vector3((60.0 + 25.0 * (k % 2)) * (1.0 if k % 2 == 0 else -1.0), 0.0, -40.0 + 35.0 * k) * MM * size

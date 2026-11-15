@@ -276,7 +276,7 @@ func _think(dt: float) -> void:
 	rate["crest"] = 4.0
 
 
-func _process(dt: float) -> void:
+func tick(dt: float) -> void:
 	super(dt)
 	if _nut and is_instance_valid(_nut) and _mode != "hammer" and not (_mode == "cache" and _sub in ["push", "cover"] and _st > 0.0 and _nut.has_meta("in_ground")):
 		_nut.global_position = bill_tip() - Vector3(0.0, Thrush._mid_y(_nut), 0.0) # (in its bill)

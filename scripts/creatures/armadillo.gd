@@ -615,7 +615,7 @@ func _on_mate_start() -> void:
 		_mode = "idle"
 
 
-func _process(dt: float) -> void:
+func tick(dt: float) -> void:
 	super(dt)
 	if _mate_role == "" and _on_back > 0.0:
 		_on_back = move_toward(_on_back, 0.0, dt)

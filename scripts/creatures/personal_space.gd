@@ -170,8 +170,8 @@ static func clear_spot(n: Node3D, at: Vector3) -> Vector3:
 	var p := Vector2(at.x, at.z)
 	for pass_ in 3:
 		var moved := false
-		for o: Node in all:
-			if o == n or not is_instance_valid(o) or not o.is_inside_tree() or touching(o) or _target_of(n, o):
+		for o in all:
+			if not is_instance_valid(o) or o == n or not (o as Node).is_inside_tree() or touching(o) or _target_of(n, o):
 				continue
 			var want := r + radius(o as Node3D) + 0.005
 			for sp: Array in spines(o as Node3D):
@@ -186,6 +186,103 @@ static func clear_spot(n: Node3D, at: Vector3) -> Vector3:
 	return Vector3(p.x, at.y, p.y)
 
 
+# --- this frame's others, filed by where they are ---------------------------------
+# (Worked out once a frame, at the first keep_apart: each one's capsules, its
+# radius, whether it may be touched; filed in CELL-metre cells by its box, so
+# each is checked only against those round it, not against all. The long ones
+# (over many cells: a whale, a snake stretched out) kept apart, checked by all.)
+const CELL := 2.0 ## m
+const BIG := 24 ## cells: one over more than this is kept in _big
+static var _frame := -1
+static var _f_node: Array = []
+static var _f_r := PackedFloat32Array()
+static var _f_y := PackedFloat32Array()
+static var _f_spines: Array = []
+static var _f_lo := PackedVector2Array()
+static var _f_hi := PackedVector2Array()
+static var _grid := {} # Vector2i -> PackedInt32Array (indices into _f_*)
+static var _big := PackedInt32Array()
+static var _seen := PackedInt32Array() # (per index: the query that last saw it)
+static var _query := 0
+
+
+static func _file() -> void:
+	_frame = Engine.get_process_frames()
+	_f_node.clear()
+	_f_r.clear()
+	_f_y.clear()
+	_f_spines.clear()
+	_f_lo.clear()
+	_f_hi.clear()
+	_grid.clear()
+	_big.clear()
+	var live: Array = []
+	for o in all:
+		if not is_instance_valid(o):
+			continue
+		live.append(o)
+		var n := o as Node3D
+		if not n.is_inside_tree() or touching(n):
+			continue
+		var r := radius(n)
+		if r <= 0.0:
+			continue
+		var sps := spines(n)
+		if sps.is_empty():
+			continue
+		var lo := Vector2.INF
+		var hi := -Vector2.INF
+		for sp: Array in sps:
+			lo = lo.min(sp[0]).min(sp[1])
+			hi = hi.max(sp[0]).max(sp[1])
+		var k := _f_node.size()
+		_f_node.append(n)
+		_f_r.append(r)
+		_f_y.append(_y(n))
+		_f_spines.append(sps)
+		_f_lo.append(lo)
+		_f_hi.append(hi)
+		var c0 := Vector2i(floori((lo.x - r) / CELL), floori((lo.y - r) / CELL))
+		var c1 := Vector2i(floori((hi.x + r) / CELL), floori((hi.y + r) / CELL))
+		if (c1.x - c0.x + 1) * (c1.y - c0.y + 1) > BIG:
+			_big.append(k)
+			continue
+		for cx in range(c0.x, c1.x + 1):
+			for cy in range(c0.y, c1.y + 1):
+				var c := Vector2i(cx, cy)
+				var a: Variant = _grid.get(c)
+				if a == null:
+					_grid[c] = PackedInt32Array([k])
+				else:
+					(a as PackedInt32Array).append(k)
+					_grid[c] = a
+	all = live # (the freed ones dropped)
+	_seen.resize(_f_node.size())
+	_seen.fill(0)
+	_query = 0
+
+
+## (Those whose boxes may reach lo .. hi widened by reach: indices into _f_*.)
+static func _round(lo: Vector2, hi: Vector2, reach: float) -> PackedInt32Array:
+	_query += 1
+	var out := PackedInt32Array(_big)
+	var c0 := Vector2i(floori((lo.x - reach) / CELL), floori((lo.y - reach) / CELL))
+	var c1 := Vector2i(floori((hi.x + reach) / CELL), floori((hi.y + reach) / CELL))
+	if (c1.x - c0.x + 1) * (c1.y - c0.y + 1) > 4 * BIG: # (a long one itself: everyone)
+		out = PackedInt32Array(range(_f_node.size()))
+		return out
+	for cx in range(c0.x, c1.x + 1):
+		for cy in range(c0.y, c1.y + 1):
+			var a: Variant = _grid.get(Vector2i(cx, cy))
+			if a == null:
+				continue
+			for k: int in a:
+				if _seen[k] != _query:
+					_seen[k] = _query
+					out.append(k)
+	return out
+
+
 ## n eased off every other it overlaps (its half of the overlap; all of it
 ## where the other's part can't be moved), by its part that overlaps each
 ## most (none for a part of it that can't be moved).
@@ -196,31 +293,32 @@ static func keep_apart(n: Node3D) -> void:
 	var r := radius(n)
 	if r <= 0.0 or mine.is_empty():
 		return
+	if _frame != Engine.get_process_frames():
+		_file()
 	var lo := Vector2.INF
 	var hi := -Vector2.INF
 	for sp: Array in mine:
 		lo = lo.min(sp[0]).min(sp[1])
 		hi = hi.max(sp[0]).max(sp[1])
+	var ny := _y(n)
 	var push := Vector2.ZERO # (each other's, by the part of each that overlaps most)
-	for o: Node in all:
-		if o == n or not is_instance_valid(o) or not o.is_inside_tree() or touching(o) or _target_of(n, o):
+	for k: int in _round(lo, hi, r):
+		var o: Node3D = _f_node[k]
+		if o == n or not is_instance_valid(o) or not o.is_inside_tree():
 			continue
-		var ro := radius(o as Node3D)
-		if ro <= 0.0:
-			continue
-		var dy := _y(n) - _y(o as Node3D)
+		var ro := _f_r[k]
+		var dy := ny - _f_y[k]
 		if absf(dy) > (r + ro) * 2.0 + 0.05:
 			continue # (one above the other: in a web, on a stem, up a log)
 		var want := r + ro
-		var theirs := spines(o as Node3D)
 		# (nowhere near: their boxes apart by more than both are wide)
-		var olo := Vector2.INF
-		var ohi := -Vector2.INF
-		for sp: Array in theirs:
-			olo = olo.min(sp[0]).min(sp[1])
-			ohi = ohi.max(sp[0]).max(sp[1])
+		var olo := _f_lo[k]
+		var ohi := _f_hi[k]
 		if olo.x > hi.x + want or olo.y > hi.y + want or lo.x > ohi.x + want or lo.y > ohi.y + want:
 			continue
+		if _target_of(n, o):
+			continue
+		var theirs: Array = _f_spines[k]
 		var worst := Vector2.ZERO
 		var worst_seg := -1
 		for i in mine.size():

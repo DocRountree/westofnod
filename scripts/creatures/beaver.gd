@@ -639,6 +639,7 @@ func _kit() -> void:
 	if parent == null:
 		return
 	var y: Node3D = (get_script() as Script).new(true)
+	Fauna.report.call_deferred(&"born", self, {"young": y})
 	y.set("wet", wet)
 	y.set("water_y", water_y)
 	y.set("height", height)

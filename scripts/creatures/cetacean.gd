@@ -1,5 +1,5 @@
 class_name Cetacean
-extends Node3D
+extends "res://scripts/creatures/creature.gd"
 ## The whales and dolphins, life size, each one mesh (build) posed in
 ## shaders/render/cetacean.gdshader: a blue whale (BlueWhale), an orca
 ## (Orca), a common bottlenose dolphin (BottlenoseDolphin); species picks
@@ -408,6 +408,7 @@ func die() -> void:
 	if dead:
 		return
 	dead = true
+	Fauna.report(&"died", self)
 	_to("dead")
 
 
@@ -434,7 +435,7 @@ func _p_here() -> Vector3:
 
 # --- the motor --------------------------------------------------------------------------------
 
-func _process(dt: float) -> void:
+func tick(dt: float) -> void:
 	dt = minf(dt, 0.05)
 	if _mi == null:
 		return
@@ -900,6 +901,7 @@ func _seize() -> void:
 		_held = _prey.call("take", _prey_i)
 		_prey_i = -1
 	elif _prey and is_instance_valid(_prey):
+		Fauna.report(&"killed", self, {"prey": _prey, "kind": Diet.kind_of(_prey)})
 		if _prey.has_method("die"):
 			_prey.call("die")
 		_held = _prey
@@ -1050,6 +1052,7 @@ func _splash(at: Vector3, k: float) -> void:
 
 func _bear_one() -> Node3D:
 	var c := (get_script() as Script).new(true) as Node3D
+	Fauna.report.call_deferred(&"born", self, {"young": c})
 	c.set("species", species)
 	c.set("male", rng.randf() < 0.5)
 	c.set("mother", self)

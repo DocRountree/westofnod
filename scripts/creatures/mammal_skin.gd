@@ -19,6 +19,40 @@ var _rest: Array[Transform3D] = []
 var _names: Array[String] = []
 var _st := SurfaceTool.new()
 var _count := 0
+# (Its parts are only noted as they're asked for (_calls); at finish(), if a
+# skin asked for in just the same way has been made before (the same kind,
+# sex and age: every one of them), its mesh is used again, shared; else the
+# parts are made then. A body's mesh takes a tenth of a second and more to
+# make; the second of its kind, none.)
+var _calls: Array = []
+var _making := false
+static var _made := {} # the calls' hash -> [ArrayMesh, Skin]
+static var _made_order: Array = []
+const KEEP := 96 ## skins kept (the oldest dropped)
+# (And a skin whole, by a key of its maker's (again(), remember): its mesh,
+# its bones and whatever its maker keeps with it (extra: its bones' numbers
+# by name), so nothing of it need be worked out a second time.)
+var remember := 0 ## the key to keep it by, once it's finished (0: not kept)
+var extra: Variant ## its maker's own, kept with it
+var _whole_hit: Array = []
+static var _whole := {} # key -> [mesh, skin, rest, names, extra]
+static var _whole_order: Array = []
+static var sharing := true ## (false: every skin made afresh: to check one against another)
+
+
+## The skin kept under key, ready to finish() (its bones as they were, its
+## maker's extra): another body of the same make. Null: none kept (make it,
+## with remember = key).
+static func again(key: int) -> MammalSkin:
+	var had: Variant = _whole.get(key) if sharing else null
+	if had == null:
+		return null
+	var k := MammalSkin.new()
+	k._rest = (had[2] as Array).duplicate()
+	k._names = (had[3] as Array).duplicate()
+	k.extra = had[4].duplicate(true) if (had[4] is Dictionary or had[4] is Array) else had[4]
+	k._whole_hit = had
+	return k
 
 
 func _init() -> void:
@@ -95,6 +129,9 @@ static func _between(rings: Array, j: int, f: float) -> Dictionary:
 ## A tube through rings (each ring, around, points), its ends closed with
 ## rounded caps. head: the head's bone (the CUSTOM3 space; -1 none).
 func tube(rings: Array, around := 18, head := -1) -> void:
+	if not _making:
+		_note(&"tube", [rings, around, head])
+		return
 	var R := rings.size()
 	if R < 2:
 		return
@@ -200,9 +237,27 @@ func _vert(p: Vector3, n: Vector3, rg: Dictionary, hinv: Transform3D, has_head: 
 	_count += 1
 
 
+## (A part asked for: noted, its arrays copied (the caller may go on using them).)
+func _note(what: StringName, args: Array) -> void:
+	for i in args.size():
+		if args[i] is Array or args[i] is Dictionary:
+			args[i] = args[i].duplicate(true)
+	_calls.append([what, args])
+
+
 ## The skeleton and the skinned mesh, under parent (the body: its space the
 ## skeleton's), drawn with mat.
 func finish(parent: Node3D, mat: Material) -> MeshInstance3D:
+	var key := [_calls, _rest, _names].hash()
+	var had: Variant = _made.get(key) if sharing else null
+	if not _whole_hit.is_empty():
+		had = _whole_hit
+	if had == null:
+		_making = true
+		for c: Array in _calls:
+			callv(c[0], c[1])
+		_making = false
+	_calls.clear()
 	skel = Skeleton3D.new()
 	parent.add_child(skel)
 	for i in _rest.size():
@@ -210,15 +265,30 @@ func finish(parent: Node3D, mat: Material) -> MeshInstance3D:
 		skel.set_bone_rest(i, _rest[i])
 		skel.set_bone_pose_position(i, _rest[i].origin)
 		skel.set_bone_pose_rotation(i, _rest[i].basis.get_rotation_quaternion())
-	_st.index()
-	var mesh := _st.commit()
+	var mesh: ArrayMesh
+	var skin: Skin
+	if had != null:
+		mesh = had[0]
+		skin = had[1]
+	else:
+		_st.index()
+		mesh = _st.commit()
+		skin = Skin.new()
+		for i in _rest.size():
+			skin.add_bind(i, _rest[i].affine_inverse())
+		_made[key] = [mesh, skin]
+		_made_order.append(key)
+		if _made_order.size() > KEEP:
+			_made.erase(_made_order.pop_front())
+	if remember != 0 and _whole_hit.is_empty():
+		_whole[remember] = [mesh, skin, _rest.duplicate(), _names.duplicate(), extra.duplicate(true) if (extra is Dictionary or extra is Array) else extra]
+		_whole_order.append(remember)
+		if _whole_order.size() > KEEP:
+			_whole.erase(_whole_order.pop_front())
 	var mi := MeshInstance3D.new()
 	mi.mesh = mesh
 	mi.material_override = mat
 	skel.add_child(mi)
-	var skin := Skin.new()
-	for i in _rest.size():
-		skin.add_bind(i, _rest[i].affine_inverse())
 	mi.skin = skin
 	mi.skeleton = mi.get_path_to(skel)
 	var bb := mesh.get_aabb()
@@ -253,6 +323,9 @@ static func along(a: Vector3, b: Vector3, side := Vector3.RIGHT) -> Transform3D:
 ## to its nose: one tube; its chest's front apart beneath. along: the body
 ## 0..0.6, the head 0.75..1.
 func body_head(torso: int, body_keys: Array, head: int, hrest: Transform3D, head_keys: Array, pw := 2.2, around := 22) -> void:
+	if not _making:
+		_note(&"body_head", [torso, body_keys, head, hrest, head_keys, pw, around])
+		return
 	var bk: Array = body_keys.duplicate()
 	bk.sort_custom(func(a: Array, b: Array) -> bool: return float(a[0]) > float(b[0]))
 	var z0 := float(bk[0][0])
@@ -280,6 +353,9 @@ func body_head(torso: int, body_keys: Array, head: int, hrest: Transform3D, head
 
 ## A jaw (keys in its own space, at rest jrest) under the head.
 func jaw_tube(head: int, jaw: int, jrest: Transform3D, keys: Array) -> void:
+	if not _making:
+		_note(&"jaw_tube", [head, jaw, jrest, keys])
+		return
 	var rings := []
 	for j in keys.size():
 		var k: Array = keys[j]
@@ -292,6 +368,9 @@ func jaw_tube(head: int, jaw: int, jrest: Transform3D, keys: Array) -> void:
 ## (radii); from inside the body (torso). flat: its depth's share of its
 ## width (a beaver's paddle: thin).
 func tail_chain(torso: int, bones: Array, rests: Array, radii: Array, seg: float, flat := 1.0, around := 12) -> void:
+	if not _making:
+		_note(&"tail_chain", [torso, bones, rests, radii, seg, flat, around])
+		return
 	var rings := []
 	var t0: Transform3D = rests[0]
 	var r0 := float(radii[0])
@@ -316,6 +395,9 @@ func tail_chain(torso: int, bones: Array, rests: Array, radii: Array, seg: float
 ## knee, heel, toe; at rest), its radius r; hind: a haunch, round and big,
 ## and a long foot; foot_w: the foot's width (times r).
 func leg3(torso: int, b: Array, J: Array, r: float, hind: bool, foot_w := 1.3, a := -1.0, fold := false) -> void:
+	if not _making:
+		_note(&"leg3", [torso, b, J, r, hind, foot_w, a, fold])
+		return
 	var hip: Vector3 = J[0]
 	var knee: Vector3 = J[1]
 	var heel: Vector3 = J[2]
@@ -400,6 +482,9 @@ func pose_leg3(b: Array, J: Array) -> void:
 ## Its triangles wound to face the way its normals do (out from each row's
 ## middle).
 func surface(rows: Array, ws: Array, faces: Array, alongs: Array, head := -1, part := 0, tip_push := 0.0) -> void:
+	if not _making:
+		_note(&"surface", [rows, ws, faces, alongs, head, part, tip_push])
+		return
 	var R := rows.size()
 	var A: int = (rows[0] as Array).size()
 	var mids := []

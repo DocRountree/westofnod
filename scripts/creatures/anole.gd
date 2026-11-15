@@ -420,7 +420,7 @@ func _hunt(dt: float) -> void:
 				_lunge = 4.0
 				_jaw_open = 0.0
 				_held = false # (not lifted: it lies where it was snapped at)
-				MealScript.subdue(_prey) # (a live insect: still, bitten)
+				MealScript.subdue(_prey, self) # (a live insect: still, bitten)
 				_stage = 3
 				_st = 0.0
 		3: # chewing it, swallowing, the head jerking
@@ -481,6 +481,7 @@ func _lay(dt: float) -> void:
 				var h := _hole.position if _hole else _pos
 				for k in clutch: # (her clutch: one, an anole's; a few, together, a bigger lizard's)
 					var e := AnoleEgg.new()
+					Fauna.report.call_deferred(&"laid", self, {"eggs": e})
 					e.maker = get_script()
 					e.scale = Vector3.ONE * egg_scale
 					get_parent().add_child(e)
@@ -922,6 +923,7 @@ class AnoleEgg extends Node3D:
 		_slit.visible = _t > 1.0
 		if _t > 2.5 and hatchling == null:
 			var h: Node3D = maker.new(true)
+			Fauna.report.call_deferred(&"hatched", self, {"young": h})
 			get_parent().add_child(h)
 			var fwd := (global_transform.basis * Vector3.FORWARD)
 			h.call("place", position + Vector3(fwd.x, 0.0, fwd.z).normalized() * 0.012 * scale.x, atan2(-fwd.x, -fwd.z))

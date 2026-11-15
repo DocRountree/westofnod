@@ -693,7 +693,7 @@ func _to(mode: String, sub := "") -> void:
 	super(mode, sub)
 
 
-func _process(dt: float) -> void:
+func tick(dt: float) -> void:
 	super(dt)
 	_hold_bit()
 

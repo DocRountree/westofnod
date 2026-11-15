@@ -563,6 +563,7 @@ func _young_one() -> void:
 	if parent == null:
 		return
 	var y: Node3D = (get_script() as Script).new(true)
+	Fauna.report.call_deferred(&"born", self, {"young": y})
 	parent.add_child(y)
 	var at := _out(Vector3(-float(S.body_w) * 1.2, -body_h, -40.0))
 	y.call("place", Vector3(at.x, _pos.y, at.z), _yaw + rng.randf_range(-0.5, 0.5))

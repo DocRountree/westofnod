@@ -468,7 +468,7 @@ func _seize() -> void:
 	var p := _prey
 	_prey = null
 	head_point = Vector3.INF
-	Meal.subdue(p)
+	Meal.subdue(p, self)
 	_carry = p
 	_carry_kind = "insect"
 	_carry_left = 1.0
@@ -691,6 +691,6 @@ func _eyas() -> Dictionary:
 	return e
 
 
-func _process(dt: float) -> void:
+func tick(dt: float) -> void:
 	super(dt)
 	_hold_carry() # (again, its pose solved: in its bill this frame, not the last)

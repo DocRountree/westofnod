@@ -1,5 +1,5 @@
 class_name Wasp
-extends Node3D
+extends "res://scripts/creatures/creature.gd"
 ## A paper wasp (Polistes fuscatus), drawn at twice life size (about 31 mm
 ## long, its parts modelled at the life size of 16 mm: MM): dark reddish brown,
 ## the gaster ringed with narrow yellow bands, yellowish legs, the antennae
@@ -47,7 +47,6 @@ extends Node3D
 ## Its parts are in model mm (_body is scaled by MM); the wasp itself in metres.
 ## Its position is set every frame: put it under a node that isn't moved.
 
-signal action_finished(name: String, ok: bool)
 const PilotScript := preload("res://scripts/creatures/pilot.gd")
 const MM := 0.002 ## m drawn per model mm (twice life size)
 const BroodScript := preload("res://scripts/creatures/brood.gd") # (by path: found whether or not the editor has seen the class yet)
@@ -90,7 +89,6 @@ const TIP_ORANGE := Color(0.85, 0.45, 0.12)
 
 var rng := RandomNumberGenerator.new()
 var height: Callable ## (x, z) -> the ground's y (walking on it, piloted)
-var _pilot: PilotScript
 var _piloting := false # (its own action stopped: the pilot steering)
 var _p_done := false
 
@@ -353,7 +351,7 @@ func feed_on_insect(prey: Node3D, at: Vector3, normal := Vector3.UP) -> void:
 		if prey.has_method("struggle"): # (a live caterpillar: thrashing a while under it, then limp)
 			prey.call("struggle", rng.randf_range(2.5, 4.0))
 		else:
-			MealScript.subdue(prey)
+			MealScript.subdue(prey, self)
 		_hold_from = prey.global_transform
 		_hold_t = 0.0
 		_prey_ball = 0.0
@@ -584,41 +582,6 @@ func lay_eggs(cells: Array, normal := Vector3.UP, depth := 0.012) -> void:
 
 
 # --- steering: a state machine's (pilot.gd) ---------------------------------------
-
-func _pl() -> PilotScript:
-	if _pilot == null:
-		_pilot = PilotScript.new(self)
-		_pilot.finished = action_finished.emit
-	return _pilot
-
-
-func go(direction: Vector3, speed := -1.0, seconds := -1.0) -> void:
-	_pl().go(direction, speed, seconds)
-
-
-func go_to(point: Vector3, speed := -1.0) -> void:
-	_pl().go_to(point, speed)
-
-
-func face(direction: Vector3) -> void:
-	_pl().face(direction)
-
-
-func stop() -> void:
-	_pl().stop()
-
-
-func act(name: String, args := {}) -> bool:
-	return _pl().act(name, args)
-
-
-func behaviours() -> PackedStringArray:
-	return _p_behaviours()
-
-
-func is_busy() -> bool:
-	return _pilot != null and _pilot.busy()
-
 
 func _p_here() -> Vector3:
 	return _pos
@@ -1068,7 +1031,7 @@ static func _turned(from: Vector3, to: Vector3, most: float, axis: Vector3) -> V
 # --- the motor ----------------------------------------------------------------
 
 
-func _process(dt: float) -> void:
+func tick(dt: float) -> void:
 	if dt <= 0.0:
 		return
 	_t += dt

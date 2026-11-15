@@ -691,6 +691,7 @@ func _joey() -> void:
 	if parent == null:
 		return
 	var j: Node3D = (get_script() as Script).new(true)
+	Fauna.report.call_deferred(&"born", self, {"young": j})
 	j.set("size", 0.02)
 	j.set("_g_to", 0.02)
 	j.set("height", height)
@@ -845,7 +846,7 @@ func _off() -> void:
 		_pose_foot[i] = null
 
 
-func _process(dt: float) -> void:
+func tick(dt: float) -> void:
 	if dt <= 0.0 or _body == null:
 		return
 	if _carrier != null:

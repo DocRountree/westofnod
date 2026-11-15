@@ -82,6 +82,7 @@ static func of(f: Node3D, across := 5, bleeds := -1, ground_y := NAN) -> Node3D:
 	m.process_priority = 1000 # (after the eater's moved it, and itself)
 	m.global_transform = Transform3D.IDENTITY
 	f.set_meta("meal", m)
+	Fauna.report(&"eaten", f, {"kind": Diet.kind_of(f)}) # (begun on: it's food from now, no longer one of its kind)
 	m.call("_build", across)
 	return m
 
@@ -100,9 +101,15 @@ static func bite_at(f: Node3D) -> Vector3:
 
 ## A live animal caught (in jaws, forelegs, chelae, talons): killed, or
 ## stilled, limp, no longer moving itself (its hunter moves it from now on).
-static func subdue(n: Node) -> void:
+static func subdue(n: Node, by: Node = null) -> void:
 	if n == null or not is_instance_valid(n):
 		return
+	if not n.has_meta("subdued"): # (told once: Fauna's)
+		n.set_meta("subdued", true)
+		if by != null:
+			Fauna.report(&"killed", by, {"prey": n, "kind": Diet.kind_of(n)})
+		if not n.has_method("die"):
+			Fauna.report(&"died", n, {"by": by})
 	if n.has_method("die") and n.get("dead") != true:
 		n.call("die")
 	n.set_process(false)

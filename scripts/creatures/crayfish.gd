@@ -841,7 +841,7 @@ func _eat(dt: float) -> void:
 				_stage = 1
 				_st = 0.0
 				_bite = 0.0
-				MealScript.subdue(f)
+				MealScript.subdue(f, self)
 				_meal = MealScript.of(f, 4)
 		1: # (down over it, its claws either side of it, its small legs on it, chewing)
 			_target = _pos
@@ -906,7 +906,7 @@ func _hunt(dt: float) -> void:
 			_cl_ask = [CL_REACH, CL_REACH] if _st < 0.25 else [CL_PIN, CL_PIN]
 			_cl_rate = 25.0
 			if _st > 0.45:
-				MealScript.subdue(_prey) # (pinned where it is: not lifted)
+				MealScript.subdue(_prey, self) # (pinned where it is: not lifted)
 				_food = _prey
 				_prey = null
 				_mode = "eat"
@@ -1167,6 +1167,7 @@ func _hatch(_dt: float) -> void:
 		if parent:
 			for k in 14:
 				var y: Node3D = (get_script() as Script).new(true)
+				Fauna.report.call_deferred(&"hatched", self, {"young": y})
 				y.set("height", height)
 				y.set("water_y", water_y)
 				parent.add_child(y)
@@ -1185,7 +1186,7 @@ func ride(mother: Node3D, secs := 40.0) -> void:
 	_ride_at = Vector3(rng.randf_range(-5.0, 5.0), -9.0, rng.randf_range(12.0, 40.0))
 
 
-func _process(dt: float) -> void:
+func tick(dt: float) -> void:
 	if _mother != null:
 		_ride(dt)
 		return

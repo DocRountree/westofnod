@@ -615,6 +615,7 @@ func _young_one() -> void:
 	if parent == null:
 		return
 	var y: Node3D = (get_script() as Script).new(true, "summer")
+	Fauna.report.call_deferred(&"born", self, {"young": y})
 	parent.add_child(y)
 	var k := young_ones.size()
 	var at := _out(Vector3(-float(S.body_w) * 2.0, -body_h, 450.0 - 250.0 * k))
@@ -789,7 +790,7 @@ func _p_act(name: String, args: Dictionary) -> bool:
 			if f == null:
 				return false
 			if (f as Node).has_method("die") and (f as Node).get("dead") != true:
-				MealScript.subdue(f)
+				MealScript.subdue(f, self)
 			eat(f)
 			return true
 		"graze":

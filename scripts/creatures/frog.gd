@@ -1,5 +1,5 @@
 class_name Frog
-extends Node3D
+extends "res://scripts/creatures/creature.gd"
 ## A northern leopard frog (Lithobates pipiens), drawn at twice life size
 ## (its parts modelled at life size, about 80 mm snout to vent: MM). Built
 ## from parts, posed every frame by hand (procedural: no clips).
@@ -43,7 +43,6 @@ extends Node3D
 ## metamorphose), behaviours, is_busy, action_finished.
 ## Its position is set every frame: put it under a node that isn't moved.
 
-signal action_finished(name: String, ok: bool)
 const PilotScript := preload("res://scripts/creatures/pilot.gd")
 const PersonalSpace := preload("res://scripts/creatures/personal_space.gd")
 const MM := 0.002 ## m drawn per model mm (twice life size)
@@ -87,7 +86,6 @@ var _role := ""
 var _mate_len := 12.0 # (how long a mating lasts, s)
 var _held_by: Frog
 var _growing := 0.0
-var _pilot: PilotScript
 var _piloting := false
 var _p_done := false
 var rng := RandomNumberGenerator.new()
@@ -798,7 +796,7 @@ func _end_mate() -> void:
 
 # --- the motor -------------------------------------------------------------------
 
-func _process(dt: float) -> void:
+func tick(dt: float) -> void:
 	if dt <= 0.0 or _body == null:
 		return
 	_t += dt
@@ -1005,6 +1003,7 @@ func _lay_think(_dt: float) -> void:
 			_throat = 0.5 + 0.5 * sin(_t * 4.0)
 			if _st > 4.0:
 				var e := Eggs.new()
+				Fauna.report.call_deferred(&"laid", self, {"eggs": e})
 				e.strings = _egg_strings()
 				e.maker = get_script()
 				e.at = Vector3(_pos.x, lerpf(water_y, floor_y, 0.35), _pos.z + 0.03)
@@ -1200,41 +1199,6 @@ func _pose(dt: float) -> void:
 
 # --- steering (pilot.gd) -------------------------------------------------------
 
-func _pl() -> PilotScript:
-	if _pilot == null:
-		_pilot = PilotScript.new(self)
-		_pilot.finished = action_finished.emit
-	return _pilot
-
-
-func go(direction: Vector3, speed := -1.0, seconds := -1.0) -> void:
-	_pl().go(direction, speed, seconds)
-
-
-func go_to(point: Vector3, speed := -1.0) -> void:
-	_pl().go_to(point, speed)
-
-
-func face(direction: Vector3) -> void:
-	_pl().face(direction)
-
-
-func stop() -> void:
-	_pl().stop()
-
-
-func act(name: String, args := {}) -> bool:
-	return _pl().act(name, args)
-
-
-func behaviours() -> PackedStringArray:
-	return _p_behaviours()
-
-
-func is_busy() -> bool:
-	return _pilot != null and _pilot.busy()
-
-
 func _p_here() -> Vector3:
 	return _pos
 
@@ -1412,6 +1376,7 @@ class Eggs extends Node3D:
 		var f := frog as Frog
 		for k in n:
 			var ny: Node3D = maker.new(true)
+			Fauna.report.call_deferred(&"hatched", self, {"young": ny})
 			if is_instance_valid(f):
 				for p in ["water_y", "floor_y", "pond", "stems", "height"]:
 					ny.set(p, f.get(p))

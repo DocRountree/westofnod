@@ -464,7 +464,7 @@ func _hawk(_dt: float) -> void:
 	hover_at(pp, _face, true)
 	want.jaw = 0.3
 	if bill_tip().distance_to(get_parent().to_global(pp)) < 0.006: # (snapped up)
-		Meal.subdue(_prey)
+		Meal.subdue(_prey, self)
 		_prey.queue_free()
 		_prey = null
 		hunger = maxf(hunger - 0.15, 0.0)
@@ -625,7 +625,7 @@ func _sing(_dt: float) -> void:
 		perch()
 
 
-func _process(dt: float) -> void:
+func tick(dt: float) -> void:
 	super(dt)
 	_lick()
 
