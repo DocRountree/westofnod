@@ -105,6 +105,14 @@ var mother: Node3D
 var calves: Array[Node3D] = []
 var grow_secs := 1200.0 ## (a calf's: to a juvenile's size)
 var o2 := 1.0 ## (its air: 1 full)
+var weaned := true ## (a calf's: off on its own once it's weaned)
+var juvenile := false
+
+## (A calf's time to grow up, here; each weaned at about half grown, grown
+## and able to breed at full size.)
+const GROW := {"blue": 1500.0, "orca": 1800.0, "dolphin": 1200.0}
+
+
 
 var _pos := Vector3.ZERO
 var _fwd := Vector3.FORWARD
@@ -149,27 +157,26 @@ func S() -> Dictionary:
 
 func _ready() -> void:
 	var sp: Dictionary = S()
+	grow_secs = float(GROW[species])
 	if young:
-		size = float(sp.calf_k) * (1.0 if mother == null else 1.0)
-		if mother == null:
-			size *= rng.randf_range(1.0, 1.5)
+		size = float(sp.calf_k)
+		weaned = false
+		if juvenile: # (weaned, on its own, about half grown)
+			size = lerpf(float(sp.calf_k), _adult_k(), rng.randf_range(0.45, 0.65))
+			weaned = true
+		elif mother == null:
+			size *= rng.randf_range(1.0, 1.4)
 	else:
 		size = float(sp.male_k) if male else float(sp.female_k)
-	var key := species + ("_m" if male and not young else "_f")
-	if not _built.has(key):
-		_built[key] = build(species, male and not young)
-	var B: Array = _built[key]
 	_mi = MeshInstance3D.new()
-	_mi.mesh = B[0]
 	_mat = ShaderMaterial.new()
+	_set_mesh()
 	_mat.shader = SHADER
 	_mat.set_shader_parameter("species", ["blue", "orca", "dolphin"].find(species))
 	_mat.set_shader_parameter("tl", float(sp.len))
 	_mat.set_shader_parameter("amp", float(sp.amp) * float(sp.len))
-	_mat.set_shader_parameter("jaw_pivot", B[1])
 	_mat.set_shader_parameter("jaw_max", float(sp.jaw))
-	_mat.set_shader_parameter("flip_root", B[2])
-	_mat.set_shader_parameter("calf", 1.0 if young else 0.0)
+	_mat.set_shader_parameter("calf", 1.0 - _grown() if young else 0.0)
 	_mat.set_shader_parameter("seed", rng.randf())
 	_mat.set_shader_parameter("scars", 0.0 if young else rng.randf_range(0.2, 1.0))
 	_mi.material_override = _mat
@@ -182,6 +189,40 @@ func _ready() -> void:
 	_pose_to = _pose.duplicate()
 	_spd = _cruise()
 	o2 = rng.randf_range(0.5, 1.0)
+
+
+## (Its mesh: its kind's and sex's; a calf's its mother's sort till grown: a
+## young male orca's fin grows tall only as he comes of age.)
+func _set_mesh() -> void:
+	var key := species + ("_m" if male and not young else "_f")
+	if not _built.has(key):
+		_built[key] = build(species, male and not young)
+	var B: Array = _built[key]
+	_mi.mesh = B[0]
+	_mat.set_shader_parameter("jaw_pivot", B[1])
+	_mat.set_shader_parameter("flip_root", B[2])
+
+
+func _adult_k() -> float:
+	return float(S().male_k) if male else float(S().female_k)
+
+
+## (A calf's: how grown, 0 born .. 1 its full size.)
+func _grown() -> float:
+	var sp: Dictionary = S()
+	return clampf((size - float(sp.calf_k)) / maxf(_adult_k() - float(sp.calf_k), 0.01), 0.0, 1.0)
+
+
+## (A calf come of age: grown, able to breed; its own sex's fins.)
+func _mature() -> void:
+	young = false
+	juvenile = false
+	weaned = true
+	mother = null
+	size = _adult_k()
+	_set_mesh()
+	_mat.set_shader_parameter("calf", 0.0)
+	_mat.set_shader_parameter("scars", rng.randf_range(0.1, 0.4))
 
 
 func place(at: Vector3, yaw := 0.0) -> void:
@@ -334,11 +375,15 @@ func rest(secs := 40.0) -> void:
 
 ## (A male's.) Beside her, then rolled under her, belly to belly.
 func mate(female: Node3D) -> bool:
+	if not male and female != null and is_instance_valid(female) and female.get("male"): # (hers: him to court her)
+		return bool(female.call("mate", self))
 	if not male or young or dead or female == null or not is_instance_valid(female) or female == self:
 		return false
 	if female.get("male") or female.get("young") or female.get("dead") or female.get("species") != species:
 		return false
 	_partner = female
+	o2 = 1.0 # (a breath first: the two of them, the courtship long)
+	female.set("o2", 1.0)
 	female.set("_partner", self)
 	female.call("_to", "courted")
 	_to("court")
@@ -354,7 +399,7 @@ func give_birth(_n_ := 1) -> void:
 
 ## (A calf's.) Under her belly, to nurse a while.
 func nurse() -> void:
-	if not young or mother == null or not is_instance_valid(mother):
+	if not young or weaned or mother == null or not is_instance_valid(mother):
 		return
 	_to("nurse")
 
@@ -396,8 +441,19 @@ func _process(dt: float) -> void:
 	_t += dt
 	_age += dt
 	var sp: Dictionary = S()
-	if young and size < float(sp.calf_k) * 1.8: # (a calf growing)
-		size = minf(size + dt * float(sp.calf_k) / grow_secs, float(sp.calf_k) * 1.8)
+	if young and not dead: # (a calf growing: weaned at about half grown, off on its own; grown, of age)
+		size = minf(size + dt * (_adult_k() - float(sp.calf_k)) / grow_secs, _adult_k())
+		_mat.set_shader_parameter("calf", 1.0 - _grown())
+		if not weaned and _grown() > 0.45:
+			weaned = true
+			juvenile = true
+			if _mode in ["follow", "nurse"]:
+				mother = null
+				_to("travel")
+			mother = null
+		if _grown() >= 0.999:
+			_mature()
+
 	hunger = minf(hunger + dt / 500.0, 1.0)
 	# its air: running down below, back at the surface
 	if not dead:
@@ -456,6 +512,9 @@ func _think(dt: float) -> void:
 	match _mode:
 		"travel":
 			_want = _cruise()
+			for k: Node3D in calves:
+				if is_instance_valid(k) and String(k.get("_mode")) == "nurse": # (slow for her calf, nursing)
+					_want = _cruise() * 0.45
 			_goal_t -= dt
 			if _goal_t <= 0.0 or _pos.distance_to(_goal) < L * 0.8:
 				_goal_t = rng.randf_range(10.0, 25.0)
@@ -480,7 +539,7 @@ func _think(dt: float) -> void:
 			_want = clampf(mspd + (_pos.distance_to(_goal) - L * 0.1) * 0.8, 0.2, _cruise() * 2.5)
 			if String(mother.get("_mode")) in ["blow", "log"] and o2 < 0.7: # (up when she's up)
 				_to("rise")
-			elif _t > 30.0 and rng.randf() < dt / 25.0:
+			elif _t > 20.0 and rng.randf() < dt / (15.0 + 40.0 * _grown()): # (nursing: often while small)
 				nurse()
 		"nurse": # (under her belly, at her mammary slits, a few seconds)
 			if mother == null or not is_instance_valid(mother):
@@ -668,36 +727,60 @@ func _think(dt: float) -> void:
 			_want = _cruise() * 3.0
 			if _pos.distance_to(_goal) < L or _t > 10.0:
 				wander()
-		"court": # (beside her; then under her, belly to belly)
+		"court": # (courting her, his kind's way; then under her, belly to belly)
 			if _partner == null or not is_instance_valid(_partner):
 				wander()
 				return
 			var pl := float(S().len) * float(_partner.get("size"))
-			if _t < 10.0:
-				_goal = _partner.call("_at", Vector3(pl * 0.25, 0.0, 0.0))
-				_want = float(_partner.get("_spd")) + (_pos.distance_to(_goal) - L * 0.2) * 0.5
-				_roll_to = 0.4 * sin(_t)
-			else:
-				var pf: Vector3 = _partner.get("_fwd")
+			var pf: Vector3 = _partner.get("_fwd")
+			if _t < 16.0:
+				match species:
+					"dolphin": # (beside her, close, in step; rubbing along her, his flipper on her side, rolled to her)
+						var near := 0.08 + 0.06 * (0.5 + 0.5 * sin(_t * 0.8))
+						_goal = _partner.call("_at", Vector3(pl * near * 2.0, pl * 0.01, pl * 0.02))
+						_want = float(_partner.get("_spd")) + (_pos.distance_to(_goal) - L * 0.05) * 0.8
+						_fwd = _fwd.slerp(pf, minf(dt * 1.0, 1.0)).normalized()
+						_roll_to = -0.75
+						_pose_to.flip = 0.35 + 0.25 * sin(_t * 2.0)
+					"orca": # (at the surface with her, rolling, his flipper raised, slapped down)
+						_goal = _partner.call("_at", Vector3(pl * 0.2, 0.0, -pl * 0.05))
+						_goal.y = hi.y - _top() * 0.6
+						_want = float(_partner.get("_spd")) + (_pos.distance_to(_goal) - L * 0.2) * 0.5
+						_roll_to = 1.3 * (0.5 + 0.5 * sin(_t * 0.7))
+						_pose_to.flip = 1.0 if fmod(_t, 4.0) < 2.0 else -0.4
+						if fmod(_t, 4.0) > 2.0 and fmod(_t, 4.0) - dt <= 2.0:
+							_splash(_at(Vector3(float(S().flipper[1]) * float(S().len) * 0.7, 0.0, -float(S().len) * 0.2)), 0.6)
+					_: # (a blue whale: following her close, behind and below, for a long while)
+						_goal = _partner.call("_at", Vector3(0.0, -pl * 0.05, pl * 0.65))
+						_want = float(_partner.get("_spd")) + (_pos.distance_to(_goal) - L * 0.1) * 0.3
+			else: # (rolled under her, belly to belly)
 				var under: Vector3 = _partner.call("_at", Vector3(0.0, -pl * 0.13, pl * 0.06))
 				_pos = _pos.lerp(under, minf(dt * 1.0, 1.0))
 				_fwd = _fwd.slerp(pf, minf(dt * 2.0, 1.0)).normalized()
 				_goal = _pos + _fwd * 3.0
 				_want = float(_partner.get("_spd"))
 				_roll_to = PI
-			if _t > 30.0:
+				_pose_to.flip = 0.0
+			if _t > 32.0:
 				_partner.call("wander")
 				_partner.set("_partner", null)
 				_partner = null
 				wander()
-		"courted":
+		"courted": # (hers: slow; an orca's at the surface rolling, a dolphin's rolled to him)
 			_goal_t -= dt
 			if _goal_t <= 0.0 or _pos.distance_to(_goal) < L:
 				_goal_t = 8.0
 				_goal = _inside(_pos + _fwd * L * 3.0 + Vector3(rng.randf_range(-L, L), 0.0, rng.randf_range(-L, L)))
 				_goal.y = _depth_goal(0.8)
 			_want = _cruise() * 0.6
-			if _t > 40.0:
+			var mt := float(_partner.get("_t")) if _partner and is_instance_valid(_partner) else 0.0
+			if species == "orca" and mt < 16.0:
+				_goal.y = hi.y - _top() * 0.6
+				_roll_to = PI * 0.8 * (0.5 + 0.5 * sin(_t * 0.5)) # (over on her back, and back again)
+				_pose_to.flip = 0.6 * sin(_t * 1.3)
+			elif species == "dolphin" and mt < 16.0:
+				_roll_to = 0.75
+			if _t > 45.0 or _partner == null or not is_instance_valid(_partner):
 				wander()
 		"birth": # (slow, near the top; her calf out tail first)
 			_goal = _inside(_pos + _fwd * L * 2.0)
@@ -881,12 +964,15 @@ func _blow() -> void:
 	p.explosiveness = 0.75
 	p.direction = Vector3.UP
 	p.spread = float(sp.spout_spread)
-	var v := sqrt(2.0 * 9.8 * h)
-	p.initial_velocity_min = v * 0.75
-	p.initial_velocity_max = v * 1.05
-	p.gravity = Vector3(0.6, -9.8, 0.2) # (the breeze taking it)
-	p.damping_min = v * 0.25
-	p.damping_max = v * 0.45
+	# (up fast, slowing to a stop at its height as the air takes it: rising half its life, then hanging, drifting, thinning)
+	var t_up := p.lifetime * 0.45
+	var d := 2.0 * h / (t_up * t_up)
+	var v := d * t_up
+	p.initial_velocity_min = v * 0.8
+	p.initial_velocity_max = v * 1.0
+	p.damping_min = d * 0.9
+	p.damping_max = d * 1.1
+	p.gravity = Vector3(0.5, -0.4, 0.2) # (the breeze taking it, the mist settling)
 	p.scale_amount_min = 0.6
 	p.scale_amount_max = 1.4
 	var grow := Curve.new()

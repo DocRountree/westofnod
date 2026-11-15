@@ -209,9 +209,9 @@ const CATALOGUE := [
 	["Fish", "steelhead, in a stream (a few; young: parr, before they go to sea)", "steelhead", ["adult", "young"]],
 	["Fish", "Atlantic bluefin tuna (a school; young: a school of juveniles, about 30 cm, barred)", "bluefin", ["adult", "young"]],
 	["Fish", "great white shark (in the open sea, patrolling; E / H a tuna or salmon here, stalked from deep below, rushed, seized: at the surface, a breach; F a breach of its own; B investigating (circling, closer, a test bite); D gaping, or a spyhop; X a tail slap; G rubbing on the bottom; Z resting near the bottom; K mating (he bites her pectoral, the two belly to belly); 1 her live pups; young: a pup)", "white_shark", ["adult", "young"]],
-	["Marine mammals", "blue whale (24 m, in the deep sea dug for it, far off the plain; breathing at the surface, its spout nine metres up, a few breaths, then down; E / H lunge feeding on a krill swarm (one put in if there's none): rolled on its side, its jaws dropped wide, its throat ballooning, the water strained out through its baleen; F a breach; X lobtailing; G a flipper slap; D a spyhop; Z logging at the surface; K mating; 1 her calf, up for its first breath; young: a calf, at her side, nursing)", "blue_whale", ["adult", "young"]],
-	["Marine mammals", "orca (with its pod, in the deep sea; E / H a tuna, a shark, a dolphin here: chased, seized, shaken, torn; F a breach; V porpoising; X lobtailing; G a flipper slap; D a spyhop; Z logging; K mating; 1 her calf; young: a calf, its white patches peach)", "orca", ["adult", "young"]],
-	["Marine mammals", "common bottlenose dolphin (with its pod, in the deep sea; E / H fish here, chased, seized; F a breach; V porpoising, leaping in arcs; X a tail slap; G a flipper slap; D a spyhop; Z resting at the surface; K mating; 1 her calf; young: a calf, at her side)", "dolphin", ["adult", "young"]],
+	["Marine mammals", "blue whale (24 m, in the deep sea dug for it, far off the plain; breathing at the surface, its spout nine metres up, a few breaths, then down; E / H lunge feeding on a krill swarm (one put in if there's none): rolled on its side, its jaws dropped wide, its throat ballooning, the water strained out through its baleen; F a breach; X lobtailing; G a flipper slap; D a spyhop; Z logging at the surface; K courting and mating (he following her a long while; then belly to belly); 1 her calf, up for its first breath; N it nursing; young: a calf, at her side, nursing, weaned at half grown; juvenile: weaned, on its own; grown, of age)", "blue_whale", ["adult", "juvenile", "young"]],
+	["Marine mammals", "orca (with its pod, in the deep sea; E / H a tuna, a shark, a dolphin here: chased, seized, shaken, torn; F a breach; V porpoising; X lobtailing; G a flipper slap; D a spyhop; Z logging; K courting at the surface (rolling, flippers slapped) and mating belly to belly; 1 her calf; N nursing; young: a calf, its white patches peach, at her side; juvenile: weaned; a young male's fin grows tall only as he comes of age)", "orca", ["adult", "juvenile", "young"]],
+	["Marine mammals", "common bottlenose dolphin (with its pod, in the deep sea; E / H fish here, chased, seized; F a breach; V porpoising, leaping in arcs; X a tail slap; G a flipper slap; D a spyhop; Z resting at the surface; K courting (side by side, in step, rubbing, flippers touching) and mating belly to belly; 1 her calf; N nursing; young: a calf, at her side; juvenile: weaned, on its own)", "dolphin", ["adult", "juvenile", "young"]],
 	["Amphibians and reptiles", "northern leopard frog", "frog", ["adult", "young"]],
 	["Amphibians and reptiles", "American toad", "toad", ["adult", "young"]],
 	["Amphibians and reptiles", "green anole", "anole", ["adult", "young"]],
@@ -1203,12 +1203,15 @@ func _spawn_animal(key: String, at: Vector3, stage: String, male: bool, young: b
 			return pb
 		"blue_whale", "orca", "dolphin": # (in the deep sea, dug off the plain for them if there's none)
 			var dq := _deep_sea()
-			var ce: Node3D = (CETACEANS[key] as GDScript).new(young)
+			var ce: Node3D = (CETACEANS[key] as GDScript).new(young or stage == "juvenile")
 			ce.set("male", male and not young)
+			if stage == "juvenile":
+				ce.set("juvenile", true)
+				ce.set("male", randf() < 0.5)
 			var dc0: Vector3 = dq.c
 			var ddp := float(dq.deep)
 			ce.call("set_water", dc0 + Vector3(-float(dq.hw) + 0.3, POND - ddp + 0.05, -float(dq.hd) + 0.3), dc0 + Vector3(float(dq.hw) - 0.3, POND, float(dq.hd) - 0.3))
-			if young: # (a calf: by its mother, if one of its kind's here)
+			if young and stage != "juvenile": # (a calf: by its mother, if one of its kind's here)
 				for o in get_children():
 					if o is CetaceanScript and o.get_script() == ce.get_script() and not o.get("male") and not o.get("young") and not o.get("dead"):
 						ce.set("mother", o)
@@ -2942,10 +2945,10 @@ func _cetacean_do(c: Node3D, act_: String, p: Vector3) -> void:
 		"sleep", "sit":
 			c.call("sleep", 40.0)
 		"mate":
-			if c.get("male") and not c.get("young"):
+			if not c.get("young"):
 				var best: Node3D = null
 				for o in _creatures():
-					if o is CetaceanScript and o != c and String(o.get("species")) == sp and not o.get("male") and not o.get("young") and not o.get("dead"):
+					if o is CetaceanScript and o != c and String(o.get("species")) == sp and o.get("male") != c.get("male") and not o.get("young") and not o.get("dead"):
 						if best == null or (o as Node3D).position.distance_to(p) < best.position.distance_to(p):
 							best = o
 				if best:
