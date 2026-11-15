@@ -41,7 +41,7 @@ layout(set = 0, binding = 15, std430) restrict buffer GridCount { int c[]; } gco
 layout(set = 0, binding = 16, std430) restrict buffer GridSlots { int s[]; } gslot;
 layout(set = 0, binding = 17, std430) restrict writeonly buffer Out { float f[]; } outb;
 layout(set = 0, binding = 18, std430) restrict readonly buffer Heights { float f[]; } hts;
-layout(set = 0, binding = 19, std430) restrict buffer Counters { uint c[]; } ctr;
+layout(set = 0, binding = 19, std430) restrict buffer Counters { uint c[]; } ctr; // 0: gone off the baked ground; 1: loads taken up this frame; 2: loads brought home
 // each one's mind's own (push constant y 1: its mind here too), 12 floats: its wait (s), its place round the food (rad), the middle (3) and the reach of where it scouts, its heading (rad), its pause (> 0 stopped for another, < 0 just parted), its trip (0 to the food and at it, 1 home with its load, 2 in at the nest), 3 spare
 layout(set = 0, binding = 20, std430) restrict buffer Mind { float f[]; } mind;
 
@@ -84,7 +84,7 @@ void main() {
 	float cell = prm.b.x;
 	if (pass_ == 0) {
 		if (i < TABLE) gcount.c[i] = 0;
-		if (i == 0u) ctr.c[0] = 0u;
+		if (i == 0u) { ctr.c[0] = 0u; ctr.c[1] = 0u; ctr.c[2] = 0u; }
 		return;
 	}
 	if (i >= n) return;
@@ -149,6 +149,7 @@ void main() {
 				vec3 lane = length(along) > 1e-4 ? cross(normalize(along), vec3(0.0, 1.0, 0.0)) * (sd - 0.5) * prm.nest.w : vec3(0.0);
 				tg = prm.nest.xyz + lane;
 				if (length(p0.xz - tg.xz) < 0.006 || wait <= 0.0) {
+					atomicAdd(ctr.c[2], 1u); // (home with it: counted)
 					ph = 2;
 					wait = mix(1.0, 2.5, rnd(i, t, 9u));
 				}
@@ -163,9 +164,10 @@ void main() {
 			bool there = length(p0.xz - tg.xz) < 0.003;
 			fk = fk + clamp((there && speed < 0.015 ? 1.0 : 0.0) - fk, -dt * 2.0, dt * 2.0);
 			if (wait <= 0.0) {
-				if (there) { // (fed, its load taken up: home with it)
+				if (there) { // (fed, its load taken up: home with it; counted)
 					ph = 1;
 					wait = 40.0;
+					atomicAdd(ctr.c[1], 1u);
 				} else {
 					slot += mix(0.6, 1.8, rnd(i, t, 6u)) * (rnd(i, t, 7u) < 0.5 ? 1.0 : -1.0);
 					wait = mix(3.0, 7.0, rnd(i, t, 8u));
@@ -257,6 +259,6 @@ void main() {
 	vec3 o = p + vec3(0.0, prm.b.y, 0.0);
 	uint base = i * 16u;
 	float v[16] = float[16](bx.x, by.x, bz.x, o.x, bx.y, by.y, bz.y, o.y, bx.z, by.z, bz.z, o.z,
-			clamp(speed / top, 0.0, 1.0), feedk.f[i] - layk.f[i], sd, fly.f[i]);
+			clamp(speed / top, 0.0, 1.0), feedk.f[i] - layk.f[i], sd, fly.f[i] + ((pc.v.y == 1 && task.i[i] == 1 && int(mind.f[mb + 8u]) == 1) ? 64.0 : 0.0));
 	for (int q = 0; q < 16; q++) outb.f[base + uint(q)] = v[q];
 }

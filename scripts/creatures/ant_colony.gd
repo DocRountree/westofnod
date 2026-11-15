@@ -80,7 +80,10 @@ var phase := PackedInt32Array() # an ant's, foraging: 0 to the food and at it, 1
 var nest := Vector3.ZERO ## where they live (its own space): what's found is carried back here (setup: its middle)
 var trips_done := 0 ## loads brought back to the nest (counted on the CPU only)
 var _ant := false # (an ant's ways: scouting on a wandering line, trips to the nest, stopping for each other; not a beetle's, a snail's)
-var _forage := {} # (a find being worked: {at, left, t}: the foragers sent out a few at a time)
+var _forage := {} # (a find being worked: {at, left: how many more may go, loads: what's left of it for them (-1: no end), source})
+var _homing := {} # i -> true: bringing in a last load from a find worked out
+var _homing_t := 0.0
+var home_r := 0.1 ## how far about the nest they scout (setup's)
 var seed := PackedFloat32Array()
 var pace := PackedFloat32Array() # m/s (its pilot's: <= 0 its own)
 var _pilots := {} # i -> its pilot (pilot.gd)
@@ -117,6 +120,7 @@ func setup(n: int, c: Vector3, r: float) -> void:
 	cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 	_resize(n)
 	nest = c
+	home_r = r
 	_ant = _card_minds()
 	for i in n:
 		var a := rng.randf() * TAU
@@ -188,25 +192,61 @@ func lay(i: int, at: Vector3) -> void:
 
 
 ## Food found at f (its own space): worked as ants work a find. A scout or
-## two to it first; each back at the nest with a load brings out a few
-## more, till `share` of them are going to and fro along the one line
-## between it and the nest, the rest about the nest as they were. (An ant
-## at it feeds a while, carries its load home, goes in, comes out, goes
-## back.) Till stop_foraging(), or wander() for each.
-func forage(f: Vector3, share := 0.6) -> void:
+## two to it first; each one home with its load brings out one or two more
+## (those idle nearest the nest), till `share` of them are going to and fro
+## along the one line between it and the nest, the rest about the nest as
+## they were. (An ant at it feeds a while, takes up its load, carries it
+## home in its jaws, goes in, comes out, goes back.)
+##
+## source: the thing itself (a seed pile, a dead insect, a carcass, a
+## fruit). What the ants can take of it is kept count of on it, out of
+## sight (its meta "ant_loads": loads_of() to begin with, or `loads`), a
+## load less each time one's taken up; nothing else of it changes (it's
+## there for whoever else wants it, whole: the player's to pick up as
+## ever). None left for them: they go home and it's left alone (worked
+## out; false asked again). No source: no end to it.
+## Till stop_foraging(), or it's worked out, or wander() for each.
+func forage(f: Vector3, share := 0.6, source: Node = null, loads := -1) -> bool:
 	var n := pos.size()
-	# (no more till a scout could be back: there, a feed, home)
-	var back := Vector2(f.x - nest.x, f.z - nest.z).length() * 2.0 / maxf(top_speed * 0.75, 0.001) + 5.0
-	_forage = {"at": f, "left": maxi(int(ceilf(n * share)), 1), "t": -back}
+	var have := loads
+	if source != null and is_instance_valid(source):
+		if not source.has_meta("ant_loads"):
+			source.set_meta("ant_loads", loads if loads >= 0 else loads_of(source))
+		have = int(source.get_meta("ant_loads"))
+	if have == 0:
+		return false
+	_forage = {"at": f, "left": maxi(int(ceilf(n * share)), 1), "loads": have, "source": source}
+	_homing.clear()
 	# its scouts: the two nearest it
 	var order := range(n)
 	order.sort_custom(func(a: int, b: int) -> bool: return pos[a].distance_squared_to(f) < pos[b].distance_squared_to(f))
 	for k in mini(2, n):
 		_send(order[k])
+	return true
+
+
+## How many loads the ants can take of a thing (to begin with).
+static func loads_of(source: Node) -> int:
+	var k := Diet.kind_of(source)
+	if k == "carcass":
+		return 600
+	if k.begins_with("dead_"):
+		return 60
+	return 40
 
 
 func stop_foraging() -> void:
 	_forage.clear()
+
+
+## Whether ant i has a load in its jaws (on its way home with it: shown).
+func carrying(i: int) -> bool:
+	return _ant and task[i] == 1 and phase[i] == 1
+
+
+## Whether a find's being worked.
+func foraging() -> bool:
+	return not _forage.is_empty()
 
 
 func _send(i: int) -> void:
@@ -215,27 +255,74 @@ func _send(i: int) -> void:
 	_forage.left = int(_forage.left) - 1
 
 
-## (More sent out, as those out come back: a few at a time, those idle
-## nearest the nest.)
-func _forage_step(dt: float) -> void:
-	if _forage.is_empty() or int(_forage.left) <= 0:
+## (A load taken up at the food: one less of what they can take. The last:
+## the find's worked out.)
+func _picked(k := 1) -> void:
+	if _forage.is_empty() or int(_forage.loads) < 0:
 		return
-	_forage.t = float(_forage.t) + dt
-	if float(_forage.t) < 1.5:
+	_forage.loads = maxi(int(_forage.loads) - k, 0)
+	var src: Variant = _forage.get("source")
+	if src != null and is_instance_valid(src):
+		(src as Node).set_meta("ant_loads", _forage.loads)
+	if int(_forage.loads) == 0:
+		_worked_out()
+
+
+## (One home with its load: it brings out one or two more, if there's
+## more to fetch and more to send.)
+func _returned(k := 1) -> void:
+	trips_done += k
+	if _forage.is_empty() or int(_forage.left) <= 0 or int(_forage.loads) == 0:
 		return
-	_forage.t = 0.0
-	var out := 0
 	var idle: Array[int] = []
 	for i in pos.size():
-		if task[i] == 1:
-			out += 1
-		elif task[i] == 0:
+		if task[i] == 0:
 			idle.append(i)
 	if idle.is_empty():
 		return
 	idle.sort_custom(func(a: int, b: int) -> bool: return pos[a].distance_squared_to(nest) < pos[b].distance_squared_to(nest))
-	for k in mini(mini(maxi(int(ceilf(out * 0.3)), 1), int(_forage.left)), idle.size()):
-		_send(idle[k])
+	var want := 0
+	for q in k:
+		want += 1 if rng.randf() < 0.5 else 2
+	for q in mini(mini(want, int(_forage.left)), idle.size()):
+		_send(idle[q])
+
+
+## (Nothing left there for them: those on their way out or at it turn for
+## home; those with a load bring it in, then they're about the nest again.)
+func _worked_out() -> void:
+	_forage.clear()
+	if _card and _card_n > 0:
+		_card_fetch(_card_n) # (which are which: fetched, this once)
+	for i in pos.size():
+		if task[i] != 1:
+			continue
+		if phase[i] == 0:
+			wander(i, nest, home_r)
+		else:
+			_homing[i] = true
+
+
+## (Those still bringing the last loads in: about the nest again once
+## they're there.)
+func _forage_step(dt: float) -> void:
+	if _homing.is_empty():
+		return
+	_homing_t += dt
+	if _homing_t < 0.5:
+		return
+	_homing_t = 0.0
+	for i: int in _homing.keys():
+		if i >= pos.size() or task[i] != 1:
+			_homing.erase(i)
+		elif not _card: # (its trip's known here: in with it)
+			if phase[i] != 1:
+				_homing.erase(i)
+				wander(i, nest, home_r)
+		elif Vector2(pos[i].x - nest.x, pos[i].z - nest.z).length() < apart * MM * 2.0: # (on the card: by where it is)
+			_homing.erase(i)
+			trips_done += 1
+			wander(i, nest, home_r)
 
 
 ## Ant i to the food at f, and feeding on it.
@@ -397,6 +484,9 @@ func _fly_array() -> PackedFloat32Array:
 	if _no_fly.size() != pos.size():
 		_no_fly.resize(pos.size())
 		_no_fly.fill(0.0)
+	if _ant: # (one with a load: told with it)
+		for i in pos.size():
+			_no_fly[i] = 64.0 if carrying(i) else 0.0
 	return _no_fly
 
 
@@ -534,8 +624,14 @@ func _card_got(data: PackedByteArray, what: int, n: int) -> void:
 			if data.size() == n * 4:
 				speed = data.to_float32_array()
 		3:
-			if data.size() >= 4 and data.to_int32_array()[0] > 0:
-				_hm_dirty = true
+			if data.size() >= 12:
+				var c := data.to_int32_array()
+				if c[0] > 0:
+					_hm_dirty = true
+				if c[1] > 0: # (loads taken up, loads brought home, that frame)
+					_picked(c[1])
+				if c[2] > 0:
+					_returned(c[2])
 
 
 func _card_step(dt: float) -> void:
@@ -586,7 +682,7 @@ func _card_step(dt: float) -> void:
 	_rd.buffer_get_data_async(cur, _card_got.bind(0, n), 0, n * 12)
 	_rd.buffer_get_data_async(_g.yaw, _card_got.bind(1, n), 0, n * 4)
 	_rd.buffer_get_data_async(_g.speed, _card_got.bind(2, n), 0, n * 4)
-	_rd.buffer_get_data_async(_g.ctr, _card_got.bind(3, n), 0, 4)
+	_rd.buffer_get_data_async(_g.ctr, _card_got.bind(3, n), 0, 12)
 
 
 ## The ground baked round where they are (and a good way out), for the GPU.
@@ -757,7 +853,7 @@ func _cpu_process(dt: float) -> void:
 		var at := Transform3D(Basis(Vector3.UP, yaw[i]) * Basis(Vector3.RIGHT, lay_tilt * lay_k[i]), p + Vector3.UP * body_h * MM)
 		multimesh.set_instance_transform(i, at)
 		# (laying: told the shader as feeding's negative)
-		multimesh.set_instance_custom_data(i, Color(clampf(speed[i] / top_speed, 0.0, 1.0), feed_k[i] - lay_k[i], seed[i], _fly_of(i)))
+		multimesh.set_instance_custom_data(i, Color(clampf(speed[i] / top_speed, 0.0, 1.0), feed_k[i] - lay_k[i], seed[i], _fly_of(i) + (64.0 if carrying(i) else 0.0)))
 
 
 ## (Whether i and j are together, not kept apart: a mating pair's.)
@@ -813,7 +909,7 @@ func _think(i: int, dt: float) -> void:
 			if Vector2(pos[i].x - target[i].x, pos[i].z - target[i].z).length() < 0.006 or wait[i] <= 0.0:
 				phase[i] = 2
 				wait[i] = rng.randf_range(1.0, 2.5)
-				trips_done += 1
+				_returned()
 		elif wait[i] <= 0.0:
 			phase[i] = 0
 			slot[i] = rng.randf() * TAU
@@ -840,6 +936,7 @@ func _think(i: int, dt: float) -> void:
 		if _ant and there: # (fed, its load taken up: home with it)
 			phase[i] = 1
 			wait[i] = 40.0
+			_picked()
 			return
 		# round to another place at it
 		slot[i] += rng.randf_range(0.6, 1.8) * (1.0 if rng.randf() < 0.5 else -1.0)
@@ -1145,6 +1242,8 @@ func _build_mesh() -> Array:
 			limb.call(p, q, float(fn[2]) * (1.4 if k == int(fn[0]) - 1 else 1.0), 6 + s)
 			p = q
 			fp -= 0.12
+	# its load (28: in its jaws; nothing of it till it's carrying)
+	ball.call(h + Vector3(0.0, -0.5, head_end - float((A.mandible as Vector3).z) * 0.55), Vector3(0.95, 0.75, 1.1), 28)
 	if A.beard: # (a harvester's psammophore: a basket of long hairs under the head, for carrying sand)
 		for k in 14:
 			var z := -0.5 - 0.09 * k

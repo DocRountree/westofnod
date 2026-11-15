@@ -3530,14 +3530,17 @@ func _do(c: Node, act_: String) -> void:
 			c.set_meta("kit", kit)
 			return
 		var ant_food := Vector3.INF
+		var ant_src: Node = null
 		if act_ == "eat" and c.has_meta("ant"): # (ants: to the nearest of their diet near their nest, a seed, a dead insect, a carcass; none set out)
 			var f := _food(c, Diet.of(c), 6.0)
 			if f == null:
 				return
+			ant_src = f
 			ant_food = (c as Node3D).to_local((f as Node3D).global_position)
 			ant_food.y = 0.0
 		if act_ == "eat" and c.has_meta("ant") and ant_food != Vector3.INF and n > 2: # (a find, worked as ants work one: scouts, then more as they come back, to and fro to the nest)
-			col.forage(ant_food)
+			if not col.forage(ant_food, 0.6, ant_src): # (worked out already: nothing there for them)
+				_no_food(c)
 			return
 		if act_ == "wander":
 			col.stop_foraging()

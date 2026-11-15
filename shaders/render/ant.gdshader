@@ -16,7 +16,8 @@ shader_type spatial;
 // flying parts: 21/22 its wing cases (elytra, left and right: the shell's
 // colour; closed, the two halves of one dome, unbroken), 23/24 marks on
 // them (mark_a), 25/26 its hind wings (folded away under the elytra, not
-// drawn, till it flies)), .y a leg's
+// drawn, till it flies); 28 an ant's load, in its jaws (carried:
+// INSTANCE_CUSTOM.w 64 more; else nothing of it)), .y a leg's
 // segment (0 coxa, 1 femur, 2 tibia, 3 tarsus), .z along an ellipsoid
 // (-0.5 front .. 0.5 behind: the gaster's bands), .w 1 where it's banded.
 // Each part turns about its joint (the pivots: uniforms, from the same
@@ -44,6 +45,7 @@ uniform vec3 elbows[2];    // between scape and funiculus
 uniform vec3 mand_pivots[2];
 uniform vec3 neck;
 uniform vec3 petiole;      // the gaster's joint
+uniform vec3 load_color : source_color = vec3(0.78, 0.7, 0.5); // what an ant carries home (a crumb, a seed)
 uniform float stride_hz = 7.0; // steps a second (of each set) at full speed
 uniform vec3 black : source_color = vec3(0.045, 0.038, 0.034);
 uniform vec3 leg_color : source_color = vec3(0.1, 0.055, 0.04);
@@ -99,8 +101,12 @@ void vertex() {
 	float walk = INSTANCE_CUSTOM.x;
 	float feed = max(INSTANCE_CUSTOM.y, 0.0);
 	float seed = INSTANCE_CUSTOM.z;
-	float lq = floor(INSTANCE_CUSTOM.w * 0.5);
-	float fly = INSTANCE_CUSTOM.w - 2.0 * lq;
+	// (w: fly + 2 * light, and 64 more for an ant with a load in its jaws)
+	float w_ = INSTANCE_CUSTOM.w;
+	float carry = step(63.5, w_);
+	w_ -= 64.0 * carry;
+	float lq = floor(w_ * 0.5);
+	float fly = w_ - 2.0 * lq;
 	lit = lq / 31.0;
 	float t = TIME + seed * 37.0;
 	vec3 v = VERTEX;
@@ -173,11 +179,14 @@ void vertex() {
 	// the mandibles: working as it feeds
 	if (part == 2 || part == 3) {
 		float side = part == 3 ? 1.0 : -1.0;
-		float open = feed * (0.5 + 0.5 * sin(t * 22.0));
+		float open = max(feed * (0.5 + 0.5 * sin(t * 22.0)), carry * 0.45); // (held open round its load)
 		turn(v, n, mand_pivots[part - 2], up, -0.55 * open * side);
 	}
+	// its load (28): in its jaws, carried; nothing of it when it has none
+	if (part == 28 && carry < 0.5)
+		v = (mand_pivots[0] + mand_pivots[1]) * 0.5;
 	// the head and all on it: down to the food, nodding as it chews; bobbing as it walks
-	if ((part >= 1 && part <= 7) || part == 15 || part == 19 || part == 20) {
+	if ((part >= 1 && part <= 7) || part == 15 || part == 19 || part == 20 || part == 28) {
 		float pitch = -0.4 * feed + 0.06 * feed * sin(t * 16.0) + 0.04 * walk * sin(t * stride_hz * 6.2832 * 2.0);
 		turn(v, n, neck, vec3(1.0, 0.0, 0.0), pitch);
 		turn(v, n, neck, up, 0.08 * walk * sin(t * 2.7));
@@ -198,6 +207,10 @@ void fragment() {
 		c = leg_color;
 	if (part == 2 || part == 3)
 		c = vec3(0.12, 0.06, 0.04);
+	if (part == 28) {
+		c = load_color;
+		gloss = 0.15;
+	}
 	if (part == 15) {
 		c = vec3(0.03);
 		gloss = 1.0;

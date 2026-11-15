@@ -55,6 +55,7 @@ func _init() -> void:
 		"gaster_gloss": 0.8,
 		"rugose": 1.0,
 		"stride_hz": 8.0,
+		"load_color": Color(0.6, 0.47, 0.26), # (a seed)
 	}
 
 
