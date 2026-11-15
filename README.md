@@ -325,6 +325,24 @@ Olive above, silvery sides, a net of scales with rows of dark
   something new with a mouthing test bite (`investigate`); courting and mating (`mate`: the male's hold on her
   pectoral, belly to belly); giving birth to live pups that swim straight off (`give_birth`); pups keep away from
   the grown sharks. In the sandbox's Fish (key `white_shark`: adult, or a pup).
+- `scripts/creatures/cetacean.gd` (`Cetacean`): the whales and dolphins, life size, one mesh each posed by
+  `shaders/render/cetacean.gdshader`: `blue_whale.gd` (`BlueWhale`: 24 m, slender, mottled blue grey, its broad flat
+  head, the splashguard before its twin blowholes, the tiny dorsal fin far back, its baleen, the pleated throat from
+  chin to navel), `orca.gd` (`Orca`: 7.6 m a male, his dorsal fin a tall straight blade, his flippers great paddles; a
+  female smaller, her fin curved; black, the white chin and belly, the flank lobes, the eye patch, the grey saddle;
+  a calf's white peach), `bottlenose_dolphin.gd` (`BottlenoseDolphin`: 2.6 m, its short beak and melon, the dark cape,
+  grey flanks, pale belly; its teeth). Swimming by its flukes beating up and down, its body still before the tail;
+  breathing air: its air running down under water, up to blow (a blue whale's spout a column nine metres high, an
+  orca's bushy, a dolphin's a puff), a few breaths, down again (a blue whale's flukes now and then lifted as it
+  sounds). The blue whale lunge feeding through a swarm of krill (`Krill.engulf`): rolled on its side, its jaws
+  dropped near a right angle, its throat ballooning out, the pleats spread pink, the water strained out through the
+  baleen as the pouch goes down. The orca hunting (a tuna, a salmon, a shark: rammed, its liver taken, the rest let
+  go; a dolphin, which flees; a whale's calf); its pod together. The dolphin after fish; porpoising. All breaching,
+  lobtailing, flipper slapping, spyhopping, logging at the surface; mating belly to belly; calving (the calf born
+  tail first, taken up for its first breath, then at her side in her slipstream, nursing under her belly). Great white
+  sharks leave when orcas come near. In the sandbox's Marine mammals (`blue_whale`, `orca`, `dolphin`: adult or calf),
+  in a deep sea (90 by 56 m, 18 deep) dug for them off the plain's east side; the tuna and the sharks go in it too
+  once it's dug.
 - `scripts/creatures/sea_urchin.gd` (`SeaUrchin`): a purple sea urchin, life size, alive (the sea otter's urchins
   are these): its flattened, five-sided test beaded with tubercles, its paler ambulacra, the periproct on top; its
   violet spines on their ball joints, longest round its middle, splayed flat beneath; its long translucent tube feet

@@ -151,6 +151,30 @@ func swim_to(to: Vector3, from := Vector3.INF, r := 0.5, secs := 20.0) -> void:
 	_events["goal"] = [Vector4(from.x, from.y, from.z, r), Vector4(to.x, to.y, to.z, secs)]
 
 
+## Every krill within r of `at` taken (a whale's mouth, lunging through the
+## swarm): gone from it. How many.
+func engulf(at: Vector3, r: float) -> int:
+	_sync_state()
+	var keep := PackedFloat32Array()
+	var gone := 0
+	for i in count:
+		var b := i * STRIDE
+		if Vector3(_state[b], _state[b + 1], _state[b + 2]).distance_to(at) < r:
+			gone += 1
+		else:
+			keep.append_array(_state.slice(b, b + STRIDE))
+	if gone == 0:
+		return 0
+	_state = keep
+	count -= gone
+	for mi in [_near, _far]:
+		mi.multimesh.instance_count = count
+		mi.multimesh.visible_instance_count = 0
+	if _gpu and count > 0:
+		_gpu_buffers()
+	return gone
+
+
 ## Every krill swarming again (feeding, escaping, sent: let go).
 func rejoin_all() -> void:
 	_sync_state()

@@ -349,6 +349,13 @@ func _think(dt: float) -> void:
 				for o in get_parent().get_children():
 					if o is GreatWhiteShark and o != self and not o.young and not o.dead and (o as Node3D).position.distance_to(_pos) < 6.0:
 						_goal = _inside(_pos + (_pos - (o as Node3D).position).normalized() * 6.0)
+			_orca_t -= dt
+			if _orca_t <= 0.0: # (orcas near: off, fast and far (they take sharks, for their livers))
+				_orca_t = 2.0
+				for o in get_parent().get_children():
+					if o is Node3D and o.get("species") == "orca" and not o.get("dead") and (o as Node3D).position.distance_to(_pos) < 30.0:
+						flee((o as Node3D).position)
+						return
 		"stalk": # (deep below and behind it, unseen against the dark: then the rush)
 			var pp := _prey_pos()
 			if pp == Vector3.INF:
@@ -548,6 +555,7 @@ func _think(dt: float) -> void:
 
 
 var _mating_marks := 0.0
+var _orca_t := 0.0
 
 
 ## Toward _goal at _want: turning no faster than it can (a big body's slow

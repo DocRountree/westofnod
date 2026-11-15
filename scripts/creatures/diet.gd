@@ -114,6 +114,9 @@ const EATS := {
 	"polyphemus_moth.gd": {},
 	"sea_turtle.gd": {}, # (its seagrass isn't in the game)
 	"great_white_shark.gd": {"tuna": 1.0, "fish": 0.8, "dead_fish": 0.4}, # (its seals, sea lions and whale carcasses aren't in the game; a sea otter it bites to try, and lets go)
+	"orca.gd": {"tuna": 1.0, "fish": 0.8, "shark": 0.6, "shark_pup": 0.8, "dolphin": 0.5, "dolphin_calf": 0.7, "whale_calf": 0.4}, # (a tuna, a salmon; a shark rammed and its liver taken; a dolphin; a whale's calf)
+	"bottlenose_dolphin.gd": {"fish": 1.0, "tuna": 0.3},
+	"blue_whale.gd": {"krill": 1.0},
 	"larva.gd": {"leaf": 1.0},
 	"grasshopper.gd": {"graze": 1.0},
 	"isopod.gd": {"litter": 1.0},
@@ -308,6 +311,10 @@ static func kind_of(n: Node) -> String:
 			k = "fish" if String(n.get("kind")) in ["rainbow", "chinook"] else ("tuna" if String(n.get("kind")) == "bluefin" else "")
 		"great_white_shark.gd":
 			k = "shark_pup" if young else "shark"
+		"bottlenose_dolphin.gd":
+			k = "dolphin_calf" if young else "dolphin"
+		"blue_whale.gd":
+			k = "whale_calf" if young else ""
 		"mollies.gd":
 			k = "mollies"
 		"trigonalid.gd", "ichneumon.gd", "wasp.gd":

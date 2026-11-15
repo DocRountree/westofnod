@@ -129,6 +129,8 @@ const RedCrayScript := preload("res://scripts/creatures/red_swamp_crayfish.gd")
 const VirileCrayScript := preload("res://scripts/creatures/virile_crayfish.gd")
 const ShrimpScript := preload("res://scripts/creatures/shrimp.gd")
 const UrchinScript := preload("res://scripts/creatures/sea_urchin.gd")
+const CetaceanScript := preload("res://scripts/creatures/cetacean.gd")
+const CETACEANS := {"blue_whale": preload("res://scripts/creatures/blue_whale.gd"), "orca": preload("res://scripts/creatures/orca.gd"), "dolphin": preload("res://scripts/creatures/bottlenose_dolphin.gd")}
 const UrchinLarvaeScript := preload("res://scripts/creatures/urchin_larvae.gd")
 const GiantKelpScript := preload("res://scripts/creatures/giant_kelp.gd")
 const SHRIMP := {"white_shrimp": preload("res://scripts/creatures/white_shrimp.gd"), "brown_shrimp": preload("res://scripts/creatures/brown_shrimp.gd"), "pink_shrimp": preload("res://scripts/creatures/pink_shrimp.gd")}
@@ -207,6 +209,9 @@ const CATALOGUE := [
 	["Fish", "steelhead, in a stream (a few; young: parr, before they go to sea)", "steelhead", ["adult", "young"]],
 	["Fish", "Atlantic bluefin tuna (a school; young: a school of juveniles, about 30 cm, barred)", "bluefin", ["adult", "young"]],
 	["Fish", "great white shark (in the open sea, patrolling; E / H a tuna or salmon here, stalked from deep below, rushed, seized: at the surface, a breach; F a breach of its own; B investigating (circling, closer, a test bite); D gaping, or a spyhop; X a tail slap; G rubbing on the bottom; Z resting near the bottom; K mating (he bites her pectoral, the two belly to belly); 1 her live pups; young: a pup)", "white_shark", ["adult", "young"]],
+	["Marine mammals", "blue whale (24 m, in the deep sea dug for it, far off the plain; breathing at the surface, its spout nine metres up, a few breaths, then down; E / H lunge feeding on a krill swarm (one put in if there's none): rolled on its side, its jaws dropped wide, its throat ballooning, the water strained out through its baleen; F a breach; X lobtailing; G a flipper slap; D a spyhop; Z logging at the surface; K mating; 1 her calf, up for its first breath; young: a calf, at her side, nursing)", "blue_whale", ["adult", "young"]],
+	["Marine mammals", "orca (with its pod, in the deep sea; E / H a tuna, a shark, a dolphin here: chased, seized, shaken, torn; F a breach; V porpoising; X lobtailing; G a flipper slap; D a spyhop; Z logging; K mating; 1 her calf; young: a calf, its white patches peach)", "orca", ["adult", "young"]],
+	["Marine mammals", "common bottlenose dolphin (with its pod, in the deep sea; E / H fish here, chased, seized; F a breach; V porpoising, leaping in arcs; X a tail slap; G a flipper slap; D a spyhop; Z resting at the surface; K mating; 1 her calf; young: a calf, at her side)", "dolphin", ["adult", "young"]],
 	["Amphibians and reptiles", "northern leopard frog", "frog", ["adult", "young"]],
 	["Amphibians and reptiles", "American toad", "toad", ["adult", "young"]],
 	["Amphibians and reptiles", "green anole", "anole", ["adult", "young"]],
@@ -279,7 +284,7 @@ const WET := ["puddle", "small_pond", "pond", "large_pond", "sea", "darner", "fi
 ## Ponds by their size: [half width, half depth, deep] (m).
 const PONDS := {
 	"puddle": [0.32, 0.24, 0.05], "small_pond": [0.5, 0.4, 0.2], "pond": [1.2, 0.9, 0.45],
-	"large_pond": [1.6, 1.0, 0.45], "sea": [3.2, 2.4, 1.1], "salmon": [3.0, 2.0, 1.4], "trout": [2.2, 0.7, 0.55], "ocean": [10.0, 6.0, 3.5], "darner": [0.6, 0.45, 0.09], "fishing": [0.42, 0.36, 0.3],
+	"large_pond": [1.6, 1.0, 0.45], "sea": [3.2, 2.4, 1.1], "salmon": [3.0, 2.0, 1.4], "trout": [2.2, 0.7, 0.55], "ocean": [10.0, 6.0, 3.5], "deep_sea": [45.0, 28.0, 18.0], "darner": [0.6, 0.45, 0.09], "fishing": [0.42, 0.36, 0.3],
 	"beaver": [1.5, 2.0, 0.3], "otter": [1.8, 1.3, 0.6], "goose": [2.8, 2.2, 0.5], "heron": [2.0, 1.4, 0.2],
 }
 
@@ -395,7 +400,11 @@ func _rebuild_ground() -> void:
 		if is_instance_valid(n):
 			(n as Node).queue_free()
 	_ground.clear()
-	var rects: Array[Rect2] = [Rect2(-HALF, -HALF, HALF * 2.0, HALF * 2.0)]
+	var all := Rect2(-HALF, -HALF, HALF * 2.0, HALF * 2.0)
+	for p: Dictionary in _ponds: # (out round a sea dug off it, too: a shore round it)
+		var pc: Vector3 = p.c
+		all = all.merge(Rect2(pc.x - float(p.hw) - 3.0, pc.z - float(p.hd) - 3.0, float(p.hw) * 2.0 + 6.0, float(p.hd) * 2.0 + 6.0))
+	var rects: Array[Rect2] = [all]
 	for p: Dictionary in _ponds:
 		var c: Vector3 = p.c
 		var hole := Rect2(c.x - float(p.hw), c.z - float(p.hd), float(p.hw) * 2.0, float(p.hd) * 2.0)
@@ -481,7 +490,7 @@ func _dig_pond(c: Vector3, hw: float, hd: float, deep: float, kind := "") -> Dic
 	nodes.append(_box_at(c + Vector3(0.0, -deep, 0.0), Vector3(hw * 2.0, 0.02, hd * 2.0), mud))
 	# (its banks: steep all round but one, a sloping bank of mud on its +x side,
 	# to walk in and out by: p.ramp, its foot and its top, rw its half width)
-	var ramp := kind not in ["sea", "puddle", "ocean"] and deep >= 0.08
+	var ramp := kind not in ["sea", "puddle", "ocean", "deep_sea"] and deep >= 0.08
 	var rw := hd * 0.45
 	var rl := deep * 2.2
 	for sgn: float in [-1.0, 1.0]:
@@ -516,11 +525,11 @@ func _dig_pond(c: Vector3, hw: float, hd: float, deep: float, kind := "") -> Dic
 	m.set_shader_parameter("map_domain", 400.0)
 	m.set_shader_parameter("map_origin", Vector2(-200.0, -200.0))
 	m.set_shader_parameter("sun_direction", _sun_dir)
-	m.set_shader_parameter("sea_state", 0.02 if kind != "sea" else 0.08)
+	m.set_shader_parameter("sea_state", 0.02 if kind not in ["sea", "deep_sea"] else 0.08)
 	m.set_shader_parameter("swell_height", 0.0)
 	m.set_shader_parameter("peak_length", 2.0)
 	m.set_shader_parameter("choppiness", 0.3)
-	if kind != "sea":
+	if kind not in ["sea", "deep_sea", "ocean"]:
 		m.set_shader_parameter("absorption", Vector3(1.2, 0.6, 0.5)) # (a pond's water: brown green)
 		m.set_shader_parameter("scatter_color", Vector3(0.02, 0.035, 0.02))
 		m.set_shader_parameter("crest_color", Vector3(0.1, 0.18, 0.1))
@@ -542,7 +551,7 @@ func _dig_pond(c: Vector3, hw: float, hd: float, deep: float, kind := "") -> Dic
 	mi.position = Vector3(c.x, POND, c.z)
 	add_child(mi)
 	nodes.append(mi)
-	if kind not in ["sea", "ocean"] and deep >= 0.08: # (reeds: their tips perches, their stems to lay in and climb out on)
+	if kind not in ["sea", "ocean", "deep_sea"] and deep >= 0.08: # (reeds: their tips perches, their stems to lay in and climb out on)
 		for k in clampi(int(hw * hd * 30.0), 4, 9):
 			var a := float(k) / 7.0 * TAU + randf_range(-0.3, 0.3)
 			var foot := c + Vector3(cos(a) * hw * randf_range(0.3, 0.8), -deep, sin(a) * hd * randf_range(0.3, 0.8))
@@ -584,6 +593,26 @@ func _pond_for(p: Vector3, kind: String) -> Dictionary:
 	var d: Array = PONDS[kind]
 	var c := p + Vector3(float(d[0]) + 0.25, 0.0, 0.0)
 	return _dig_pond(c, d[0], d[1], d[2], kind)
+
+
+## The deep sea (for the whales: 90 by 56 m, 18 deep), dug off the plain's
+## east side if there's none yet; the view let reach it.
+func _deep_sea() -> Dictionary:
+	for q: Dictionary in _ponds:
+		if String(q.kind) == "deep_sea":
+			return q
+	var d: Array = PONDS.deep_sea
+	var q := _dig_pond(Vector3(HALF + float(d[0]) + 4.0, 0.0, 0.0), d[0], d[1], d[2], "deep_sea")
+	if cam and not world:
+		cam.far = maxf(cam.far, 600.0)
+	return q
+
+
+func _has_deep_sea() -> bool:
+	for q: Dictionary in _ponds:
+		if String(q.kind) == "deep_sea":
+			return true
+	return false
 
 
 func _in_pond(q: Dictionary, x: float, z: float, margin := 0.0) -> bool:
@@ -1172,9 +1201,34 @@ func _spawn_animal(key: String, at: Vector3, stage: String, male: bool, young: b
 				pb.grow(0.5, 60.0)
 			pb.wander(at, 0.1)
 			return pb
-		"white_shark": # (in the open sea, dug by it if there's none)
+		"blue_whale", "orca", "dolphin": # (in the deep sea, dug off the plain for them if there's none)
+			var dq := _deep_sea()
+			var ce: Node3D = (CETACEANS[key] as GDScript).new(young)
+			ce.set("male", male and not young)
+			var dc0: Vector3 = dq.c
+			var ddp := float(dq.deep)
+			ce.call("set_water", dc0 + Vector3(-float(dq.hw) + 0.3, POND - ddp + 0.05, -float(dq.hd) + 0.3), dc0 + Vector3(float(dq.hw) - 0.3, POND, float(dq.hd) - 0.3))
+			if young: # (a calf: by its mother, if one of its kind's here)
+				for o in get_children():
+					if o is CetaceanScript and o.get_script() == ce.get_script() and not o.get("male") and not o.get("young") and not o.get("dead"):
+						ce.set("mother", o)
+						(o.get("calves") as Array).append(ce)
+						break
+			_org(ce, dc0, false)
+			var mom: Node3D = ce.get("mother")
+			var place_at := dc0 + Vector3(randf_range(-float(dq.hw), float(dq.hw)) * 0.5, POND - ddp * 0.35, randf_range(-float(dq.hd), float(dq.hd)) * 0.5)
+			if mom:
+				place_at = mom.position + mom.basis.x.normalized() * 2.0
+			ce.call("place", place_at, randf() * TAU)
+			ce.set_meta("pond", dc0)
+			if mom:
+				ce.call("_to", "follow")
+			return ce
+		"white_shark": # (in the open sea, dug by it if there's none; the deep sea, if one's dug)
 			var oq := _pond_near(at, 0.2)
-			if oq.is_empty() or String(oq.kind) != "ocean":
+			if _has_deep_sea():
+				oq = _deep_sea()
+			elif oq.is_empty() or String(oq.kind) != "ocean":
 				var d: Array = PONDS.ocean
 				var dc := at + Vector3(float(d[0]) + 0.3, 0.0, 0.0)
 				dc.x = clampf(dc.x, -HALF + float(d[0]) + 0.2, HALF - float(d[0]) - 0.2)
@@ -1197,7 +1251,9 @@ func _spawn_animal(key: String, at: Vector3, stage: String, male: bool, young: b
 				fv = ""
 				water = "ocean" if fk == "bluefin" else "trout"
 			var fq := _pond_near(at, 0.2)
-			if fq.is_empty() or String(fq.kind) != water:
+			if water == "ocean" and _has_deep_sea(): # (out at sea with the whales, if the deep sea's dug)
+				fq = _deep_sea()
+			elif fq.is_empty() or String(fq.kind) != water:
 				var d: Array = PONDS[water]
 				var dc := at + Vector3(float(d[0]) + 0.3, 0.0, 0.0)
 				dc.x = clampf(dc.x, -HALF + float(d[0]) + 0.2, HALF - float(d[0]) - 0.2) # (all of it on the plain)
@@ -2841,6 +2897,74 @@ func _raptor_do(r: Raptor, act_: String) -> void:
 ## circled, closer, a test bite); D gaping, or a spyhop; X a tail slap; G
 ## rubbing on the bottom; Z resting; K (a male) mating with the nearest
 ## female; 1 (a female) her pups born; U dead; W patrolling.
+## (A whale's, a dolphin's: in the deep sea.)
+func _cetacean_do(c: Node3D, act_: String, p: Vector3) -> void:
+	if c.get("dead"):
+		return
+	var sp := String(c.get("species"))
+	match act_:
+		"eat", "hunt", "forage":
+			if sp == "blue": # (a swarm of krill: the sea's, one put in near it if there's none)
+				var q := _deep_sea()
+				var kr: Node3D = q.get("krill")
+				if not is_instance_valid(kr) or int(kr.get("count")) < 200:
+					if not is_instance_valid(kr):
+						kr = KrillScript.new()
+						kr.set("tank_min", c.get("tank_min"))
+						kr.set("tank_max", c.get("tank_max"))
+						_org(kr, q.c, false)
+						q["krill"] = kr
+					var lo: Vector3 = c.get("tank_min")
+					var hi: Vector3 = c.get("tank_max")
+					var cp: Vector3 = c.get("_pos")
+					var fw: Vector3 = c.get("_fwd")
+					var at := cp + Vector3(fw.x, 0.0, fw.z).normalized() * 30.0
+					at = Vector3(clampf(at.x, lo.x + 6.0, hi.x - 6.0), lerpf(lo.y, hi.y, 0.55), clampf(at.z, lo.z + 6.0, hi.z - 6.0))
+					kr.call("add", 2500, at, 1.6)
+				c.call("feed", kr)
+			else:
+				var kinds := ["tuna", "fish", "shark", "shark_pup", "dolphin", "dolphin_calf", "whale_calf"] if sp == "orca" else ["fish", "tuna"]
+				var f := Diet.find(c, 200.0, kinds)
+				if f and f != c and f.get_meta("pond", Vector3.INF) == c.get_meta("pond"):
+					c.call("hunt", f)
+				else:
+					_no_food(c)
+		"fly":
+			c.call("breach")
+		"play":
+			c.call("play")
+		"display", "mark":
+			c.call("spyhop")
+		"alarm":
+			c.call("tail_slap")
+		"groom":
+			c.call("flipper_slap")
+		"sleep", "sit":
+			c.call("sleep", 40.0)
+		"mate":
+			if c.get("male") and not c.get("young"):
+				var best: Node3D = null
+				for o in _creatures():
+					if o is CetaceanScript and o != c and String(o.get("species")) == sp and not o.get("male") and not o.get("young") and not o.get("dead"):
+						if best == null or (o as Node3D).position.distance_to(p) < best.position.distance_to(p):
+							best = o
+				if best:
+					c.call("mate", best)
+		"lay", "hatch":
+			c.call("give_birth")
+		"nurse":
+			if c.get("young"):
+				c.call("nurse")
+			else:
+				for k: Node in (c.get("calves") as Array):
+					if is_instance_valid(k):
+						k.call("nurse")
+		"unusual":
+			c.call("die")
+		_:
+			c.call("wander")
+
+
 func _shark_do(c: Node, act_: String, p: Vector3) -> void:
 	if c.get("dead"):
 		return
@@ -3254,6 +3378,9 @@ func _do(c: Node, act_: String) -> void:
 				c.call("defend", ot.global_position if ot else get_viewport().get_camera_3d().global_position)
 			"mate", "lay": c.call("spawn")
 			_: c.call("wander")
+		return
+	if c is CetaceanScript: # (its own: in the deep sea)
+		_cetacean_do(c as Node3D, act_, p)
 		return
 	if c is SharkScript: # (its own: in its sea)
 		_shark_do(c, act_, p)
