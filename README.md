@@ -1130,10 +1130,14 @@ Ambushing,
     renderer's own device where there is one, the compute shader writing straight into the two MultiMeshes' instance
     buffers (`RenderingServer.multimesh_get_buffer_rd_rid`): nothing read back each frame but how many are near and
     how many far (eight bytes, asked for and come when ready); their state is fetched only when something asks
-    (`engulf`, `take`, `add`). Else a local device, read back, as before; else the CPU. An ant colony's or a beetle
-    band's minds (`_think`) take turns once there are 120 of them, a quarter each frame; a compute shader's compiled
-    once for all. (The ants are still read back each frame, and their minds are still here, not on the card; the
-    fish, the mollies, the snails still move on the CPU.)
+    (`engulf`, `take`, `add`). Else a local device, read back, as before; else the CPU. The ants themselves
+    (`AntColony`, the harvesters; from 150 of them) are wholly on the card the same way: their minds too
+    (wandering, feeding: `ant_colony.glsl`, push constant y 1), what they're told (`wander`, `feed`, a member
+    steered) sent one ant's worth as it's told, the MultiMesh's own buffer written, where each is copied back a
+    frame or two behind without waiting (for `pos` and whoever reads it); only one laying keeps its mind here.
+    A band with a mind of its own (the beetles, the snails, the ticks: `_think`) is as before, on a local device,
+    read back, its minds here in turn once there are 120 (a quarter each frame). A compute shader's compiled once
+    for all. (The fish, the mollies, the snails still move on the CPU.)
   - Records, bodies and brains (`scripts/creatures/species.gd`, `fauna_sim.gd`, `brain.gd`; in the sandbox: the
     Minds box, I; not in the game yet):
     - `Species.TABLE`: what's known of a kind apart from its body (its script, what it's called as food, its
@@ -1153,9 +1157,19 @@ Ambushing,
       it goes home and sleeps; hungry, a hunter goes after what it hunts within its sense, a grazer eats where it
       stands, the rest look for what they eat (a body: what's really there, `Diet.find`; none: found as often as
       not); else it wanders its range, keeps with its kind, grooms, stands alert, calls or marks. A hunter of its
-      kind near (asleep or fed: only almost on it), it runs, whatever it was at. No mating, no young, by a brain yet.
+      kind near (asleep or fed: only almost on it), it runs, whatever it was at.
+    - Breeding: a male, fed and rested, now and then goes to a female of his kind within his sense who'd have him
+      (grown, not carrying, none at her side, `breed_gap` since her last, no more than `crowd` of her kind about
+      her) and mates (`mate` s: their bodies' own mating, if they have them; one with a body gives both). She
+      carries her young for `gest` s: a state on her record (`pregnant_until`) and nothing else, nothing of it
+      shown on her body. Then they're born (`litter`: her body's own `birth` where it has one, its young coming
+      to `FaunaSim` as `Fauna` tells of them; else there by her): records of their own, young, by their mother
+      (with no body, where she is; with one, her body's to lead), a body when she has one. After `wean` s each
+      is grown (`FaunaSim.grow_up`: its body, if it has one, a grown one's) and its own. A young one whose mother
+      dies in the first half of that dies. Signals `born(agent, mother)`, `grown(agent)`.
+    - A meal lasts four times as long as it did (`fast`: a deer's 360 s, a wolf's 960, at `Fauna.life_rate` 1).
     - Measured, headless: 1080 records with no bodies (deer, hares, mice, turkeys, wolves, foxes, bobcats, bears),
-      0.34 ms a frame, about 8 thinks a frame.
+      breeding and all, 0.31 ms a frame, about 8 thinks a frame.
 - Life cycles (not yet in the game): eggs (`scripts/creatures/brood.gd`, `Brood`; `egg.gd`: rice grains, each kind
   its size and colour) laid by the butterflies one to a leaf (the clearwing hovering), by the wasp one to each cell of
   its comb, each egg filling its cell (`Wasp.comb`, `lay_eggs`; the demo's 1 lays in the next empty cell, one a lay), by the beetles in a cluster (`AntColony.lay`, a beetle's: tipped tail down; the

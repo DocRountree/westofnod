@@ -2,7 +2,8 @@
 #version 450
 
 // An ant colony's walking (AntColony; Beetles on the ground), on the GPU.
-// Each ant's mind stays on the CPU (where to go, what to do: cheap); here
+// Each one's mind is the CPU's (where to go, what to do), or, for the ants
+// themselves, here too (push constant y 1: see main); here
 // its body: turning to its target with a weave, speeding up and slowing,
 // stepping on, kept apart from the others near it (a hashed grid; less
 // round food, not from its mate), set on the ground (a height grid baked
@@ -18,20 +19,20 @@ const uint SLOTS = 16u;
 
 layout(set = 0, binding = 0, std430) restrict readonly buffer Params {
 	vec4 a; // dt, time, how many, top speed (m/s)
-	vec4 b; // the cell (m: how far apart they keep), its body's height (m), its lay tilt (rad), 0
+	vec4 b; // the cell (m: how far apart they keep), its body's height (m), its lay tilt (rad), how far from food it stands to feed (m)
 	vec4 hm; // the height grid: its corner x, z (m), its step (m), its samples a side (0: level, 0 m)
 } prm;
 layout(set = 0, binding = 1, std430) restrict readonly buffer PosIn { float f[]; } pin;
 layout(set = 0, binding = 2, std430) restrict writeonly buffer PosOut { float f[]; } pout;
 layout(set = 0, binding = 3, std430) restrict buffer Yaw { float f[]; } yaw_;
 layout(set = 0, binding = 4, std430) restrict buffer Speed { float f[]; } spd;
-layout(set = 0, binding = 5, std430) restrict readonly buffer Target { float f[]; } tgt;
+layout(set = 0, binding = 5, std430) restrict buffer Target { float f[]; } tgt;
 layout(set = 0, binding = 6, std430) restrict readonly buffer Food { float f[]; } food;
 layout(set = 0, binding = 7, std430) restrict readonly buffer Pace { float f[]; } pace;
 layout(set = 0, binding = 8, std430) restrict readonly buffer Seed { float f[]; } seed;
 layout(set = 0, binding = 9, std430) restrict readonly buffer Task { int i[]; } task;
-layout(set = 0, binding = 10, std430) restrict readonly buffer FeedK { float f[]; } feedk;
-layout(set = 0, binding = 11, std430) restrict readonly buffer LayK { float f[]; } layk;
+layout(set = 0, binding = 10, std430) restrict buffer FeedK { float f[]; } feedk;
+layout(set = 0, binding = 11, std430) restrict buffer LayK { float f[]; } layk;
 layout(set = 0, binding = 12, std430) restrict readonly buffer Fly { float f[]; } fly;
 layout(set = 0, binding = 13, std430) restrict readonly buffer Air { int i[]; } air;
 layout(set = 0, binding = 14, std430) restrict readonly buffer Partner { int i[]; } partner;
@@ -40,6 +41,8 @@ layout(set = 0, binding = 16, std430) restrict buffer GridSlots { int s[]; } gsl
 layout(set = 0, binding = 17, std430) restrict writeonly buffer Out { float f[]; } outb;
 layout(set = 0, binding = 18, std430) restrict readonly buffer Heights { float f[]; } hts;
 layout(set = 0, binding = 19, std430) restrict buffer Counters { uint c[]; } ctr;
+// each one's mind's own (push constant y 1: its mind here too): its wait (s), its place round the food (rad), the middle and the reach of where it wanders, 2 spare
+layout(set = 0, binding = 20, std430) restrict buffer Mind { float f[]; } mind;
 
 layout(push_constant, std430) uniform Push { ivec4 v; } pc;
 
@@ -48,6 +51,12 @@ uint bucket(ivec2 c) {
 }
 
 vec3 P(uint i) { return vec3(pin.f[i * 3u], pin.f[i * 3u + 1u], pin.f[i * 3u + 2u]); }
+
+float rnd(uint i, float t, uint salt) {
+	uint h = i * 747796405u + uint(t * 997.0) * 2891336453u + salt * 1664525u;
+	h = ((h >> ((h >> 28u) + 4u)) ^ h) * 277803737u;
+	return float((h >> 22u) ^ h) / 4294967295.0;
+}
 
 float wrap_pi(float a) {
 	return a - 6.2831853 * floor((a + 3.14159265) / 6.2831853);
@@ -98,6 +107,49 @@ void main() {
 	vec3 fwd = vec3(-sin(yaw), 0.0, -cos(yaw));
 	vec3 tg = vec3(tgt.f[i * 3u], tgt.f[i * 3u + 1u], tgt.f[i * 3u + 2u]);
 	vec3 fd = vec3(food.f[i * 3u], food.f[i * 3u + 1u], food.f[i * 3u + 2u]);
+	if (pc.v.y == 1) {
+		// its mind (AntColony._think's, here): wandering, a new place to make
+		// for when it's waited or come to the last (or a stop, to feel
+		// about); feeding, to its place round the food, its mouth to it once
+		// it's there, round to another place now and then. (Laying, 3, and
+		// steered, 4: told from the CPU.)
+		int tk = task.i[i];
+		uint mb = i * 8u;
+		float wait = mind.f[mb] - dt;
+		float fk = feedk.f[i];
+		if (tk != 3) layk.f[i] = max(layk.f[i] - dt * 2.0, 0.0);
+		if (tk == 0) {
+			fk = max(fk - dt * 2.0, 0.0);
+			if (wait <= 0.0 || (distance(p0, tg) < 0.002 && wait > 1.0)) {
+				if (rnd(i, t, 1u) < 0.3) {
+					tg = p0;
+					wait = mix(0.4, 1.5, rnd(i, t, 2u));
+				} else {
+					float a = rnd(i, t, 3u) * 6.2831853;
+					vec3 c = vec3(mind.f[mb + 2u], mind.f[mb + 3u], mind.f[mb + 4u]);
+					tg = c + vec3(cos(a), 0.0, sin(a)) * sqrt(rnd(i, t, 4u)) * mind.f[mb + 5u];
+					wait = mix(2.0, 6.0, rnd(i, t, 5u));
+				}
+			}
+		} else if (tk == 1) {
+			float slot = mind.f[mb + 1u];
+			tg = fd + vec3(cos(slot), 0.0, sin(slot)) * prm.b.w;
+			bool there = length(p0.xz - tg.xz) < 0.003 && speed < 0.015;
+			fk = fk + clamp((there ? 1.0 : 0.0) - fk, -dt * 2.0, dt * 2.0);
+			if (wait <= 0.0) {
+				slot += mix(0.6, 1.8, rnd(i, t, 6u)) * (rnd(i, t, 7u) < 0.5 ? 1.0 : -1.0);
+				wait = mix(3.0, 7.0, rnd(i, t, 8u));
+				mind.f[mb + 1u] = slot;
+			}
+		} else {
+			fk = max(fk - dt * 2.0, 0.0);
+		}
+		if (tk == 0 || tk == 1) {
+			tgt.f[i * 3u] = tg.x; tgt.f[i * 3u + 1u] = tg.y; tgt.f[i * 3u + 2u] = tg.z;
+		}
+		mind.f[mb] = wait;
+		feedk.f[i] = fk;
+	}
 	vec3 to = tg - p0;
 	to.y = 0.0;
 	float d = length(to);

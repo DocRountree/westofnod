@@ -24,7 +24,14 @@ extends MultiMeshInstance3D
 ## They keep a little apart from one another. They walk on the ground the
 ## height callable gives (x, z -> y), flat at y 0 without one.
 ##
-## Their walking is on the GPU (shaders/compute/ant_colony.glsl, on a local
+## The ants themselves, from gpu_from of them: wholly on the card, on the
+## renderer's own device where there is one (their minds too: wandering,
+## feeding; what they're told sent as it's told; the MultiMesh's own
+## instance buffer written straight; where each is copied back here a frame
+## or two behind, not waited for). A band with a mind of its own (the
+## beetles, the snails, the ticks: _think), and the ants where that device
+## can't be had:
+## their walking is on the GPU (shaders/compute/ant_colony.glsl, on a local
 ## RenderingDevice): each frame every ant's mind here (_think: where to go,
 ## what to do; a beetle's flight, _air, its own), then its body there
 ## (turning, stepping on, kept apart, set on the ground: a height grid baked
@@ -153,6 +160,7 @@ func wander(i: int, c: Vector3, r: float) -> void:
 	centre[i] = c
 	radius[i] = r
 	wait[i] = 0.0
+	_touch(i)
 
 
 ## Beetle i to the spot `at`, and laying there (if it lays: not an ant).
@@ -163,6 +171,7 @@ func lay(i: int, at: Vector3) -> void:
 	lay_at[i] = at
 	lay_wait[i] = rng.randf_range(1.5, 2.5)
 	wait[i] = 0.0
+	_touch(i)
 
 
 ## Ant i to the food at f, and feeding on it.
@@ -172,6 +181,7 @@ func feed(i: int, f: Vector3) -> void:
 	var d := pos[i] - f
 	slot[i] = atan2(d.z, d.x)
 	wait[i] = rng.randf_range(3.0, 7.0)
+	_touch(i)
 
 
 func _process(dt: float) -> void:
@@ -190,6 +200,9 @@ func _process(dt: float) -> void:
 		_gpu = _gpu_init()
 	if not _gpu:
 		_cpu_process(dt)
+		return
+	if _card:
+		_card_step(minf(dt, 0.05))
 		return
 	dt = minf(dt, 0.05)
 	_t += dt
@@ -232,16 +245,42 @@ var _no_partner := PackedInt32Array()
 var _hm := PackedFloat32Array()
 var _hm_at := Vector4.ZERO # (corner x, z, step, samples a side)
 var _hm_dirty := true
-const _BUFS := ["pos_in", "pos_out", "yaw", "speed", "target", "food", "pace", "seed", "task", "feed_k", "lay_k", "fly", "air", "partner"]
+const _BUFS := ["pos_in", "pos_out", "yaw", "speed", "target", "food", "pace", "seed", "task", "feed_k", "lay_k", "fly", "air", "partner", "mind"]
+var _card := false # (on the renderer's own device: minds there, the mesh's buffer written straight)
+var _card_n := -1 # (how many its buffers are for)
+var _csets: Array[RID] = [] # (its two: where they were / where they are, turn about)
+var _cpar := 0
+var _dirty := {} # i -> true: told something since (wander, feed, lay, steered): sent with the next frame
+var _laying := {} # i -> true: laying (its mind the CPU's the while)
+
+
+## Whether each one's mind can be the card's (the shader's: wandering,
+## feeding; the rest told it). The ants': yes. A band with a mind of its
+## own (_think overridden: the beetles, the snails, the ticks): no.
+func _card_minds() -> bool:
+	return true
+
+
+## (false: never the renderer's own device, always a local one read back.)
+static var card_ok := true
 
 
 func _gpu_init() -> bool:
-	_rd = RenderingServer.create_local_rendering_device()
+	# The ants: on the renderer's own device where it can be had, minds
+	# and all, written straight into the MultiMesh's instance buffer;
+	# nothing waited for (where each is, copied back when it's ready, a
+	# frame or two behind: for whoever asks). Else, and the bands with
+	# minds of their own: a local device, read back each frame.
+	var main_rd := RenderingServer.get_rendering_device()
+	_card = card_ok and _card_minds() and main_rd != null and RenderingServer.has_method("multimesh_get_buffer_rd_rid") \
+			and int(ProjectSettings.get_setting("rendering/driver/threads/thread_model", 1)) != 2
+	_rd = main_rd if _card else RenderingServer.create_local_rendering_device()
 	if _rd == null:
 		return false
 	var spirv := compute_spirv(_rd, "res://shaders/compute/ant_colony.glsl")
 	if spirv == null:
-		_rd.free()
+		if not _card:
+			_rd.free()
 		_rd = null
 		return false
 	_g.shader = _rd.shader_create_from_spirv(spirv)
@@ -308,22 +347,176 @@ func _gpu_alloc(n: int) -> void:
 	for k in _BUFS + ["out"]:
 		if _g.has(k):
 			_rd.free_rid(_g[k])
-	var per := {"pos_in": 12, "pos_out": 12, "target": 12, "food": 12, "out": 64}
+	var per := {"pos_in": 12, "pos_out": 12, "target": 12, "food": 12, "out": 64, "mind": 32}
 	for k in _BUFS + ["out"]:
 		_g[k] = _rd.storage_buffer_create(_cap * int(per.get(k, 4)))
 	_gpu_set()
 
 
 func _gpu_set() -> void:
-	var order := ["params", "pos_in", "pos_out", "yaw", "speed", "target", "food", "pace", "seed", "task", "feed_k", "lay_k", "fly", "air", "partner", "gcount", "gslot", "out", "heights", "ctr"]
-	var us: Array[RDUniform] = []
-	for b in order.size():
-		var u := RDUniform.new()
-		u.uniform_type = RenderingDevice.UNIFORM_TYPE_STORAGE_BUFFER
-		u.binding = b
-		u.add_id(_g[order[b]])
-		us.append(u)
-	_gset = _rd.uniform_set_create(us, _g.shader, 0)
+	var order := ["params", "pos_in", "pos_out", "yaw", "speed", "target", "food", "pace", "seed", "task", "feed_k", "lay_k", "fly", "air", "partner", "gcount", "gslot", "out", "heights", "ctr", "mind"]
+	_csets.clear()
+	for flip in (2 if _card else 1):
+		var us: Array[RDUniform] = []
+		for b in order.size():
+			var u := RDUniform.new()
+			u.uniform_type = RenderingDevice.UNIFORM_TYPE_STORAGE_BUFFER
+			u.binding = b
+			var name: String = order[b]
+			if flip == 1 and name == "pos_in":
+				name = "pos_out"
+			elif flip == 1 and name == "pos_out":
+				name = "pos_in"
+			u.add_id(_g[name])
+			us.append(u)
+		var set_ := _rd.uniform_set_create(us, _g.shader, 0)
+		if _card:
+			_csets.append(set_)
+		else:
+			_gset = set_
+
+
+# --- the ants', on the renderer's own device --------------------------------------
+
+## (i's been told something: sent to the card with the next frame.)
+func _touch(i: int) -> void:
+	if not _card:
+		return
+	_dirty[i] = true
+	if task[i] == 3:
+		_laying[i] = true
+
+
+func _mind_of(i: int) -> PackedFloat32Array:
+	return PackedFloat32Array([wait[i], slot[i], centre[i].x, centre[i].y, centre[i].z, radius[i], 0.0, 0.0])
+
+
+## (Its buffers made, for n, from what's here: the first time, and when
+## one's added. What the card has since is fetched first: waited for, this
+## once.)
+func _card_alloc(n: int) -> void:
+	if _card_n > 0:
+		_card_fetch(_card_n)
+	for k in _BUFS:
+		if _g.has(k):
+			_rd.free_rid(_g[k])
+	var none := PackedFloat32Array()
+	none.resize(n)
+	var nobody := PackedInt32Array()
+	nobody.resize(n)
+	var alone := PackedInt32Array()
+	alone.resize(n)
+	alone.fill(-1)
+	var minds := PackedFloat32Array()
+	for i in n:
+		minds.append_array(_mind_of(i))
+	var data := {"pos_in": pos.to_byte_array(), "pos_out": pos.to_byte_array(), "yaw": yaw.to_byte_array(), "speed": speed.to_byte_array(),
+			"target": target.to_byte_array(), "food": food.to_byte_array(), "pace": pace.to_byte_array(), "seed": seed.to_byte_array(),
+			"task": task.to_byte_array(), "feed_k": feed_k.to_byte_array(), "lay_k": lay_k.to_byte_array(), "fly": none.to_byte_array(),
+			"air": nobody.to_byte_array(), "partner": alone.to_byte_array(), "mind": minds.to_byte_array()}
+	for k: String in data:
+		var b: PackedByteArray = data[k]
+		_g[k] = _rd.storage_buffer_create(b.size(), b)
+	_g["out"] = RenderingServer.multimesh_get_buffer_rd_rid(multimesh.get_rid()) # (the mesh's own instance buffer)
+	_card_n = n
+	_cpar = 0
+	_dirty.clear()
+	_gpu_set()
+
+
+## (Everything the card keeps, fetched here: waited for. For n of them.)
+func _card_fetch(n: int) -> void:
+	var cur: RID = _g.pos_in if _cpar == 0 else _g.pos_out
+	var got := _rd.buffer_get_data(cur, 0, n * 12).to_vector3_array()
+	var ys := _rd.buffer_get_data(_g.yaw, 0, n * 4).to_float32_array()
+	var ss := _rd.buffer_get_data(_g.speed, 0, n * 4).to_float32_array()
+	var ts := _rd.buffer_get_data(_g.target, 0, n * 12).to_vector3_array()
+	var fk := _rd.buffer_get_data(_g.feed_k, 0, n * 4).to_float32_array()
+	var md := _rd.buffer_get_data(_g.mind, 0, n * 32).to_float32_array()
+	for i in mini(n, pos.size()):
+		if _dirty.has(i):
+			continue # (told something not yet sent: as told)
+		pos[i] = got[i]
+		yaw[i] = ys[i]
+		speed[i] = ss[i]
+		feed_k[i] = fk[i]
+		if task[i] == 0 or task[i] == 1:
+			target[i] = ts[i]
+			wait[i] = md[i * 8]
+			slot[i] = md[i * 8 + 1]
+
+
+## (Where they are, come back from the card a frame or two on.)
+func _card_got(data: PackedByteArray, what: int, n: int) -> void:
+	if n != pos.size() or not _card:
+		return
+	match what:
+		0:
+			if data.size() == n * 12:
+				var got := data.to_vector3_array()
+				for i in _dirty: # (one just put somewhere: as put)
+					if int(i) < n:
+						got[int(i)] = pos[int(i)]
+				pos = got
+		1:
+			if data.size() == n * 4:
+				yaw = data.to_float32_array()
+		2:
+			if data.size() == n * 4:
+				speed = data.to_float32_array()
+		3:
+			if data.size() >= 4 and data.to_int32_array()[0] > 0:
+				_hm_dirty = true
+
+
+func _card_step(dt: float) -> void:
+	_t += dt
+	for i in _pilots:
+		(_pilots[i] as PilotScript).tick(dt)
+	var n := pos.size()
+	if n == 0:
+		return
+	if n != _card_n:
+		_card_alloc(n)
+	if _hm_dirty:
+		_bake_ground()
+	# those laying: their minds here (the egg's a thing of the scene's)
+	for i: int in _laying.keys():
+		if i >= n or task[i] != 3:
+			_laying.erase(i)
+			continue
+		_think(i, dt)
+		_rd.buffer_update(_g.target, i * 12, 12, PackedVector3Array([target[i]]).to_byte_array())
+		_rd.buffer_update(_g.lay_k, i * 4, 4, PackedFloat32Array([lay_k[i]]).to_byte_array())
+	# what's been told since: each one's, sent
+	for i: int in _dirty:
+		if i >= n:
+			continue
+		_rd.buffer_update(_g.task, i * 4, 4, PackedInt32Array([task[i]]).to_byte_array())
+		_rd.buffer_update(_g.target, i * 12, 12, PackedVector3Array([target[i]]).to_byte_array())
+		_rd.buffer_update(_g.food, i * 12, 12, PackedVector3Array([food[i]]).to_byte_array())
+		_rd.buffer_update(_g.pace, i * 4, 4, PackedFloat32Array([pace[i]]).to_byte_array())
+		_rd.buffer_update(_g.mind, i * 32, 32, _mind_of(i).to_byte_array())
+	_dirty.clear()
+	var prm := PackedFloat32Array([dt, _t, float(n), top_speed, apart * MM, body_h * MM, lay_tilt, reach * MM,
+			_hm_at.x, _hm_at.y, _hm_at.z, _hm_at.w])
+	_rd.buffer_update(_g.params, 0, prm.size() * 4, prm.to_byte_array())
+	var cl := _rd.compute_list_begin()
+	_rd.compute_list_bind_compute_pipeline(cl, _g.pipeline)
+	_rd.compute_list_bind_uniform_set(cl, _csets[_cpar], 0)
+	for pass_ in 3:
+		var pc := PackedInt32Array([pass_, 1, 0, 0]).to_byte_array()
+		_rd.compute_list_set_push_constant(cl, pc, pc.size())
+		_rd.compute_list_dispatch(cl, ceili((G_TABLE if pass_ == 0 else n) / 64.0), 1, 1)
+		_rd.compute_list_add_barrier(cl)
+	_rd.compute_list_end()
+	_cpar = 1 - _cpar
+	# (where they are now: asked for, to come when it's ready)
+	var cur: RID = _g.pos_in if _cpar == 0 else _g.pos_out
+	_rd.buffer_get_data_async(cur, _card_got.bind(0, n), 0, n * 12)
+	_rd.buffer_get_data_async(_g.yaw, _card_got.bind(1, n), 0, n * 4)
+	_rd.buffer_get_data_async(_g.speed, _card_got.bind(2, n), 0, n * 4)
+	_rd.buffer_get_data_async(_g.ctr, _card_got.bind(3, n), 0, 4)
 
 
 ## The ground baked round where they are (and a good way out), for the GPU.
@@ -410,14 +603,15 @@ func _gpu_submit(dt: float) -> void:
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_PREDELETE and _rd:
-		if _sub_n >= 0:
+		if _sub_n >= 0 and not _card:
 			_rd.sync()
 		for k in _g:
-			if k != "shader" and k != "pipeline":
+			if k != "shader" and k != "pipeline" and not (_card and k == "out") and (_g[k] as RID).is_valid(): # (the mesh's buffer isn't ours)
 				_rd.free_rid(_g[k])
 		_rd.free_rid(_g.pipeline)
 		_rd.free_rid(_g.shader)
-		_rd.free()
+		if not _card: # (nor the renderer's device)
+			_rd.free()
 		_rd = null
 
 
@@ -593,9 +787,12 @@ func _p_heading(i: int) -> Vector3:
 
 
 func _p_steer(i: int, point: Vector3, speed: float) -> void:
+	if _card and task[i] == 4 and target[i] == point and pace[i] == speed:
+		return # (told already: nothing new to send)
 	task[i] = 4
 	target[i] = point
 	pace[i] = speed
+	_touch(i)
 
 
 func _p_hold(i: int) -> void:
@@ -604,6 +801,7 @@ func _p_hold(i: int) -> void:
 	centre[i] = pos[i] # (a flyer comes down here)
 	radius[i] = 0.01
 	pace[i] = -1.0
+	_touch(i)
 
 
 func _p_mobile(_i: int) -> bool:

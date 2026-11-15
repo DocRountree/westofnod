@@ -235,6 +235,11 @@ func _fly_of(i: int) -> float:
 	return _enc[i]
 
 
+## (Its mind its own: here, not the card's.)
+func _card_minds() -> bool:
+	return false
+
+
 func _think(i: int, dt: float) -> void:
 	wait[i] -= dt
 	lay_k[i] = move_toward(lay_k[i], 1.0 if task[i] == LAYING else 0.0, dt)

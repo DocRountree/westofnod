@@ -306,6 +306,11 @@ func _p_reach(i: int) -> float:
 	return reach * MM * size[i] + 0.004
 
 
+## (Its mind its own: here, not the card's.)
+func _card_minds() -> bool:
+	return false
+
+
 func _think(i: int, dt: float) -> void:
 	wait[i] -= dt
 	var t := task[i]
