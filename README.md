@@ -1149,7 +1149,9 @@ At dusk (the global night, or D: court) the males
   to the skin there till only a cap shows, its rim the lids', `orbital` a bare ring's colour: a falcon's yellow), the
   iris and pupil filling what shows; a raptor's brow a low ridge over the eye; the bill horn grained along and across,
   its ridge worn paler, the line of its mouth in shade, nostrils (`nostril`), a root of its own colour (`bill_base`),
-  matt or glossy (`bill_gloss`); the plumage's colour edges ragged by the feathers along them (`edge_rag`, `hood_soft`).
+  matt or glossy (`bill_gloss`); the plumage's colour edges ragged by the feathers along them (`edge_rag`, `hood_soft`). The face (`face_taper`): the
+  bill set a little forward of the round of the head (`snout`), the face tapering to it like a pear to a rounded end a
+  little wider than the bill's root (`face_bulb`), the bill stuck onto that end; the lower bill's heel tucked into it.
   `raptor.gd` (`Raptor`): birds of prey on the same body (the shader's raptor plumage: the cap, a falcon's hood and
   moustache, cheeks, the back's feathers edged pale, the underparts barred, spotted, rufous-barred or streaked, barred
   flight feathers, a banded tail; yellow cere, eye ring and feet; hooked bills, talons). Stood upright on a perch,

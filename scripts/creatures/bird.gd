@@ -102,6 +102,7 @@ var _flap := 0.0 # 0 wings as posed .. 1 beating
 var _fly := {} # a flight under way
 var _air := false
 var _pilot: PilotScript
+var _bill_shift := Vector3.ZERO # (its bill brought forward of the shape's, the face tapering to it: _make_mesh)
 var _piloted := false
 static var _meshes := {}
 
@@ -547,7 +548,7 @@ static func _neck_aim(d: Vector3) -> Basis:
 func _bill_tip() -> Vector3:
 	var sp: Array = shape.spine
 	var e: Array = sp[sp.size() - 1]
-	return Vector3(0.0, e[0], e[1]) * CM
+	return Vector3(0.0, e[0], e[1]) * CM + _bill_shift
 
 
 ## Where its bill's tip is (the world).
@@ -660,6 +661,7 @@ func _build() -> void:
 	var built: Array = _meshes[key]
 	_rest = built[1]
 	_neck_rest.assign(built[2])
+	_bill_shift = built[5] if built.size() > 5 else Vector3.ZERO
 	_mi = MeshInstance3D.new()
 	_mi.mesh = built[0]
 	_mi.custom_aabb = AABB(Vector3(-1.6, -0.5, -1.6), Vector3(3.2, 2.6, 3.2))
@@ -671,7 +673,7 @@ func _build() -> void:
 	_mat.set_shader_parameter("shoulder", (S.shoulder as Vector3) * CM)
 	_mat.set_shader_parameter("wing_len", (S.wing as Vector3) * CM)
 	_mat.set_shader_parameter("tail_at", (S.tail as Vector3) * CM)
-	_mat.set_shader_parameter("snood_at", (S.get("snood", Vector3.ZERO) as Vector3) * CM)
+	_mat.set_shader_parameter("snood_at", (S.get("snood", Vector3.ZERO) as Vector3) * CM + _bill_shift * 0.6)
 	_mat.set_shader_parameter("eye_at", built[3] if built.size() > 3 else (S.eye as Vector3) * CM) # (as it's seated in the head: _make_mesh)
 	_mat.set_shader_parameter("eye_sink", 0.0 if S.has("head_ball") else float(S.get("eye_sink", 0.78)))
 	_mat.set_shader_parameter("eye_axis", built[4] if built.size() > 4 else Vector3.RIGHT)
@@ -813,14 +815,18 @@ static func _feather(st: SurfaceTool, part: float, idx: float, c1: Color, root: 
 ## rings' spline dipped there: a pinched neck, the bill's root standing out
 ## past it, flat ended); and the bill from its root on never wider than the
 ## ring behind it. line: [p, w, h, c] each (c past 5 the bill).
-static func _taper_face(line: Array, from_c := 4.25) -> void:
+static func _taper_face(line: Array, from_c := 4.25, bulb := 1.35, snout := 0.45) -> Vector3:
+	# The face: from its fullest (at its eyes) tapering like a pear to a
+	# rounded end a little wider than the bill's root (bulb: how much), the
+	# bill stuck onto that end; no waist behind the bill, and no flat-faced
+	# bill root wider than the face behind it.
 	var root := -1
 	for i in line.size():
 		if float((line[i] as Array)[3]) >= 5.0:
 			root = i
 			break
 	if root <= 0:
-		return
+		return Vector3.ZERO
 	var top := -1
 	var wmax := 0.0
 	for i in root:
@@ -829,27 +835,56 @@ static func _taper_face(line: Array, from_c := 4.25) -> void:
 			wmax = float(e[1]) * float(e[2])
 			top = i
 	if top < 0 or top >= root - 1:
-		return
+		return Vector3.ZERO
 	var w0: float = (line[top] as Array)[1]
 	var h0: float = (line[top] as Array)[2]
+	# (the bill and all past its root brought forward along its own line, so
+	# the face has room to taper to it: a snout of the head's own size)
+	var bdir: Vector3 = ((line[mini(root + 1, line.size() - 1)] as Array)[0] as Vector3) - ((line[root] as Array)[0] as Vector3)
+	bdir = bdir.normalized() if bdir.length() > 1e-6 else Vector3.FORWARD
+	var shift := bdir * h0 * snout
+	for i in range(root, line.size()):
+		(line[i] as Array)[0] = ((line[i] as Array)[0] as Vector3) + shift
+	# (the face's rings between laid out evenly, on a gentle line from its
+	# fullest to the bill's root: their old places and the new straight way blended)
+	var pt: Vector3 = (line[top] as Array)[0]
+	var p_root: Vector3 = (line[root] as Array)[0]
+	var old := []
+	for i in range(top, root + 1):
+		old.append((line[i] as Array)[0])
+	for i in range(top + 1, root):
+		var f0 := float(i - top) / float(root - top)
+		var ob: Vector3 = old[i - top] + shift * smoothstep(0.0, 1.0, f0)
+		(line[i] as Array)[0] = ob.lerp(pt.lerp(p_root, f0), 0.5)
 	var wb: float = (line[root] as Array)[1]
 	var hb: float = (line[root] as Array)[2]
+	var we := minf(wb * bulb, w0) # (its end, round the bill's root)
+	var he := minf(hb * bulb, h0)
 	# (its length along the line, each ring's share of it)
 	var lens := [0.0]
 	for i in range(top + 1, root + 1):
 		lens.append(float(lens[lens.size() - 1]) + ((line[i] as Array)[0] as Vector3).distance_to((line[i - 1] as Array)[0]))
 	var total: float = lens[lens.size() - 1]
+	var cap := 0.22 # (the last share of it: its end rounding over to the bill's root)
 	for i in range(top + 1, root):
 		var f := float(lens[i - top]) / maxf(total, 1e-6)
-		var g := 1.0 - f * f * (3.0 - 2.0 * f) # (round off the head, easing into the bill)
+		var g := 1.0 - pow(minf(f / (1.0 - cap), 1.0), 1.5) # (the pear's sides: full near the eyes, drawing in ever faster)
+		var w := we + (w0 - we) * g
+		var h := he + (h0 - he) * g
+		if f > 1.0 - cap: # (its end: a quarter round, in to the bill's root)
+			var q := clampf((f - (1.0 - cap)) / cap, 0.0, 1.0)
+			var k := sqrt(maxf(1.0 - q * q, 0.0))
+			w = wb + (we - wb) * k
+			h = hb + (he - hb) * k
 		var e: Array = line[i]
-		e[1] = wb + (w0 - wb) * g
-		e[2] = hb + (h0 - hb) * g
+		e[1] = w
+		e[2] = h
 	for i in range(root + 1, line.size()): # (the bill: tapering on from its root, never swelling)
 		var e: Array = line[i]
 		var pr: Array = line[i - 1]
 		e[1] = minf(float(e[1]), float(pr[1]))
 		e[2] = minf(float(e[2]), float(pr[2]))
+	return shift
 
 
 ## The mesh at rest (m): [mesh, its joints' places, the neck's chain].
@@ -875,14 +910,14 @@ func _make_mesh() -> Array:
 			for c in 5:
 				vals.append(_cr((sp[maxi(i - 1, 0)] as Array)[c], (sp[i] as Array)[c], (sp[i + 1] as Array)[c], (sp[mini(i + 2, K - 1)] as Array)[c], f))
 			line.append([Vector3(0.0, vals[0], vals[1]) * CM, maxf(float(vals[2]), 0.02) * CM, maxf(float(vals[3]), 0.02) * CM, clampf(lerpf((sp[i] as Array)[4], (sp[i + 1] as Array)[4], f), 0.0, 6.0)])
+	var bill_shift := Vector3.ZERO
 	if S.get("face_taper", false):
-		_taper_face(line, float(S.get("eye_c", 4.62)))
+		bill_shift = _taper_face(line, float(S.get("eye_c", 4.62)), float(S.get("face_bulb", 1.35)), float(S.get("snout", 0.45)))
 	var neck: Array[Vector3] = []
 	var rows := []
 	var along := 0.0
 	var RING := 22
 	var skin_rings := [] # (kept: [p, dorsal, c] for what's set on the skin)
-	var chin_trim := float(S.get("chin_trim", 0.0))
 	for i in line.size():
 		var e: Array = line[i]
 		var p: Vector3 = e[0]
@@ -914,8 +949,7 @@ func _make_mesh() -> Array:
 		for k in RING + 1:
 			var v := float(k) / RING
 			var a := TAU * v
-			# (its chin drawn up: the face's rings, swung forward under the bill as the head turns down to it, cut short below: no shelf of a jowl there)
-			var hh := h * (1.0 - chin_trim * smoothstep(4.45, 4.8, c) * maxf(cos(a), 0.0)) if c <= 5.0 else h
+			var hh := h
 			var d := Vector3.RIGHT * sin(a) * w - dorsal * cos(a) * hh
 			var nn := (Vector3.RIGHT * sin(a) / w - dorsal * cos(a) / hh).normalized()
 			row.append([p + d, nn, Color(part, u, v, 0), Color(0, ja, jb, wb), Color(0, 0, 0, 0), Vector2((v - 0.5) * per, along)])
@@ -924,12 +958,19 @@ func _make_mesh() -> Array:
 	for k in 4:
 		rest[J_NECK + k] = neck[k]
 	rest[J_HEAD] = neck[4]
-	rest[J_JAW] = (S.jaw as Vector3) * CM
+	rest[J_JAW] = (S.jaw as Vector3) * CM + bill_shift
 	rest[J_TAIL] = (S.tail as Vector3) * CM
 	# the lower bill
 	var jl := []
 	for e: Array in S.lower_bill:
-		jl.append([Vector3(0.0, e[0], e[1]) * CM, float(e[2]) * CM, J_JAW, J_JAW, 0.0])
+		jl.append([Vector3(0.0, e[0], e[1]) * CM + bill_shift, float(e[2]) * CM, J_JAW, J_JAW, 0.0])
+	if jl.size() >= 2: # (its heel tucked into the face's end, tapering to nothing there: no blunt open end standing out under it)
+		var p0: Vector3 = (jl[0] as Array)[0]
+		var p1: Vector3 = (jl[1] as Array)[0]
+		var r0: float = (jl[0] as Array)[1]
+		var back := (p0 - p1).normalized()
+		jl.push_front([p0 + back * r0 * 1.1 + Vector3(0.0, r0 * 0.35, 0.0), r0 * 0.55, J_JAW, J_JAW, 0.0])
+		jl.push_front([p0 + back * r0 * 1.9 + Vector3(0.0, r0 * 0.6, 0.0), r0 * 0.05, J_JAW, J_JAW, 0.0])
 	_tube(st, jl, 2.0, 12, true, 1.0)
 	# the eyes: each seated in the head (its globe sunk till only a cap of
 	# it shows through the lids, as a bird's is: S.eye_sink of its radius
@@ -1100,12 +1141,13 @@ func _make_mesh() -> Array:
 				trows.append(row)
 			_grid(st, trows)
 	if S.has("cere"): # (the bare waxy skin at the bill's root, the nostrils in it)
-		var ce: Array = S.cere
+		var ce: Array = S.cere.duplicate()
+		ce[0] = (ce[0] as Vector3) + bill_shift / CM
 		_ball(st, (ce[0] as Vector3) * CM, (ce[1] as Vector3) * CM, 1.0, J_HEAD)
 	# the snood (a horn over the bill's root), the wattle under the chin,
 	# the caruncles at the bare neck's foot
 	if S.has("snood"):
-		var sn: Vector3 = (S.snood as Vector3) * CM
+		var sn: Vector3 = (S.snood as Vector3) * CM + bill_shift * 0.6
 		var srows := []
 		for i in 9:
 			var f := i / 8.0
@@ -1274,4 +1316,4 @@ func _make_mesh() -> Array:
 			var t := lerpf(-1.0, 1.0, float(i) / maxf(int(cr[0]) - 1, 1))
 			_feather(st, 15.0, i + ri * 30.0, Color(3, cr[4], 0, t), float(S.get("tail_root", 0.025)) * 0.4, float(cr[1]) * CM * (1.0 - 0.1 * t * t), float(cr[2]) * CM, float(cr[3]) * CM - 0.004 * absf(t) * float(S.get("tail_k", 1.0)), 0.9)
 		ri += 1
-	return [st.commit(), rest, neck, eye, eye_n]
+	return [st.commit(), rest, neck, eye, eye_n, bill_shift]
