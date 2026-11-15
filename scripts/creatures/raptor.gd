@@ -190,6 +190,8 @@ func place(at: Vector3, yaw := 0.0) -> void:
 func _ground(x: float, z: float) -> float:
 	if perch_at != Vector3.INF and Vector2(x - perch_at.x, z - perch_at.z).length() < 0.35 * maxf(size, 0.5):
 		return perch_at.y
+	if nest_top != Vector3.INF and absf(_pos.y - nest_top.y) < 0.5 and Vector2(x - nest_top.x, z - nest_top.z).length() < 0.14 * nest_scale + 0.03: # (in its nest's bowl: its floor)
+		return nest_top.y
 	return super(x, z)
 
 

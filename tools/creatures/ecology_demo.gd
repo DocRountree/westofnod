@@ -3003,7 +3003,7 @@ func _raptor_nest_site(r: Raptor) -> void:
 		var at := Vector3(pd.end.x + 0.7, 0.0, clampf(gp.z, pd.position.y + 0.3, pd.end.y - 0.3)) if pd.has_area() else gp + Vector3(1.0, 0.0, 0.0)
 		r.set_nest_site(_on(at))
 		return
-	var base: Vector3 = r.home_perch if r.home_perch != Vector3.INF else r.get("_pos")
+	var base: Vector3 = r.home_perch if r.home_perch != Vector3.INF else ((r.get("_pos") as Vector3) if r.get("_pos") != Vector3.ZERO else (r.get_meta("home", Vector3.ZERO) as Vector3)) # (where it is, or was put)
 	var a := randf() * TAU
 	var tree: Node3D = _plant_near(_on(base), ["g_oak"], 12.0, Vector3(cos(a), 0.0, sin(a)) * 3.0)
 	var got := _nest_site_in(tree, TreeNest.kind_of(r), r.nest_scale)

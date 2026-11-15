@@ -336,6 +336,21 @@ Olive above, silvery sides, a net of scales with rows of dark
   eggs drifting up -> echinoplutei, glassy, eight-armed, swimming, their arms beating as they feed on the plankton
   (microscopic: not drawn) -> sinking to settle, a few coming to the bottom as green, pale-spined spat -> growing
   purple. In the sandbox's Sea floor (`sea_urchins`: adult, egg, larva, young).
+- `scripts/creatures/nest.gd` (`TreeNest`): the nests of the birds and squirrels that nest in trees, life size, each
+  one mesh, its sticks and fibres laid one by one (`TreeNest.of(kind, scale, seed)`): the eagles' great stick
+  platform lined with grass and green sprigs; the Cooper's hawk's (bark flakes, sprigs); the great horned owl's and
+  the peregrine's (another's old weathered stick nest); the heron's; the pigeon's flimsy platform; the woven cups:
+  robin (mud walled), blue jay (twigs, rootlets), cardinal (loose, dead leaves in it), house finch, goldfinch (thistle
+  down), red-winged blackbird (sedge), hummingbird (a thimble shingled with lichen); the hollows in the trunk
+  (bluebird, screech owl, barn owl: a swollen knot, its mouth open, dark within); the squirrels' drey (a hollow ball
+  of dead leaves on twigs). And the two on the ground: the goose's down-lined bowl, the turkey's scrape in dead
+  leaves. `TreeNest.site(limbs, kind, seed, taken, radius)` finds each kind's place in a tree (its limbs as
+  `OakTree._climb_lines` gives them): a platform out on a limb where it leaves the trunk, high up; a cup toward a
+  limb's end; a hollow in the trunk's side below the first limbs; a drey in an upper crotch; never where another
+  nest is. In the ecology sandbox a nesting bird's nest (and a squirrel's drey) is built in the nearest oak (one
+  planted for it if there's none); not yet in the game. The ground homes (dens, burrows, the beaver's lodge, the
+  otter's holt, the mouse's and bumblebee's nests, the crayfish's chimney) have no model for now: the animals still
+  go to the spot to sleep or give birth.
 - `scripts/creatures/giant_kelp.gd` (`GiantKelp`): giant kelp, a plant from the bottom to the surface: the holdfast's
   haptera, the fronds, a blade on its float every hand's breadth, the canopy out over the surface, swaying in the
   swell (`shaders/render/kelp.gdshader`), drift blades lying about its base. In the sandbox's Sea floor
