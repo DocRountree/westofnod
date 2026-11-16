@@ -258,7 +258,10 @@ static func _hunt(sim: FaunaSim, a: FaunaSim.Agent, prey: FaunaSim.Agent) -> voi
 		a.pinned = sim.now + 90.0
 		prey.pinned = sim.now + 90.0
 	if a.body != null and prey.body != null:
-		if sim.act(a, "hunt", 90.0, {"target": prey.body}):
+		var quarry: Node = prey.body
+		if prey.body.get("school") is Node: # (a school: a fish of it, not it)
+			quarry = prey.body.get("school")
+		if sim.act(a, "hunt", 90.0, {"target": quarry}):
 			sim.wake(prey, sim.now + 0.3) # (it's seen)
 			return
 	_chase(sim, a)
@@ -286,7 +289,8 @@ static func _strike(sim: FaunaSim, a: FaunaSim.Agent) -> void:
 	if prey != null and prey.alive and sim.where(prey).distance_to(sim.where(a)) < float(a.sp.len) + float(prey.sp.len) + 0.5:
 		var like := Species.hunts(a.key, prey.key, prey.young)
 		if randf() < 0.35 + 0.5 * like:
-			sim.kill(prey, a)
+			if not prey.sp.has("school"): # (a school: a fish of it gone, not it)
+				sim.kill(prey, a)
 			a.state = &"eat"
 			sim.act(a, "eat", float(a.sp.meal) * 2.0)
 			return
@@ -302,6 +306,13 @@ static func _strike(sim: FaunaSim, a: FaunaSim.Agent) -> void:
 
 static func _rest(sim: FaunaSim, a: FaunaSim.Agent) -> void:
 	var p := sim.where(a)
+	if a.site != Vector3.INF: # (what it lives on: back to it, up on it)
+		if Vector2(p.x - a.site.x, p.z - a.site.z).length() > maxf(float(a.sp.len) * 2.0, 0.5):
+			a.state = &"home"
+			sim.go_to(a, a.site, false, true)
+			return
+		_sleep(sim, a)
+		return
 	if p.distance_to(a.home) > float(a.sp.range) * 0.5: # (back toward its own place first)
 		a.state = &"home"
 		sim.go_to(a, a.home + Vector3(randf_range(-1, 1), 0, randf_range(-1, 1)) * float(a.sp.range) * 0.2, false)
@@ -333,6 +344,16 @@ static func _idle(sim: FaunaSim, a: FaunaSim.Agent) -> void:
 			a.state = &"wander"
 			sim.go_to(a, (mid / n).lerp(p, 0.3), false)
 			return
+	if a.site != Vector3.INF and String(a.sp.site) in ["perch", "roost", "web"] and r < 0.75: # (on what it lives on: there mostly, looking about)
+		var p := sim.where(a)
+		if Vector2(p.x - a.site.x, p.z - a.site.z).length() > maxf(float(a.sp.len) * 2.0, 0.5):
+			a.state = &"home"
+			sim.go_to(a, a.site, false, true)
+		else:
+			a.state = &"idle"
+			if not sim.act(a, "groom" if r < 0.3 else "alert", randf_range(6.0, 14.0)):
+				sim.hold(a, "alert", randf_range(6.0, 14.0))
+		return
 	if r < 0.5:
 		a.state = &"wander"
 		sim.go_to(a, _somewhere(sim, a, 1.0), false)
@@ -360,7 +381,7 @@ static func _idle(sim: FaunaSim, a: FaunaSim.Agent) -> void:
 static func _receptive(sim: FaunaSim, f: FaunaSim.Agent) -> bool:
 	if f.male or f.young or not f.alive or f.pregnant_until > 0.0 or not f.brood.is_empty() or f.state == &"flee" or f.state == &"mated":
 		return false
-	if (sim.now - f.bred_at) * Fauna.life_rate < float(f.sp.breed_gap):
+	if sim.now - f.bred_at < Species.days(float(f.sp.gap_days)):
 		return false
 	var n := 0
 	for o: FaunaSim.Agent in sim.near(sim.where(f), float(f.sp.range) * 2.0):
@@ -421,7 +442,7 @@ static func _mate(sim: FaunaSim, a: FaunaSim.Agent, f: FaunaSim.Agent) -> void:
 
 
 static func _conceive(sim: FaunaSim, f: FaunaSim.Agent, by: FaunaSim.Agent) -> void:
-	f.pregnant_until = sim.now + float(f.sp.gest) / maxf(Fauna.life_rate, 0.001)
+	f.pregnant_until = sim.now + Species.days(float(f.sp.gest_days))
 	f.sire = by.id
 
 
@@ -457,6 +478,10 @@ static func young(sim: FaunaSim, a: FaunaSim.Agent) -> void:
 
 
 ## A place in its range (k: so many times as wide).
-static func _somewhere(_sim: FaunaSim, a: FaunaSim.Agent, k: float) -> Vector3:
-	var ang := randf() * TAU
-	return a.home + Vector3(cos(ang), 0.0, sin(ang)) * sqrt(randf()) * float(a.sp.range) * k
+static func _somewhere(sim: FaunaSim, a: FaunaSim.Agent, k: float) -> Vector3:
+	for tries in 6: # (where one of its kind can be: the land's on land, the water's in it)
+		var ang := randf() * TAU
+		var p := a.home + Vector3(cos(ang), 0.0, sin(ang)) * sqrt(randf()) * float(a.sp.range) * k
+		if sim.can_be(a.sp, p):
+			return p
+	return sim.where(a)

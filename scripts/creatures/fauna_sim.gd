@@ -81,12 +81,20 @@ class Agent:
 	var born_at := 0.0
 	var grow_at := 0.0 ## a young one's: when it's grown
 	var slot := 0 # (a young one's place by its mother, with no body)
+	var site := Vector3.INF ## what it lives on (its perch, its roost, its web, its flowers): where it rests
+	var far := -1 # (FarFauna's: its place among those drawn far off; -1 none)
 	var on_finished: Callable
 	var on_gone: Callable
 
 var space: Node3D ## the bodies' parent
 var height: Callable ## (x, z) -> the ground's y
 var walkable: Callable ## (x, z) -> whether one can stand there (not the sea, not a cliff); none: anywhere
+var water: Callable ## (x, z) -> Vector3 (the water's surface y there, its depth, 1 fresh / 0 salt); depth 0: none. None: no water anywhere
+## (kind, at, r) -> Array[Vector3]: the places of a kind within r of at
+## that an animal can live on: "perch" (a tree's top, a snag, a crag),
+## "roost" (under a limb, in a hollow), "flower" (flowers), "web" (stems
+## to spin between). None: anywhere will do.
+var sites: Callable
 ## Seeding (the land's animals put there as records, once, as the focus
 ## comes near; none: nothing's seeded): {density: Callable (key, x, z) ->
 ## how many to the square kilometre there, inner: m (nearer the focus than
@@ -97,6 +105,7 @@ var walkable: Callable ## (x, z) -> whether one can stand there (not the sea, no
 ## prime(): everything within outer now, inner or not (a game beginning,
 ## behind its loading screen).
 var seeding := {}
+var far: FarFauna ## those with no body drawn far off (for_world makes one; none: not drawn)
 var bounds := Rect2() ## where they keep to (x, z; none: anywhere)
 var focus := Vector3.INF ## bodies made within their rings of this (the space's); INF: none made, none freed
 var ring_scale := 1.0
@@ -143,9 +152,15 @@ func add(key: String, at: Vector3, male := false, young := false) -> Agent:
 	a.sp = sp
 	a.male = male
 	a.young = young
-	a.p0 = _on_ground(at)
+	a.p0 = _put(sp, at)
 	a.p1 = a.p0
 	a.home = a.p0
+	if String(sp.site) != "" and not young:
+		a.site = site_for(sp, a.p0)
+		if a.site != Vector3.INF:
+			a.home = _put(sp, a.site)
+			a.p0 = a.home
+			a.p1 = a.home
 	a.t0 = now
 	a.t1 = now
 	a.yaw = randf() * TAU
@@ -177,6 +192,8 @@ func remove(a: Agent) -> void:
 	if a.body:
 		_detach(a)
 	a.alive = false
+	if far:
+		far.release(a)
 	a.stamp += 1
 	agents.erase(a.id)
 	_unfile(a)
@@ -201,7 +218,7 @@ func _young(m: Agent, at: Vector3) -> Agent:
 	y.mother = m.id
 	y.slot = m.brood.size()
 	y.born_at = now
-	y.grow_at = now + float(m.sp.wean) / maxf(Fauna.life_rate, 0.001)
+	y.grow_at = now + Species.days(float(m.sp.wean_days))
 	y.hunger = 0.0
 	m.brood.append(y.id)
 	wake(y, minf(y.grow_at, now + 10.0))
@@ -254,25 +271,84 @@ func where(a: Agent) -> Vector3:
 	return a.p0.lerp(a.p1, (now - a.t0) / (a.t1 - a.t0))
 
 
-## Whether one can stand at p.
+## Whether one can stand at p (the land's: not the sea, not a cliff).
 func can_stand(p: Vector3) -> bool:
 	return not walkable.is_valid() or bool(walkable.call(p.x, p.z))
 
 
-## (As far toward `to` from `from` as the ground can be walked: a walk
-## never set across the sea, up a cliff.)
-func _reach(from: Vector3, to: Vector3) -> Vector3:
-	if not walkable.is_valid():
+## The water at p: Vector3 (its surface's y, its depth, 1 fresh / 0 salt); depth 0: none.
+func water_at(p: Vector3) -> Vector3:
+	return water.call(p.x, p.z) if water.is_valid() else Vector3.ZERO
+
+
+## Whether one of a kind (sp: its Species entry) can be at p: the land's on
+## land, the sea's in water deep enough (and not too deep) for it, fresh
+## water's in that, the shore's on land by water or in it.
+func can_be(sp: Dictionary, p: Vector3) -> bool:
+	if not water.is_valid(): # (no water told of: the sandbox's, each where it was put)
+		return can_stand(p)
+	var w := water_at(p)
+	match String(sp.medium):
+		"sea":
+			return w.y >= float(sp.depth) and w.y <= float(sp.max_depth) and w.z < 0.5
+		"fresh":
+			return w.y >= float(sp.depth) and w.y <= float(sp.max_depth) and (w.z > 0.5 or not water.is_valid())
+		"shore":
+			if w.y > 0.0:
+				return w.y < 3.0
+			if not can_stand(p):
+				return false
+			if not water.is_valid():
+				return true
+			for k in 6: # (water within a dozen metres)
+				var a := TAU * k / 6.0
+				if water_at(p + Vector3(cos(a), 0.0, sin(a)) * 12.0).y > 0.0:
+					return true
+			return false
+	return w.y <= 0.0 and can_stand(p)
+
+
+## (As far toward `to` from `from` as one of sp's kind can go: a walk never
+## set across the sea, a swim never up the beach. One that flies: there,
+## if it can be there.)
+func _reach(sp: Dictionary, from: Vector3, to: Vector3) -> Vector3:
+	if not walkable.is_valid() and not water.is_valid():
 		return to
+	if bool(sp.flies):
+		return to if can_be(sp, to) else from
 	var d := Vector2(to.x - from.x, to.z - from.z).length()
 	var n := clampi(int(ceilf(d / 6.0)), 1, 16)
 	var last := from
 	for k in range(1, n + 1):
 		var q := from.lerp(to, float(k) / n)
-		if not bool(walkable.call(q.x, q.z)):
+		if not can_be(sp, q):
 			return last
 		last = q
 	return to
+
+
+## p as one of sp's kind is there: within the bounds; on the ground, or in
+## the water (at its floor, or a little under its surface).
+func _put(sp: Dictionary, p: Vector3) -> Vector3:
+	p = _on_ground(p)
+	var w := water_at(p)
+	if w.y > 0.0 and String(sp.medium) != "land":
+		p.y = w.x - w.y if bool(sp.floor) else w.x - minf(w.y * 0.5, float(sp.len) * 0.6 + 0.3)
+	return p
+
+
+## The nearest place of the kind sp lives on, round at (INF: none there).
+func site_for(sp: Dictionary, at: Vector3) -> Vector3:
+	if not sites.is_valid() or String(sp.site) == "":
+		return Vector3.INF
+	var best := Vector3.INF
+	var bd := INF
+	for q: Vector3 in sites.call(String(sp.site), at, maxf(float(sp.range), 10.0)):
+		var d := q.distance_to(at)
+		if d < bd:
+			bd = d
+			best = q
+	return best
 
 
 func _on_ground(p: Vector3) -> Vector3:
@@ -429,11 +505,19 @@ func embody(a: Agent) -> bool:
 	if space == null or not a.alive:
 		return false
 	var p := where(a)
-	var c := Species.make(a.key, space, p, a.yaw, a.male, a.young, height)
+	if a.young and not bool(a.sp.young_body):
+		return false # (an insect's young: another thing; none shown)
+	if String(a.sp.site) != "" and not a.young: # (what's really there to live on, now it's near)
+		var st := site_for(a.sp, p)
+		if st != Vector3.INF:
+			a.site = st
+	var c := Species.make(a.key, space, p, a.yaw, a.male, a.young, {"height": height, "water": water, "site": a.site})
 	if c == null:
 		return false
 	a.p0 = p
 	a.p1 = p
+	if far:
+		far.release(a)
 	_attach(a, c)
 	a.doing = ""
 	wake(a, now + 0.1)
@@ -533,6 +617,8 @@ func _dead(a: Agent, by: Agent) -> void:
 		return
 	_detach(a)
 	a.alive = false
+	if far:
+		far.release(a)
 	a.stamp += 1
 	agents.erase(a.id)
 	_unfile(a)
@@ -559,19 +645,28 @@ func kill(a: Agent, by: Agent = null) -> void:
 # --- orders: the same with a body or none ----------------------------------------
 
 ## a to go to point (running: its fastest). Done: Brain.done(a, "go_to", ok).
-func go_to(a: Agent, point: Vector3, running := false) -> void:
-	point = _on_ground(_reach(where(a), point))
+func go_to(a: Agent, point: Vector3, running := false, exact := false) -> void:
+	var as_given := point
+	point = _put(a.sp, _reach(a.sp, where(a), point))
+	if exact and Vector2(point.x - as_given.x, point.z - as_given.z).length() < 0.01:
+		point = as_given # (its perch itself: up where it is)
 	a.held = false
 	a.doing = "go_to"
 	a.doing_name = "go_to"
 	if a.body:
 		a.issuing = true
-		a.body.go_to(point, a.body._p_speed() * (float(a.sp.run) / maxf(float(a.sp.walk), 0.01)) if running else -1.0)
+		# (one that flies, with a flight of its own: flown there, if it's any way off)
+		if bool(a.sp.flies) and a.body.behaviours().has("fly") and a.body.where().distance_to(point) > 2.5 and a.body.act("fly", {"at": point}):
+			a.doing_name = "fly"
+		else:
+			a.body.go_to(point, a.body._p_speed() * (float(a.sp.run) / maxf(float(a.sp.walk), 0.01)) if running else -1.0)
 		a.issuing = false
 		wake(a, now + 4.0) # (to look about as it goes)
 		return
 	var from := where(a)
 	var sp := float(a.sp.run if running else a.sp.walk)
+	if FarFauna._winged(a.sp) and from.distance_to(point) > 12.0: # (a bird going any way: flown)
+		sp = maxf(sp, float(a.sp.get("fly", 9.0)))
 	a.p0 = from
 	a.p1 = point
 	a.t0 = now
@@ -644,20 +739,57 @@ func halt(a: Agent) -> void:
 
 # --- the land seeded, round the focus ---------------------------------------------
 
-static func for_world(world: WorldData, holder: Node3D, seed_ := 1) -> FaunaSim:
-	## A FaunaSim for the game's land: its bodies under holder (a node under
-	## Origin.root, unmoved: its space the map's), the ground WorldData's,
-	## the sea and the cliffs kept off, the land seeded by each kind's
-	## density in its biome (Species.TABLE). To be added to the tree; each
-	## frame: focus = the player's place (the map's), daylight = 1 - night.
+static func for_world(world: WorldData, holder: Node3D, seed_ := 1, population: Node = null) -> FaunaSim:
+	## A FaunaSim for the game's land and its sea: its bodies under holder (a
+	## node under Origin.root, unmoved: its space the map's), the ground
+	## WorldData's (its floor under the sea, too), the water wherever the
+	## ground's under sea level (the swamps' fresh, the rest salt), each
+	## kind kept to its own (the land's off the sea and the cliffs; the
+	## sea's in water deep enough for it), the land and the sea seeded by
+	## each kind's density (Species.TABLE: by biome; "sea" the sea). What
+	## they live on: perches and roosts in the trees there (population's,
+	## where its trees are made: near the player; else up where a tree
+	## would stand, in the wooded biomes; on the rock elsewhere), flowers
+	## and webs anywhere on the land. To be added to the tree; each frame:
+	## focus = the player's place (the map's), daylight = 1 - night. Once:
+	## Fauna.day_secs = the game's day, in seconds.
 	var sim := FaunaSim.new()
 	sim.space = holder
 	sim.height = world.height_at
 	sim.walkable = func(x: float, z: float) -> bool:
 		var sf := world.surface_at(x, z) # (its height, its normal)
 		return sf.x > 0.3 and sf.z > 0.6
-	sim.seeding = {"density": func(key: String, x: float, z: float) -> float: return Species.density_in(key, world.biome_at(x, z)),
+	var swamp := world.swamp
+	sim.water = func(x: float, z: float) -> Vector3:
+		var h := world.height_at(x, z)
+		if h >= 0.0:
+			return Vector3.ZERO
+		return Vector3(0.0, -h, 1.0 if world.biome_index_at(x, z) == swamp and swamp >= 0 else 0.0)
+	sim.sites = func(kind: String, at: Vector3, r: float) -> Array:
+		var g := world.height_at(at.x, at.z)
+		if kind == "perch" or kind == "roost":
+			if population != null and population.has_method("climbs_near"):
+				var out := []
+				for c: Array in population.call("climbs_near", Vector3(at.x, g + 2.0, at.z), r):
+					var line: PackedFloat32Array = c[0]
+					var top := Vector3(line[0], line[1], line[2])
+					for k in range(0, line.size() - 3, 4):
+						if line[k + 1] > top.y:
+							top = Vector3(line[k], line[k + 1], line[k + 2])
+					out.append(top if kind == "perch" else top.lerp(Vector3(line[0], line[1], line[2]), 0.4))
+				if not out.is_empty():
+					return out
+			var wooded := world.biome_at(at.x, at.z) in ["forest", "taiga", "swamp"]
+			return [Vector3(at.x, g + (8.0 if wooded else 0.6), at.z)]
+		return [Vector3(at.x, g, at.z)]
+	sim.seeding = {"density": func(key: String, x: float, z: float) -> float:
+				var b := world.biome_at(x, z)
+				if world.height_at(x, z) < 0.0 and world.biome_index_at(x, z) != swamp:
+					b = "sea"
+				return Species.density_in(key, b),
 			"inner": 150.0, "outer": 420.0, "seed": seed_}
+	sim.far = FarFauna.new() # (those with no body, drawn far off)
+	sim.add_child(sim.far)
 	return sim
 
 
@@ -726,12 +858,12 @@ func _seed_cell(k: Vector2i) -> void:
 		var groups := int(want) + (1 if rng.randf() < want - int(want) else 0)
 		for g in groups:
 			var at := Vector3(x0 + rng.randf() * SEED_CELL, 0.0, z0 + rng.randf() * SEED_CELL)
-			if not can_stand(at):
+			if not can_be(sp, at):
 				continue
 			var n := rng.randi_range(2, 6) if bool(sp.herd) else 1
 			for i in n:
 				var p := at + Vector3(rng.randf_range(-1.0, 1.0), 0.0, rng.randf_range(-1.0, 1.0)) * float(sp.len) * 3.0 * (0.0 if n == 1 else 1.0)
-				if can_stand(p):
+				if can_be(sp, p):
 					add(key, p, rng.randf() < 0.5)
 
 
@@ -749,7 +881,7 @@ func to_dict() -> Dictionary:
 				"home": [a.home.x, a.home.y, a.home.z], "hunger": a.hunger, "tired": a.tired,
 				"carrying": maxf(a.pregnant_until - now, 0.001) if a.pregnant_until > 0.0 else 0.0, "sire": a.sire,
 				"bred": now - a.bred_at, "mother": a.mother, "brood": a.brood.duplicate(), "age": now - a.born_at,
-				"grows": maxf(a.grow_at - now, 0.0), "slot": a.slot})
+				"grows": maxf(a.grow_at - now, 0.0), "slot": a.slot, "site": [a.site.x, a.site.y, a.site.z] if a.site != Vector3.INF else []})
 	var cells := []
 	for k: Vector2i in seeded:
 		cells.append([k.x, k.y])
@@ -798,6 +930,8 @@ func from_dict(d: Dictionary) -> void:
 		a.born_at = now - float(e.get("age", 0.0))
 		a.grow_at = now + float(e.get("grows", 0.0))
 		a.slot = int(e.get("slot", 0))
+		var st: Array = e.get("site", [])
+		a.site = Vector3(st[0], st[1], st[2]) if st.size() == 3 else Vector3.INF
 		if a.young:
 			wake(a, minf(a.grow_at, now + 10.0))
 	_next = int(d.get("next", 1))

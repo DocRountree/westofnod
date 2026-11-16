@@ -26,6 +26,12 @@ static var _listeners: Array[Callable] = []
 ## as fast as their own figures (the sandbox's: quick to watch).
 static var life_rate := 1.0
 
+## A day, in seconds: what the kinds' life cycles are counted in (Species:
+## a mammal carries her young two days, they're young four; an arthropod's
+## one and one). The sandbox's: 75 s (quick to watch). The game's: its own
+## day (GameClock: (day_minutes + night_minutes) * 60).
+static var day_secs := 75.0
+
 ## Pacing (pace()): bodies within near of the focus every frame, to far
 ## every mid-th, beyond every far_every-th.
 static var pace_near := 40.0

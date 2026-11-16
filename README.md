@@ -1158,6 +1158,16 @@ Ambushing,
     lies 150 to 420 m from the focus; `prime()` for the start), `to_dict()` / `from_dict()`, `walkable`.
     `Species.register()`; in the table now, the ground birds too (robin, blackbird, cardinal, jay, pigeon,
     goose). Tested on the game's own land, headless.
+  - Since: every kind that can be one animal has a brain (`Species.TABLE`: 71 kinds). `medium` (land, sea, fresh,
+    shore; `depth`, `max_depth`, `floor`): each keeps to its own, a body in water told its surface, floor and
+    reach (`FaunaSim.water`, `can_be`); `site` (perch, roost, flower, web: `FaunaSim.sites`): what it lives on,
+    rested at and gone back to, flown to by one that flies. A school of fish is one record (`school_body.gd`,
+    `SchoolBody`). Lives are counted in the game's days (`Fauna.day_secs`; `Species.CLASS_DAYS`: a mammal
+    carries 2 days, its young are young 4; an arthropod 1 and 1; the sandbox's day 75 s). `far_fauna.gd`
+    (`FarFauna`): those with no body drawn far off, a MultiMesh a kind, its shape its own body's as it stands
+    (`bake`), a bird going any way on the wing (`shaders/render/far_bird.gdshader`); none under 20 cm, no
+    arthropod. Every kind's body made through `Species.make` and left to run, every kind run as a record
+    alone in a made-up land with a sea, a pond and trees, the sea seeded off the game's own shore: headless.
   - Records, bodies and brains (`scripts/creatures/species.gd`, `fauna_sim.gd`, `brain.gd`; in the sandbox: the
     Minds box, I; not in the game yet):
     - `Species.TABLE`: what's known of a kind apart from its body (its script, what it's called as food, its
