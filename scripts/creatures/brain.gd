@@ -75,6 +75,10 @@ static func threat(sim: FaunaSim, a: FaunaSim.Agent) -> FaunaSim.Agent:
 
 
 static func think(sim: FaunaSim, a: FaunaSim.Agent) -> void:
+	if a.sp.has("swarm"): # (a colony, a band, a pool: it does as it does; only its record's kept)
+		a.state = &"swarm"
+		sim.wake(a, sim.now + 60.0)
+		return
 	_drives(sim, a)
 	# its reflex: what hunts it, near
 	var th := threat(sim, a)
@@ -379,7 +383,7 @@ static func _idle(sim: FaunaSim, a: FaunaSim.Agent) -> void:
 ## Whether she'd mate now: grown, not carrying, none at her side, long
 ## enough since her last, not too many of her kind about her.
 static func _receptive(sim: FaunaSim, f: FaunaSim.Agent) -> bool:
-	if f.male or f.young or not f.alive or f.pregnant_until > 0.0 or not f.brood.is_empty() or f.state == &"flee" or f.state == &"mated":
+	if f.sp.has("swarm") or f.male or f.young or not f.alive or f.pregnant_until > 0.0 or not f.brood.is_empty() or f.state == &"flee" or f.state == &"mated":
 		return false
 	if sim.now - f.bred_at < Species.days(float(f.sp.gap_days)):
 		return false
@@ -393,7 +397,7 @@ static func _receptive(sim: FaunaSim, f: FaunaSim.Agent) -> bool:
 ## A male, fed and rested, now and then: to a female of his kind near who'd
 ## have him. True: he's on his way.
 static func _breed(sim: FaunaSim, a: FaunaSim.Agent) -> bool:
-	if not a.male or a.young or a.hunger > 0.5 or a.tired > 0.6 or randf() > 0.35:
+	if a.sp.has("swarm") or not a.male or a.young or a.hunger > 0.5 or a.tired > 0.6 or randf() > 0.35:
 		return false
 	var p := sim.where(a)
 	var best: FaunaSim.Agent = null
@@ -465,6 +469,12 @@ static func _birth(sim: FaunaSim, a: FaunaSim.Agent) -> void:
 static func young(sim: FaunaSim, a: FaunaSim.Agent) -> void:
 	if sim.now >= a.grow_at:
 		sim.grow_up(a)
+		return
+	if a.sp.has("larva"): # (its egg, its caterpillar, its chrysalis: each in its time)
+		sim.restage(a)
+		var span := a.grow_at - a.born_at
+		var next := a.born_at + span * (0.2 if a.stage == "egg" else (0.7 if a.stage == "larva" else 1.0))
+		sim.wake(a, minf(maxf(next, sim.now + 0.2), sim.now + 10.0))
 		return
 	if a.mother != 0 and not sim.agents.has(a.mother):
 		if sim.now - a.born_at < (a.grow_at - a.born_at) * 0.5:

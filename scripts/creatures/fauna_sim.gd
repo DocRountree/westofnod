@@ -83,6 +83,8 @@ class Agent:
 	var slot := 0 # (a young one's place by its mother, with no body)
 	var site := Vector3.INF ## what it lives on (its perch, its roost, its web, its flowers): where it rests
 	var far := -1 # (FarFauna's: its place among those drawn far off; -1 none)
+	var prop: Node3D ## a young insect's still thing, in place of a body: its egg, its chrysalis
+	var stage := "" ## a young insect's: "egg", "larva", "pupa" (Species' "larva")
 	var on_finished: Callable
 	var on_gone: Callable
 
@@ -189,6 +191,8 @@ func adopt(c: Creature) -> Agent:
 
 
 func remove(a: Agent) -> void:
+	if a.prop != null:
+		_unbody(a)
 	if a.body:
 		_detach(a)
 	a.alive = false
@@ -215,15 +219,58 @@ func bear(m: Agent, n: int) -> void:
 
 func _young(m: Agent, at: Vector3) -> Agent:
 	var y := add(m.key, at, randf() < 0.5, true)
-	y.mother = m.id
-	y.slot = m.brood.size()
 	y.born_at = now
 	y.grow_at = now + Species.days(float(m.sp.wean_days))
 	y.hunger = 0.0
-	m.brood.append(y.id)
+	if String(m.sp["class"]) == "arthropod": # (an insect's, a spider's: laid and left, on their own from the first)
+		y.stage = stage_of(y)
+	else:
+		y.mother = m.id
+		y.slot = m.brood.size()
+		m.brood.append(y.id)
 	wake(y, minf(y.grow_at, now + 10.0))
 	born.emit(y, m)
 	return y
+
+
+## A young insect's stage now, by how far through its youth it is: its
+## egg (the first fifth), its caterpillar (to seven tenths), its chrysalis
+## or cocoon. "": a kind with no such stages.
+func stage_of(a: Agent) -> String:
+	if not a.young or not a.sp.has("larva"):
+		return ""
+	var f := (now - a.born_at) / maxf(a.grow_at - a.born_at, 0.001)
+	return "egg" if f < 0.2 else ("larva" if f < 0.7 else "pupa")
+
+
+## (A young insect come to its next stage: what's there for it changed, if
+## anything's there.)
+func restage(a: Agent) -> void:
+	var st := stage_of(a)
+	if st == a.stage:
+		return
+	a.stage = st
+	var had := a.body != null or a.prop != null
+	var p := where(a)
+	_unbody(a)
+	a.p0 = p
+	a.p1 = p
+	a.t1 = now
+	if had:
+		embody(a)
+
+
+## (Whatever a has in the world freed: its body, its still thing.)
+func _unbody(a: Agent) -> void:
+	if a.body:
+		var c := a.body
+		_detach(a)
+		if is_instance_valid(c):
+			c.queue_free()
+	if a.prop != null:
+		if is_instance_valid(a.prop):
+			a.prop.queue_free()
+		a.prop = null
 
 
 ## A young one grown: its own from now (its body, if it has one, a grown one's).
@@ -240,11 +287,10 @@ func grow_up(a: Agent) -> void:
 	a.t1 = now
 	a.hunger = 0.4
 	_hunters.clear()
-	if a.body:
-		var old := a.body
+	a.stage = ""
+	if a.body or a.prop != null:
 		var kept := a.kept
-		_detach(a)
-		old.queue_free()
+		_unbody(a)
 		a.kept = false
 		if not embody(a):
 			a.kept = kept
@@ -491,7 +537,10 @@ func _tiers() -> void:
 		var p := where(a)
 		var d := Vector2(p.x - focus.x, p.z - focus.z).length()
 		var r := ring(a)
-		if a.body == null:
+		if a.prop != null:
+			if d > r * RING_OUT:
+				_unbody(a)
+		elif a.body == null:
 			if d < r and not made:
 				made = embody(a)
 		elif not a.kept and d > r * RING_OUT and now > a.pinned:
@@ -505,8 +554,12 @@ func embody(a: Agent) -> bool:
 	if space == null or not a.alive:
 		return false
 	var p := where(a)
+	if a.prop != null:
+		return true
 	if a.young and not bool(a.sp.young_body):
-		return false # (an insect's young: another thing; none shown)
+		return false # (a wasp's young, a bee's: in their comb; none shown)
+	if a.young and a.sp.has("larva"): # (a butterfly's, a moth's: its egg, its caterpillar, its chrysalis)
+		return _embody_stage(a)
 	if String(a.sp.site) != "" and not a.young: # (what's really there to live on, now it's near)
 		var st := site_for(a.sp, p)
 		if st != Vector3.INF:
@@ -528,6 +581,35 @@ func embody(a: Agent) -> bool:
 		var y: Agent = agents.get(id)
 		if y != null and y.body == null:
 			embody(y)
+	return true
+
+
+func _embody_stage(a: Agent) -> bool:
+	var kind := String(a.sp.larva)
+	var p := where(a)
+	a.stage = stage_of(a)
+	if a.stage == "larva":
+		var lv: Creature = (load("res://scripts/creatures/larva.gd") as GDScript).new(kind)
+		if height.is_valid():
+			lv.set("height", height)
+		space.add_child(lv)
+		lv.call("place", p, Vector3(-sin(a.yaw), 0.0, -cos(a.yaw)))
+		_attach(a, lv)
+		return true
+	var n: Node3D = null
+	if a.stage == "egg":
+		var ES: GDScript = load("res://scripts/creatures/egg.gd")
+		if (ES.get("EGGS") as Dictionary).has(kind):
+			n = ES.new(kind)
+	else:
+		n = (load("res://scripts/creatures/pupa.gd") as GDScript).new(kind)
+	if n == null:
+		return false
+	space.add_child(n)
+	n.position = p
+	n.rotation.y = a.yaw
+	n.set_process(false) # (its time's the record's: it hatches, it emerges, when its stage is up)
+	a.prop = n
 	return true
 
 
@@ -616,6 +698,8 @@ func _dead(a: Agent, by: Agent) -> void:
 	if not a.alive:
 		return
 	_detach(a)
+	if a.prop != null:
+		_unbody(a)
 	a.alive = false
 	if far:
 		far.release(a)

@@ -49,7 +49,7 @@ fauna.from_dict(d["fauna"])
   hours. `Fauna.life_rate` scales them all, and hunger and tiredness with them. (Hunger, sleep and the rest
   are still in seconds: a deer hungry again in six minutes.)
 
-## What's in `Species.TABLE` (71 kinds, each with a brain, with a body or without)
+## What's in `Species.TABLE` (96 kinds, each a record with a body or without)
 
 - The land's: deer, moose, bison, wolf, coyote, fox, bobcat, both bears, hare, mouse, both squirrels, opossum,
   porcupine, armadillo; turkey, robin, blackbird, cardinal, jay, pigeon, goose; rattlesnake, milk snake, anole,
@@ -65,19 +65,26 @@ fauna.from_dict(d["fauna"])
   the heron, the dragonfly. A school is one record, its body a `SchoolBody` (a `FishSchool` steered as one
   animal: `go_to`, `feed`, `flee`); what hunts it takes a fish of it, not it.
 
+- The rest with bodies of their own: the three dogs (no density: put there, not seeded), the box turtle, the
+  blue-winged grasshopper, the fishing and grass spiders, the ichneumon and trigonalid wasps, the cecropia
+  and polyphemus moths, the white, brown and pink shrimp.
+- The swarms, each one record, its body a `SwarmBody` (the colony, the band, the pool itself under it, made
+  when it's near as any body is, freed when it's far): carpenter and harvester ant colonies (left to find
+  their own food: `auto_forage`), June and lady beetles, fireflies, grass snails and tigersnails, deer and
+  lone star ticks, krill, mollies. A swarm isn't steered and has no brain to speak of: it does as it does.
+  It doesn't breed and isn't hunted as a record (what eats of it does so from its body, as in the sandbox).
+
 `Species.register(key, entry)` adds another, or changes one's figures (its `density` by biome, above all).
 
-## Not in the table, and why
+## Young
 
-- The swarms (ants, beetles, snails, ticks, fireflies, krill, mollies, shrimp): not records, one node each. An
-  ant colony left to itself: `auto_forage = true`. They're paced with everything else (`Fauna.swarm_dt`);
-  nothing seeds them yet.
-- The dogs, the box turtle, the differential and blue-winged grasshoppers, the fishing and grass spiders, the
-  ichneumon and trigonalid wasps, the cecropia and polyphemus moths, the sea's shrimp: bodies that would take
-  an entry as they are (`Species.register`); not given one.
-- Young as their own things: an insect's eggs, larvae and pupae, a frog's tadpoles, a bird's eggs in its nest
-  aren't made by a brain (a brain's young are records by their mother, with her kind's young body where it
-  has one; an insect's have none till they're grown).
+- A mammal's, a bird's, a reptile's, a fish's: records by their mother, her kind's young body by hers.
+- A spider's, a grasshopper's, a mantis's, a scorpion's, a pill bug's, a dragonfly's: laid and left, on their
+  own from the first (not at her side, so she may breed again after her gap), their kind's own young body.
+- A butterfly's or a moth's (`larva`): laid and left; near the player, its egg for the first fifth of its
+  youth, then its caterpillar (a `Larva`, going about and feeding as it does), then, from seven tenths, its
+  chrysalis or cocoon, then the grown one in its place (`FaunaSim.stage_of`, `restage`).
+- A wasp's, a bee's: records with nothing to show (their grubs are in a comb, and there's no comb).
 
 ## Known limits
 
@@ -98,4 +105,9 @@ fauna.from_dict(d["fauna"])
 - Nothing checks a body's way for trees or rocks beyond what each walker already does.
 - Brains don't yet: migrate, den, cache, defend a territory, build (a nest, a web, a lodge), or care for
   young beyond keeping them by their mother.
+- An egg and a chrysalis are put on the ground where they were laid, not on a leaf or a stem; a bird's eggs
+  and its nest aren't made (its young are by her from the first); a frog's young is its tadpole only where
+  there's water for it.
+- A swarm's numbers don't change (no founding of colonies, no dying out), and its members aren't kept
+  between one making of its body and the next (a colony's ants start again about their nest).
 - The densities are first guesses, to be tuned in play.

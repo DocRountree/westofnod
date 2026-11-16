@@ -1168,6 +1168,11 @@ Ambushing,
     (`bake`), a bird going any way on the wing (`shaders/render/far_bird.gdshader`); none under 20 cm, no
     arthropod. Every kind's body made through `Species.make` and left to run, every kind run as a record
     alone in a made-up land with a sea, a pond and trees, the sea seeded off the game's own shore: headless.
+  - Since: 96 kinds. The rest with bodies (the dogs, the box turtle, more spiders, wasps, moths, the shrimp);
+    the swarms as records (`swarm_body.gd`, `SwarmBody`: a colony, a band, a pool as one record, its own node
+    under it when it's near; not steered, not bred; ant colonies there find their own food); an insect's young
+    laid and left (not at their mother's side); a butterfly's or a moth's through its stages near the player
+    (its egg, its caterpillar, its chrysalis, then the grown one: `Species`' `larva`, `FaunaSim.stage_of`).
   - Records, bodies and brains (`scripts/creatures/species.gd`, `fauna_sim.gd`, `brain.gd`; in the sandbox: the
     Minds box, I; not in the game yet):
     - `Species.TABLE`: what's known of a kind apart from its body (its script, what it's called as food, its
