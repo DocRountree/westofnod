@@ -221,11 +221,13 @@ vec3 biome_ground_face(int b, Shared s, out float rough, out float rocky, out fl
 		rough = mix(rough, 0.85, mud); // (matte: damp, not shiny)
 		litter *= 1.0 - mud;
 		float moss = forest_moss(s, litter);                                    // moss, in cushions, where the litter's thin
-		ground = mix(ground, mix(vec3(0.16, 0.23, 0.06), vec3(0.24, 0.31, 0.08), s.fine3), moss);
+		ground = mix(ground, mix(vec3(0.14, 0.19, 0.06), vec3(0.2, 0.26, 0.08), s.fine3), moss);
 		litter *= 1.0 - moss;
 		vec3 herb_green;
 		float herbs = forest_herbs(s.p, s.fp > 0.4, herb_green) * (1.0 - mud);              // the herbs' and ferns' green, where they grow
-		ground = mix(ground, herb_green, herbs);
+		// (as the ground under them reads from a step or two off: their green
+		// darkened by their own shade, toward the forest's olive; not all of it)
+		ground = mix(ground, herb_green * vec3(0.66, 0.66, 0.6), herbs * 0.7);
 		litter *= 1.0 - herbs;
 		ground = mix(ground, vec3(0.11, 0.09, 0.06), clump(s, 0.06) * 0.35);       // damp hollows
 		ground *= 0.9 + 0.2 * s.fine3;
