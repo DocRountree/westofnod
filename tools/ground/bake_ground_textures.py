@@ -180,10 +180,15 @@ def broad_frond(w=256, h=1024, ss=3):
             p0 = at + np.array([0.0, sgn * H * 0.01])
             dd = np.array([sgn * 1.0, -0.22 - 0.3 * t])
             pinna(p0, dd, length, width)
-    rw = int(W * 0.048)  # (a stout rachis)
-    dm.line([tuple(base), tuple(tip)], fill=255, width=rw)
-    dc.line([tuple(base), tuple(tip)], fill=c(rib * 0.92), width=rw)
-    dc.line([tuple(base + np.array([rw * 0.22, 0.0])), tuple(tip + np.array([rw * 0.22, 0.0]))], fill=c(rib * 0.75), width=max(rw // 3, 1))  # (its groove, a shade darker)
+    # a stout rachis, tapering from its foot to a fine tip; its groove a shade darker, tapering with it
+    rw0, rw1 = W * 0.052, W * 0.01
+    def taper(k, off=0.0):
+        left = [tuple(base + (tip - base) * t + np.array([-0.5 * (rw0 + (rw1 - rw0) * t) * k + off * (rw0 + (rw1 - rw0) * t), 0.0])) for t in np.linspace(0.0, 1.0, 24)]
+        right = [tuple(base + (tip - base) * t + np.array([0.5 * (rw0 + (rw1 - rw0) * t) * k + off * (rw0 + (rw1 - rw0) * t), 0.0])) for t in np.linspace(1.0, 0.0, 24)]
+        return left + right
+    dm.polygon(taper(1.0), fill=255)
+    dc.polygon(taper(1.0), fill=c(rib * 0.92))
+    dc.polygon(taper(0.3, 0.22), fill=c(rib * 0.75))
     m = np.asarray(mask.resize((w, h), Image.LANCZOS), dtype=np.float32) / 255.0
     cw = np.asarray(col, np.float32) * (np.asarray(mask, np.float32)[..., None] / 255)
     cw = np.asarray(Image.fromarray(cw.clip(0, 255).astype(np.uint8)).resize((w, h), Image.LANCZOS), np.float32)
