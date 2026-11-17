@@ -33,6 +33,7 @@ const KINDS := {
 	"milkweed": {"name": "Milkweed", "stack": 16, "shape": "flower", "size": Vector3(0.05, 0.6, 1.0), "color": Color(0.86, 0.56, 0.66), "disc": Color(0.93, 0.78, 0.82), "heads": 2},
 	"swamp_milkweed": {"name": "Milkweed", "stack": 16, "shape": "flower", "size": Vector3(0.035, 0.55, 1.0), "color": Color(0.85, 0.3, 0.5), "disc": Color(0.95, 0.8, 0.86), "heads": 3},
 	"tobacco": {"name": "Baccy", "stack": 16, "shape": "flower", "size": Vector3(0.024, 0.55, 1.0), "color": Color(0.97, 0.97, 0.94), "disc": Color(0.82, 0.86, 0.7), "heads": 3},
+	"thistle": {"name": "Thistle", "stack": 16, "shape": "flower", "size": Vector3(0.035, 0.6, 1.0), "color": Color(0.66, 0.3, 0.72), "disc": Color(0.34, 0.4, 0.2), "heads": 3},
 	"yampah": {"name": "Yampah", "stack": 16, "shape": "flower", "size": Vector3(0.04, 0.6, 1.0), "color": Color(0.95, 0.95, 0.9), "disc": Color(0.85, 0.86, 0.72), "heads": 3},
 	# a pot to catch sap in (Tapping: under a maple's notch), and full
 	"clay_pot": {"name": "Pot", "stack": 4, "shape": "pot", "size": Vector3(0.15, 0.15, 0.15), "color": Color(0.66, 0.38, 0.24)},

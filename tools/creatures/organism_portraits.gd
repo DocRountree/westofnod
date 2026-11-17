@@ -72,7 +72,7 @@ func _go(demo: Node3D) -> void:
 				for v in (ps as PackedVector3Array): m += v
 				c = (n as Node3D).to_global(m / float((ps as PackedVector3Array).size()))
 			c += Vector3(0, 0.15 * r, 0)
-		elif key in ["milkweed", "swamp_milkweed", "coneflower", "susan", "fleabane", "aster", "yampah", "nettle", "tobacco"]:
+		elif key in ["milkweed", "swamp_milkweed", "coneflower", "susan", "fleabane", "aster", "yampah", "nettle", "tobacco", "thistle"]:
 			c = box.position + Vector3(box.size.x * 0.5, box.size.y * 0.7, box.size.z * 0.5)
 			r = maxf(box.size.y * 0.32, 0.08)
 		var f := Vector3(0, 0, -1)

@@ -138,6 +138,22 @@ const LAYERS := [
 			"petal_color": Vector3(0.78, 0.42, 0.62), "petal_base": Vector3(0.62, 0.22, 0.42), "petal_alt": Vector3(0.86, 0.6, 0.76), "petal_alt_share": 0.25,
 			"disc_color": Vector3(0.42, 0.2, 0.06), "head_size": 0.09, "head_px": Vector2(3.0, 6.0),
 			"fade_out": Vector2(28.0, 38.0), "thin_from": 22.0}},
+	# tall thistle (Cirsium altissimum): the prairie's, in loose drifts, head
+	# high; picked as "thistle"
+	{"cell": 2.5, "cells": 10, "tiles": 7, "flowers": "thistle", "stems": 1, "radius": 0.1,
+		"u": {"kind": 2, "seed": 27, "in_forest": false, "cover": 0.55, "drift": Vector3(24.0, 0.35, -12.1),
+			"forest_height": Vector2(0.9, 1.2), "prairie_height": Vector2(1.35, 1.85),
+			"prairie_green": Vector3(0.22, 0.31, 0.12), "prairie_blonde": Vector3(0.3, 0.36, 0.16),
+			"petal_color": Vector3(0.66, 0.3, 0.72), "petal_base": Vector3(0.55, 0.2, 0.58), "petal_alt": Vector3(0.76, 0.46, 0.82), "petal_alt_share": 0.25,
+			"disc_color": Vector3(0.34, 0.4, 0.2), "head_size": 0.035, "head_px": Vector2(3.0, 6.0),
+			"fade_out": Vector2(30.0, 40.0), "thin_from": 22.0}},
+	# and sparsely in the forest, here and there, shorter
+	{"cell": 3.0, "cells": 8, "tiles": 5, "flowers": "thistle", "stems": 1, "radius": 0.1,
+		"u": {"kind": 2, "seed": 28, "in_prairie": false, "on_litter": true, "cover": 0.1,
+			"forest_height": Vector2(0.9, 1.25), "prairie_height": Vector2(0.9, 1.25), "forest_green": Vector3(0.22, 0.32, 0.12),
+			"petal_color": Vector3(0.66, 0.3, 0.72), "petal_base": Vector3(0.55, 0.2, 0.58), "petal_alt": Vector3(0.76, 0.46, 0.82), "petal_alt_share": 0.25,
+			"disc_color": Vector3(0.34, 0.4, 0.2), "head_size": 0.035, "head_px": Vector2(3.0, 6.0),
+			"fade_out": Vector2(24.0, 32.0), "thin_from": 18.0}},
 	# yampah, in the prairie and in the forest's clearings: white umbels
 	{"cell": 2.0, "cells": 12, "tiles": 7, "flowers": "yampah", "stems": 3, "radius": 0.2,
 		"u": {"kind": 2, "seed": 13, "cover": 0.55, "drift": Vector3(20.0, 0.4, 5.9),
@@ -1293,6 +1309,43 @@ static func flower_mesh(kind: String, stems: int, radius: float, seed: int, leav
 					strip.call(root, [at, pt], [0.0009, 0.0008], Vector3(-ld.y, 0.0, ld.x), Vector3(ld.x, 0.6, ld.y).normalized(), shade, 0.0)
 				leaf.call(root, pt, ld, ll, OVATE, 0.019 * lerpf(1.0, 0.7, f), 0.12, 0.2, HC, ls)
 			skip[0] = false
+			continue
+		if kind == "thistle":
+			# tall thistle (Cirsium altissimum): a stout stem, branching above
+			# into a few stalks, each ending in a head: an urn of green,
+			# spine-tipped bracts and on it a brush of purple florets; its
+			# leaves alternate up the stem, long, deeply cut into spiny
+			# lobes, the lower bigger, drooping
+			strip.call(root, [Vector3.ZERO, top * 0.45, top * 0.72], [0.008, 0.007, 0.0055], side, n, shade, 0.0)
+			for k in 9:
+				var f := float(k) / 8.0
+				var at := top * (0.08 + 0.6 * f)
+				var ta := face + k * 2.4
+				var ld := Vector2(cos(ta), sin(ta))
+				var ll := lerpf(0.26, 0.1, f) / H
+				var pts := []
+				var halfs := []
+				for q in 9: # (lobes and notches along it, a spine at each lobe)
+					var t := float(q) / 8.0
+					pts.append(at + Vector3(ld.x * ll * t, ll * (0.25 * t - 0.45 * t * t), ld.y * ll * t))
+					var wide := lerpf(0.032, 0.012, f) * sin(PI * minf(t * 1.1 + 0.05, 1.0))
+					halfs.append(maxf(wide * (1.0 if q % 2 == 1 else 0.35), 0.0008))
+				strip.call(root, pts, halfs, Vector3(-ld.y, 0.0, ld.x), Vector3(ld.x * 0.3, 1.0, ld.y * 0.3).normalized(), shade * 0.9, 0.0)
+			var fork := top * 0.72
+			for h in rng.randi_range(3, 5):
+				var ha := face + TAU * (h + rng.randf_range(-0.2, 0.2)) / 4.0
+				var reach := rng.randf_range(0.03, 0.09) if h > 0 else 0.0
+				var c := fork + Vector3(cos(ha) * reach, rng.randf_range(0.2, 0.28) * tall, sin(ha) * reach)
+				strip.call(root, [fork, (fork + c) * 0.5 + Vector3(cos(ha), 0.0, sin(ha)) * 0.01, c], [0.004, 0.0035, 0.003], side, n, shade, 0.0)
+				var up := (Vector3.UP + Vector3(cos(ha), 0.0, sin(ha)) * reach * 2.0).normalized()
+				for b2 in 8: # (its urn: bracts round it, swelling, closing at its mouth)
+					var ba := TAU * b2 / 8.0
+					var bo := (up.cross(Vector3.FORWARD).normalized() * cos(ba) + up.cross(Vector3.FORWARD).normalized().cross(up) * sin(ba))
+					var p0 := c - up * (0.028 / H)
+					var p1 := c - up * (0.015 / H) + bo * (0.015 / H)
+					var p2 := c + bo * (0.01 / H)
+					strip.call(root, [p0, p1, p2], [0.004, 0.009, 0.0025], up.cross(bo).normalized(), bo, shade * 0.8, 0.0)
+				head.call(root, c, up - Vector3.UP, 28, 0.005, 0.016, 0.0032, -0.026, 0.005, rng.randf()) # (its florets: a brush, up and out)
 			continue
 		# a leaf low down
 		var la := rng.randf() * TAU

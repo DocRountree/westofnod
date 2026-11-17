@@ -157,6 +157,7 @@ const CATALOGUE := [
 	["Plants", "yampah", "yampah", ["adult"]],
 	["Plants", "nettle", "nettle", ["adult"]],
 	["Plants", "baccy (wild tobacco)", "tobacco", ["adult"]],
+	["Plants", "tall thistle (purple heads)", "thistle", ["adult"]],
 	["Features", "puddle (5 cm)", "puddle", ["adult"]],
 	["Features", "small pond (20 cm)", "small_pond", ["adult"]],
 	["Features", "pond (45 cm)", "pond", ["adult"]],
@@ -668,7 +669,7 @@ func spawn(key: String, at: Vector3, stage := "adult", male := false) -> Node:
 	var young := stage == "young"
 	var n: Node = null
 	match key:
-		"milkweed", "swamp_milkweed", "coneflower", "susan", "fleabane", "aster", "yampah", "nettle", "tobacco":
+		"milkweed", "swamp_milkweed", "coneflower", "susan", "fleabane", "aster", "yampah", "nettle", "tobacco", "thistle":
 			n = _plant_flowers(key, at)
 		"puddle", "small_pond", "pond", "large_pond", "sea":
 			var d: Array = PONDS[key]
@@ -743,7 +744,7 @@ func set_minds(on: bool) -> void:
 
 
 func _plant_flowers(kind: String, at: Vector3) -> Node3D:
-	var tall := {"milkweed": 1.0, "swamp_milkweed": 0.95, "coneflower": 0.7, "susan": 0.7, "fleabane": 0.5, "aster": 0.6, "yampah": 0.6, "nettle": 0.8, "tobacco": 0.9}
+	var tall := {"milkweed": 1.0, "swamp_milkweed": 0.95, "coneflower": 0.7, "susan": 0.7, "fleabane": 0.5, "aster": 0.6, "yampah": 0.6, "nettle": 0.8, "tobacco": 0.9, "thistle": 1.6}
 	var holder := Node3D.new()
 	add_child(holder)
 	# swaying in the wind as the game's do (the ground cover's grass_sway *
@@ -865,7 +866,7 @@ func _plant_near(p: Vector3, kinds: Array, r := 3.0, offset := Vector3(0.35, 0.0
 	return spawn(kinds[0], p + offset)
 
 
-const FLOWER_KINDS := ["milkweed", "swamp_milkweed", "coneflower", "susan", "fleabane", "aster", "yampah", "tobacco"]
+const FLOWER_KINDS := ["milkweed", "swamp_milkweed", "coneflower", "susan", "fleabane", "aster", "yampah", "tobacco", "thistle"]
 const FLOWER_SWAY := 0.3 ## (the ground cover's grass_sway: a flower's tip's, in its heights a metre of the wind)
 
 
