@@ -185,7 +185,22 @@ void vertex() {
 		if (kind == 1) { // (a tint on the frond's texture, halfway to the ground's colour)
 			tip_col = mix(vec3(COLOR.r), root_col / frond_mean, 0.5);
 		} else {
-			vec3 forest_tip = forest_green.x >= 0.0 ? forest_green * mix(0.8, 1.15, h2(c, 11)) : ground * vec3(1.12, 1.22, 1.05);
+			vec3 forest_tip = ground * vec3(1.12, 1.22, 1.05);
+			if (forest_green.x >= 0.0) {
+				// a herb's leaf: its own green, the clump lighter or darker,
+				// each leaf its own hue (COLOR.g: bluer .. yellower, about the
+				// green: its mean the green the ground carries far off), a few
+				// yellowing, a few browned; a stalk (0) as it is
+				forest_tip = forest_green * mix(0.85, 1.12, h2(c, 11));
+				float lv = COLOR.g;
+				if (lv > 0.005) {
+					forest_tip *= mix(vec3(0.9, 1.0, 1.14), vec3(1.12, 1.02, 0.84), lv);
+					if (lv > 0.96)
+						forest_tip = mix(forest_tip, vec3(0.45, 0.39, 0.15), 0.65); // (yellowing)
+					else if (lv < 0.04)
+						forest_tip = mix(forest_tip, vec3(0.31, 0.21, 0.11), 0.7); // (browned)
+				}
+			}
 			vec3 tip = mix(forest_tip, // forest: its own green, or the ground's a little lighter
 					mix(prairie_green, prairie_blonde, clamp(a.a / 255.0 + COLOR.g * 0.5 - 0.25, 0.0, 1.0)) * 0.85, // prairie
 					prairie);
