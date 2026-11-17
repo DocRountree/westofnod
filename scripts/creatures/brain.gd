@@ -352,7 +352,7 @@ static func _sleep(sim: FaunaSim, a: FaunaSim.Agent) -> void:
 static func _idle(sim: FaunaSim, a: FaunaSim.Agent) -> void:
 	if bool(a.sp.get("sessile", false)): # (one that stays where it is: at what it does there)
 		a.state = &"eat"
-		if not sim.act(a, "eat", float(a.sp.meal) * 2.0, {"centre": sim.where(a), "radius": 0.2}):
+		if not sim.act(a, "eat", float(a.sp.meal), {"centre": sim.where(a), "radius": 0.2}):
 			sim.halt(a)
 			sim.hold(a, "idle", 20.0)
 		return
@@ -421,7 +421,9 @@ static func _receptive(sim: FaunaSim, f: FaunaSim.Agent) -> bool:
 ## A male, fed and rested, now and then: to a female of his kind near who'd
 ## have him. True: he's on his way.
 static func _breed(sim: FaunaSim, a: FaunaSim.Agent) -> bool:
-	if a.sp.has("swarm") or not a.male or a.young or a.hunger > 0.5 or a.tired > 0.6 or randf() > 0.35:
+	if a.sp.has("swarm") or not a.male or a.young or a.hunger > 0.5 or a.tired > 0.6:
+		return false
+	if randf() > (0.8 if bool(a.sp.get("sessile", false)) else 0.35): # (one that stays where it is: less often between its chances)
 		return false
 	var p := sim.where(a)
 	var best: FaunaSim.Agent = null
