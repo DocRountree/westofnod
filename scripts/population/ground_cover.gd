@@ -199,31 +199,31 @@ const LAYERS := [
 	# mayapple (Podophyllum peltatum) in colonies, umbrella leaves knee-low;
 	# up through the leaf litter, as they come up in spring
 	{"cell": 0.42, "cells": 24, "tiles": 7, "flowers": "mayapple", "stems": 1, "radius": 0.1, "pick": false,
-		"u": {"kind": 2, "seed": 21, "in_prairie": false, "on_litter": true, "cover": 0.92, "drift": Vector3(16.0, 0.2, 4.4),
-			"forest_height": Vector2(0.3, 0.45), "prairie_height": Vector2(0.3, 0.45), "forest_green": Vector3(0.4, 0.5, 0.2),
+		"u": {"kind": 2, "seed": 21, "in_prairie": false, "on_litter": true, "cover": 0.92, "drift": Vector3(16.0, 0.32, 4.4),
+			"forest_height": Vector2(0.3, 0.45), "prairie_height": Vector2(0.3, 0.45), "forest_green": Vector3(0.3, 0.41, 0.14),
 			"petal_color": Vector3(0.97, 0.96, 0.92), "petal_base": Vector3(0.9, 0.9, 0.8), "petal_alt": Vector3(0.97, 0.96, 0.92),
 			"disc_color": Vector3(0.9, 0.85, 0.4), "head_size": 0.045, "head_px": Vector2(3.0, 6.0),
 			"fade_out": Vector2(24.0, 34.0), "thin_from": 15.0}},
 	# wild ginger (Asarum canadense): low clumps, broad dark hearts, in patches
 	{"cell": 0.35, "cells": 24, "tiles": 7, "flowers": "ginger", "stems": 1, "radius": 0.06, "pick": false,
-		"u": {"kind": 2, "seed": 22, "in_prairie": false, "on_litter": true, "cover": 0.85, "drift": Vector3(10.0, 0.16, -6.2),
+		"u": {"kind": 2, "seed": 22, "in_prairie": false, "on_litter": true, "cover": 0.85, "drift": Vector3(10.0, 0.32, -6.2),
 			"forest_height": Vector2(0.12, 0.17), "prairie_height": Vector2(0.12, 0.17), "forest_green": Vector3(0.2, 0.31, 0.1),
 			"fade_out": Vector2(16.0, 22.0), "thin_from": 10.0}},
 	# common blue violets (Viola sororia): rosettes, a few flowers each, scattered in loose drifts
 	{"cell": 0.5, "cells": 20, "tiles": 7, "flowers": "violet", "stems": 1, "radius": 0.08, "pick": false,
-		"u": {"kind": 2, "seed": 23, "in_prairie": false, "on_litter": true, "cover": 0.55, "drift": Vector3(12.0, 0.25, 2.8),
+		"u": {"kind": 2, "seed": 23, "in_prairie": false, "on_litter": true, "cover": 0.55, "drift": Vector3(12.0, 0.4, 2.8),
 			"forest_height": Vector2(0.1, 0.14), "prairie_height": Vector2(0.1, 0.14), "forest_green": Vector3(0.26, 0.4, 0.13),
 			"petal_color": Vector3(0.42, 0.28, 0.76), "petal_base": Vector3(0.9, 0.88, 0.94), "petal_alt": Vector3(0.5, 0.34, 0.8), "petal_alt_share": 0.2,
 			"disc_color": Vector3(0.95, 0.85, 0.3), "head_size": 0.02, "head_px": Vector2(2.5, 5.0),
 			"fade_out": Vector2(14.0, 20.0), "thin_from": 9.0}},
 	# wood sorrel (Oxalis): a carpet of trefoils where the litter's thin, in patches
 	{"cell": 0.2, "cells": 24, "tiles": 7, "flowers": "oxalis", "stems": 1, "radius": 0.05, "pick": false,
-		"u": {"kind": 2, "seed": 24, "in_prairie": false, "cover": 0.95, "drift": Vector3(9.0, 0.3, 7.7),
+		"u": {"kind": 2, "seed": 24, "in_prairie": false, "on_litter": true, "cover": 0.95, "drift": Vector3(9.0, 0.45, 7.7),
 			"forest_height": Vector2(0.055, 0.08), "prairie_height": Vector2(0.055, 0.08), "forest_green": Vector3(0.34, 0.48, 0.17),
 			"fade_out": Vector2(10.0, 15.0), "thin_from": 7.0}},
 	# trees' seedlings, a few here and there all through it, up through the litter
 	{"cell": 1.1, "cells": 14, "tiles": 5, "flowers": "seedling", "stems": 1, "radius": 0.05, "pick": false,
-		"u": {"kind": 2, "seed": 25, "in_prairie": false, "on_litter": true, "cover": 0.3,
+		"u": {"kind": 2, "seed": 25, "in_prairie": false, "on_litter": true, "cover": 0.45,
 			"forest_height": Vector2(0.12, 0.32), "prairie_height": Vector2(0.12, 0.32), "forest_green": Vector3(0.33, 0.45, 0.15),
 			"fade_out": Vector2(18.0, 26.0), "thin_from": 12.0}},
 	{"cell": 0.5, "cells": 24, "tiles": 9, "fronds": 8, "lods": [[14.0, 8, 2, 1.0]],

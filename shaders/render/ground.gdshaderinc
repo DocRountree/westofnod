@@ -135,7 +135,7 @@ float alpine_snow(int b, Shared s, float rock) {
 // leaf litter is thin (litter: how much is litter here), more in the
 // hollows; 0..1. (terrain.gdshader lays moss.png over it near the eye.)
 float forest_moss(Shared s, float litter) {
-	float m = clump(s, 0.3) * (1.0 - smoothstep(0.2, 0.6, litter));
+	float m = clump(s, 0.42) * (1.0 - smoothstep(0.35, 0.85, litter));
 	return m * (0.65 + 0.35 * smoothstep(-0.5, 2.5, s.cav)) * 0.85;
 }
 
