@@ -1224,6 +1224,8 @@ Ambushing,
     and brooding there while she carries (`broods`), dying when they hatch, he after he's mated (`semelparous`,
     `Agent.dies_at`). A slow walker's walk given time enough before it's given up; a wandering male may leave
     off to court; a wandering female near her time leaves off to give birth.
+  - Since: 103 kinds. The mallard (`Mallard`); the tall thistle in the ground cover (the prairie's, sparse in the
+    forest; picked as Thistle).
   - Since: 102 kinds. The clam alive (`Clam`: dug in, siphons up, shutting, burrowing, spawning, cracked and
     eaten by the otter, the octopus, the sea star, an empty shell left); the giant kelp a record (`plant`: no brain
     but to grow, its young sporophytes coming up about it, killed by urchins crowding its holdfast). `sessile`:
@@ -1590,6 +1592,20 @@ The male's back and crown glittering green (`bird.gdshader`'s `iridescence`: met
   set back, its feet webbed (`bird.gd`'s `web`).
 
 <p align="center"><img src="docs/organisms/goose.jpg" width="360" alt="Canada goose"><br><sub>Canada goose</sub></p>
+
+`mallard.gd` (`Mallard`, *Anas platyrhynchos*): 58 cm, 90 cm across, 1.2 kg; the goose's make (its water, its swimming
+and upending, its grazing on the bank, its nest, its young after their mother), its own body: smaller, its neck short,
+its head round, its bill broad and flat. The drake: his head glossy green (glossed blue and violet as the light turns), a
+white ring round his neck (`bird.gdshader`'s `hood_ring`), his breast chestnut, his flanks pale grey finely
+vermiculated, his rump and under his tail black, his tail white, his bill yellow, his legs orange. The hen: mottled
+brown, a dark line through her eye under a paler brow, her bill orange blotched dark. Both: the speculum, violet blue
+edged white before and after (`speculum`). Quacking (the hen's loud falling series, the drake's quiet raeb); springing
+straight up off the water, no run; his display after mating (head up, tail up); he leaves her the nest (no guarding);
+nine greenish buff eggs; the ducklings yellow below, dark brown above, a dark line through the eye (`down_back`), after
+her in a line. Hunted by foxes, coyotes, bobcats, great horned owls, bald eagles and peregrines; its ducklings by
+snapping turtles and herons too. In the sandbox under Birds (`mallard`: adult, juvenile, young).
+
+<p align="center"><img src="docs/organisms/mallard.jpg" width="360" alt="Mallard drake"><br><sub>Mallard drake</sub></p>
 
 Its head and neck black, a white chinstrap from under its chin up
   behind its eye (`chin_strap`), its back brown and scalloped pale, breast and flanks paler barred, white under and over

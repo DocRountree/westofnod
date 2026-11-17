@@ -64,6 +64,7 @@ const OWL_SCRIPTS := {
 	"hummingbird": preload("res://scripts/creatures/ruby_throated_hummingbird.gd"),
 }
 const GooseScript := preload("res://scripts/creatures/canada_goose.gd")
+const MallardScript := preload("res://scripts/creatures/mallard.gd")
 const HeronScript := preload("res://scripts/creatures/great_blue_heron.gd")
 const DeerTickScript := preload("res://scripts/creatures/blacklegged_ticks.gd")
 const LoneStarScript := preload("res://scripts/creatures/lone_star_ticks.gd")
@@ -246,6 +247,7 @@ const CATALOGUE := [
 	["Birds", "ruby-throated hummingbird (on a twig; E / H hovering at the flowers that are here, its bill in each, licking; or a small insect snapped up in the air; D a rival male chased off; K his pendulum dives and shuttle for her; young: a nestling, in its tiny cup)", "hummingbird", ["adult", "juvenile", "young"]],
 	["Birds", "great blue heron (with its shallow pond, mollies in it: wading, stalking, waiting, its strike; E / H fishing (a fish, a frog, a crayfish that's here), D its croak, X its threat (wings spread, plumes up), F off (neck folded, legs trailing), K courting (his stretch display), 1 her nest high in a tree, 2 hatch; young: a nestling, in the nest)", "heron", ["adult", "juvenile", "young"]],
 	["Birds", "Canada goose (on the bank of its pond, grazing; to the water and swimming, upending, drinking; E graze / swim, D honk, X its threat, F fly off, V the geese here off in a V skein, K courting on the water, 1 her nest on the bank, 2 hatch, N brood; young: a gosling, after its mother)", "goose", ["adult", "juvenile", "young"]],
+	["Birds", "mallard (drake: green head, white ring, chestnut breast; hen: mottled brown; both the blue speculum: on the bank of its pond, dabbling and upending in it; E graze / swim, D quack, X its threat, F up off the water, V a flock off together, K courting on the water, 1 her nest on the bank, 2 hatch; young: a duckling, after its mother)", "mallard", ["adult", "juvenile", "young"]],
 	["Birds", "barn owl (dozing by day, awake at dusk and by night: T; young: an owlet, in its nest)", "barn_owl", ["adult", "young"]],
 	["Birds", "great horned owl (dozing by day, awake at dusk and by night: T; young: an owlet, in its nest)", "horned_owl", ["adult", "young"]],
 	["Birds", "eastern screech owl (grey or rufous; dozing by day, awake at dusk and by night: T; young: an owlet, in its nest)", "screech_owl", ["adult", "young"]],
@@ -1704,8 +1706,9 @@ func _spawn_animal(key: String, at: Vector3, stage: String, male: bool, young: b
 			hn.place(at, randf() * TAU)
 			hn.call("forage")
 			return hn
-		"goose":
-			var g: CanadaGoose = GooseScript.new(young, stage == "juvenile")
+		"goose", "mallard":
+			var gsc: GDScript = MallardScript if key == "mallard" else GooseScript
+			var g: CanadaGoose = gsc.new(young, stage == "juvenile")
 			g.male = (male and not young) if not young else randf() < 0.5
 			g.height = _height
 			var gq := _pond_near(at, 6.0)
@@ -1718,7 +1721,7 @@ func _spawn_animal(key: String, at: Vector3, stage: String, male: bool, young: b
 			if young: # (a gosling: after its mother, if she's here)
 				var gm: CanadaGoose = null
 				for o in get_children():
-					if o is CanadaGoose and o != g and not o.male and not o.young and not o.dead and (o as Node3D).position.distance_to(at) < 10.0:
+					if o is CanadaGoose and o.get_script() == gsc and o != g and not o.male and not o.young and not o.dead and (o as Node3D).position.distance_to(at) < 10.0:
 						gm = o
 				g.place(at, randf() * TAU)
 				g.call("_to", "eyas")
@@ -2842,7 +2845,7 @@ func _raptor_do(r: Raptor, act_: String) -> void:
 			"play":
 				var flock := [gz]
 				for o in _creatures():
-					if o != gz and o is CanadaGoose and not o.young and not o.dead and (o as Node3D).position.distance_to(p) < 20.0:
+					if o != gz and o is CanadaGoose and o.get_script() == gz.get_script() and not o.young and not o.dead and (o as Node3D).position.distance_to(p) < 20.0:
 						flock.append(o)
 				var ga := randf() * TAU
 				var far := p + Vector3(cos(ga), 0.0, sin(ga)) * 30.0

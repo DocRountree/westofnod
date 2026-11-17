@@ -94,6 +94,8 @@ uniform float fl_bar_wave = 0.0;   // the flight feathers' bars irregular, waver
 uniform float fl_bar_to = 1.2;     // and fading out this far along them (an eagle's: on their bases only)
 uniform float fl_top_tip = 0.0;    // from above, their ends darker, the bars gone from them
 uniform float fl_prim_dark = 0.0;  // the primaries darker than the rest (an eagle's black fingers)   // (its tail from below: this much paler, as its flight feathers; a white tail none)
+uniform vec4 hood_ring = vec4(0.0); // a ring round its neck at the hood's lower edge (rgb; w: its width along it: a mallard drake's white)
+uniform vec4 down_back = vec4(0.0); // an eyas's down darker over its back and crown, a line through its eye (rgb; w how much: a duckling's dark brown over yellow)
 uniform float hood_u = -1.0;       // (an eagle's) from here along it up, all its head and neck the cap's colour (a bald eagle's white), its edge ragged
 uniform vec3 nape_color : source_color = vec3(0.7, 0.5, 0.25);
 uniform float nape_u = -1.0;       // from here along it up, its nape and hind neck this colour (a golden eagle's hackles)
@@ -158,6 +160,7 @@ uniform vec4 collar_at = vec4(0.006, 0.003, 0.017, 0.0025); // (a ring round its
 uniform vec4 cov_color = vec4(0.0); // the folded wing's coverts their own colour from above (w: how much: a jay's bright blue)
 uniform float cov_bars = 0.0;    // and barred black across, each feather (a jay's)
 uniform float cov_bar_n = 3.0;   // (bars to a feather)
+uniform vec4 speculum = vec4(0.0); // the secondaries' upper sides their own colour, glossy (rgb; w how much: a duck's speculum, a mallard's violet blue)
 uniform vec4 fl_tip = vec4(0.0); // the secondaries and tertials tipped (rgb; w: how far along: a jay's white)
 uniform float tail_tip_grad = 0.0; // (its tail's pale tips broadest on its outer feathers, none on the middle pair: a jay's white corners)
 
@@ -331,6 +334,7 @@ float bars(float u, float v, float n, float w, float seed) {
 // A raptor's feathers and bare parts: c, rough, metal, spec, nrm set for
 // its part.
 void raptor(int pt, float u, float v, vec3 view, float ndv, vec3 vtx, vec3 nrm0, inout vec3 c, inout float rough, inout float metal, inout float spec, inout vec3 nrm) {
+	float spk = 0.0; // (a speculum here: its gloss)
 	metal = 0.0;
 	spec = 0.4;
 	bool top = dot(normalize(vn), view) > 0.0; // (the side a feather's upper face is: its upper side seen)
@@ -482,8 +486,11 @@ void raptor(int pt, float u, float v, vec3 view, float ndv, vec3 vtx, vec3 nrm0,
 			c = mix(c, nc * (0.85 + 0.3 * f.y) * mix(0.7, 1.0, smoothstep(0.0, 0.3, f.x)), nap * smoothstep(0.0, 0.05, f.x + 0.04));
 		}
 		if (pt == 0 && hood_u >= 0.0) { // (all its head and neck)
-			float hd = smoothstep(hood_u - 0.01, hood_u + 0.02, u + 0.03 * (vnoise(vec2(v * 30.0, u * 9.0)) - 0.5) + 0.05 * f.x * (1.0 - f.x));
+			float hu = u + 0.03 * (vnoise(vec2(v * 30.0, u * 9.0)) - 0.5) + 0.05 * f.x * (1.0 - f.x);
+			float hd = smoothstep(hood_u - 0.01, hood_u + 0.02, hu);
 			c = mix(c, cap_color * (0.93 + 0.1 * f.y), hd);
+			if (hood_ring.w > 0.0) // (a ring under it: narrow, its edges a little ragged)
+				c = mix(c, hood_ring.rgb * (0.94 + 0.08 * f.y), smoothstep(hood_u - hood_ring.w - 0.01, hood_u - hood_ring.w, hu) * (1.0 - smoothstep(hood_u - 0.005, hood_u + 0.005, hu)));
 		}
 		if (pt == 0 && throat_color.w > 0.0) { // (its throat, its own: a robin's white, streaked black; a bluebird's rust)
 			float frontv = 1.0 - smoothstep(throat_w * 0.5, throat_w, min(v, 1.0 - v) + 0.02 * (f.y - 0.5));
@@ -570,7 +577,13 @@ void raptor(int pt, float u, float v, vec3 view, float ndv, vec3 vtx, vec3 nrm0,
 			float fl = vnoise(rest.xz * 1400.0) * 0.4 + vnoise(rest.xy * 2600.0) * 0.35 + vnoise(rest.yz * 5200.0 + vec2(rest.x * 900.0, 0.0)) * 0.25;
 			float tuft = vnoise(rest.xy * 260.0 + rest.z * 180.0); // (its down in tufts, wisps between)
 			float rim = pow(1.0 - ndv, 2.0); // (fuzz at its edges: lit through)
-			c = mix(c, down_white * (0.72 + 0.38 * fl) * mix(0.85, 1.08, tuft) + down_white * rim * 0.28, down);
+			vec3 dw = down_white;
+			if (down_back.w > 0.0) { // (a duckling's: dark above, over its crown, a line through its eye; yellow below and on its face)
+				float dcrown = smoothstep(0.82, 0.86, u) * smoothstep(eye_at.y + eye_rm * 0.6, eye_at.y + eye_rm * 1.4, rest.y);
+				float dline = smoothstep(0.82, 0.86, u) * (1.0 - smoothstep(eye_rm * 0.35, eye_rm * 0.7, abs(rest.y - eye_at.y))) * step(eye_at.z, rest.z);
+				dw = mix(dw, down_back.rgb, down_back.w * clamp(max(back * (1.0 - smoothstep(0.8, 0.86, u)), max(dcrown, dline)), 0.0, 1.0));
+			}
+			c = mix(c, dw * (0.72 + 0.38 * fl) * mix(0.85, 1.08, tuft) + dw * rim * 0.28, down);
 			rough = mix(rough, 0.97, down);
 			nrm = normalize(mix(nrm, nrm0, down));
 		}
@@ -618,6 +631,10 @@ void raptor(int pt, float u, float v, vec3 view, float ndv, vec3 vtx, vec3 nrm0,
 				float wb = smoothstep(wing_bar_fl.x - 0.02, wing_bar_fl.x + 0.01, u + wv) * (1.0 - smoothstep(wing_bar_fl.y - 0.01, wing_bar_fl.y + 0.02, u + wv));
 				c = mix(c, wing_bars.rgb * (0.92 + 0.1 * seed), wing_bars.w * wb);
 			}
+			if (top && speculum.w > 0.0 && pt == 12) { // (the speculum: its shine, a shade lighter feather by feather)
+				c = mix(c, speculum.rgb * (0.85 + 0.35 * seed), speculum.w * smoothstep(0.2, 0.35, u));
+				spk = speculum.w * smoothstep(0.2, 0.35, u);
+			}
 			if (fl_tip.w > 0.0 && pt != 11) { // (tipped: a jay's white secondaries)
 				c = mix(c, fl_tip.rgb * (0.94 + 0.08 * seed), smoothstep(1.0 - fl_tip.w - 0.02, 1.0 - fl_tip.w + 0.01, u + 0.02 * sin(v * 5.0 + seed * 7.0)));
 			}
@@ -634,8 +651,8 @@ void raptor(int pt, float u, float v, vec3 view, float ndv, vec3 vtx, vec3 nrm0,
 		c = mix(c, c * 1.22 + vec3(0.025), (1.0 - smoothstep(0.0, 0.14, 1.0 - abs(v))) * 0.5 * ff); // (its edge: a fine pale fringe)
 		c = mix(c, c * 0.7 + vec3(0.3) * 0.3, shaft * 0.35 * ff);
 		c = mix(c, down_white, down);
-		rough = 0.82;
-		spec = 0.16;
+		rough = mix(0.82, 0.32, spk);
+		spec = mix(0.16, 0.55, spk);
 		return;
 	}
 	if (pt == 6) { // plumes (a heron's): pale, fine; those off the back of its head black

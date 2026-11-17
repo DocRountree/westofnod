@@ -49,7 +49,7 @@ fauna.from_dict(d["fauna"])
   hours. `Fauna.life_rate` scales them all, and hunger and tiredness with them. (Hunger, sleep and the rest
   are still in seconds: a deer hungry again in six minutes.)
 
-## What's in `Species.TABLE` (102 kinds, each a record with a body or without)
+## What's in `Species.TABLE` (103 kinds, each a record with a body or without)
 
 - The land's: deer, moose, bison, wolf, coyote, fox, bobcat, both bears, hare, mouse, both squirrels, opossum,
   porcupine, armadillo; turkey, robin, blackbird, cardinal, jay, pigeon, goose; rattlesnake, milk snake, anole,
@@ -61,7 +61,7 @@ fauna.from_dict(d["fauna"])
   there, and goes back to it; one that flies is flown there (its body's own `fly`).
 - The water's: in the sea, the dolphin, the orca, the blue whale, the great white shark, the sea turtle, the
   sea otter and the urchin (those two in the shallows only), schools of salmon and tuna; in fresh water, the
-  crayfish, schools of trout; by it, the frog, the painted and snapping turtles, the river otter, the beaver,
+  crayfish, schools of trout; by it, the mallard, the frog, the painted and snapping turtles, the river otter, the beaver,
   the heron, the dragonfly. A school is one record, its body a `SchoolBody` (a `FishSchool` steered as one
   animal: `go_to`, `feed`, `flee`); what hunts it takes a fish of it, not it.
 - The sea's floor: the common octopus and the giant Pacific octopus (out at night, back to a den by their

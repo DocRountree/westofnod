@@ -26,12 +26,12 @@ extends RefCounted
 ## the biology has it: the most of its diet by bulk or by how often it's
 ## seen eating it, and how readily it goes for it when there's a choice).
 const EATS := {
-	"red_fox.gd": {"armadillo_pup": 0.2, "gosling": 0.4, "mouse": 1.0, "mouse_pup": 0.9, "hare": 0.6, "leveret": 0.7, "squirrel": 0.5, "grasshopper": 0.5, "grub": 0.4, "berries": 0.6, "pawpaw": 0.5,
+	"red_fox.gd": {"armadillo_pup": 0.2, "gosling": 0.4, "duck": 0.3, "duckling": 0.5, "mouse": 1.0, "mouse_pup": 0.9, "hare": 0.6, "leveret": 0.7, "squirrel": 0.5, "grasshopper": 0.5, "grub": 0.4, "berries": 0.6, "pawpaw": 0.5,
 			"crabapple": 0.4, "carcass": 0.5, "dead_mouse": 0.6, "frog": 0.3, "toad": 0.1, "fawn": 0.15, "beaver_kit": 0.15, "bobcat_kit": 0.1, "snake_young": 0.2,
 			"ants": 0.2, "wasp_comb": 0.2},
-	"bobcat.gd": {"porcupine": 0.05, "porcupette": 0.2, "armadillo": 0.15, "armadillo_pup": 0.3, "hare": 1.0, "leveret": 0.9, "squirrel": 0.7, "mouse": 0.7, "poult": 0.5, "fawn": 0.4, "deer": 0.2, "fox": 0.1, "fox_kit": 0.2, "beaver_kit": 0.2,
+	"bobcat.gd": {"duck": 0.2, "duckling": 0.3, "porcupine": 0.05, "porcupette": 0.2, "armadillo": 0.15, "armadillo_pup": 0.3, "hare": 1.0, "leveret": 0.9, "squirrel": 0.7, "mouse": 0.7, "poult": 0.5, "fawn": 0.4, "deer": 0.2, "fox": 0.1, "fox_kit": 0.2, "beaver_kit": 0.2,
 			"grasshopper": 0.15, "snake": 0.2, "carcass": 0.25},
-	"coyote.gd": {"porcupine": 0.05, "porcupette": 0.15, "armadillo": 0.2, "armadillo_pup": 0.3, "gosling": 0.4, "goose": 0.1, "mouse": 1.0, "mouse_pup": 0.8, "hare": 0.8, "leveret": 0.8, "squirrel": 0.5, "fawn": 0.6, "carcass": 0.7, "dead_mouse": 0.6, "berries": 0.5,
+	"coyote.gd": {"porcupine": 0.05, "porcupette": 0.15, "armadillo": 0.2, "armadillo_pup": 0.3, "gosling": 0.4, "duck": 0.2, "duckling": 0.4, "goose": 0.1, "mouse": 1.0, "mouse_pup": 0.8, "hare": 0.8, "leveret": 0.8, "squirrel": 0.5, "fawn": 0.6, "carcass": 0.7, "dead_mouse": 0.6, "berries": 0.5,
 			"pawpaw": 0.5, "crabapple": 0.5, "grasshopper": 0.4, "grub": 0.3, "poult": 0.4, "frog": 0.2, "toad": 0.1, "snake": 0.2, "beaver": 0.2, "otter_pup": 0.1,
 			"fox": 0.1, "fox_kit": 0.2, "bobcat_kit": 0.1},
 	"grey_wolf.gd": {"porcupine": 0.05, "deer": 1.0, "fawn": 0.9, "moose_calf": 0.8, "bison_calf": 0.6, "beaver": 0.6, "carcass": 0.6, "hare": 0.4, "mouse": 0.2, "otter_pup": 0.1,
@@ -63,27 +63,28 @@ const EATS := {
 	"river_otter.gd": {"fish": 1.0, "crayfish": 0.8, "frog": 0.4, "toad": 0.1},
 	"sea_otter.gd": {"urchin": 1.0, "clam": 0.9}, # (on the bottom: SeaOtter.clam(), urchin(), meta "shellfish")
 	"wild_turkey.gd": {"acorn": 1.0, "walnut": 0.5, "berries": 0.7, "grasshopper": 0.7, "nymph": 0.6, "grub": 0.5, "caterpillar": 0.5},
-	"peregrine_falcon.gd": {"pigeon": 1.0, "blackbird": 0.6, "jay": 0.4, "robin": 0.5, "bluebird": 0.3, "finch": 0.2, "poult": 0.5, "squirrel": 0.2, "mouse": 0.2},
+	"peregrine_falcon.gd": {"duck": 0.5, "pigeon": 1.0, "blackbird": 0.6, "jay": 0.4, "robin": 0.5, "bluebird": 0.3, "finch": 0.2, "poult": 0.5, "squirrel": 0.2, "mouse": 0.2},
 	"coopers_hawk.gd": {"robin": 0.9, "pigeon": 0.8, "blackbird": 0.8, "jay": 0.7, "cardinal": 0.7, "bluebird": 0.7, "finch": 0.7, "nestling": 0.5, "poult": 0.7, "squirrel": 0.6, "mouse": 0.4},
 	"barn_owl.gd": {"mouse": 1.0, "grasshopper": 0.15, "nymph": 0.1, "grub": 0.1, "spider": 0.05},
 	"eastern_screech_owl.gd": {"mouse": 1.0, "mouse_pup": 0.8, "grasshopper": 0.7, "nymph": 0.6, "caterpillar": 0.5, "grub": 0.4, "crayfish": 0.4, "frog": 0.4,
 			"snails": 0.2, "anole": 0.2, "fish": 0.15, "bluebird": 0.15, "blackbird": 0.1, "cardinal": 0.15, "finch": 0.2, "hummingbird": 0.05, "nestling": 0.15, "bat": 0.15},
-	"great_horned_owl.gd": {"porcupette": 0.05, "armadillo_pup": 0.1, "gosling": 0.2, "hare": 1.0, "leveret": 0.9, "mouse": 0.8, "squirrel": 0.6, "poult": 0.4, "pigeon": 0.3, "jay": 0.15, "blackbird": 0.1, "bat": 0.1},
-	"bald_eagle.gd": {"fish": 1.0, "carcass": 0.8, "poult": 0.2, "hare": 0.2, "leveret": 0.2, "gosling": 0.3, "goose": 0.1},
+	"great_horned_owl.gd": {"porcupette": 0.05, "armadillo_pup": 0.1, "gosling": 0.2, "duck": 0.3, "duckling": 0.3, "hare": 1.0, "leveret": 0.9, "mouse": 0.8, "squirrel": 0.6, "poult": 0.4, "pigeon": 0.3, "jay": 0.15, "blackbird": 0.1, "bat": 0.1},
+	"bald_eagle.gd": {"fish": 1.0, "carcass": 0.8, "poult": 0.2, "hare": 0.2, "leveret": 0.2, "gosling": 0.3, "goose": 0.1, "duck": 0.5, "duckling": 0.3},
 	"golden_eagle.gd": {"hare": 1.0, "leveret": 0.9, "squirrel": 0.7, "poult": 0.4, "carcass": 0.5},
 	"anole.gd": {"nymph": 0.8, "grasshopper": 0.7, "spider": 0.8, "caterpillar": 0.6, "grub": 0.3},
 	"scorpion.gd": {"nymph": 0.8, "grasshopper": 0.6, "spider": 0.6, "grub": 0.4},
 	"gila_monster.gd": {"mouse_pup": 1.0, "poult": 0.6, "leveret": 0.6, "mouse": 0.3, "hare": 0.1},
 	"snake.gd": {"mouse": 1.0, "mouse_pup": 0.9, "frog": 0.5, "toad": 0.4, "anole": 0.4, "snake_young": 0.2, "nestling": 0.4},
-	"snapping_turtle.gd": {"gosling": 0.4, "fish": 0.8, "carcass": 0.8, "dead_fish": 0.9, "crayfish": 0.7, "frog": 0.6, "toad": 0.2, "grass_snail": 0.5, "tigersnail": 0.5, "nymph": 0.5},
+	"snapping_turtle.gd": {"gosling": 0.4, "duckling": 0.6, "fish": 0.8, "carcass": 0.8, "dead_fish": 0.9, "crayfish": 0.7, "frog": 0.6, "toad": 0.2, "grass_snail": 0.5, "tigersnail": 0.5, "nymph": 0.5},
 	"painted_turtle.gd": {"nymph": 0.9, "crayfish": 0.5, "grass_snail": 0.6, "tigersnail": 0.6, "dead_fish": 0.6, "carcass": 0.4, "fish": 0.2, "grasshopper": 0.3},
 	"american_robin.gd": {"grub": 1.0, "caterpillar": 0.8, "beetle": 0.7, "spider": 0.5, "snails": 0.4, "ants": 0.3},
 	"eastern_bluebird.gd": {"caterpillar": 1.0, "beetle": 0.9, "grub": 0.6, "spider": 0.6, "ants": 0.4, "snails": 0.3},
 	"passenger_pigeon.gd": {"acorn": 1.0, "grub": 0.3, "caterpillar": 0.3, "snails": 0.25},
 	"red_winged_blackbird.gd": {"caterpillar": 1.0, "nymph": 0.9, "grasshopper": 0.8, "beetle": 0.7, "grub": 0.6, "spider": 0.6, "snails": 0.3},
 	"ruby_throated_hummingbird.gd": {"flowers": 1.0, "forbs": 0.8, "flier": 0.3}, # (nectar, its tongue in the flower; small insects caught in the air)
-	"great_blue_heron.gd": {"mollies": 1.0, "fish": 0.9, "frog": 0.7, "crayfish": 0.6, "mouse": 0.4, "toad": 0.2, "snake_young": 0.2, "grasshopper": 0.15},
+	"great_blue_heron.gd": {"duckling": 0.3, "mollies": 1.0, "fish": 0.9, "frog": 0.7, "crayfish": 0.6, "mouse": 0.4, "toad": 0.2, "snake_young": 0.2, "grasshopper": 0.15},
 	"canada_goose.gd": {"graze": 1.0, "algae": 0.5}, # (grass, the water's weeds: its goslings' too)
+	"mallard.gd": {"algae": 1.0, "graze": 0.5, "acorn": 0.4, "nymph": 0.6, "snails": 0.5, "grasshopper": 0.3, "forbs": 0.4}, # (dabbling: the water's weeds and seeds, its small animals; the bank's seeds; its ducklings insects above all)
 	"american_goldfinch.gd": {"forbs": 1.0, "flowers": 0.9}, # (seeds only, its young's too: Finch)
 	"house_finch.gd": {"forbs": 1.0, "flowers": 0.9, "berries": 0.6},
 	"northern_cardinal.gd": {"forbs": 1.0, "berries": 0.7, "flowers": 0.6, "caterpillar": 0.6, "grasshopper": 0.5, "nymph": 0.5, "beetle": 0.4, "snails": 0.15}, # (seeds above all; its young insects)
@@ -365,6 +366,8 @@ static func kind_of(n: Node) -> String:
 			k = "nestling" if young else "bluebird"
 		"canada_goose.gd":
 			k = "gosling" if young else "goose"
+		"mallard.gd":
+			k = "duckling" if young else "duck"
 		"great_blue_heron.gd":
 			k = "nestling" if young else "heron"
 		"ruby_throated_hummingbird.gd":
