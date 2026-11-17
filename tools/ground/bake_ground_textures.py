@@ -180,8 +180,10 @@ def broad_frond(w=256, h=1024, ss=3):
             p0 = at + np.array([0.0, sgn * H * 0.01])
             dd = np.array([sgn * 1.0, -0.22 - 0.3 * t])
             pinna(p0, dd, length, width)
-    dm.line([tuple(base), tuple(tip)], fill=255, width=int(W * 0.03))  # (a stout rachis)
-    dc.line([tuple(base), tuple(tip)], fill=c(rib * 0.92), width=int(W * 0.03))
+    rw = int(W * 0.048)  # (a stout rachis)
+    dm.line([tuple(base), tuple(tip)], fill=255, width=rw)
+    dc.line([tuple(base), tuple(tip)], fill=c(rib * 0.92), width=rw)
+    dc.line([tuple(base + np.array([rw * 0.22, 0.0])), tuple(tip + np.array([rw * 0.22, 0.0]))], fill=c(rib * 0.75), width=max(rw // 3, 1))  # (its groove, a shade darker)
     m = np.asarray(mask.resize((w, h), Image.LANCZOS), dtype=np.float32) / 255.0
     cw = np.asarray(col, np.float32) * (np.asarray(mask, np.float32)[..., None] / 255)
     cw = np.asarray(Image.fromarray(cw.clip(0, 255).astype(np.uint8)).resize((w, h), Image.LANCZOS), np.float32)
