@@ -200,7 +200,7 @@ const LAYERS := [
 	# up through the leaf litter, as they come up in spring
 	{"cell": 0.42, "cells": 24, "tiles": 7, "flowers": "mayapple", "stems": 1, "radius": 0.1, "pick": false,
 		"u": {"kind": 2, "seed": 21, "in_prairie": false, "on_litter": true, "cover": 0.92, "drift": Vector3(16.0, 0.32, 4.4),
-			"forest_height": Vector2(0.3, 0.45), "prairie_height": Vector2(0.3, 0.45), "forest_green": Vector3(0.3, 0.41, 0.14),
+			"forest_height": Vector2(0.3, 0.45), "prairie_height": Vector2(0.3, 0.45), "forest_green": Vector3(0.25, 0.35, 0.11),
 			"petal_color": Vector3(0.97, 0.96, 0.92), "petal_base": Vector3(0.9, 0.9, 0.8), "petal_alt": Vector3(0.97, 0.96, 0.92),
 			"disc_color": Vector3(0.9, 0.85, 0.4), "head_size": 0.045, "head_px": Vector2(3.0, 6.0),
 			"fade_out": Vector2(24.0, 34.0), "thin_from": 15.0}},
@@ -219,7 +219,7 @@ const LAYERS := [
 	# wood sorrel (Oxalis): a carpet of trefoils where the litter's thin, in patches
 	{"cell": 0.2, "cells": 24, "tiles": 7, "flowers": "oxalis", "stems": 1, "radius": 0.05, "pick": false,
 		"u": {"kind": 2, "seed": 24, "in_prairie": false, "on_litter": true, "cover": 0.95, "drift": Vector3(9.0, 0.45, 7.7),
-			"forest_height": Vector2(0.055, 0.08), "prairie_height": Vector2(0.055, 0.08), "forest_green": Vector3(0.34, 0.48, 0.17),
+			"forest_height": Vector2(0.055, 0.08), "prairie_height": Vector2(0.055, 0.08), "forest_green": Vector3(0.26, 0.38, 0.12),
 			"fade_out": Vector2(10.0, 15.0), "thin_from": 7.0}},
 	# trees' seedlings, a few here and there all through it, up through the litter
 	{"cell": 1.1, "cells": 14, "tiles": 5, "flowers": "seedling", "stems": 1, "radius": 0.05, "pick": false,
