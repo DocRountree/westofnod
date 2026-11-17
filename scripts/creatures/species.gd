@@ -15,7 +15,7 @@ extends RefCounted
 ##   sense: m at which a hunter finds its prey,
 ##   meal: s a meal takes; fast: s from full to hungry; awake: s from rested to tired; nap: s a sleep lasts
 ##   herd: keeps with its own kind,
-##   class: "mammal" (as most), "bird", "reptile", "amphibian", "fish", "arthropod": how long she carries her
+##   class: "mammal" (as most), "bird", "reptile", "amphibian", "fish", "arthropod", "mollusk", "echinoderm": how long she carries her
 ##   young (a state only: nothing of it shows), how long they're young, how long before she'll breed again
 ##   (CLASS_DAYS: a mammal's 2 days, 4, 2; an arthropod's 1, 1, 1; gest_days, wean_days, gap_days: its own);
 ##   days are the game's (Fauna.day_secs: the sandbox's 75 s; the game's its sky's)
@@ -26,6 +26,10 @@ extends RefCounted
 ##   ctor: its _init's arguments ("young": whether it's young); school: a FishSchool's (SchoolBody);
 ##   swarm: [script, how many, how far about] (SwarmBody: a colony, a band, a pool: one record, not steered);
 ##   larva: a butterfly's or a moth's young: an egg, then its caterpillar (Larva's kind), then its chrysalis
+##   plankton: its young's first part, adrift (Plankton's kind: "octopus", "sea_star", "pluteus"): a cloud of
+##   them till plankton_frac of their youth, laid and left (no mother); then settled, a young one's body
+##   broods: she keeps to her den while she carries them (an octopus's eggs: brooded, never left, never fed)
+##   semelparous: she dies when they hatch; he a gap_days after he's mated
 ##   far: drawn far off with no body (FarFauna; not the small ones)
 ##   density: {a biome's name (WorldData.biome_names): how many to the square kilometre; "*": any not named}:
 ##   what FaunaSim seeds the land with
@@ -41,7 +45,7 @@ const DEFAULTS := {"class": "mammal", "medium": "land", "site": "", "flies": fal
 		"litter": [1, 2], "crowd": 8, "mate": 14.0, "density": {}}
 ## How long each class carries (or broods) its young, how long they're young, and how long after before she'll breed again: days.
 const CLASS_DAYS := {"mammal": [2.0, 4.0, 2.0], "bird": [2.0, 3.0, 1.0], "reptile": [2.0, 3.0, 1.0], "amphibian": [1.0, 2.0, 1.0], "fish": [2.0, 3.0, 1.0],
-		"arthropod": [1.0, 1.0, 1.0]}
+		"arthropod": [1.0, 1.0, 1.0], "mollusk": [1.5, 3.0, 1.0], "echinoderm": [0.25, 2.0, 1.0]}
 const TABLE := {
 	"deer": {"density": {"forest": 8.0, "prairie": 4.0, "swamp": 3.0, "taiga": 2.0}, "litter": [1, 2], "crowd": 10, "script": "deer.gd", "kind": "deer", "young_kind": "fawn", "len": 1.8, "walk": 0.9, "run": 4.5, "range": 10.0, "wary": 8.0, "fast": 360.0, "herd": true},
 	"moose": {"density": {"taiga": 1.5, "swamp": 1.0, "tundra": 0.5}, "litter": [1, 1], "script": "moose.gd", "young_kind": "moose_calf", "len": 2.8, "walk": 1.0, "run": 4.0, "range": 10.0, "wary": 5.0, "fast": 360.0},
@@ -109,7 +113,11 @@ const TABLE := {
 	"crayfish": {"class": "arthropod", "medium": "fresh", "floor": true, "density": {"swamp": 80.0}, "litter": [6, 12], "crowd": 40, "script": "red_swamp_crayfish.gd", "kind": "crayfish", "len": 0.1, "walk": 0.05, "run": 0.3, "range": 3.0, "wary": 1.5, "fast": 400.0, "active": "night"},
 	"sea_otter": {"medium": "sea", "depth": 0.5, "max_depth": 30.0, "density": {"sea": 4.0}, "litter": [1, 1], "script": "sea_otter.gd", "len": 1.2, "walk": 0.5, "run": 2.0, "range": 20.0, "sense": 10.0, "fast": 400.0, "herd": true},
 	"sea_turtle": {"class": "reptile", "medium": "sea", "depth": 1.0, "density": {"sea": 0.2}, "litter": [6, 12], "script": "sea_turtle.gd", "len": 1.0, "walk": 0.5, "run": 1.5, "range": 40.0, "wary": 5.0, "fast": 2000.0},
-	"urchin": {"class": "arthropod", "medium": "sea", "floor": true, "depth": 0.5, "max_depth": 30.0, "density": {"sea": 300.0}, "litter": [4, 8], "crowd": 40, "script": "sea_urchin.gd", "len": 0.08, "walk": 0.012, "run": 0.012, "range": 2.0, "wary": 0.5, "fast": 300.0},
+	"urchin": {"class": "echinoderm", "medium": "sea", "floor": true, "depth": 0.5, "max_depth": 30.0, "density": {"sea": 300.0}, "litter": [4, 8], "crowd": 40, "script": "sea_urchin.gd", "kind": "urchin", "len": 0.08, "walk": 0.012, "run": 0.012, "range": 2.0, "wary": 0.5, "fast": 300.0, "plankton": "pluteus", "far": false},
+	"common_octopus": {"class": "mollusk", "medium": "sea", "floor": true, "depth": 0.5, "max_depth": 100.0, "density": {"sea": 20.0}, "litter": [3, 6], "crowd": 6, "script": "common_octopus.gd", "kind": "octopus", "young_kind": "octopus_young", "len": 0.9, "walk": 0.08, "run": 1.5, "range": 6.0, "wary": 3.0, "sense": 4.0, "meal": 40.0, "fast": 500.0, "active": "night", "mate": 30.0, "broods": true, "semelparous": true, "plankton": "octopus", "far": false},
+	"giant_pacific_octopus": {"class": "mollusk", "medium": "sea", "floor": true, "depth": 1.0, "max_depth": 200.0, "density": {"sea": 2.0}, "litter": [4, 8], "crowd": 4, "script": "giant_pacific_octopus.gd", "kind": "octopus", "young_kind": "octopus_young", "len": 3.0, "walk": 0.14, "run": 2.2, "range": 12.0, "wary": 5.0, "sense": 6.0, "meal": 60.0, "fast": 700.0, "active": "night", "mate": 40.0, "broods": true, "semelparous": true, "plankton": "octopus", "far": false, "gest_days": 2.5, "wean_days": 4.0},
+	"ochre_sea_star": {"class": "echinoderm", "medium": "sea", "floor": true, "depth": 0.2, "max_depth": 90.0, "density": {"sea": 120.0}, "litter": [4, 8], "crowd": 30, "script": "ochre_sea_star.gd", "kind": "sea_star", "len": 0.25, "walk": 0.01, "run": 0.01, "range": 2.0, "wary": 0.0, "meal": 120.0, "fast": 900.0, "mate": 20.0, "plankton": "sea_star", "far": false},
+	"sand_dollar": {"class": "echinoderm", "medium": "sea", "floor": true, "depth": 0.5, "max_depth": 40.0, "density": {"sea": 400.0}, "litter": [6, 10], "crowd": 80, "script": "sand_dollar.gd", "kind": "sand_dollar", "len": 0.08, "walk": 0.004, "run": 0.004, "range": 1.0, "wary": 0.0, "fast": 400.0, "mate": 15.0, "herd": true, "plankton": "pluteus", "far": false},
 	"dolphin": {"medium": "sea", "depth": 4.0, "density": {"sea": 0.4}, "litter": [1, 1], "script": "bottlenose_dolphin.gd", "kind": "dolphin", "young_kind": "dolphin_calf", "len": 3.0, "walk": 2.2, "run": 8.0, "range": 80.0, "wary": 30.0, "sense": 40.0, "fast": 600.0, "herd": true},
 	"orca": {"medium": "sea", "depth": 8.0, "density": {"sea": 0.06}, "litter": [1, 1], "script": "orca.gd", "len": 7.0, "walk": 2.6, "run": 10.0, "range": 120.0, "sense": 60.0, "fast": 900.0, "herd": true},
 	"blue_whale": {"medium": "sea", "depth": 30.0, "density": {"sea": 0.02}, "litter": [1, 1], "script": "blue_whale.gd", "young_kind": "whale_calf", "len": 25.0, "walk": 2.2, "run": 6.0, "range": 200.0, "wary": 40.0, "fast": 600.0},
@@ -129,9 +137,9 @@ const TABLE := {
 	"trigonalid": {"class": "arthropod", "flies": true, "ctor": [], "density": {"forest": 4.0}, "litter": [3, 6], "crowd": 20, "script": "trigonalid.gd", "kind": "flier", "len": 0.012, "walk": 0.8, "run": 2.0, "range": 10.0, "wary": 1.0, "fast": 300.0, "active": "day"},
 	"cecropia": {"class": "arthropod", "larva": "cecropia", "flies": true, "ctor": [], "density": {"forest": 2.0}, "litter": [4, 8], "crowd": 20, "script": "cecropia_moth.gd", "kind": "moth", "len": 0.14, "walk": 0.5, "run": 1.5, "range": 12.0, "wary": 2.0, "fast": 1e9, "active": "night"},
 	"polyphemus": {"class": "arthropod", "larva": "polyphemus", "flies": true, "ctor": [], "density": {"forest": 2.0}, "litter": [4, 8], "crowd": 20, "script": "polyphemus_moth.gd", "kind": "moth", "len": 0.13, "walk": 0.5, "run": 1.5, "range": 12.0, "wary": 2.0, "fast": 1e9, "active": "night"},
-	"white_shrimp": {"class": "arthropod", "medium": "sea", "floor": true, "depth": 0.5, "max_depth": 30.0, "density": {"sea": 150.0}, "litter": [6, 12], "crowd": 40, "script": "white_shrimp.gd", "len": 0.18, "walk": 0.05, "run": 0.4, "range": 4.0, "wary": 1.5, "fast": 300.0, "active": "night"},
-	"brown_shrimp": {"class": "arthropod", "medium": "sea", "floor": true, "depth": 0.5, "max_depth": 30.0, "density": {"sea": 150.0}, "litter": [6, 12], "crowd": 40, "script": "brown_shrimp.gd", "len": 0.18, "walk": 0.05, "run": 0.4, "range": 4.0, "wary": 1.5, "fast": 300.0, "active": "night"},
-	"pink_shrimp": {"class": "arthropod", "medium": "sea", "floor": true, "depth": 0.5, "max_depth": 30.0, "density": {"sea": 150.0}, "litter": [6, 12], "crowd": 40, "script": "pink_shrimp.gd", "len": 0.18, "walk": 0.05, "run": 0.4, "range": 4.0, "wary": 1.5, "fast": 300.0, "active": "night"},
+	"white_shrimp": {"class": "arthropod", "medium": "sea", "floor": true, "depth": 0.5, "max_depth": 30.0, "density": {"sea": 150.0}, "litter": [6, 12], "crowd": 40, "script": "white_shrimp.gd", "kind": "shrimp", "len": 0.18, "walk": 0.05, "run": 0.4, "range": 4.0, "wary": 1.5, "fast": 300.0, "active": "night"},
+	"brown_shrimp": {"class": "arthropod", "medium": "sea", "floor": true, "depth": 0.5, "max_depth": 30.0, "density": {"sea": 150.0}, "litter": [6, 12], "crowd": 40, "script": "brown_shrimp.gd", "kind": "shrimp", "len": 0.18, "walk": 0.05, "run": 0.4, "range": 4.0, "wary": 1.5, "fast": 300.0, "active": "night"},
+	"pink_shrimp": {"class": "arthropod", "medium": "sea", "floor": true, "depth": 0.5, "max_depth": 30.0, "density": {"sea": 150.0}, "litter": [6, 12], "crowd": 40, "script": "pink_shrimp.gd", "kind": "shrimp", "len": 0.18, "walk": 0.05, "run": 0.4, "range": 4.0, "wary": 1.5, "fast": 300.0, "active": "night"},
 	# the swarms: each one record, its body a SwarmBody (the colony, the band, the pool itself under it)
 	"carpenter_ants": {"class": "arthropod", "swarm": ["ant_colony.gd", 160, 0.4], "density": {"forest": 25.0, "taiga": 10.0}, "script": "swarm_body.gd", "len": 0.5, "range": 0.0, "far": false},
 	"harvester_ants": {"class": "arthropod", "swarm": ["harvester_ants.gd", 160, 0.5], "density": {"mesa": 25.0, "prairie": 20.0, "plateau": 10.0}, "script": "swarm_body.gd", "len": 0.5, "range": 0.0, "far": false},
@@ -156,6 +164,7 @@ const VERBS := {
 	"flee": ["flee", "fly", "startle", "dive", "alarm", "roll", "hop", "take_off"],
 	"social": ["mark", "howl", "strut", "gobble", "thump", "rub", "call", "display", "slap", "breach", "tail_slap", "play"],
 	"mate": ["mate"],
+	"brood": ["brood"],
 	"birth": ["birth", "give_birth"],
 }
 
@@ -195,7 +204,7 @@ static func of(key: String) -> Dictionary:
 	if not e.has("far"): # (drawn far off, with no body: not the small ones)
 		e["far"] = float(e.len) >= 0.2 and String(e["class"]) != "arthropod"
 	if not e.has("young_body"): # (its young have a body: its kind's own young one; or a butterfly's or a moth's egg, caterpillar and chrysalis in turn, "larva"; not a wasp's, a bee's: in their comb)
-		e["young_body"] = String(e["class"]) != "arthropod" or (e.ctor as Array).has("young") or e.has("larva")
+		e["young_body"] = String(e["class"]) != "arthropod" or (e.ctor as Array).has("young") or e.has("larva") or e.has("plankton")
 	e["anywhere"] = anywhere # (eats what's always under it: grass, leaves, litter)
 	e["prey"] = prey
 	_full[key] = e

@@ -354,6 +354,36 @@ Olive above, silvery sides, a net of scales with rows of dark
   eggs drifting up -> echinoplutei, glassy, eight-armed, swimming, their arms beating as they feed on the plankton
   (microscopic: not drawn) -> sinking to settle, a few coming to the bottom as green, pale-spined spat -> growing
   purple. In the sandbox's Sea floor (`sea_urchins`: adult, egg, larva, young).
+- `scripts/creatures/octopus.gd` (`Octopus`), `common_octopus.gd` (`CommonOctopus`), `giant_pacific_octopus.gd`
+  (`GiantPacificOctopus`): the common octopus (mantle 20 cm, arms 65 cm; grey brown, mottled) and the giant Pacific
+  octopus (mantle 45 cm, arms 1.5 m; red brown, wrinkled, pale spotted, tall horns over its eyes), life size. One
+  mesh each: mantle, head, eyes (gold, the pupil a level bar), horns, siphon, eight arms and the web between them.
+  The arms are posed in `shaders/render/octopus.gdshader` from 24 numbers an arm (each a curve from its base on the
+  crown: its curl, a wave running down it, a sideways curl, its tip's curl; laid on the bottom); two rows of suckers
+  under each, smaller toward the tip. Its skin from its chromatophores: dark or pale, mottled, dark clouds passing
+  over it, matched to the bottom, papillae raised, blanched with dark round its eyes. Crawling head first; groping
+  over the bottom (`forage`); stalking a shrimp, clouds passing over it, then the pounce, web spread like an
+  umbrella, held under it and eaten (`hunt`); a clam taken home and opened, the shell thrown out on its midden;
+  resting in its den (a hollow under a slab of rock, made at its home), arms coiled round it, matched to the rock,
+  colours passing over it as it sleeps (`rest`); ink and away on its jet, mantle first, arms trailing, then down
+  and still (`flee`); its startling display (`display`); his mating arm reached across to her (`mate`); she broods
+  her eggs hung in festoons from her den's roof, cleaning them, never leaving them (`brood`); when they hatch the
+  paralarvae go into the plankton and she dies (`hatch`). Sharks take it. In the sandbox's Sea floor
+  (`common_octopus`, `giant_pacific_octopus`: adult; egg, a brooding female; larva, paralarvae; young).
+- `scripts/creatures/ochre_sea_star.gd` (`OchreSeaStar`): an ochre sea star, 25 cm across, purple, orange or brown;
+  its top set with short white spines in a net, the pale madreporite, red eyespots at its tips; tube feet in four
+  rows under each arm, stepping in waves (`shaders/render/sea_star.gdshader`). Creeping, its leading arm's tip
+  raised; humped over a clam (or an urchin) for a long meal, the shell left empty (`eat`); resting, feet drawn in;
+  spawning up on its arm tips, those near spawning with it (`spawn`, `mate`). In the sandbox's Sea floor
+  (`ochre_sea_star`: adult, larva, young).
+- `scripts/creatures/sand_dollar.gd` (`SandDollar`): an eccentric sand dollar, 8 cm across, velvet purple brown, its
+  five petals set off its middle toward its back, its food grooves beneath (`shaders/render/sand_dollar.gdshader`).
+  In beds; ploughing through the sand; feeding stood on its edge across the current, the bed all one way (`feed`);
+  under the sand (`burrow`); spawning (`spawn`, `mate`); dead, its test bleached white. In the sandbox's Sea floor
+  (`sand_dollar`: adult, larva, young).
+- `scripts/creatures/plankton.gd` (`Plankton`): the sea floor's young adrift, 6x life size: an octopus's
+  paralarvae (going by little jets), a sea star's bipinnaria, an urchin's or a sand dollar's plutei
+  (`shaders/render/plankton.gdshader`); `Plankton.plume()`, a spawning one's plume of eggs or milt.
 - `scripts/creatures/nest.gd` (`TreeNest`): the nests of the birds and squirrels that nest in trees, life size, each
   one mesh, its sticks and fibres laid one by one (`TreeNest.of(kind, scale, seed)`): the eagles' great stick
   platform lined with grass and green sprigs; the Cooper's hawk's (bark flakes, sprigs); the great horned owl's and
@@ -1173,6 +1203,12 @@ Ambushing,
     under it when it's near; not steered, not bred; ant colonies there find their own food); an insect's young
     laid and left (not at their mother's side); a butterfly's or a moth's through its stages near the player
     (its egg, its caterpillar, its chrysalis, then the grown one: `Species`' `larva`, `FaunaSim.stage_of`).
+  - Since: 100 kinds. The common and giant Pacific octopuses, the ochre sea star, the eccentric sand dollar (and
+    the urchin, now an echinoderm): their young adrift in the plankton near the player (a `Plankton` cloud,
+    `Species`' `plankton`), then settled, a young body; the echinoderms spawning together; an octopus to its den
+    and brooding there while she carries (`broods`), dying when they hatch, he after he's mated (`semelparous`,
+    `Agent.dies_at`). A slow walker's walk given time enough before it's given up; a wandering male may leave
+    off to court; a wandering female near her time leaves off to give birth.
   - Records, bodies and brains (`scripts/creatures/species.gd`, `fauna_sim.gd`, `brain.gd`; in the sandbox: the
     Minds box, I; not in the game yet):
     - `Species.TABLE`: what's known of a kind apart from its body (its script, what it's called as food, its

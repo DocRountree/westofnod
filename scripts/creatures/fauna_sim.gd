@@ -84,7 +84,8 @@ class Agent:
 	var site := Vector3.INF ## what it lives on (its perch, its roost, its web, its flowers): where it rests
 	var far := -1 # (FarFauna's: its place among those drawn far off; -1 none)
 	var prop: Node3D ## a young insect's still thing, in place of a body: its egg, its chrysalis
-	var stage := "" ## a young insect's: "egg", "larva", "pupa" (Species' "larva")
+	var stage := "" ## a young insect's: "egg", "larva", "pupa" (Species' "larva"); a sea animal's "plankton" (Species' "plankton")
+	var dies_at := 0.0 ## (0: not yet) when it dies of itself (an octopus, his life spent once he's mated)
 	var on_finished: Callable
 	var on_gone: Callable
 
@@ -222,7 +223,7 @@ func _young(m: Agent, at: Vector3) -> Agent:
 	y.born_at = now
 	y.grow_at = now + Species.days(float(m.sp.wean_days))
 	y.hunger = 0.0
-	if String(m.sp["class"]) == "arthropod": # (an insect's, a spider's: laid and left, on their own from the first)
+	if String(m.sp["class"]) == "arthropod" or m.sp.has("plankton"): # (an insect's, a spider's, those that go off in the plankton: laid and left, on their own from the first)
 		y.stage = stage_of(y)
 	else:
 		y.mother = m.id
@@ -237,9 +238,11 @@ func _young(m: Agent, at: Vector3) -> Agent:
 ## egg (the first fifth), its caterpillar (to seven tenths), its chrysalis
 ## or cocoon. "": a kind with no such stages.
 func stage_of(a: Agent) -> String:
-	if not a.young or not a.sp.has("larva"):
+	if not a.young or not (a.sp.has("larva") or a.sp.has("plankton")):
 		return ""
 	var f := (now - a.born_at) / maxf(a.grow_at - a.born_at, 0.001)
+	if a.sp.has("plankton"): # (adrift, a cloud of them; then settled on the bottom)
+		return "plankton" if f < float(a.sp.get("plankton_frac", 0.4)) else ""
 	return "egg" if f < 0.2 else ("larva" if f < 0.7 else "pupa")
 
 
@@ -249,9 +252,18 @@ func restage(a: Agent) -> void:
 	var st := stage_of(a)
 	if st == a.stage:
 		return
+	var was := a.stage
 	a.stage = st
 	var had := a.body != null or a.prop != null
 	var p := where(a)
+	if was == "plankton": # (come down somewhere the current took it)
+		for k in 6:
+			var ang := randf() * TAU
+			var q := _put(a.sp, p + Vector3(cos(ang), 0.0, sin(ang)) * randf() * float(a.sp.range) * 2.0)
+			if can_be(a.sp, q):
+				p = q
+				break
+		a.home = p
 	_unbody(a)
 	a.p0 = p
 	a.p1 = p
@@ -560,6 +572,17 @@ func embody(a: Agent) -> bool:
 		return false # (a wasp's young, a bee's: in their comb; none shown)
 	if a.young and a.sp.has("larva"): # (a butterfly's, a moth's: its egg, its caterpillar, its chrysalis)
 		return _embody_stage(a)
+	if a.young and a.sp.has("plankton") and stage_of(a) == "plankton": # (a cloud of them, adrift above the bottom)
+		a.stage = "plankton"
+		var pl: Plankton = Plankton.new(String(a.sp.plankton), 30)
+		space.add_child(pl)
+		pl.position = p + Vector3(0.0, 0.3, 0.0)
+		var w := water_at(p)
+		if w.y > 0.0:
+			pl.set_water(w.x - w.y, w.x)
+			pl.position.y = minf(pl.position.y, w.x - 0.2)
+		a.prop = pl
+		return true
 	if String(a.sp.site) != "" and not a.young: # (what's really there to live on, now it's near)
 		var st := site_for(a.sp, p)
 		if st != Vector3.INF:
@@ -572,6 +595,8 @@ func embody(a: Agent) -> bool:
 	if far:
 		far.release(a)
 	_attach(a, c)
+	if c.has_method("set_home"): # (its den, its own place: its record's, whichever body it has)
+		c.call("set_home", a.home)
 	a.doing = ""
 	wake(a, now + 0.1)
 	var m: Agent = agents.get(a.mother) if a.young else null
@@ -642,6 +667,7 @@ func _attach(a: Agent, c: Creature) -> void:
 	a.on_gone = _body_gone.bind(a, c)
 	c.action_finished.connect(a.on_finished)
 	c.tree_exiting.connect(a.on_gone)
+	c.set_meta("sim", true) # (its young, its death: the record's to say)
 
 
 func _detach(a: Agent) -> void:
@@ -651,6 +677,7 @@ func _detach(a: Agent) -> void:
 	a.body = null
 	_by_body.erase(c.fauna_id)
 	if is_instance_valid(c):
+		c.remove_meta("sim")
 		if c.action_finished.is_connected(a.on_finished):
 			c.action_finished.disconnect(a.on_finished)
 		if c.tree_exiting.is_connected(a.on_gone):
@@ -745,6 +772,7 @@ func go_to(a: Agent, point: Vector3, running := false, exact := false) -> void:
 		else:
 			a.body.go_to(point, a.body._p_speed() * (float(a.sp.run) / maxf(float(a.sp.walk), 0.01)) if running else -1.0)
 		a.issuing = false
+		a.until = now + a.body.where().distance_to(point) / maxf(a.body._p_speed(), 0.005) * 1.5 + 5.0 # (its time to get there: a slow one's long)
 		wake(a, now + 4.0) # (to look about as it goes)
 		return
 	var from := where(a)
@@ -965,7 +993,7 @@ func to_dict() -> Dictionary:
 				"home": [a.home.x, a.home.y, a.home.z], "hunger": a.hunger, "tired": a.tired,
 				"carrying": maxf(a.pregnant_until - now, 0.001) if a.pregnant_until > 0.0 else 0.0, "sire": a.sire,
 				"bred": now - a.bred_at, "mother": a.mother, "brood": a.brood.duplicate(), "age": now - a.born_at,
-				"grows": maxf(a.grow_at - now, 0.0), "slot": a.slot, "site": [a.site.x, a.site.y, a.site.z] if a.site != Vector3.INF else []})
+				"grows": maxf(a.grow_at - now, 0.0), "slot": a.slot, "spent": maxf(a.dies_at - now, 0.001) if a.dies_at > 0.0 else 0.0, "site": [a.site.x, a.site.y, a.site.z] if a.site != Vector3.INF else []})
 	var cells := []
 	for k: Vector2i in seeded:
 		cells.append([k.x, k.y])
@@ -1014,9 +1042,12 @@ func from_dict(d: Dictionary) -> void:
 		a.born_at = now - float(e.get("age", 0.0))
 		a.grow_at = now + float(e.get("grows", 0.0))
 		a.slot = int(e.get("slot", 0))
+		var spent := float(e.get("spent", 0.0))
+		a.dies_at = now + spent if spent > 0.0 else 0.0
 		var st: Array = e.get("site", [])
 		a.site = Vector3(st[0], st[1], st[2]) if st.size() == 3 else Vector3.INF
 		if a.young:
+			a.stage = stage_of(a)
 			wake(a, minf(a.grow_at, now + 10.0))
 	_next = int(d.get("next", 1))
 	for id: int in agents:

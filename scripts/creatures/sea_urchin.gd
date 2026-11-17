@@ -80,7 +80,7 @@ func _init(young_ := false) -> void:
 
 
 func behaviours() -> PackedStringArray:
-	return PackedStringArray(["wander", "eat", "graze", "defend", "spawn"])
+	return PackedStringArray(["wander", "eat", "graze", "defend", "spawn", "mate"])
 
 
 func _set_size() -> void:
@@ -250,7 +250,7 @@ func spawn(with_others := true) -> void:
 		for o in get_parent().get_children():
 			if o is SeaUrchin and o != self and not o.young and (o as Node3D).global_position.distance_to(global_position) < 2.5:
 				o.call("spawn", false)
-	if not male: # (her eggs, out into the water above her: fertilized if a male near is spawning)
+	if not male and not has_meta("sim"): # (her eggs, out into the water above her: fertilized if a male near is spawning; with a record, its young are FaunaSim's)
 		var fert := false
 		for o in get_parent().get_children():
 			if o is SeaUrchin and o.male and o != self and (o as Node3D).global_position.distance_to(global_position) < 3.0:
@@ -299,6 +299,20 @@ func spawn(with_others := true) -> void:
 		_plume.position = Vector3(0.0, LIFT + R * (H_BOT + H_TOP), 0.0)
 		add_child(_plume)
 	_plume.emitting = true
+
+
+## Spawning with another (a brain's mating: broadcast, the two together).
+func mate(partner: Node3D, _secs := -1.0) -> bool:
+	if young or partner == null or not is_instance_valid(partner):
+		return false
+	spawn(false)
+	if partner.has_method("spawn"):
+		partner.call("spawn", false)
+	return true
+
+
+func is_mating() -> bool:
+	return _mode == "spawn"
 
 
 func _to(m: String, secs: float) -> void:

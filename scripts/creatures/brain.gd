@@ -80,6 +80,17 @@ static func think(sim: FaunaSim, a: FaunaSim.Agent) -> void:
 		sim.wake(a, sim.now + 60.0)
 		return
 	_drives(sim, a)
+	if a.dies_at > 0.0 and sim.now >= a.dies_at: # (its life spent: an octopus, once he's mated)
+		sim.kill(a)
+		return
+	if bool(a.sp.get("broods", false)) and a.pregnant_until > 0.0 and sim.now < a.pregnant_until: # (her eggs: in her den, brooded, never left)
+		if a.doing == "":
+			_brood(sim, a)
+		elif a.body == null or a.held:
+			sim.wake(a, minf(a.until, a.pregnant_until))
+		else:
+			sim.wake(a, sim.now + LOOK)
+		return
 	# its reflex: what hunts it, near
 	var th := threat(sim, a)
 	if th != null:
@@ -87,6 +98,10 @@ static func think(sim: FaunaSim, a: FaunaSim.Agent) -> void:
 			_flee(sim, a, th)
 		else:
 			sim.wake(a, sim.now + LOOK * 0.5)
+		return
+	if a.doing == "go_to" and a.state == &"wander" and a.pregnant_until > 0.0 and sim.now >= a.pregnant_until: # (her time's come: the wander left off)
+		sim.halt(a)
+	if a.doing == "go_to" and a.state == &"wander" and _breed(sim, a): # (wandering, slowly: one of his kind near, and he's off to her)
 		return
 	if a.doing != "": # (something in hand: only looking about)
 		if a.body and not a.held and a.doing != "go_to" and sim.now > a.until + 25.0: # (its body never said it was done)
@@ -240,7 +255,7 @@ static func _prey(sim: FaunaSim, a: FaunaSim.Agent) -> FaunaSim.Agent:
 	var best: FaunaSim.Agent = null
 	var bs := INF
 	for o: FaunaSim.Agent in sim.near(p, float(a.sp.sense)):
-		if o == a or not o.alive:
+		if o == a or not o.alive or o.stage == "plankton": # (adrift, a cloud: not one to run down)
 			continue
 		var like := Species.hunts(a.key, o.key, o.young)
 		if like <= 0.0:
@@ -448,6 +463,22 @@ static func _mate(sim: FaunaSim, a: FaunaSim.Agent, f: FaunaSim.Agent) -> void:
 static func _conceive(sim: FaunaSim, f: FaunaSim.Agent, by: FaunaSim.Agent) -> void:
 	f.pregnant_until = sim.now + Species.days(float(f.sp.gest_days))
 	f.sire = by.id
+	if bool(by.sp.get("semelparous", false)) and by.dies_at <= 0.0: # (his life's spent: he goes on a while, then dies)
+		by.dies_at = sim.now + Species.days(float(by.sp.gap_days))
+
+
+## She, carrying (an octopus's eggs, laid): to her den, and brooding them till they hatch.
+static func _brood(sim: FaunaSim, a: FaunaSim.Agent) -> void:
+	var p := sim.where(a)
+	if Vector2(p.x - a.home.x, p.z - a.home.z).length() > maxf(float(a.sp.len) * 0.3, 0.3):
+		a.state = &"home"
+		sim.go_to(a, a.home, false, true)
+		return
+	a.state = &"brood"
+	var secs := a.pregnant_until - sim.now
+	if not sim.act(a, "brood", secs):
+		sim.halt(a)
+		sim.hold(a, "brood", secs)
 
 
 ## Her young born: her body's own birth if it has one (they come to
@@ -461,6 +492,9 @@ static func _birth(sim: FaunaSim, a: FaunaSim.Agent) -> void:
 	if a.body and sim.act(a, "birth", 30.0, {"n": n}):
 		return
 	sim.bear(a, n)
+	if bool(a.sp.get("semelparous", false)): # (her young hatched, she dies: an octopus)
+		sim.kill(a)
+		return
 	sim.act(a, "alert", 4.0)
 
 
@@ -469,6 +503,12 @@ static func _birth(sim: FaunaSim, a: FaunaSim.Agent) -> void:
 static func young(sim: FaunaSim, a: FaunaSim.Agent) -> void:
 	if sim.now >= a.grow_at:
 		sim.grow_up(a)
+		return
+	if a.sp.has("plankton"): # (adrift in the plankton; then settled, a body of its own near)
+		sim.restage(a)
+		var span0 := a.grow_at - a.born_at
+		var next0 := a.born_at + span0 * float(a.sp.get("plankton_frac", 0.4)) if a.stage == "plankton" else a.grow_at
+		sim.wake(a, minf(maxf(next0, sim.now + 0.2), sim.now + 10.0))
 		return
 	if a.sp.has("larva"): # (its egg, its caterpillar, its chrysalis: each in its time)
 		sim.restage(a)

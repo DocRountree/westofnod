@@ -113,7 +113,10 @@ const EATS := {
 	"cecropia_moth.gd": {},
 	"polyphemus_moth.gd": {},
 	"sea_turtle.gd": {}, # (its seagrass isn't in the game)
-	"great_white_shark.gd": {"tuna": 1.0, "fish": 0.8, "dead_fish": 0.4}, # (its seals, sea lions and whale carcasses aren't in the game; a sea otter it bites to try, and lets go)
+	"octopus.gd": {"shrimp": 1.0, "clam": 0.8}, # (crabs above all, in life: none here; shrimp pounced on, clams taken home and opened)
+	"ochre_sea_star.gd": {"clam": 1.0, "urchin": 0.3}, # (mussels its staple, in life: clams here; now and then an urchin)
+	"sand_dollar.gd": {"algae": 1.0}, # (what drifts by and what's on the sand: diatoms, detritus)
+	"great_white_shark.gd": {"tuna": 1.0, "fish": 0.8, "dead_fish": 0.4, "octopus": 0.4, "octopus_young": 0.3}, # (its seals, sea lions and whale carcasses aren't in the game; a sea otter it bites to try, and lets go)
 	"orca.gd": {"tuna": 1.0, "fish": 0.8, "shark": 0.6, "shark_pup": 0.8, "dolphin": 0.5, "dolphin_calf": 0.7, "whale_calf": 0.4}, # (a tuna, a salmon; a shark rammed and its liver taken; a dolphin; a whale's calf)
 	"bottlenose_dolphin.gd": {"fish": 1.0, "tuna": 0.3},
 	"blue_whale.gd": {"krill": 1.0},
@@ -318,6 +321,14 @@ static func kind_of(n: Node) -> String:
 			k = "fish" if String(n.get("kind")) in ["rainbow", "chinook"] else ("tuna" if String(n.get("kind")) == "bluefin" else "")
 		"great_white_shark.gd":
 			k = "shark_pup" if young else "shark"
+		"common_octopus.gd", "giant_pacific_octopus.gd":
+			k = "" if n.get("dead") == true else ("octopus_young" if young else "octopus")
+		"shrimp.gd", "white_shrimp.gd", "brown_shrimp.gd", "pink_shrimp.gd":
+			k = "shrimp"
+		"ochre_sea_star.gd":
+			k = "sea_star"
+		"sand_dollar.gd":
+			k = "sand_dollar"
 		"bottlenose_dolphin.gd":
 			k = "dolphin_calf" if young else "dolphin"
 		"blue_whale.gd":

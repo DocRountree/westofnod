@@ -48,7 +48,7 @@ func _go(demo: Node3D) -> void:
 		if n == null:
 			print("SKIP ", key)
 			continue
-		if key in ["white_shrimp", "brown_shrimp", "pink_shrimp", "krill", "mollies", "chinook", "chinook_spawning", "rainbow", "steelhead", "bluefin", "white_shark", "sea_clams", "sea_urchins"]:
+		if key in ["white_shrimp", "brown_shrimp", "pink_shrimp", "krill", "mollies", "chinook", "chinook_spawning", "rainbow", "steelhead", "bluefin", "white_shark", "sea_clams", "sea_urchins", "common_octopus", "giant_pacific_octopus", "ochre_sea_star", "sand_dollar"]:
 			for q: Dictionary in demo.get("_ponds"): # (seen from above, the water: its surface drawn away)
 				var nd: Array = q.nodes
 				if not nd.is_empty() and nd[nd.size() - 1] is Node3D:

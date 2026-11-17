@@ -133,6 +133,9 @@ const CetaceanScript := preload("res://scripts/creatures/cetacean.gd")
 const CETACEANS := {"blue_whale": preload("res://scripts/creatures/blue_whale.gd"), "orca": preload("res://scripts/creatures/orca.gd"), "dolphin": preload("res://scripts/creatures/bottlenose_dolphin.gd")}
 const UrchinLarvaeScript := preload("res://scripts/creatures/urchin_larvae.gd")
 const GiantKelpScript := preload("res://scripts/creatures/giant_kelp.gd")
+const SEA_FLOOR := {"common_octopus": preload("res://scripts/creatures/common_octopus.gd"), "giant_pacific_octopus": preload("res://scripts/creatures/giant_pacific_octopus.gd"),
+		"ochre_sea_star": preload("res://scripts/creatures/ochre_sea_star.gd"), "sand_dollar": preload("res://scripts/creatures/sand_dollar.gd")}
+const PlanktonScript := preload("res://scripts/creatures/plankton.gd")
 const SHRIMP := {"white_shrimp": preload("res://scripts/creatures/white_shrimp.gd"), "brown_shrimp": preload("res://scripts/creatures/brown_shrimp.gd"), "pink_shrimp": preload("res://scripts/creatures/pink_shrimp.gd")}
 
 const PersonalSpace := preload("res://scripts/creatures/personal_space.gd")
@@ -196,6 +199,10 @@ const CATALOGUE := [
 	["Crustaceans", "virile crayfish", "virile_crayfish", ["adult", "young"]],
 	["Sea floor", "clams (a few, on the bottom of a sea: a sea otter's food; young: newly settled spat)", "sea_clams", ["adult", "young"]],
 	["Sea floor", "purple sea urchins (a few, on the bottom of a sea; egg: fertilized eggs drifting up; larva: echinoplutei swimming, 6x life size; young: greenish spat)", "sea_urchins", ["adult", "egg", "larva", "young"]],
+	["Sea floor", "common octopus (in its den; egg: a female brooding her eggs, hung from her den's roof; larva: paralarvae in the plankton, 6x life size; young: settled, small)", "common_octopus", ["adult", "egg", "larva", "young"]],
+	["Sea floor", "giant Pacific octopus (in its den; egg: brooding; larva: paralarvae; young: settled)", "giant_pacific_octopus", ["adult", "egg", "larva", "young"]],
+	["Sea floor", "ochre sea stars (a few: purple, orange, brown; larva: bipinnaria in the plankton, 6x life size; young: tiny stars)", "ochre_sea_star", ["adult", "larva", "young"]],
+	["Sea floor", "eccentric sand dollars (a bed of them on the sand; larva: echinoplutei; young: tiny, pale)", "sand_dollar", ["adult", "larva", "young"]],
 	["Sea floor", "a rock on the bottom (a sea otter's anvil)", "sea_rock", ["adult"]],
 	["Sea floor", "giant kelp (a plant, bottom to surface; drift blades about it: the urchins' food)", "giant_kelp", ["adult"]],
 	["Crustaceans", "white shrimp (in the sea)", "white_shrimp", ["adult", "young"]],
@@ -278,7 +285,7 @@ const CATALOGUE := [
 ## What needs a pond or the sea (dug in the plain here): not put down in the
 ## game, whose land isn't dug (world).
 const WET := ["puddle", "small_pond", "pond", "large_pond", "sea", "darner", "fishing_spider", "red_crayfish", "virile_crayfish",
-	"white_shrimp", "brown_shrimp", "pink_shrimp", "krill", "mollies", "chinook", "chinook_spawning", "rainbow", "steelhead", "bluefin",
+	"white_shrimp", "brown_shrimp", "pink_shrimp", "common_octopus", "giant_pacific_octopus", "ochre_sea_star", "sand_dollar", "krill", "mollies", "chinook", "chinook_spawning", "rainbow", "steelhead", "bluefin",
 	"frog", "toad", "box_turtle", "snapper", "painted", "sea_turtle", "beaver", "moose", "river_otter", "sea_otter"]
 
 ## Ponds by their size: [half width, half depth, deep] (m).
@@ -1205,6 +1212,38 @@ func _spawn_animal(key: String, at: Vector3, stage: String, male: bool, young: b
 			cr.call("place", inside, randf() * TAU)
 			cr.call("wander", inside, 0.2)
 			return cr
+		"common_octopus", "giant_pacific_octopus", "ochre_sea_star", "sand_dollar": # (on the sea's floor, clear of its walls)
+			var oq := _pond_for(at, "sea")
+			var oc: Vector3 = oq.c
+			var edge := 0.9 if key == "giant_pacific_octopus" else 0.4
+			var inn := Vector3(clampf(at.x, oc.x - float(oq.hw) + edge, oc.x + float(oq.hw) - edge), 0.0, clampf(at.z, oc.z - float(oq.hd) + edge, oc.z + float(oq.hd) - edge))
+			inn.y = _height(inn.x, inn.z)
+			var osc: GDScript = SEA_FLOOR[key]
+			if stage == "larva": # (a cloud of their young, adrift: a few settle in a while)
+				var pl: Node3D = PlanktonScript.new({"common_octopus": "octopus", "giant_pacific_octopus": "octopus", "ochre_sea_star": "sea_star", "sand_dollar": "pluteus"}[key], 60)
+				pl.set("young_script", osc.resource_path)
+				add_child(pl)
+				pl.position = inn + Vector3(0.0, 0.35, 0.0)
+				pl.call("set_water", inn.y, POND)
+				return pl
+			var many := 1 if key.ends_with("octopus") else (3 if key == "ochre_sea_star" else 8) # (a few stars; a bed of sand dollars)
+			if young and not key.ends_with("octopus"):
+				many += 2
+			var first: Node3D = null
+			for k in many:
+				var oo: Node3D = osc.new(young)
+				oo.set("male", (k % 2 == 1 if many > 1 else male) and not young and stage != "egg")
+				oo.set("water_y", POND)
+				oo.set("height", _height)
+				var op := inn + (Vector3(randf_range(-0.4, 0.4), 0.0, randf_range(-0.4, 0.4)) if k > 0 else Vector3.ZERO)
+				op.y = _height(op.x, op.z)
+				_org(oo, op, false)
+				oo.call("place", op, randf() * TAU)
+				if stage == "egg": # (her eggs laid in her den: brooded)
+					oo.call("brood")
+				if first == null:
+					first = oo
+			return first
 		"white_shrimp", "brown_shrimp", "pink_shrimp": # (in the sea: on its floor, clear of its walls)
 			var sq := _pond_for(at, "sea")
 			var sh: Node3D = (SHRIMP[key] as Script).new(young)
