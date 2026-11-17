@@ -199,7 +199,7 @@ const LAYERS := [
 	# a broad-leafed fern (as the interrupted fern, Osmunda claytoniana): a
 	# vase of broad fronds, a little taller than the forest's other ferns,
 	# in drifts of its own (drift: not the other ferns'), up through the litter
-	{"cell": 0.7, "cells": 20, "tiles": 9, "fronds": 7, "fern_width": 0.21, "fern_rise": Vector2(2.4, 3.8), "lods": [[14.0, 6, 2, 1.0]],
+	{"cell": 0.7, "cells": 20, "tiles": 9, "fronds": 7, "fern_width": 0.2, "frond_tex": "broad_fern_frond.png", "fern_rise": Vector2(2.4, 3.8), "lods": [[14.0, 6, 2, 1.0]],
 		"u": {"kind": 1, "seed": 21, "in_prairie": false, "on_litter": true, "cover": 0.85, "drift": Vector3(16.0, 0.4, 4.4),
 			"forest_height": Vector2(0.5, 0.65), "fade_out": Vector2(30.0, 42.0), "thin_from": 14.0}},
 	# wild ginger (Asarum canadense): low clumps, broad dark hearts, in patches
@@ -288,9 +288,10 @@ func setup(w: WorldData) -> void:
 		var m := ShaderMaterial.new()
 		m.shader = load("res://shaders/render/ground_cover_fern.gdshader" if L.u.kind == 1 else "res://shaders/render/ground_cover.gdshader")
 		m.set_shader_parameter("cell", L.cell)
-		if L.u.kind == 1:
-			m.set_shader_parameter("frond_tex", OakTree._texture("res://data/population/textures/fern_frond.png"))
-			m.set_shader_parameter("frond_mean", _mean_linear(frond))
+		if L.u.kind == 1: # (its frond: the forest's ferns' bracken-like one, or its own: the broad-leafed fern's)
+			var fpath := "res://data/population/textures/" + String(L.get("frond_tex", "fern_frond.png"))
+			m.set_shader_parameter("frond_tex", OakTree._texture(fpath))
+			m.set_shader_parameter("frond_mean", _mean_linear(frond if fpath.ends_with("/fern_frond.png") else load(fpath) as Texture2D))
 		for k in L.u:
 			if k in DRAW_KEYS:
 				m.set_shader_parameter(k, L.u[k])

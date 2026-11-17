@@ -8,6 +8,14 @@
   along its vein and lighter toward its tip: three levels of the same shape,
   each pinna its own shade.
   Transparent pixels carry the nearest frond colour (no dark fringes).
+- broad_fern_frond.png: RGBA, 256 x 1024, a broad-leafed fern's frond (as
+  the interrupted fern, Osmunda claytoniana: once pinnate, its pinnae
+  deeply lobed), base at the bottom: a stout pale rachis giving off pinnae
+  in near-opposite pairs, broad lance-shaped blades, close set (little gap
+  between them), each cut into rounded lobes along its edges with a pale
+  midrib and darker veins into the lobes, lighter toward their edges;
+  longest a third of the way up, shrinking to the tip. The broad-leafed
+  fern's (GroundCover).
 - leaf_litter.png: RGB, 1024 x 1024, about 1.6 m square, tileable every
   way (each tile may be turned any quarter turn: the terrain turns them at
   random, so the repeat doesn't show): fallen
@@ -24,7 +32,7 @@
   lays it over the taiga's needle duff as it lays the leaves over the
   forest's litter.
 
-python3 tools/ground/bake_ground_textures.py [--needles]  (--needles: only the needle litter)
+python3 tools/ground/bake_ground_textures.py [--needles | --broad]  (only the needle litter; only the broad fern's frond)
 """
 import math
 import os
@@ -104,6 +112,77 @@ def frond(w=256, h=1024, ss=3):
     dc.line([tuple(base), tuple(tip)], fill=c(rib * 0.9), width=int(W * 0.014))
     m = np.asarray(mask.resize((w, h), Image.LANCZOS), dtype=np.float32) / 255.0
     # (the colour averaged over covered pixels only)
+    cw = np.asarray(col, np.float32) * (np.asarray(mask, np.float32)[..., None] / 255)
+    cw = np.asarray(Image.fromarray(cw.clip(0, 255).astype(np.uint8)).resize((w, h), Image.LANCZOS), np.float32)
+    rgb = cw / np.maximum(m, 1e-3)[..., None]
+    return _bleed(np.clip(rgb, 0, 255), m)
+
+
+def broad_frond(w=256, h=1024, ss=3):
+    W, H = w * ss, h * ss
+    mask = Image.new("L", (W, H), 0)
+    dm = ImageDraw.Draw(mask)
+    col = Image.new("RGB", (W, H), (0, 0, 0))
+    dc = ImageDraw.Draw(col)
+    base = np.array([W * 0.5, H * 0.995])
+    tip = np.array([W * 0.5, H * 0.01])
+    n_pinnae = 13
+    leaf = np.array([40.0, 76.0, 20.0])
+    light = np.array([84.0, 122.0, 40.0])
+    rib = np.array([128.0, 146.0, 70.0])
+    vein = np.array([28.0, 54.0, 14.0])
+
+    def c(v):
+        return tuple(int(x) for x in np.clip(v, 0, 255))
+
+    def blade(p0, direction, length, width, lobes, scale=1.0):
+        # a lance-shaped blade, its edge cut into rounded lobes
+        direction = direction / np.linalg.norm(direction)
+        side = np.array([-direction[1], direction[0]])
+        pts = []
+        k = 90
+        for sgn in (1, -1):
+            idx = range(k + 1) if sgn == 1 else range(k, -1, -1)
+            for i in idx:
+                t = i / k
+                env = math.sin(math.pi * min(t * 1.05, 1.0)) ** 0.55 * (1.0 - 0.6 * t)  # (tapering to a point)
+                lobe = 0.62 + 0.38 * abs(math.cos(math.pi * t * lobes))  # (rounded lobes, deep notches)
+                half = width * 0.5 * env * lobe * scale
+                pts.append(tuple(p0 + direction * length * t + side * half * sgn))
+        return pts, direction, side
+
+    def pinna(p0, direction, length, width):
+        tone = rng.uniform(0.86, 1.14)
+        lobes = max(int(length / (width * 0.3)), 4)
+        pts, d, side = blade(p0, direction, length, width, lobes)
+        dm.polygon(pts, fill=255)
+        dc.polygon(pts, fill=c(leaf * tone))
+        inner, _, _ = blade(p0, direction, length, width, lobes, 0.55)
+        dc.polygon(inner, fill=c((leaf * 0.8 + vein * 0.2) * tone))  # (darker along its middle, lighter at its lobes)
+        for j in range(lobes):  # veins out into each lobe, both ways
+            t = (j + 0.5) / lobes
+            at = p0 + d * length * t
+            env = math.sin(math.pi * min(t * 1.05, 1.0)) ** 0.55 * (1.0 - 0.6 * t)
+            for sgn in (-1, 1):
+                end = at + (side * sgn * 0.42 * width * env + d * length * 0.04)
+                dc.line([tuple(at), tuple(end)], fill=c(vein * tone), width=max(int(W * 0.004), 1))
+        edge, _, _ = blade(p0, direction, length, width, lobes, 1.0)
+        dc.line(edge + [edge[0]], fill=c(light * tone), width=max(int(W * 0.006), 1))  # (its edge catching the light)
+        dc.line([tuple(p0), tuple(p0 + d * length * 0.92)], fill=c(rib * tone), width=max(int(W * 0.011), 2))
+
+    for i in range(n_pinnae):
+        t = 0.16 + 0.82 * (i + 0.5) / n_pinnae
+        at = base + (tip - base) * t
+        env = math.sin(math.pi * min((t - 0.08) / 0.98, 1.0)) ** 0.8
+        length = W * 0.5 * env * (1.0 - 0.1 * t)
+        width = H * 0.068 * (0.55 + 0.45 * env)  # (broad: close set, little gap between)
+        for sgn in (-1, 1):
+            p0 = at + np.array([0.0, sgn * H * 0.01])
+            dd = np.array([sgn * 1.0, -0.22 - 0.3 * t])
+            pinna(p0, dd, length, width)
+    dm.line([tuple(base), tuple(tip)], fill=255, width=int(W * 0.03))  # (a stout rachis)
+    dc.line([tuple(base), tuple(tip)], fill=c(rib * 0.92), width=int(W * 0.03))
+    m = np.asarray(mask.resize((w, h), Image.LANCZOS), dtype=np.float32) / 255.0
     cw = np.asarray(col, np.float32) * (np.asarray(mask, np.float32)[..., None] / 255)
     cw = np.asarray(Image.fromarray(cw.clip(0, 255).astype(np.uint8)).resize((w, h), Image.LANCZOS), np.float32)
     rgb = cw / np.maximum(m, 1e-3)[..., None]
@@ -372,12 +451,18 @@ def litter(size=1024, ss=2):
 def main():
     import sys
     os.makedirs(OUT, exist_ok=True)
+    if "--broad" in sys.argv:
+        Image.fromarray(broad_frond(), "RGBA").save(os.path.join(OUT, "broad_fern_frond.png"))
+        print("broad_fern_frond.png")
+        return
     if "--needles" in sys.argv:
         needle_litter().save(os.path.join(OUT, "needle_litter.png"))
         print("needle_litter.png")
         return
     Image.fromarray(frond(), "RGBA").save(os.path.join(OUT, "fern_frond.png"))
     print("fern_frond.png")
+    Image.fromarray(broad_frond(), "RGBA").save(os.path.join(OUT, "broad_fern_frond.png"))
+    print("broad_fern_frond.png")
     litter().save(os.path.join(OUT, "leaf_litter.png"))
     print("leaf_litter.png")
     needle_litter().save(os.path.join(OUT, "needle_litter.png"))
