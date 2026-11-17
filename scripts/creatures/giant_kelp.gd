@@ -1,5 +1,5 @@
 class_name GiantKelp
-extends Node3D
+extends "res://scripts/creatures/creature.gd"
 ## Giant kelp (Macrocystis pyrifera), a plant of it, from the bottom to the
 ## surface of the water it's in (its origin on the bottom): its holdfast, a
 ## low tangle of root-like haptera gripping the rock; its fronds (several,
@@ -11,28 +11,90 @@ extends Node3D
 ##
 ## A purple sea urchin's chief food (meta "kelp_plant": the urchins graze at
 ## its holdfast, and at the drift blades lying about its base, drift_kelp()
-## in sea_urchin.gd). Grazing never uses it up.
+## in sea_urchin.gd). A plant's grazing never uses it up; but urchins
+## crowding its holdfast many at once, day after day, kill it (its record's:
+## Brain, Species "plant": an urchin barren where the otters are gone).
+##
+## A record of its own (Species "giant_kelp": a plant, sessile, never
+## thinking but to grow): its spores out into the water now and then,
+## young sporophytes coming up about it (a young one short, its fronds a
+## fraction of the way up, none at the surface yet), grown in their time.
+## Made as one's made: Species.make gives it its water (set_water: its depth
+## from it); its mesh cached by its depth and its few shapes.
 
-var depth := 1.0
+var depth := -1.0 # (m: the water it stands in; -1 not known till it's put there)
 var seed_ := 0
+var young := false
+var male := false
+var dead := false
+var grow := 1.0 # (a young one's fronds: so far up the water)
+var height: Callable
+var water_y := INF
+var floor_y := 0.0
+
+static var _built := {} # ("depth:shape:grow") -> its mesh
 
 
-func _init(depth_ := 1.0, seed__ := -1) -> void:
-	depth = depth_
-	seed_ = seed__ if seed__ >= 0 else randi() % 100000
+func _init(depth_: Variant = 1.0, seed__ := -1) -> void:
+	if depth_ is bool: # (as Species makes it: young, or not; its depth from its water)
+		young = depth_
+		depth = -1.0
+	else:
+		depth = float(depth_)
+	seed_ = seed__ if seed__ >= 0 else randi() % 6
+	if young:
+		grow = randf_range(0.15, 0.4)
 	set_meta("kelp_plant", true)
 	set_meta("item", "kelp")
+	if depth > 0.0:
+		_make()
+
+
+## Its water (as Species.make tells it): its floor, its surface.
+func set_water(lo: Vector3, hi: Vector3) -> void:
+	depth = maxf(hi.y - lo.y, 0.3)
+
+
+func place(at: Vector3, yaw := 0.0) -> void:
+	position = at
+	if height.is_valid():
+		position.y = float(height.call(at.x, at.z))
+	rotation.y = yaw
+
+
+func behaviours() -> PackedStringArray:
+	return PackedStringArray()
+
+
+func die() -> void:
+	dead = true
+	queue_free() # (torn loose: gone with the swell)
+
+
+func _make() -> void:
+	var key := "%d:%d:%d" % [roundi(depth * 4.0), seed_ % 6, roundi(grow * 8.0)]
+	var mesh: ArrayMesh = _built.get(key)
+	if mesh == null:
+		mesh = build(depth, seed_ % 6 + 11, grow)
+		_built[key] = mesh
 	var mi := MeshInstance3D.new()
-	mi.mesh = build(depth, seed_)
+	mi.mesh = mesh
 	var m := ShaderMaterial.new()
 	m.shader = load("res://shaders/render/kelp.gdshader")
 	m.set_shader_parameter("depth", depth)
-	m.set_shader_parameter("phase", float(seed_ % 997) * 0.37)
+	m.set_shader_parameter("phase", float(get_instance_id() % 997) * 0.37)
 	mi.material_override = m
 	add_child(mi)
 
 
 func _ready() -> void:
+	set_process(false) # (nothing of it to do each frame: its sway's its shader's)
+	if get_child_count() == 0 or not (get_child(0) is MeshInstance3D):
+		if depth <= 0.0:
+			depth = (water_y - position.y) if water_y < INF else 2.0
+		_make()
+	if young:
+		return
 	# (a few torn blades lying about its base: drifted down, what the urchins graze most)
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed_ + 7
@@ -49,7 +111,7 @@ func _ready() -> void:
 ## g 1 for the canopy afloat, b its part (0 the holdfast and stipes, 0.5 a
 ## float, 1 a blade), a along a blade; CUSTOM0 x a frond's phase, y across a
 ## blade (-1..1).
-static func build(d: float, sd: int) -> ArrayMesh:
+static func build(d: float, sd: int, grow_ := 1.0) -> ArrayMesh:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = sd
 	var st := SurfaceTool.new()
@@ -69,13 +131,13 @@ static func build(d: float, sd: int) -> ArrayMesh:
 			pts.append(dir * (0.012 + reach * t) + Vector3(0.0, h * (1.0 - t * t) + 0.002, 0.0) + Vector3(sin(t * 5.0 + k), 0.0, cos(t * 4.0 + k)) * 0.006)
 		_tube(st, pts, [0.006, 0.005, 0.004, 0.0035, 0.002], d, 0.0, 0.0)
 	# its fronds
-	var nf := rng.randi_range(5, 8)
+	var nf := rng.randi_range(5, 8) if grow_ >= 0.99 else rng.randi_range(1, 3) # (a young one: a frond or two)
 	var surf := d - 0.01
 	for f in nf:
 		var ph := rng.randf() * TAU
 		var a0 := rng.randf() * TAU
 		var lean := Vector3(cos(a0), 0.0, sin(a0)) * rng.randf_range(0.05, 0.25)
-		var tall := surf * rng.randf_range(0.55, 1.0) # (some still growing up toward the surface)
+		var tall := surf * rng.randf_range(0.55, 1.0) * grow_ # (some still growing up toward the surface)
 		var reaches := tall > surf * 0.97
 		var spine := []
 		var NSg := 24
@@ -96,7 +158,7 @@ static func build(d: float, sd: int) -> ArrayMesh:
 		_tube(st, spine, radii, d, ph, 0.0)
 		# its blades, alternate, every so often up it, each on its float
 		var side := 1.0
-		var stepping := 0.11
+		var stepping := maxf(0.11, d * 0.02) # (in deep water, a blade every so far: no more of them than it'll bear)
 		var along := 0.0
 		var total := 0.0
 		for j in spine.size() - 1:

@@ -197,14 +197,14 @@ const CATALOGUE := [
 	["Snails", "lovely grass snails (a few)", "grass_snail", ["adult", "young"]],
 	["Crustaceans", "red swamp crayfish", "red_crayfish", ["adult", "young"]],
 	["Crustaceans", "virile crayfish", "virile_crayfish", ["adult", "young"]],
-	["Sea floor", "clams (a few, on the bottom of a sea: a sea otter's food; young: newly settled spat)", "sea_clams", ["adult", "young"]],
+	["Sea floor", "Pacific littleneck clams (a bed of them, dug into the bottom of a sea, their siphons up; a sea otter's, an octopus's, a sea star's food; larva: veligers in the plankton, 6x life size; young: newly settled spat)", "sea_clams", ["adult", "larva", "young"]],
 	["Sea floor", "purple sea urchins (a few, on the bottom of a sea; egg: fertilized eggs drifting up; larva: echinoplutei swimming, 6x life size; young: greenish spat)", "sea_urchins", ["adult", "egg", "larva", "young"]],
 	["Sea floor", "common octopus (in its den; egg: a female brooding her eggs, hung from her den's roof; larva: paralarvae in the plankton, 6x life size; young: settled, small)", "common_octopus", ["adult", "egg", "larva", "young"]],
 	["Sea floor", "giant Pacific octopus (in its den; egg: brooding; larva: paralarvae; young: settled)", "giant_pacific_octopus", ["adult", "egg", "larva", "young"]],
 	["Sea floor", "ochre sea stars (a few: purple, orange, brown; larva: bipinnaria in the plankton, 6x life size; young: tiny stars)", "ochre_sea_star", ["adult", "larva", "young"]],
 	["Sea floor", "eccentric sand dollars (a bed of them on the sand; larva: echinoplutei; young: tiny, pale)", "sand_dollar", ["adult", "larva", "young"]],
 	["Sea floor", "a rock on the bottom (a sea otter's anvil)", "sea_rock", ["adult"]],
-	["Sea floor", "giant kelp (a plant, bottom to surface; drift blades about it: the urchins' food)", "giant_kelp", ["adult"]],
+	["Sea floor", "giant kelp (a plant, bottom to surface; drift blades about it: the urchins' food; young: a sporophyte coming up)", "giant_kelp", ["adult", "young"]],
 	["Crustaceans", "white shrimp (in the sea)", "white_shrimp", ["adult", "young"]],
 	["Crustaceans", "brown shrimp (in the sea)", "brown_shrimp", ["adult", "young"]],
 	["Crustaceans", "pink shrimp (in the sea)", "pink_shrimp", ["adult", "young"]],
@@ -1539,7 +1539,9 @@ func _spawn_animal(key: String, at: Vector3, stage: String, male: bool, young: b
 		"giant_kelp": # (rooted on the bottom of the sea here, up to its surface)
 			var q := _pond_for(at, "sea")
 			var bottom := -float(q.deep) + 0.012
-			var kp: Node3D = GiantKelpScript.new(POND - bottom)
+			var kp: Node3D = GiantKelpScript.new(true) if young else GiantKelpScript.new(POND - bottom) # (a young one: a frond or two, part way up)
+			if young:
+				kp.set("depth", POND - bottom)
 			kp.set_meta("prop", true)
 			add_child(kp)
 			var c0: Vector3 = q.c
@@ -1549,6 +1551,14 @@ func _spawn_animal(key: String, at: Vector3, stage: String, male: bool, young: b
 			var q := _pond_for(at, "sea")
 			var bottom := -float(q.deep) + 0.012
 			var first: Node3D = null
+			if key == "sea_clams" and stage == "larva": # (veligers, adrift: a few settling in a while)
+				var vl: Node3D = PlanktonScript.new("veliger", 60)
+				vl.set("young_script", "res://scripts/creatures/clam.gd")
+				add_child(vl)
+				var cv: Vector3 = q.c
+				vl.position = Vector3(clampf(at.x, cv.x - float(q.hw) * 0.7, cv.x + float(q.hw) * 0.7), bottom + 0.3, clampf(at.z, cv.z - float(q.hd) * 0.7, cv.z + float(q.hd) * 0.7))
+				vl.call("set_water", bottom, POND)
+				return vl
 			if key == "sea_urchins" and stage in ["egg", "larva"]: # (out in the water: eggs, or larvae)
 				var lv: Node3D = UrchinLarvaeScript.new(stage, 120 if stage == "egg" else 60, true)
 				add_child(lv)
@@ -1557,23 +1567,27 @@ func _spawn_animal(key: String, at: Vector3, stage: String, male: bool, young: b
 				lv.call("set_water", bottom, POND)
 				return lv
 			var spat := young and key != "sea_rock" # (the young: newly settled, a few mm to a couple of cm, too small for an otter to bother with)
-			for k in (1 if key == "sea_rock" else (12 if spat else 4)):
-				var o: Node3D = SeaOtterScript.rock() if key == "sea_rock" else (SeaOtterScript.clam() if key == "sea_clams" else SeaOtterScript.urchin(spat))
+			for k in (1 if key == "sea_rock" else (12 if spat else (8 if key == "sea_clams" else 4))):
+				var o: Node3D = SeaOtterScript.rock() if key == "sea_rock" else ((load("res://scripts/creatures/clam.gd") as GDScript).new(spat) if key == "sea_clams" else SeaOtterScript.urchin(spat))
 				if key == "sea_rock":
 					o.set_meta("otter_rock", true)
-				elif spat:
-					if key == "sea_clams":
-						o.scale = Vector3.ONE * randf_range(0.18, 0.35)
-				else:
-					o.set_meta("shellfish", "clam" if key == "sea_clams" else "urchin")
-				if key != "sea_urchins": # (an urchin's alive: one of the creatures, its own doings)
+				elif not spat and key == "sea_urchins":
+					o.set_meta("shellfish", "urchin")
+				if key == "sea_rock":
 					o.set_meta("prop", true)
-				else:
+				elif key == "sea_urchins": # (an urchin's alive, a clam too: one of the creatures, its own doings)
 					o.set_meta("depth", POND - bottom)
+				else:
+					o.set("water_y", POND)
+					o.set("height", _height)
 				add_child(o)
 				var c0: Vector3 = q.c
 				o.position = Vector3(clampf(at.x, c0.x - float(q.hw) * 0.8, c0.x + float(q.hw) * 0.8), bottom, clampf(at.z, c0.z - float(q.hd) * 0.8, c0.z + float(q.hd) * 0.8)) + Vector3(randf_range(-0.25, 0.25), 0.0, randf_range(-0.25, 0.25)) * float(k > 0) * (1.6 if spat else 1.0)
 				o.rotation.y = randf() * TAU
+				if key == "sea_clams": # (its burrow there; a spat just settled, on the top, digging itself in)
+					o.call("place", o.position, o.rotation.y)
+					if spat:
+						o.call("lay_out")
 				if first == null:
 					first = o
 			return first

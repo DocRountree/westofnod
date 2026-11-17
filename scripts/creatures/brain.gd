@@ -79,6 +79,9 @@ static func think(sim: FaunaSim, a: FaunaSim.Agent) -> void:
 		a.state = &"swarm"
 		sim.wake(a, sim.now + 60.0)
 		return
+	if bool(a.sp.get("plant", false)): # (a plant: growing, grazed, spreading its young; no more)
+		_grow(sim, a)
+		return
 	_drives(sim, a)
 	if a.dies_at > 0.0 and sim.now >= a.dies_at: # (its life spent: an octopus, once he's mated)
 		sim.kill(a)
@@ -347,6 +350,12 @@ static func _sleep(sim: FaunaSim, a: FaunaSim.Agent) -> void:
 
 
 static func _idle(sim: FaunaSim, a: FaunaSim.Agent) -> void:
+	if bool(a.sp.get("sessile", false)): # (one that stays where it is: at what it does there)
+		a.state = &"eat"
+		if not sim.act(a, "eat", float(a.sp.meal) * 2.0, {"centre": sim.where(a), "radius": 0.2}):
+			sim.halt(a)
+			sim.hold(a, "idle", 20.0)
+		return
 	var r := randf()
 	if bool(a.sp.herd): # (too far from its own kind: back to them)
 		var p := sim.where(a)
@@ -426,6 +435,9 @@ static func _breed(sim: FaunaSim, a: FaunaSim.Agent) -> bool:
 			best = o
 	if best == null:
 		return false
+	if bool(a.sp.get("sessile", false)): # (one that stays where it is: spawning with her where they are)
+		_mate(sim, a, best)
+		return true
 	a.state = &"court"
 	a.target = best.id
 	var to := sim.where(best)
@@ -465,6 +477,32 @@ static func _conceive(sim: FaunaSim, f: FaunaSim.Agent, by: FaunaSim.Agent) -> v
 	f.sire = by.id
 	if bool(by.sp.get("semelparous", false)) and by.dies_at <= 0.0: # (his life's spent: he goes on a while, then dies)
 		by.dies_at = sim.now + Species.days(float(by.sp.gap_days))
+
+
+## A plant: grazed (urchins crowding its holdfast past what it bears: day
+## after day, it dies); now and then its young about it, as its crowd allows.
+static func _grow(sim: FaunaSim, a: FaunaSim.Agent) -> void:
+	a.state = &"grow"
+	var p := sim.where(a)
+	var grazers := 0
+	var own := 0
+	for o: FaunaSim.Agent in sim.near(p, float(a.sp.range)):
+		if not o.alive or o == a:
+			continue
+		if o.key == "urchin" and sim.where(o).distance_to(p) < 1.5:
+			grazers += 1
+		elif o.key == a.key:
+			own += 1
+	var over := maxf(float(grazers - int(a.sp.get("grazers", 3))), 0.0)
+	a.hunger = clampf(a.hunger + 0.04 * over - 0.02, 0.0, 1.0) # (its harm: grown back, slowly, when they've gone)
+	if a.hunger >= 1.0:
+		sim.kill(a)
+		return
+	if sim.now - a.bred_at > Species.days(float(a.sp.gap_days)) and own < int(a.sp.crowd) and randf() < 0.5:
+		var lit: Array = a.sp.litter
+		sim.bear(a, randi_range(int(lit[0]), int(lit[1])))
+		a.bred_at = sim.now
+	sim.wake(a, sim.now + randf_range(30.0, 60.0))
 
 
 ## She, carrying (an octopus's eggs, laid): to her den, and brooding them till they hatch.

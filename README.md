@@ -381,6 +381,19 @@ Olive above, silvery sides, a net of scales with rows of dark
   In beds; ploughing through the sand; feeding stood on its edge across the current, the bed all one way (`feed`);
   under the sand (`burrow`); spawning (`spawn`, `mate`); dead, its test bleached white. In the sandbox's Sea floor
   (`sand_dollar`: adult, larva, young).
+- `scripts/creatures/clam.gd` (`Clam`): a Pacific littleneck clam, 5.5 cm, alive (the sea otter's, the octopus's,
+  the sea star's clams are these; `SeaOtter.clam()` makes one). Its valves sculptured with growth ridges crossed by fine
+  radial ribs, cream to grey brown, zigzagged and mottled in brown, each its own; white inside, muscle scars, pallial
+  line; its fused siphons (two openings, the incurrent fringed with tentacles), its foot, its mantle and body
+  (`shaders/render/clam.gdshader`: its valves gaping on their hinge, foot out, siphons out or in, its flesh as much as
+  is left). It lives dug in, on end, a few cm down, its siphons up through its show (the hole in the sand's top):
+  feeding, specks drawn into its incurrent (`feed`); a shadow or a step near and its siphons snap in, a spurt of
+  water and sand out of its show (`shut`); dug up or newly settled, on its edge, its foot down, swelling, the shell
+  pulled after it, rocking, a step at a time (`burrow`); spawning with those near where it lies (`spawn`, `mate`).
+  Taken, it's shut tight; `crack(by)` forced open (killed), `consume(k)` its flesh eaten, `emptied()` an empty shell
+  (meta `empty_shell`), fading, gone in a while; dead of itself, it gapes, its flesh goes. Its veligers in the
+  plankton; its spat settling and digging in. In the sandbox's Sea floor (`sea_clams`: a bed of them; adult, larva,
+  young).
 - `scripts/creatures/plankton.gd` (`Plankton`): the sea floor's young adrift, 6x life size: an octopus's
   paralarvae (going by little jets), a sea star's bipinnaria, an urchin's or a sand dollar's plutei
   (`shaders/render/plankton.gdshader`); `Plankton.plume()`, a spawning one's plume of eggs or milt.
@@ -404,8 +417,10 @@ Olive above, silvery sides, a net of scales with rows of dark
   go to the spot to sleep or give birth.
 - `scripts/creatures/giant_kelp.gd` (`GiantKelp`): giant kelp, a plant from the bottom to the surface: the holdfast's
   haptera, the fronds, a blade on its float every hand's breadth, the canopy out over the surface, swaying in the
-  swell (`shaders/render/kelp.gdshader`), drift blades lying about its base. In the sandbox's Sea floor
-  (`giant_kelp`).
+  swell (`shaders/render/kelp.gdshader`), drift blades lying about its base. A record of its own (Species
+  `giant_kelp`, a `plant`): its height the water's it's made in, its young sporophytes (a frond or two, part way up)
+  coming up about it, grazed to death by urchins crowding its holdfast. Its meshes cached by depth and shape. In the
+  sandbox's Sea floor (`giant_kelp`: adult, young).
 - `scripts/creatures/beetles.gd` (`Beetles`): beetles at twice life size, not yet in the game, the make they
   share: made and moved as the ants are (one mesh, the same shader, the same CPU side), each species its own shape,
   markings, colours and pace, walking, eating at a leaf and flying (the elytra, one
@@ -1209,6 +1224,10 @@ Ambushing,
     and brooding there while she carries (`broods`), dying when they hatch, he after he's mated (`semelparous`,
     `Agent.dies_at`). A slow walker's walk given time enough before it's given up; a wandering male may leave
     off to court; a wandering female near her time leaves off to give birth.
+  - Since: 102 kinds. The clam alive (`Clam`: dug in, siphons up, shutting, burrowing, spawning, cracked and
+    eaten by the otter, the octopus, the sea star, an empty shell left); the giant kelp a record (`plant`: no brain
+    but to grow, its young sporophytes coming up about it, killed by urchins crowding its holdfast). `sessile`:
+    one that spawns where it is, with those near.
   - Records, bodies and brains (`scripts/creatures/species.gd`, `fauna_sim.gd`, `brain.gd`; in the sandbox: the
     Minds box, I; not in the game yet):
     - `Species.TABLE`: what's known of a kind apart from its body (its script, what it's called as food, its

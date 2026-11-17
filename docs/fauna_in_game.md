@@ -49,7 +49,7 @@ fauna.from_dict(d["fauna"])
   hours. `Fauna.life_rate` scales them all, and hunger and tiredness with them. (Hunger, sleep and the rest
   are still in seconds: a deer hungry again in six minutes.)
 
-## What's in `Species.TABLE` (100 kinds, each a record with a body or without)
+## What's in `Species.TABLE` (102 kinds, each a record with a body or without)
 
 - The land's: deer, moose, bison, wolf, coyote, fox, bobcat, both bears, hare, mouse, both squirrels, opossum,
   porcupine, armadillo; turkey, robin, blackbird, cardinal, jay, pigeon, goose; rattlesnake, milk snake, anole,
@@ -66,7 +66,10 @@ fauna.from_dict(d["fauna"])
   animal: `go_to`, `feed`, `flee`); what hunts it takes a fish of it, not it.
 - The sea's floor: the common octopus and the giant Pacific octopus (out at night, back to a den by their
   home by day: the den a hollow under rock, made by its body where its record's home is, `set_home`), the
-  ochre sea star, the eccentric sand dollar (in beds: `herd`), the purple urchin.
+  ochre sea star, the eccentric sand dollar (in beds: `herd`), the purple urchin, the Pacific littleneck clam (in
+  beds, dug in: `sessile`, spawning with those near where it is), and the giant kelp: a plant (`plant`), its height
+  the water's, no brain but to grow: its young sporophytes coming up about it (as its `crowd` allows), and killed by
+  urchins crowding its holdfast past what it bears (`grazers`: an urchin barren where nothing eats them down).
 
 - The rest with bodies of their own: the three dogs (no density: put there, not seeded), the box turtle, the
   blue-winged grasshopper, the fishing and grass spiders, the ichneumon and trigonalid wasps, the cecropia
@@ -91,7 +94,7 @@ fauna.from_dict(d["fauna"])
   `Plankton`: an octopus's paralarvae, a sea star's bipinnaria, an urchin's or a sand dollar's plutei) for
   the first two fifths of their youth, then settled where the current took them (within twice their range),
   their kind's young body. The echinoderms spawn: his mating is the two of them spawning near each other
-  (each a plume), her carrying a quarter of a day.
+  (each a plume), her carrying a quarter of a day. A clam's veligers, the same; its spat dig themselves in.
 - An octopus's (`broods`, `semelparous`): she carries them in her den, brooding the eggs hung from its roof
   (she goes home to it and stays: she neither eats nor runs, and puts on her startling display at what comes
   near); when they hatch she dies, and he dies a `gap_days` after he's mated (`Agent.dies_at`, kept in a save).

@@ -316,7 +316,9 @@ func tick(dt: float) -> void:
 				to.y = 0.0
 				if to.length() < 0.02 * maxf(size, 0.5):
 					_to("eat", _meal)
-					if food is Creature:
+					if food is Clam: # (its valves pulled apart, its stomach put in: killed)
+						food.call("crack", self)
+					elif food is Creature:
 						Meal.subdue(food, self) # (an urchin: its spines no help; held, digested where it is)
 				else:
 					_dir = _dir.lerp(to.normalized(), clampf(dt, 0.0, 1.0)).normalized()
@@ -325,7 +327,9 @@ func tick(dt: float) -> void:
 		"eat": # (humped over it, its stomach out round it)
 			if _t > _until:
 				if is_instance_valid(food):
-					if food is Creature:
+					if food is Clam:
+						food.call("emptied")
+					elif food is Creature:
 						food.queue_free()
 					else:
 						food.remove_meta("shellfish")

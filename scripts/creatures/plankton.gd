@@ -11,6 +11,9 @@ extends MultiMeshInstance3D
 ##   to settle by.
 ## - "pluteus": a sea urchin's or a sand dollar's echinopluteus (eight
 ##   arms on their rods: UrchinLarvae's).
+## - "veliger": a clam's veliger: a tiny shell, its two valves already
+##   (D-shaped, hinged straight), a ciliated velum out over it like a
+##   lid, beating: what it swims and feeds by.
 ## With a record (FaunaSim's: the young of a kind, a "plankton" stage),
 ## what it is is all: its time is the record's. Left to itself (the
 ## sandbox's) with young_script set, after its time a few of it settle to
@@ -129,6 +132,8 @@ static func mesh_for(k: String) -> Mesh:
 			m = (load("res://scripts/creatures/urchin_larvae.gd") as GDScript).call("_pluteus")
 		"sea_star":
 			m = _bipinnaria()
+		"veliger":
+			m = _veliger()
 		_:
 			m = _paralarva()
 	_meshes[k] = m
@@ -187,6 +192,19 @@ static func _bipinnaria() -> ArrayMesh:
 	for i in 3: # (its brachiolar arms)
 		var an := (float(i) - 1.0) * 0.6
 		_blob(st, Vector3(sin(an) * 0.12 * k, 0.6 * k, cos(an) * 0.05 * k), Vector3(0.05, 0.14, 0.05) * k, 1.0, 3, 5)
+	return st.commit()
+
+
+## A clam's veliger (about a fifth of a mm): its D-shaped shell, its velum
+## out over it.
+static func _veliger() -> ArrayMesh:
+	var k := SCALE * 0.001
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for side in [-1.0, 1.0]: # (its valves: flat on top, its hinge; round below)
+		_blob(st, Vector3(0.0, -0.05 * k, side * 0.03 * k), Vector3(0.11, 0.09, 0.035) * k, 0.25, 4, 10)
+	_blob(st, Vector3(0.0, -0.05 * k, 0.0), Vector3(0.06, 0.05, 0.04) * k, 0.5)
+	_blob(st, Vector3(0.0, 0.06 * k, 0.0), Vector3(0.1, 0.025, 0.1) * k, 1.0, 3, 10) # (its velum)
 	return st.commit()
 
 

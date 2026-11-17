@@ -405,6 +405,7 @@ func _p_act(name: String, args: Dictionary) -> bool:
 				args.erase("seconds") # (to it, and eaten, however long that takes: its pilot's done when it's done)
 				if Diet.kind_of(f) == "clam":
 					food = f
+					f.set_meta("hunted", self)
 					_to("home_clam" if is_instance_valid(den) else "open_clam", 40.0)
 				else:
 					hunt(f)
@@ -583,16 +584,22 @@ func _doings(dt: float) -> void:
 			if not is_instance_valid(food):
 				_to("wander", 20.0)
 				return
+			if _mode == "open_clam" and food.get("dead") == false and food.has_method("crack"): # (pulled open)
+				food.call("crack", self)
 			if _mode == "home_clam":
 				var to := den.position - _pos
 				to.y = 0.0
 				food.global_position = global_position + Vector3(0.0, 0.02 * size_k(), 0.0)
 				if to.length() < 0.06 * size_k():
 					_to("open_clam", 25.0)
+					if food.has_method("crack"):
+						food.call("crack", self)
 				else:
 					_face(to, dt * 2.0)
 					_crawl(to.normalized(), walk * 0.8, dt)
 			elif _t > _until:
+				if food.has_method("emptied"): # (a live clam: pulled open (or drilled), its flesh eaten, its shell empty)
+					food.call("emptied")
 				var out := _p_heading() * 0.35 * size_k() + Vector3(randf_range(-0.06, 0.06), 0.0, randf_range(-0.06, 0.06)) * size_k()
 				food.position = _pos + out
 				food.position.y = _bottom(food.position)

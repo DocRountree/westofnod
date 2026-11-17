@@ -115,7 +115,9 @@ const EATS := {
 	"sea_turtle.gd": {}, # (its seagrass isn't in the game)
 	"octopus.gd": {"shrimp": 1.0, "clam": 0.8}, # (crabs above all, in life: none here; shrimp pounced on, clams taken home and opened)
 	"ochre_sea_star.gd": {"clam": 1.0, "urchin": 0.3}, # (mussels its staple, in life: clams here; now and then an urchin)
-	"sand_dollar.gd": {"algae": 1.0}, # (what drifts by and what's on the sand: diatoms, detritus)
+	"sand_dollar.gd": {"algae": 1.0},
+	"clam.gd": {"algae": 1.0}, # (filtered out of the water: plankton, diatoms)
+	"giant_kelp.gd": {}, # (a plant: the sun's) # (what drifts by and what's on the sand: diatoms, detritus)
 	"great_white_shark.gd": {"tuna": 1.0, "fish": 0.8, "dead_fish": 0.4, "octopus": 0.4, "octopus_young": 0.3}, # (its seals, sea lions and whale carcasses aren't in the game; a sea otter it bites to try, and lets go)
 	"orca.gd": {"tuna": 1.0, "fish": 0.8, "shark": 0.6, "shark_pup": 0.8, "dolphin": 0.5, "dolphin_calf": 0.7, "whale_calf": 0.4}, # (a tuna, a salmon; a shark rammed and its liver taken; a dolphin; a whale's calf)
 	"bottlenose_dolphin.gd": {"fish": 1.0, "tuna": 0.3},
@@ -153,7 +155,7 @@ const COPIES_FOR := {"american_toad.gd": ["ants"], "american_robin.gd": ["ants"]
 ## What isn't hunted (no animal to run down: carrion, plants, the game's
 ## items, a colony eaten whole where it is, what's always under it).
 const NOT_PREY := ["carcass", "dead_mouse", "dead_fish", "berries", "forbs", "flowers", "sapling", "stick", "ants", "wasp_comb",
-		"fish", "tuna", "mollies", "clam", "urchin", "acorn", "walnut", "pawpaw", "crabapple", "morel", "fly_agaric", "chicken_of_the_woods",
+		"fish", "tuna", "mollies", "clam", "urchin", "kelp", "acorn", "walnut", "pawpaw", "crabapple", "morel", "fly_agaric", "chicken_of_the_woods",
 		"little_brown", "graze", "leaf", "litter", "algae", "blood"]
 
 ## (A plant's: eaten from where it grows, nothing taken off it (a bush's

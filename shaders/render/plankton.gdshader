@@ -3,7 +3,7 @@ render_mode cull_disabled, depth_draw_always;
 // Young in the plankton (scripts/creatures/plankton.gd). INSTANCE_CUSTOM: x
 // a phase, y 1 an octopus's paralarva (its mantle pulsing). COLOR.g: 0 the
 // body, glassy; 0.5 its gut, its eyes; 0.75 a chromatophore; 1 an arm or
-// a lobe's ciliated band (beating).
+// a lobe's ciliated band (beating); 0.25 a veliger's shell.
 
 varying float v_kind;
 
@@ -29,6 +29,9 @@ void fragment() {
 	} else if (v_kind > 0.4) {
 		ALBEDO = vec3(0.25, 0.2, 0.12);
 		ALPHA = 0.9;
+	} else if (v_kind > 0.15) { // a veliger's shell: thin, amber, clear
+		ALBEDO = vec3(0.82, 0.72, 0.52);
+		ALPHA = 0.45 + 0.4 * rim;
 	} else {
 		ALBEDO = vec3(0.78, 0.74, 0.7);
 		ALPHA = 0.1 + 0.5 * rim;

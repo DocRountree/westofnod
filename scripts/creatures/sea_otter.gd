@@ -127,8 +127,17 @@ func _build_extra() -> void:
 
 # --- what it eats, its kelp -------------------------------------------------------
 
-## A clam (a littleneck: ridged, grey-brown), shut; its origin at its middle.
+## A clam: a live Pacific littleneck (Clam, clam.gd), dug into the bottom
+## where it's put; open: cracked open (dead, its flesh there to eat).
 static func clam(open := false) -> Node3D:
+	var c: Node3D = (load("res://scripts/creatures/clam.gd") as GDScript).new(false)
+	if open:
+		c.call("crack")
+	return c
+
+
+## (A clam as it was drawn before it was alive: two shells, shut, or open on its flesh.)
+static func clam_shell(open := false) -> Node3D:
 	var root := Node3D.new()
 	var m := StandardMaterial3D.new()
 	m.albedo_color = Color(0.55, 0.5, 0.42)
@@ -450,11 +459,14 @@ func _forage(dt: float) -> void:
 			_back_to = 1.0
 			_neck_to = Vector2(-1.05, 0.0)
 			if _st > 4.5:
-				var at := _food.global_transform
-				_food.queue_free()
-				_food = clam(true)
-				get_parent().add_child(_food)
-				_food.global_transform = at
+				if _food.has_method("crack"): # (a live clam: cracked open, killed)
+					_food.call("crack", self)
+				else:
+					var at := _food.global_transform
+					_food.queue_free()
+					_food = clam(true)
+					get_parent().add_child(_food)
+					_food.global_transform = at
 				_food_s = _food.scale
 				_stage = 6
 				_st = 0.0
@@ -465,13 +477,17 @@ func _forage(dt: float) -> void:
 			_chew = 1.0
 			_jaw_to = 0.3 * maxf(sin(_st * 7.0), 0.0)
 			var secs := 8.0
-			if is_instance_valid(_food):
+			if is_instance_valid(_food) and _food.has_method("consume"): # (a clam's flesh, going, bit by bit)
+				_food.call("consume", _st / secs)
+			elif is_instance_valid(_food):
 				for ch in _food.get_children():
 					if ch is MeshInstance3D and (ch as MeshInstance3D).material_override is StandardMaterial3D and ((ch as MeshInstance3D).material_override as StandardMaterial3D).albedo_color.r > 0.8 and ((ch as MeshInstance3D).material_override as StandardMaterial3D).albedo_color.g < 0.7:
 						ch.scale = ch.scale.lerp(Vector3.ONE * 0.0001, dt / secs * 2.0) # (the clam's flesh, going)
 				if not _clam:
 					_food.scale = _food_s * lerpf(1.0, 0.35, clampf(_st / secs, 0.0, 1.0))
 			if _st > secs:
+				if is_instance_valid(_food) and _food.has_method("emptied"):
+					_food.call("emptied")
 				_let_go()
 				groom()
 

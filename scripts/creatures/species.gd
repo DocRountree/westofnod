@@ -30,6 +30,9 @@ extends RefCounted
 ##   them till plankton_frac of their youth, laid and left (no mother); then settled, a young one's body
 ##   broods: she keeps to her den while she carries them (an octopus's eggs: brooded, never left, never fed)
 ##   semelparous: she dies when they hatch; he a gap_days after he's mated
+##   sessile: it stays where it is (a clam in its burrow): it spawns with those near, not going to them
+##   plant: no brain but to grow (Brain): spreads its young about it each gap_days, as its crowd allows; a
+##   giant kelp grazed to death by urchins crowding its holdfast (grazers: how many it bears)
 ##   far: drawn far off with no body (FarFauna; not the small ones)
 ##   density: {a biome's name (WorldData.biome_names): how many to the square kilometre; "*": any not named}:
 ##   what FaunaSim seeds the land with
@@ -45,7 +48,7 @@ const DEFAULTS := {"class": "mammal", "medium": "land", "site": "", "flies": fal
 		"litter": [1, 2], "crowd": 8, "mate": 14.0, "density": {}}
 ## How long each class carries (or broods) its young, how long they're young, and how long after before she'll breed again: days.
 const CLASS_DAYS := {"mammal": [2.0, 4.0, 2.0], "bird": [2.0, 3.0, 1.0], "reptile": [2.0, 3.0, 1.0], "amphibian": [1.0, 2.0, 1.0], "fish": [2.0, 3.0, 1.0],
-		"arthropod": [1.0, 1.0, 1.0], "mollusk": [1.5, 3.0, 1.0], "echinoderm": [0.25, 2.0, 1.0]}
+		"arthropod": [1.0, 1.0, 1.0], "mollusk": [1.5, 3.0, 1.0], "echinoderm": [0.25, 2.0, 1.0], "alga": [0.0, 3.0, 2.0]}
 const TABLE := {
 	"deer": {"density": {"forest": 8.0, "prairie": 4.0, "swamp": 3.0, "taiga": 2.0}, "litter": [1, 2], "crowd": 10, "script": "deer.gd", "kind": "deer", "young_kind": "fawn", "len": 1.8, "walk": 0.9, "run": 4.5, "range": 10.0, "wary": 8.0, "fast": 360.0, "herd": true},
 	"moose": {"density": {"taiga": 1.5, "swamp": 1.0, "tundra": 0.5}, "litter": [1, 1], "script": "moose.gd", "young_kind": "moose_calf", "len": 2.8, "walk": 1.0, "run": 4.0, "range": 10.0, "wary": 5.0, "fast": 360.0},
@@ -114,6 +117,8 @@ const TABLE := {
 	"sea_otter": {"medium": "sea", "depth": 0.5, "max_depth": 30.0, "density": {"sea": 4.0}, "litter": [1, 1], "script": "sea_otter.gd", "len": 1.2, "walk": 0.5, "run": 2.0, "range": 20.0, "sense": 10.0, "fast": 400.0, "herd": true},
 	"sea_turtle": {"class": "reptile", "medium": "sea", "depth": 1.0, "density": {"sea": 0.2}, "litter": [6, 12], "script": "sea_turtle.gd", "len": 1.0, "walk": 0.5, "run": 1.5, "range": 40.0, "wary": 5.0, "fast": 2000.0},
 	"urchin": {"class": "echinoderm", "medium": "sea", "floor": true, "depth": 0.5, "max_depth": 30.0, "density": {"sea": 300.0}, "litter": [4, 8], "crowd": 40, "script": "sea_urchin.gd", "kind": "urchin", "len": 0.08, "walk": 0.012, "run": 0.012, "range": 2.0, "wary": 0.5, "fast": 300.0, "plankton": "pluteus", "far": false},
+	"clam": {"class": "mollusk", "medium": "sea", "floor": true, "depth": 0.2, "max_depth": 30.0, "density": {"sea": 600.0}, "litter": [6, 12], "crowd": 60, "script": "clam.gd", "kind": "clam", "young_kind": "clam", "len": 0.055, "walk": 0.0015, "run": 0.0015, "range": 0.3, "wary": 0.0, "sense": 2.0, "fast": 300.0, "mate": 15.0, "herd": true, "sessile": true, "plankton": "veliger", "far": false, "gest_days": 0.25, "wean_days": 2.0},
+	"giant_kelp": {"class": "alga", "plant": true, "sessile": true, "medium": "sea", "floor": true, "depth": 2.0, "max_depth": 30.0, "density": {"sea": 150.0}, "litter": [1, 3], "crowd": 12, "grazers": 3, "script": "giant_kelp.gd", "kind": "kelp", "len": 6.0, "walk": 0.0, "run": 0.0, "range": 6.0, "wary": 0.0, "far": false},
 	"common_octopus": {"class": "mollusk", "medium": "sea", "floor": true, "depth": 0.5, "max_depth": 100.0, "density": {"sea": 20.0}, "litter": [3, 6], "crowd": 6, "script": "common_octopus.gd", "kind": "octopus", "young_kind": "octopus_young", "len": 0.9, "walk": 0.08, "run": 1.5, "range": 6.0, "wary": 3.0, "sense": 4.0, "meal": 40.0, "fast": 500.0, "active": "night", "mate": 30.0, "broods": true, "semelparous": true, "plankton": "octopus", "far": false},
 	"giant_pacific_octopus": {"class": "mollusk", "medium": "sea", "floor": true, "depth": 1.0, "max_depth": 200.0, "density": {"sea": 2.0}, "litter": [4, 8], "crowd": 4, "script": "giant_pacific_octopus.gd", "kind": "octopus", "young_kind": "octopus_young", "len": 3.0, "walk": 0.14, "run": 2.2, "range": 12.0, "wary": 5.0, "sense": 6.0, "meal": 60.0, "fast": 700.0, "active": "night", "mate": 40.0, "broods": true, "semelparous": true, "plankton": "octopus", "far": false, "gest_days": 2.5, "wean_days": 4.0},
 	"ochre_sea_star": {"class": "echinoderm", "medium": "sea", "floor": true, "depth": 0.2, "max_depth": 90.0, "density": {"sea": 120.0}, "litter": [4, 8], "crowd": 30, "script": "ochre_sea_star.gd", "kind": "sea_star", "len": 0.25, "walk": 0.01, "run": 0.01, "range": 2.0, "wary": 0.0, "meal": 120.0, "fast": 900.0, "mate": 20.0, "plankton": "sea_star", "far": false},

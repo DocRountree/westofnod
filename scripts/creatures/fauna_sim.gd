@@ -223,7 +223,7 @@ func _young(m: Agent, at: Vector3) -> Agent:
 	y.born_at = now
 	y.grow_at = now + Species.days(float(m.sp.wean_days))
 	y.hunger = 0.0
-	if String(m.sp["class"]) == "arthropod" or m.sp.has("plankton"): # (an insect's, a spider's, those that go off in the plankton: laid and left, on their own from the first)
+	if String(m.sp["class"]) == "arthropod" or m.sp.has("plankton") or bool(m.sp.get("plant", false)): # (an insect's, a spider's, those that go off in the plankton: laid and left, on their own from the first)
 		y.stage = stage_of(y)
 	else:
 		y.mother = m.id
