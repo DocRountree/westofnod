@@ -147,29 +147,37 @@ float fern_noise(vec2 p) {
 // The forest floor's herbs and ferns, as the ground's colour carries them
 // where they aren't drawn (far off: their layers fade out into the
 // ground's colour, which must be theirs by then, or a ring of brown would
-// follow the eye): their drifts (GroundCover.LAYERS: keep in step: mayapple,
-// wild ginger, violets, wood sorrel, wild sarsaparilla), w how much of the
-// ground a drift's leaves hide; their leaves' green (sRGB, about their mean)
-const vec4 HERB_DRIFT[5] = vec4[](vec4(16.0, 0.4, 4.4, 0.7), vec4(10.0, 0.4, -6.2, 0.55), vec4(12.0, 0.45, 2.8, 0.3),
+// follow the eye): their drifts (GroundCover.LAYERS: keep in step: the
+// broad-leafed fern, wild ginger, violets, Canada mayflower, wild sarsaparilla), w how much of the
+// ground a drift's leaves hide; their leaves' green (sRGB, about their mean).
+// (The first: the broad-leafed fern's.)
+const vec4 HERB_DRIFT[5] = vec4[](vec4(16.0, 0.4, 4.4, 0.6), vec4(10.0, 0.4, -6.2, 0.55), vec4(12.0, 0.45, 2.8, 0.3),
 		vec4(9.0, 0.55, 7.7, 0.5), vec4(14.0, 0.35, -3.3, 0.55));
-const vec3 HERB_GREEN[5] = vec3[](vec3(0.25, 0.35, 0.11), vec3(0.2, 0.31, 0.1), vec3(0.26, 0.4, 0.13),
-		vec3(0.26, 0.38, 0.12), vec3(0.24, 0.36, 0.11));
+const vec3 HERB_GREEN[5] = vec3[](vec3(0.19, 0.29, 0.08), vec3(0.2, 0.31, 0.1), vec3(0.26, 0.4, 0.13),
+		vec3(0.24, 0.37, 0.11), vec3(0.24, 0.36, 0.11));
 const vec3 FERN_GREEN = vec3(0.19, 0.29, 0.08);
 const float FERN_HIDES = 0.5;
 
+// (Far off, coarse: the drifts' fine noise left out (its mean in its place):
+// half the cost, a pixel there metres across.)
+float drift_cover_coarse(vec2 p, vec3 drift) {
+	float dn = vnoise(p / drift.x + drift.z) * 0.7 + 0.15;
+	return smoothstep(1.0 - drift.y, 1.0 - drift.y + 0.12, dn);
+}
+
 // How much of the forest floor at p the herbs and ferns hide (0..1), and
-// their green there.
-float forest_herbs(vec2 p, out vec3 green) {
+// their green there; coarse: far off (drift_cover_coarse).
+float forest_herbs(vec2 p, bool coarse, out vec3 green) {
 	float bare = 1.0;
 	vec3 sum = vec3(0.0);
 	float wsum = 0.0;
 	for (int i = 0; i < 5; i++) {
-		float c = drift_cover(p, HERB_DRIFT[i].xyz) * HERB_DRIFT[i].w;
+		float c = (coarse ? drift_cover_coarse(p, HERB_DRIFT[i].xyz) : drift_cover(p, HERB_DRIFT[i].xyz)) * HERB_DRIFT[i].w;
 		bare *= 1.0 - c;
 		sum += HERB_GREEN[i] * c;
 		wsum += c;
 	}
-	float f = smoothstep(FERN_DRIFT.x, FERN_DRIFT.y, fern_noise(p)) * FERN_HIDES;
+	float f = smoothstep(FERN_DRIFT.x, FERN_DRIFT.y, coarse ? vnoise(p / 7.0 + 13.0) * 0.7 + 0.15 : fern_noise(p)) * FERN_HIDES;
 	bare *= 1.0 - f;
 	sum += FERN_GREEN * f;
 	wsum += f;
@@ -216,7 +224,7 @@ vec3 biome_ground_face(int b, Shared s, out float rough, out float rocky, out fl
 		ground = mix(ground, mix(vec3(0.16, 0.23, 0.06), vec3(0.24, 0.31, 0.08), s.fine3), moss);
 		litter *= 1.0 - moss;
 		vec3 herb_green;
-		float herbs = forest_herbs(s.p, herb_green) * (1.0 - mud);              // the herbs' and ferns' green, where they grow
+		float herbs = forest_herbs(s.p, s.fp > 0.4, herb_green) * (1.0 - mud);              // the herbs' and ferns' green, where they grow
 		ground = mix(ground, herb_green, herbs);
 		litter *= 1.0 - herbs;
 		ground = mix(ground, vec3(0.11, 0.09, 0.06), clump(s, 0.06) * 0.35);       // damp hollows

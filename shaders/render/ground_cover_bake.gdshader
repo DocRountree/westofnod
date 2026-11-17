@@ -199,8 +199,10 @@ void fragment() {
 		// not on rock, sand, mud or the shore; nothing on the forest's litter
 		float bare = max(max(rocky, in_coast ? 0.0 : m.a), mud * 3.0) + (in_swamp ? 0.0 : 1.0 - smoothstep(0.3, 1.2, h)); // (reeds stand in water; marram on sand)
 		float here = on_litter ? 1.0 : mix(smoothstep(0.3, 0.05, litter / max(fw, 1e-4)), 1.0, prairie);
-		if (kind == 1) // ferns in drifts, and only well inside the forest
+		if (kind == 1 && drift.x <= 0.0) // ferns in drifts, and only well inside the forest (a fern with drifts of its own: those)
 			here *= smoothstep(FERN_DRIFT.x, FERN_DRIFT.y, fern_noise(pos)) * smoothstep(0.75, 0.95, fw);
+		else if (kind == 1)
+			here *= smoothstep(0.75, 0.95, fw);
 		if (h2(c, 6) < here * (1.0 - clamp(bare * 2.0, 0.0, 1.0))) {
 			vec2 hr = mix(forest_height, prairie_height, prairie);
 			// taller and shorter in patches, and from clump to clump
