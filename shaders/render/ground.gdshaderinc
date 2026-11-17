@@ -131,6 +131,14 @@ float alpine_snow(int b, Shared s, float rock) {
 	return smoothstep(0.42, 0.58, v);
 }
 
+// The forest's moss: cushions of it over the damp, shaded ground where the
+// leaf litter is thin (litter: how much is litter here), more in the
+// hollows; 0..1. (terrain.gdshader lays moss.png over it near the eye.)
+float forest_moss(Shared s, float litter) {
+	float m = clump(s, 0.3) * (1.0 - smoothstep(0.2, 0.6, litter));
+	return m * (0.65 + 0.35 * smoothstep(-0.5, 2.5, s.cav)) * 0.85;
+}
+
 // A biome's ground colour, roughness, how bare (rock) it is here, and how
 // much of it is leaf litter (the forest's brown patches: terrain.gdshader
 // lays the fallen leaves' texture over them); face: how much of it is the
@@ -158,7 +166,9 @@ vec3 biome_ground_face(int b, Shared s, out float rough, out float rocky, out fl
 		ground = mix(ground, mix(vec3(0.11, 0.085, 0.06), vec3(0.06, 0.05, 0.035), pud) * (0.9 + 0.2 * s.fine3), mud);
 		rough = mix(rough, 0.85, mud); // (matte: damp, not shiny)
 		litter *= 1.0 - mud;
-		ground = mix(ground, vec3(0.2, 0.24, 0.1), clump(s, 0.1) * 0.7);          // moss and seedlings
+		float moss = forest_moss(s, litter);                                    // moss, in cushions, where the litter's thin
+		ground = mix(ground, mix(vec3(0.16, 0.23, 0.06), vec3(0.24, 0.31, 0.08), s.fine3), moss);
+		litter *= 1.0 - moss;
 		ground = mix(ground, vec3(0.11, 0.09, 0.06), clump(s, 0.06) * 0.35);       // damp hollows
 		ground *= 0.9 + 0.2 * s.fine3;
 		rock = mix(rock, vec3(0.18, 0.2, 0.12), 0.6);                             // mossy

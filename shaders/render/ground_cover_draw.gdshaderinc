@@ -41,6 +41,11 @@ uniform float thin_from = 12.0;       // m: beyond this a share (thin_from / d)^
 uniform float grass_sway = 0.3;       // the tip's sway, in clump heights per m of the wind
 uniform sampler2D frond_tex : source_color, filter_linear_mipmap_anisotropic, repeat_disable;
 uniform vec3 prairie_green = vec3(0.27, 0.43, 0.12);
+// (sRGB) a forest herb's own green at its leaves (the forest floor's: mayapple,
+// wild ginger, violets, wood sorrel, seedlings), each clump a little
+// lighter or darker; its stalks the ground's colour at their foot. Under 0:
+// the forest's grass, the ground's own colour a little lighter
+uniform vec3 forest_green = vec3(-1.0);
 uniform vec3 prairie_blonde = vec3(0.74, 0.64, 0.38);
 // patches of a tint (the marram): in irregular patches a few metres
 // across, a share patch_tints.x of them green (the green of the coast's
@@ -180,7 +185,8 @@ void vertex() {
 		if (kind == 1) { // (a tint on the frond's texture, halfway to the ground's colour)
 			tip_col = mix(vec3(COLOR.r), root_col / frond_mean, 0.5);
 		} else {
-			vec3 tip = mix(ground * vec3(1.12, 1.22, 1.05), // forest: the ground's, a little lighter
+			vec3 forest_tip = forest_green.x >= 0.0 ? forest_green * mix(0.8, 1.15, h2(c, 11)) : ground * vec3(1.12, 1.22, 1.05);
+			vec3 tip = mix(forest_tip, // forest: its own green, or the ground's a little lighter
 					mix(prairie_green, prairie_blonde, clamp(a.a / 255.0 + COLOR.g * 0.5 - 0.25, 0.0, 1.0)) * 0.85, // prairie
 					prairie);
 			if (patch_tints.x + patch_tints.y > 0.0) {

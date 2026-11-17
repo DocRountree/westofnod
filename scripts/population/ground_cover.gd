@@ -195,6 +195,37 @@ const LAYERS := [
 			"petal_color": Vector3(0.42, 0.48, 0.27), "petal_base": Vector3(0.36, 0.42, 0.22), "petal_alt": Vector3(0.5, 0.48, 0.3), "petal_alt_share": 0.3,
 			"disc_color": Vector3(0.38, 0.44, 0.24), "head_size": 0.008, "head_px": Vector2(2.0, 5.0),
 			"fade_out": Vector2(22.0, 30.0), "thin_from": 16.0}},
+	# the forest floor's herbs (none picked; each its own green at its leaves):
+	# mayapple (Podophyllum peltatum) in colonies, umbrella leaves knee-low;
+	# up through the leaf litter, as they come up in spring
+	{"cell": 0.42, "cells": 24, "tiles": 7, "flowers": "mayapple", "stems": 1, "radius": 0.1, "pick": false,
+		"u": {"kind": 2, "seed": 21, "in_prairie": false, "on_litter": true, "cover": 0.92, "drift": Vector3(16.0, 0.2, 4.4),
+			"forest_height": Vector2(0.3, 0.45), "prairie_height": Vector2(0.3, 0.45), "forest_green": Vector3(0.4, 0.5, 0.2),
+			"petal_color": Vector3(0.97, 0.96, 0.92), "petal_base": Vector3(0.9, 0.9, 0.8), "petal_alt": Vector3(0.97, 0.96, 0.92),
+			"disc_color": Vector3(0.9, 0.85, 0.4), "head_size": 0.045, "head_px": Vector2(3.0, 6.0),
+			"fade_out": Vector2(24.0, 34.0), "thin_from": 15.0}},
+	# wild ginger (Asarum canadense): low clumps, broad dark hearts, in patches
+	{"cell": 0.35, "cells": 24, "tiles": 7, "flowers": "ginger", "stems": 1, "radius": 0.06, "pick": false,
+		"u": {"kind": 2, "seed": 22, "in_prairie": false, "on_litter": true, "cover": 0.85, "drift": Vector3(10.0, 0.16, -6.2),
+			"forest_height": Vector2(0.12, 0.17), "prairie_height": Vector2(0.12, 0.17), "forest_green": Vector3(0.2, 0.31, 0.1),
+			"fade_out": Vector2(16.0, 22.0), "thin_from": 10.0}},
+	# common blue violets (Viola sororia): rosettes, a few flowers each, scattered in loose drifts
+	{"cell": 0.5, "cells": 20, "tiles": 7, "flowers": "violet", "stems": 1, "radius": 0.08, "pick": false,
+		"u": {"kind": 2, "seed": 23, "in_prairie": false, "on_litter": true, "cover": 0.55, "drift": Vector3(12.0, 0.25, 2.8),
+			"forest_height": Vector2(0.1, 0.14), "prairie_height": Vector2(0.1, 0.14), "forest_green": Vector3(0.26, 0.4, 0.13),
+			"petal_color": Vector3(0.42, 0.28, 0.76), "petal_base": Vector3(0.9, 0.88, 0.94), "petal_alt": Vector3(0.5, 0.34, 0.8), "petal_alt_share": 0.2,
+			"disc_color": Vector3(0.95, 0.85, 0.3), "head_size": 0.02, "head_px": Vector2(2.5, 5.0),
+			"fade_out": Vector2(14.0, 20.0), "thin_from": 9.0}},
+	# wood sorrel (Oxalis): a carpet of trefoils where the litter's thin, in patches
+	{"cell": 0.2, "cells": 24, "tiles": 7, "flowers": "oxalis", "stems": 1, "radius": 0.05, "pick": false,
+		"u": {"kind": 2, "seed": 24, "in_prairie": false, "cover": 0.95, "drift": Vector3(9.0, 0.3, 7.7),
+			"forest_height": Vector2(0.055, 0.08), "prairie_height": Vector2(0.055, 0.08), "forest_green": Vector3(0.34, 0.48, 0.17),
+			"fade_out": Vector2(10.0, 15.0), "thin_from": 7.0}},
+	# trees' seedlings, a few here and there all through it, up through the litter
+	{"cell": 1.1, "cells": 14, "tiles": 5, "flowers": "seedling", "stems": 1, "radius": 0.05, "pick": false,
+		"u": {"kind": 2, "seed": 25, "in_prairie": false, "on_litter": true, "cover": 0.3,
+			"forest_height": Vector2(0.12, 0.32), "prairie_height": Vector2(0.12, 0.32), "forest_green": Vector3(0.33, 0.45, 0.15),
+			"fade_out": Vector2(18.0, 26.0), "thin_from": 12.0}},
 	{"cell": 0.5, "cells": 24, "tiles": 9, "fronds": 8, "lods": [[14.0, 8, 2, 1.0]],
 		"u": {"kind": 1, "seed": 4, "in_prairie": false, "forest_height": Vector2(0.25, 0.45),
 			"fade_out": Vector2(32.0, 45.0), "thin_from": 16.0}},
@@ -206,7 +237,7 @@ const BAKES_PER_FRAME := 2 ## layers' grids worked out a frame, at most (all thi
 const BAKE_KEYS := ["kind", "seed", "in_forest", "in_prairie", "in_swamp", "swamp_clumped", "clump_off", "in_coast", "forest_height", "prairie_height", "cover", "drift", "on_litter",
 		"fade_in", "fade_out", "thin_from"]
 const BAKE_MARGIN := 6.0 ## m past a layer's rebake distance the eye may go before a bake's distance culling shows (the bake's, the readback's lag)
-const DRAW_KEYS := ["kind", "seed", "fade_in", "fade_out", "thin_from", "prairie_green", "prairie_blonde", "patch_tints",
+const DRAW_KEYS := ["kind", "seed", "fade_in", "fade_out", "thin_from", "prairie_green", "prairie_blonde", "patch_tints", "forest_green",
 		"petal_color", "petal_base", "petal_alt", "petal_alt_share", "disc_color", "head_size", "head_px", "petal_mix", "trodden", "egg_share"]
 
 var world: WorldData
@@ -336,6 +367,9 @@ static func setup_terrain(terrain: ShaderMaterial) -> void:
 	terrain.set_shader_parameter("needle_tex", n)
 	terrain.set_shader_parameter("needle_mean", _mean(n))
 	terrain.set_shader_parameter("rock_tex", OakTree._texture("res://data/population/textures/rock.png"))
+	var mo := OakTree._texture("res://data/population/textures/moss.png")
+	terrain.set_shader_parameter("moss_tex", mo)
+	terrain.set_shader_parameter("moss_mean", _mean_srgb_covered(mo))
 
 
 ## The materials of the layers trodden down and muddied by the player's
@@ -693,6 +727,8 @@ func _fill_tiles(layer: Dictionary, origin: Vector2i, out: Dictionary) -> void:
 ## The item a layer's clumps are picked as (Foraging): its flowers', or a
 ## cattail; "" if they can't be.
 static func item_of(L: Dictionary) -> String:
+	if not L.get("pick", true): # (the forest floor's herbs: not to be picked)
+		return ""
 	if L.has("flowers"):
 		return L.flowers
 	if L.has("cattails"):
@@ -982,6 +1018,11 @@ static func rush_mesh(stems: int, radius: float, seed: int) -> ArrayMesh:
 ## branching near its top into a few small heads, 2 cm across, a fringe
 ## of fine rays, white to light purple, round a yellow disc.
 const TINY_RAYS := 7 ## a flower head of this many rays or fewer is drawn as a fan (flower_mesh)
+## The forest floor's leaves' outlines: [along 0..1, half width as a share of its widest]
+const HEART := [[0.0, 0.55], [0.12, 0.85], [0.35, 1.0], [0.6, 0.85], [0.82, 0.5], [1.0, 0.0]]
+const LOBE := [[0.0, 0.12], [0.35, 0.7], [0.7, 1.0], [0.88, 0.8], [1.0, 0.35]] # (a mayapple's: its tip blunt, cleft)
+const OBCORDATE := [[0.0, 0.1], [0.4, 0.6], [0.8, 1.0], [1.0, 0.75]] # (a wood sorrel's leaflet: widest at its notched end)
+const OVATE := [[0.0, 0.12], [0.25, 0.8], [0.5, 1.0], [0.8, 0.6], [1.0, 0.0]]
 const TINY_RIM := 5 ## its rim's corners
 
 
@@ -1088,6 +1129,20 @@ static func flower_mesh(kind: String, stems: int, radius: float, seed: int, leav
 			for i in [b0, b0 + 1, b0 + 2, b0, b0 + 2, b0 + 3]:
 				st.add_index(i)
 			base[0] += 4
+	# a broad leaf (the forest floor's herbs): from at (clump heights) out
+	# along dir, len_m long (m), its outline prof ([along 0..1, half width
+	# as a share of w]: HEART, LOBE, OBCORDATE, OVATE), w its widest half
+	# width (m); rising rise (a share of its length) and drooping droop at
+	# its tip; hc: the herb's nominal height (m) its clump heights are of
+	var leaf := func(root: Vector2, at: Vector3, dir: Vector2, len_m: float, prof: Array, w: float, rise: float, droop: float, hc: float, shade: float) -> void:
+		var pts := []
+		var halfs := []
+		for q: Array in prof:
+			var t := float(q[0])
+			pts.append(at + Vector3(dir.x * len_m * t, (rise * t - droop * t * t) * len_m, dir.y * len_m * t) / hc)
+			halfs.append(maxf(float(q[1]) * w, 0.0004))
+		var nrm := Vector3(dir.x * (droop - rise) * 0.6, 1.0, dir.y * (droop - rise) * 0.6).normalized()
+		strip.call(root, pts, halfs, Vector3(-dir.y, 0.0, dir.x), nrm, shade, 0.0)
 	for b in stems:
 		var a := rng.randf() * TAU
 		var root := Vector2(cos(a), sin(a)) * sqrt(rng.randf()) * radius
@@ -1099,6 +1154,92 @@ static func flower_mesh(kind: String, stems: int, radius: float, seed: int, leav
 		var g := rng.randf()
 		var shade := rng.randf_range(0.85, 1.1)
 		var top := Vector3(lean.x, tall, lean.y)
+		if kind == "mayapple":
+			# a colony's: one stem 30-45 cm, an umbrella leaf on it (peltate,
+			# five to seven deep lobes, drooping at their ends); one in three
+			# forked, two leaves, and a single white flower nodding under the
+			# fork
+			const HC := 0.38
+			var umbrella := func(c: Vector3, r: float, lobes: int, turn: float) -> void:
+				for i in lobes:
+					var la := turn + TAU * (i + rng.randf_range(-0.1, 0.1)) / lobes
+					leaf.call(root, c, Vector2(cos(la), sin(la)), r * rng.randf_range(0.9, 1.05), LOBE, r * PI / lobes * 1.05, 0.05, 0.38, HC, shade * rng.randf_range(0.93, 1.05))
+			if rng.randf() < 0.35:
+				var fork := top * 0.8
+				strip.call(root, [Vector3.ZERO, fork * 0.5, fork], [0.0045, 0.004, 0.0035], side, n, shade, 0.0)
+				for sd: float in [-1.0, 1.0]:
+					var lc := fork + Vector3(cos(face) * sd * 0.07, 0.07 + 0.03 * sd, sin(face) * sd * 0.07) / HC
+					strip.call(root, [fork, lc], [0.0035, 0.003], side, n, shade, 0.0)
+					umbrella.call(lc, rng.randf_range(0.1, 0.13), rng.randi_range(5, 7), rng.randf() * TAU)
+				var fc := fork + Vector3(cos(face + 1.6) * 0.03, -0.035, sin(face + 1.6) * 0.03) / HC # (its flower, nodding under the leaves)
+				strip.call(root, [fork, fork + Vector3(cos(face + 1.6) * 0.02, 0.005, sin(face + 1.6) * 0.02) / HC, fc], [0.0015, 0.0013, 0.0012], side, n, shade, 0.0)
+				var hk := H / HC # (head's sizes are of a 1.5 m clump's)
+				head.call(root, fc, Vector3(cos(face + 1.6), -2.5, sin(face + 1.6)), 6, 0.006 * hk, 0.022 * hk, 0.017 * hk, 0.004 * hk, 0.006 * hk, g)
+			else:
+				strip.call(root, [Vector3.ZERO, top * 0.5, top], [0.0045, 0.004, 0.0035], side, n, shade, 0.0)
+				umbrella.call(top, rng.randf_range(0.12, 0.16), rng.randi_range(5, 7), rng.randf() * TAU)
+			continue
+		elif kind == "ginger":
+			# wild ginger: a low clump of leaves on hairy stalks, each blade
+			# heart shaped, broad, held flat over the ground; dark green
+			const HC := 0.15
+			for k in rng.randi_range(4, 6):
+				var la := face + TAU * (k + rng.randf_range(-0.2, 0.2)) / 5.0
+				var ld := Vector2(cos(la), sin(la))
+				var r0 := Vector3(ld.x, 0.0, ld.y) * rng.randf_range(0.0, 0.025) / HC
+				var pt := r0 + Vector3(ld.x * 0.03, rng.randf_range(0.1, 0.15), ld.y * 0.03) / HC
+				strip.call(root, [r0, (r0 + pt) * 0.5 + Vector3(0.0, 0.01, 0.0) / HC, pt], [0.0022, 0.002, 0.0018], Vector3(-ld.y, 0.0, ld.x), Vector3(ld.x, 0.5, ld.y).normalized(), shade, 0.0)
+				leaf.call(root, pt - Vector3(ld.x, 0.0, ld.y) * 0.012 / HC, ld, rng.randf_range(0.08, 0.11), HEART, 0.048, 0.08, 0.16, HC, shade * rng.randf_range(0.9, 1.05))
+			continue
+		elif kind == "violet":
+			# common blue violets: a rosette of heart-shaped leaves on their
+			# stalks, rising; a few flowers above on their own, nodding aside,
+			# five petals, violet with a white throat
+			const HC := 0.12
+			for k in rng.randi_range(5, 8):
+				var la := face + TAU * (k + rng.randf_range(-0.25, 0.25)) / 6.0
+				var ld := Vector2(cos(la), sin(la))
+				var pt := Vector3(ld.x * 0.03, rng.randf_range(0.05, 0.09), ld.y * 0.03) / HC
+				strip.call(root, [Vector3.ZERO, pt], [0.0016, 0.0014], Vector3(-ld.y, 0.0, ld.x), Vector3(ld.x, 0.5, ld.y).normalized(), shade, 0.0)
+				leaf.call(root, pt - Vector3(ld.x, 0.0, ld.y) * 0.008 / HC, ld, rng.randf_range(0.045, 0.06), HEART, 0.026, 0.35, 0.25, HC, shade)
+			for k in rng.randi_range(1, 3):
+				var fa := rng.randf() * TAU
+				var fd := Vector2(cos(fa), sin(fa))
+				var fc := Vector3(fd.x * 0.04, rng.randf_range(0.1, 0.13), fd.y * 0.04) / HC
+				strip.call(root, [Vector3.ZERO, Vector3(fd.x * 0.02, 0.07, fd.y * 0.02) / HC, fc], [0.0012, 0.001, 0.0009], Vector3(-fd.y, 0.0, fd.x), Vector3(fd.x, 0.5, fd.y).normalized(), shade, 0.0)
+				var hk := H / HC
+				head.call(root, fc, Vector3(fd.x, -0.3, fd.y) * 1.6, 5, 0.003 * hk, 0.012 * hk, 0.009 * hk, 0.001 * hk, 0.001 * hk, rng.randf())
+			continue
+		elif kind == "oxalis":
+			# wood sorrel: a carpet of trefoils, each on its own thin stalk,
+			# three heart-ended leaflets folding down a little at their crease
+			const HC := 0.07
+			for k in rng.randi_range(6, 9):
+				var ka := rng.randf() * TAU
+				var r0 := Vector3(cos(ka), 0.0, sin(ka)) * sqrt(rng.randf()) * 0.04 / HC
+				var pt := r0 + Vector3(0.0, rng.randf_range(0.035, 0.07), 0.0) / HC
+				strip.call(root, [r0, pt], [0.0008, 0.0007], side, n, shade, 0.0)
+				var turn := rng.randf() * TAU
+				for f in 3:
+					var la := turn + TAU * f / 3.0
+					leaf.call(root, pt, Vector2(cos(la), sin(la)), rng.randf_range(0.012, 0.016), OBCORDATE, 0.009, 0.05, 0.3, HC, shade * rng.randf_range(0.92, 1.05))
+			continue
+		elif kind == "seedling":
+			# a tree's seedling, its first year or two: a thin stem, a few
+			# leaves up it one by one round it, the top ones smaller
+			const HC := 0.22
+			var stem_top := top
+			strip.call(root, [Vector3.ZERO, stem_top * 0.5 + Vector3(lean.x, 0.0, lean.y), stem_top], [0.0022, 0.0018, 0.0012], side, n, shade * 0.8, 0.0)
+			var nl := rng.randi_range(3, 5)
+			for k in nl:
+				var f := float(k) / maxf(nl - 1.0, 1.0)
+				var at: Vector3 = (stem_top * (0.45 + 0.55 * f))
+				var la := face + k * 2.4
+				var ld := Vector2(cos(la), sin(la))
+				var pt := at + Vector3(ld.x * 0.01, 0.006, ld.y * 0.01) / HC
+				strip.call(root, [at, pt], [0.0009, 0.0008], Vector3(-ld.y, 0.0, ld.x), Vector3(ld.x, 0.6, ld.y).normalized(), shade, 0.0)
+				leaf.call(root, pt, ld, rng.randf_range(0.05, 0.07) * lerpf(1.0, 0.65, f), OVATE, 0.019 * lerpf(1.0, 0.7, f), 0.12, 0.2, HC, shade * rng.randf_range(0.95, 1.1))
+			continue
 		# a leaf low down
 		var la := rng.randf() * TAU
 		var dir := Vector2(cos(la), sin(la))
@@ -1386,6 +1527,22 @@ static func _mean(t: Texture2D) -> Vector3:
 	img.resize(1, 1, Image.INTERPOLATE_BILINEAR)
 	var c := img.get_pixel(0, 0)
 	return Vector3(c.r, c.g, c.b)
+
+
+## The mean of a texture's covered pixels (its alpha over half), as stored (sRGB).
+static func _mean_srgb_covered(t: Texture2D) -> Vector3:
+	var img := t.get_image()
+	if img.is_compressed():
+		img.decompress()
+	var sum := Vector3.ZERO
+	var n := 0.0
+	for y in range(0, img.get_height(), 4):
+		for x in range(0, img.get_width(), 4):
+			var c := img.get_pixel(x, y)
+			if c.a > 0.5:
+				sum += Vector3(c.r, c.g, c.b)
+				n += 1.0
+	return sum / maxf(n, 1.0)
 
 
 ## The mean of a frond texture's covered pixels, linear.

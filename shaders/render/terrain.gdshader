@@ -61,6 +61,12 @@ uniform vec3 litter_mean = vec3(0.372, 0.262, 0.153); // the texture's mean (Gro
 uniform vec2 litter_fade = vec2(25.0, 45.0); // m
 // Fallen pine needles (tools/ground/bake_ground_textures.py), laid over the
 // taiga's needle duff near the eye, as the leaves over the forest's litter.
+// Moss (moss.png: a cushion of leafy shoots, alpha its height), laid over
+// the forest's mossy patches (ground.gdshaderinc: forest_moss) near the eye,
+// over its mean, its gaps darker.
+uniform sampler2D moss_tex : filter_linear_mipmap_anisotropic, repeat_enable; // (sRGB values, as col)
+uniform float moss_tile = 0.3; // m
+uniform vec3 moss_mean = vec3(0.3, 0.32, 0.12); // the texture's mean, where it's moss (GroundCover sets it)
 uniform sampler2D needle_tex : filter_linear_mipmap_anisotropic, repeat_enable; // (sRGB values; tileable every way round)
 uniform float needle_tile = 0.8; // m
 uniform vec3 needle_mean = vec3(0.4, 0.27, 0.16); // the texture's mean (GroundCover sets it)
@@ -85,7 +91,7 @@ const vec3 FOREST_MUD = vec3(0.11, 0.085, 0.06); // (as ground.gdshaderinc's)
 // texture fits itself every way round) so its repeat doesn't show, the
 // derivatives turned with it (no coarse mip at the seams); salt: another
 // pattern of turns.
-vec3 litter_sample(sampler2D tex, float tile_m, vec3 lp, ivec2 salt) {
+vec4 litter_sample4(sampler2D tex, float tile_m, vec3 lp, ivec2 salt) {
 	vec2 o_tiles = floor(world_origin.xz / tile_m);
 	vec2 uv = (lp.xz + (world_origin.xz - o_tiles * tile_m)) / tile_m;
 	vec2 tile = floor(uv);
@@ -97,7 +103,11 @@ vec3 litter_sample(sampler2D tex, float tile_m, vec3 lp, ivec2 salt) {
 		dx = vec2(dx.y, -dx.x);
 		dy = vec2(dy.y, -dy.x);
 	}
-	return textureGrad(tex, f, dx, dy).rgb;
+	return textureGrad(tex, f, dx, dy);
+}
+
+vec3 litter_sample(sampler2D tex, float tile_m, vec3 lp, ivec2 salt) {
+	return litter_sample4(tex, tile_m, lp, salt).rgb;
 }
 
 void fragment() {
@@ -174,6 +184,13 @@ void fragment() {
 	if (litter * near > 0.0) {
 		vec3 leaves = litter_sample(litter_tex, litter_tile, local_pos, ivec2(911, -373)) / litter_mean;
 		col *= mix(vec3(1.0), leaves, litter * near * (1.0 - rocky));
+	}
+	// the forest's moss: its cushions' shoots, their gaps darker
+	float mossy = ((b1 == 0 ? w1 : 0.0) + (b2 == 0 ? w2 : 0.0)) * forest_moss(sh, litter) * (1.0 - rocky);
+	if (mossy * near > 0.0) {
+		vec4 mt = litter_sample4(moss_tex, moss_tile, local_pos, ivec2(-233, 617));
+		vec3 shoots = mix(vec3(0.55), mt.rgb / moss_mean, smoothstep(0.1, 0.6, mt.a));
+		col *= mix(vec3(1.0), shoots, mossy * near);
 	}
 	// and the fallen needles (the same: over their mean, fading out with
 	// distance without a change of colour)
