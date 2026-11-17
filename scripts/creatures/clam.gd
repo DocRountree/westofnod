@@ -159,8 +159,12 @@ func shut(secs := -1.0) -> void:
 	_to("shut", secs if secs > 0.0 else randf_range(6.0, 15.0))
 
 
+## (Dug in already: its rest, a little deeper, siphons in, a while.)
 func burrow(secs := -1.0) -> void:
-	_to("burrow", secs if secs > 0.0 else 60.0)
+	if _depth >= _deep() * 0.9:
+		_to("rest", secs if secs > 0.0 else randf_range(30.0, 90.0))
+	else:
+		_to("burrow", secs if secs > 0.0 else 60.0)
 
 
 func spawn(with_others := true) -> void:
@@ -376,7 +380,7 @@ func _p_act_done(name: String) -> bool:
 		"shut":
 			return _mode != "shut"
 		"burrow":
-			return _mode != "burrow"
+			return _mode not in ["burrow", "rest"]
 		"spawn":
 			return _mode != "spawn"
 	return true
