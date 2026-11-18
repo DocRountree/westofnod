@@ -74,7 +74,7 @@ func _plumage(stage: String, male_: bool) -> Dictionary:
 			"back_color": black, "back_edge": Color(0.07, 0.07, 0.09), "back_bar": black, "back_bars": 0.0, "back_from": 0.3, "back_from_hi": 0.2,
 			"cap_color": black, "hood_u": 0.6, "hood_low": 0.0, "hood_nape": 1.0, "cheek": 0.0, "malar": 0.0,
 			"under_color": black, "breast_wash": black, "wash_from": -0.5, "wash_to": 1.2, "under_mark": black, "under_pattern": 0, "throat_clean": 0.9,
-			"cov_lead": Color(0.88, 0.1, 0.03, 1.0), "cov_lead_to": 0.62, "patch_color": Color(0.88, 0.1, 0.03, 1.0), "patch_edge": Color(0.95, 0.8, 0.45, 1.0), "cov_lead_edge": Color(0.95, 0.78, 0.4, 1.0),
+			"cov_lead": Color(0.88, 0.1, 0.03, 1.0), "cov_lead_to": 0.62, "cov_lead_u": 0.45, "patch_color": Color(0.88, 0.1, 0.03, 1.0), "patch_edge": Color(0.95, 0.8, 0.45, 1.0), "cov_lead_edge": Color(0.95, 0.78, 0.4, 1.0),
 			"fl_top": Color(0.04, 0.04, 0.05), "fl_pale": Color(0.12, 0.12, 0.13), "fl_dark": Color(0.05, 0.05, 0.05), "fl_bars": 0.0, "fl_top_bars": 0.0, "fl_trail": 0.0,
 			"tail_color": Color(0.03, 0.03, 0.035), "tail_band": black, "tail_bands": 0.0, "tail_band_w": 0.0, "tail_tip_r": black, "tail_tip_w": 0.0, "tail_under": 0.1,
 			"cere_color": Color(0.05, 0.05, 0.05), "bill_color": Color(0.05, 0.05, 0.06), "bill_tip": Color(0.04, 0.04, 0.05), "iris": Color(0.03, 0.03, 0.03),
@@ -90,7 +90,7 @@ func _plumage(stage: String, male_: bool) -> Dictionary:
 		"under_color": Color(0.3, 0.23, 0.19), "breast_wash": Color(0.27, 0.21, 0.17), "wash_from": -0.5, "wash_to": 0.9, "under_mark": Color(0.8, 0.72, 0.64), # (dark brown, streaked pale)
 		"under_pattern": 3, "throat_clean": 0.92,
 		"throat_color": Color(0.82, 0.7, 0.62, 0.6), "throat_from": 0.66, "throat_streak": 0.6,
-		"cov_lead": Color(0.6, 0.28, 0.14, 0.45), "cov_lead_to": 0.45, "patch_color": Color(0.55, 0.26, 0.14, 0.4), "patch_edge": Color(0.0, 0.0, 0.0, 0.0),
+		"cov_lead": Color(0.6, 0.28, 0.14, 0.45), "cov_lead_to": 0.45, "cov_lead_u": 0.45, "patch_color": Color(0.55, 0.26, 0.14, 0.4), "patch_edge": Color(0.0, 0.0, 0.0, 0.0),
 		"fl_top": Color(0.18, 0.14, 0.11), "fl_pale": Color(0.42, 0.38, 0.34), "fl_dark": Color(0.2, 0.17, 0.14), "fl_bars": 0.0, "fl_top_bars": 0.0, "fl_trail": 0.0,
 		"tail_color": Color(0.18, 0.14, 0.12), "tail_band": brown, "tail_bands": 0.0, "tail_band_w": 0.0, "tail_tip_r": Color(0.18, 0.14, 0.12), "tail_tip_w": 0.0,
 		"tail_under": 0.2,

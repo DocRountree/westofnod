@@ -60,6 +60,7 @@ uniform vec4 patch_edge = vec4(0.0); // its lower border (a blackbird's yellow)
 uniform vec3 patch_at = vec3(0.0); // (its middle, the rest pose's: m; x its side's)
 uniform vec2 patch_r = vec2(0.012, 0.009); // (its half length along the body, its half height: m)
 uniform float cov_lead_to = 0.3; // (how far across the coverts the leading edge's colour reaches)
+uniform float cov_lead_u = 0.8; // (and how far out along the wing from the body: a red-winged blackbird's epaulet only on its inner arm)
 uniform vec4 cov_lead_edge = vec4(0.0); // a band just below the leading edge's colour (cov_lead): a red-winged blackbird's yellow border to its red epaulet
 uniform vec4 supercilium = vec4(0.0); // a pale stripe over the eye, bill to nape (rgb; w: how much: a female blackbird's)
 uniform vec4 nape_iris : source_color = vec4(0.4, 0.2, 0.5, 0.0); // the hackles' sheen seen glancing (iridescent: a pigeon's neck)
@@ -367,8 +368,8 @@ void raptor(int pt, float u, float v, vec3 view, float ndv, vec3 vtx, vec3 nrm0,
 			float pale = max(fringe, 0.75 * step(0.66, f.y) * smoothstep(0.0, 0.3, f.x) * (1.0 - smoothstep(0.65, 0.9, f.x)));
 			bk *= mix(1.0, 0.72, bar * (1.0 - fringe));
 			bk = mix(bk, cov_bar_color * (0.82 + 0.3 * f.y), bar * pale);
-			bk = mix(bk, cov_lead.rgb * (0.85 + 0.25 * f.y), cov_lead.w * (1.0 - smoothstep(cov_lead_to - 0.25, cov_lead_to, v + 0.1 * f.y)) * (1.0 - smoothstep(0.7, 0.9, u)));
-			bk = mix(bk, cov_lead_edge.rgb * (0.88 + 0.2 * f.y), cov_lead_edge.w * smoothstep(cov_lead_to - 0.08, cov_lead_to, v + 0.1 * f.y) * (1.0 - smoothstep(cov_lead_to + 0.12, cov_lead_to + 0.2, v + 0.1 * f.y)) * (1.0 - smoothstep(0.7, 0.9, u)));
+			bk = mix(bk, cov_lead.rgb * (0.85 + 0.25 * f.y), cov_lead.w * (1.0 - smoothstep(cov_lead_to - 0.25, cov_lead_to, v + 0.1 * f.y)) * (1.0 - smoothstep(cov_lead_u - 0.1, cov_lead_u + 0.1, u + 0.04 * f.y)));
+			bk = mix(bk, cov_lead_edge.rgb * (0.88 + 0.2 * f.y), cov_lead_edge.w * smoothstep(cov_lead_to - 0.08, cov_lead_to, v + 0.1 * f.y) * (1.0 - smoothstep(cov_lead_to + 0.12, cov_lead_to + 0.2, v + 0.1 * f.y)) * (1.0 - smoothstep(cov_lead_u, cov_lead_u + 0.12, u + 0.04 * f.y)));
 		}
 		if (pt == 10 && (cov_color.w > 0.0 || cov_bars > 0.0)) { // (a jay's coverts: bright, barred black across each)
 			float lead = 1.0 - smoothstep(0.75, 0.9, u);
