@@ -231,11 +231,11 @@ static func _abdomen_mesh() -> ArrayMesh:
 				var b1 := row * (ROUND + 1)
 				for k in ROUND:
 					st.add_index(b0 + k)
-					st.add_index(b1 + k + 1)
 					st.add_index(b1 + k)
-					st.add_index(b0 + k)
-					st.add_index(b0 + k + 1)
 					st.add_index(b1 + k + 1)
+					st.add_index(b0 + k)
+					st.add_index(b1 + k + 1)
+					st.add_index(b0 + k + 1)
 			row += 1
 	_abd_mesh = st.commit()
 	return _abd_mesh
@@ -359,6 +359,7 @@ func _build_adult() -> void:
 		var wm := ShaderMaterial.new()
 		wm.shader = _wing_shader()
 		wm.set_shader_parameter("amber", 0.0 if male else 0.25)
+		wm.set_shader_parameter("hind", 1.0 if hind else 0.0)
 		w.material_override = wm
 		h.add_child(w)
 		h.set_meta("side", side)
@@ -375,35 +376,49 @@ func _build_adult() -> void:
 			_legs.append([hip, _bone(lm, _body), _bone(lm, _body), p, side])
 
 
-## A wing's outline (mm: out along +x, its leading edge -z): long, its
-## root narrow, the hindwing's broad at its base.
+## A wing's outline (mm: out along +x, its leading edge -z): long and
+## narrow, its root a narrow stalk, its tip rounded (nearer the leading
+## edge); the hindwing broad at its base, its anal lobe rounded out behind.
+## UV: (root .. tip, leading .. trailing edge); UV2: (its width there, mm;
+## its length, mm): for the veins (_wing_shader).
 static func _wing_mesh(len_: float, chord: float, hind: bool) -> ArrayMesh:
-	const N := 14
+	const N := 40
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var pts := []
 	for i in N + 1:
-		var t := float(i) / N
+		var t := 1.0 - pow(1.0 - float(i) / N, 1.35) # (closer toward the tip: its rounding)
 		var x := t * len_
-		var lead := -chord * 0.28 * (1.0 - pow(t, 6.0)) * minf(t * 6.0 + 0.25, 1.0)
-		var w := chord * (sin(PI * minf(t * 0.94 + 0.06, 1.0)) * 0.6 + 0.45 * (1.0 - t)) * (1.4 if hind and t < 0.35 else 1.0)
-		var trail := lead + w * minf(t * 4.0 + 0.3, 1.0)
-		if t >= 0.999:
-			trail = lead
-		pts.append([Vector3(x, 0.0, lead), Vector3(x, 0.0, trail), t])
+		var w: float
+		if hind:
+			w = chord * (0.62 + 0.38 * smoothstep(0.0, 0.1, t)) * (1.0 - 0.36 * t) + chord * 0.22 * exp(-pow((t - 0.07) / 0.07, 2.0))
+		else:
+			w = chord * (0.5 + 0.5 * smoothstep(0.0, 0.22, t)) * (1.0 - 0.1 * t)
+		w *= 0.22 + 0.78 * smoothstep(0.0, 0.06, t) # (its root)
+		var r := sqrt(maxf(1.0 - pow(maxf(t - 0.86, 0.0) / 0.14, 2.0), 0.0))
+		var lead := -chord * 0.28 - chord * 0.03 * sin(PI * t) + w * (1.0 - r) * 0.3
+		var wr := maxf(w * r, 0.02)
+		pts.append([Vector3(x, 0.0, lead), Vector3(x, 0.0, lead + wr), t, wr])
 	for i in N:
 		var a: Array = pts[i]
 		var b: Array = pts[i + 1]
-		for v in [[a[0], a[2], 0.0], [b[0], b[2], 0.0], [b[1], b[2], 1.0], [a[0], a[2], 0.0], [b[1], b[2], 1.0], [a[1], a[2], 1.0]]:
-			st.set_uv(Vector2(float(v[1]), float(v[2])))
+		for v in [[a, 0], [b, 0], [b, 1], [a, 0], [b, 1], [a, 1]]:
+			var q: Array = v[0]
+			st.set_uv(Vector2(float(q[2]), float(v[1])))
+			st.set_uv2(Vector2(float(q[3]), len_))
 			st.set_normal(Vector3.UP)
-			st.add_vertex(v[0])
+			st.add_vertex(q[v[1]])
 	return st.commit()
 
 
-## The wings' membrane: clear, a little iridescent, finely netted, the
-## veins darker toward the leading edge; the pterostigma tan; a female's
-## faintly amber.
+## The wings' membrane: clear, faintly iridescent; their veins: the costa
+## heavy down the leading edge, the long veins fanning out from the root
+## (the radial sector and its branches out of the radius), ladders of
+## crossveins between them where they run close, and where they spread
+## (and in the hindwing's anal field) a net of small many-sided cells,
+## finer toward the trailing margin; the nodus; the pterostigma dark near
+## the tip; a female's faintly amber. Fading to their average where too
+## fine to be seen, never shimmering.
 static func _wing_shader() -> Shader:
 	if _wing_sh == null:
 		_wing_sh = Shader.new()
@@ -411,22 +426,139 @@ static func _wing_shader() -> Shader:
 render_mode cull_disabled, depth_draw_always;
 uniform float amber = 0.0;
 uniform float blur = 0.0; // (beating: a haze)
+uniform float hind = 0.0;
+varying vec2 v_mm; // (out along it, across it: mm)
+varying float v_w; // (its width here: mm)
+varying float v_glint; // (where it's film, not vein)
+
+vec2 h2(vec2 p) {
+	p = vec2(dot(p, vec2(127.1, 311.7)), dot(p, vec2(269.5, 183.3)));
+	return fract(sin(p) * 43758.5453);
+}
+
+// distance to the nearest cell wall (cells of size 1)
+float cells(vec2 p) {
+	vec2 n = floor(p);
+	vec2 f = fract(p);
+	vec2 mr = vec2(0.0);
+	vec2 mg = vec2(0.0);
+	float md = 8.0;
+	for (int j = -1; j <= 1; j++) {
+		for (int i = -1; i <= 1; i++) {
+			vec2 g = vec2(float(i), float(j));
+			vec2 r = g + 0.5 + 0.38 * (h2(n + g) - 0.5) * 2.0 - f;
+			float d = dot(r, r);
+			if (d < md) { md = d; mr = r; mg = g; }
+		}
+	}
+	md = 8.0;
+	for (int j = -2; j <= 2; j++) {
+		for (int i = -2; i <= 2; i++) {
+			vec2 g = mg + vec2(float(i), float(j));
+			vec2 r = g + 0.5 + 0.38 * (h2(n + g) - 0.5) * 2.0 - f;
+			if (dot(mr - r, mr - r) > 1e-5) {
+				md = min(md, dot(0.5 * (mr + r), normalize(r - mr)));
+			}
+		}
+	}
+	return md;
+}
+
+// a line's cover: d its distance off it, w its half width; fw how much d
+// changes over a pixel
+float line(float d, float w, float fw) {
+	fw = max(fw, 1e-5);
+	return clamp((w - d) / fw + 0.5, 0.0, 1.0) * min(1.0, 2.0 * w / fw + 0.25);
+}
+
+// the long veins (c: leading 0 .. trailing 1) at t
+float vein_c(int k, float t, float r1) {
+	float hk = hind;
+	if (k == 0) return 0.075 * (1.0 - smoothstep(0.3, 0.46, t)); // subcosta: into the costa at the nodus
+	if (k == 1) return r1; // radius
+	if (k == 2) return mix(r1, 0.2, smoothstep(0.2, 0.75, t)); // its sector's branches
+	if (k == 3) return mix(r1 + 0.03, 0.36, smoothstep(0.22, 0.95, t));
+	if (k == 4) return mix(0.2, mix(0.5, 0.45, hk), smoothstep(0.15, 1.0, t));
+	if (k == 5) return mix(0.26, mix(0.66, 0.56, hk), smoothstep(0.1, 1.0, t)); // media
+	if (k == 6) return mix(mix(0.36, 0.3, hk), 1.05, smoothstep(0.08, mix(0.95, 0.75, hk), t)); // cubitus
+	return mix(mix(0.52, 0.4, hk), 1.1, smoothstep(0.02, mix(0.55, 0.4, hk), t)); // anal
+}
+
+void vertex() {
+	v_mm = vec2(UV.x * UV2.y, UV.y * UV2.x);
+	v_w = UV2.x;
+}
+
 void fragment() {
 	float t = UV.x; // (root .. tip)
 	float c = UV.y; // (leading .. trailing edge)
-	vec2 g = fract(vec2(t * 70.0, c * 9.0 + t * 3.0));
-	float vein = max(1.0 - smoothstep(0.0, 0.08, min(g.x, 1.0 - g.x)), 1.0 - smoothstep(0.0, 0.06, min(g.y, 1.0 - g.y)));
-	float lead = 1.0 - smoothstep(0.0, 0.08, c);
-	vec3 col = mix(vec3(0.85, 0.88, 0.9), vec3(0.88, 0.7, 0.4), amber * (1.0 - t * 0.6));
-	col = mix(col, vec3(0.1, 0.1, 0.1), max(vein * 0.7, lead * 0.9));
-	float stig = step(0.82, t) * step(t, 0.9) * (1.0 - smoothstep(0.1, 0.16, c));
-	col = mix(col, vec3(0.5, 0.36, 0.18), stig);
-	ALBEDO = col;
-	float a = 0.1 + 0.55 * vein + 0.8 * lead + 0.9 * stig;
-	ALPHA = clamp(mix(a, 0.12, blur), 0.0, 1.0);
-	SPECULAR = 0.9;
-	ROUGHNESS = 0.15;
-	RIM = 0.5;
+	float wmm = v_w;
+	float x = v_mm.x;
+	float r1 = mix(0.12, 0.09, t);
+	// the long veins: the nearest, and the band between the two either side
+	float lo = 0.0;
+	float hi = 1.0;
+	int band = 0;
+	float dm = 9.0;
+	for (int k = 0; k < 8; k++) {
+		if (k == 0 && t > 0.46) continue;
+		float ck = vein_c(k, t, r1);
+		if (ck >= 1.0) continue;
+		dm = min(dm, abs(c - ck) * wmm);
+		if (ck <= c && ck > lo) { lo = ck; band = k + 1; }
+		if (ck > c && ck < hi) { hi = ck; }
+	}
+	float fwm = fwidth(c) * wmm;
+	float v = line(dm, mix(0.09, 0.05, t), fwm);
+	v = max(v, line(c * wmm, 0.2, fwm)); // the costa
+	v = max(v, line((1.0 - c) * wmm, 0.07, fwm)); // the margin
+	// between them: ladders, or a net of cells
+	float bw = (hi - lo) * wmm;
+	float sp = mix(0.75, 1.05, smoothstep(0.0, 0.5, c));
+	float cross;
+	float fine;
+	if (bw < 1.6) {
+		float u = (x + (c - lo) * wmm * 0.35) / sp + h2(vec2(float(band), 1.0)).x;
+		float d = abs(fract(u) - 0.5) * sp;
+		fine = fwidth(u);
+		cross = line(d, 0.035, fwidth(d));
+		cross = mix(cross, 0.07 / sp, smoothstep(0.35, 0.6, fine));
+	} else {
+		float cs = mix(1.0, 0.55, smoothstep(0.65, 1.0, c)) * mix(1.0, 0.8, hind * (1.0 - smoothstep(0.0, 0.3, t)));
+		vec2 q = vec2(x * 0.8, c * wmm) / cs;
+		float d = cells(q) * cs;
+		fine = fwidth(q.x) + fwidth(q.y);
+		cross = line(d, 0.035, fwidth(d));
+		cross = mix(cross, 0.1 / cs, smoothstep(0.3, 0.6, fine));
+	}
+	v = max(v, cross * 0.85);
+	// the nodus; the pterostigma
+	float nod = line(length(vec2((t - 0.46) * UV2.y, c * wmm)), 0.3, fwm);
+	float stig = smoothstep(0.835, 0.845, t) * (1.0 - smoothstep(0.905, 0.915, t)) * (1.0 - smoothstep(r1 - 0.01, r1 + 0.01, c));
+	// the membrane: clear, a shimmer at a glance
+	float fres = pow(1.0 - abs(dot(NORMAL, VIEW)), 2.0);
+	vec3 irid = 0.5 + 0.5 * cos(6.2832 * (fres * 1.3 + t * 0.4 + vec3(0.0, 0.33, 0.67)));
+	vec3 mem = mix(vec3(0.7, 0.74, 0.76), vec3(0.88, 0.68, 0.36), amber * (1.0 - t * 0.5));
+	mem = mix(mem, irid, 0.25 * fres);
+	// (the veins and the film each their own colour, weighted by how much
+	// of each there is: a fine net seen from afar dark, not milky)
+	float vv = max(max(v, nod), stig);
+	vec3 vein = mix(vec3(0.06, 0.06, 0.055), vec3(0.09, 0.05, 0.03), stig / max(vv, 1e-4));
+	float av = 0.85 * vv;
+	float am = (0.03 + 0.1 * fres) * (1.0 - av);
+	ALBEDO = (mem * am + vein * av) / max(am + av, 1e-4);
+	ALPHA = clamp(mix(am + av, 0.08 + 0.2 * v, blur), 0.0, 1.0);
+	SPECULAR = 0.0;
+	ROUGHNESS = 1.0;
+	v_glint = 1.0 - vv;
+}
+
+// lit alike from either face (a film, not a slab); the film's own glint
+// where the sun's caught in it, its veins dull
+void light() {
+	DIFFUSE_LIGHT += LIGHT_COLOR * ATTENUATION * (0.4 + 0.6 * abs(dot(NORMAL, LIGHT))) / 3.14159;
+	vec3 h = normalize(LIGHT + VIEW);
+	SPECULAR_LIGHT += LIGHT_COLOR * ATTENUATION * pow(abs(dot(NORMAL, h)), 120.0) * 0.6 * v_glint;
 }
 """
 	return _wing_sh
