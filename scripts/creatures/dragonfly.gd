@@ -120,6 +120,9 @@ var _mask_n: Node3D
 var _mask_stalk: MeshInstance3D
 var _mands: Array[Node3D] = []
 var _mats: Array = [] # [material, its hardened colour] (teneral: paler)
+var _abd: MeshInstance3D # (the adult's abdomen: one tube)
+static var _abd_mesh: ArrayMesh
+static var _abd_mats := {}
 var rng := RandomNumberGenerator.new()
 
 static var _sphere: SphereMesh
@@ -184,6 +187,72 @@ func _tmat(c: Color, rough := 0.5, gloss := 0.0) -> StandardMaterial3D:
 	var m := _mat(c, rough, gloss)
 	_mats.append([m, c])
 	return m
+
+
+## The adult's abdomen: one tube down its ten segments (SEGS), each
+## vertex in its own segment's frame (UV2.x which; UV.x along it, UV.y
+## round it), bent by dragonfly_abdomen.gdshader. Its girth eased from
+## each segment's into the next's, a slight waist at each joint; its tip
+## rounded closed. (One, shared.)
+static func _abdomen_mesh() -> ArrayMesh:
+	if _abd_mesh:
+		return _abd_mesh
+	const ROUND := 14
+	const ALONG := 7
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var n := SEGS.size()
+	var row := 0
+	for i in n:
+		var len_: float = SEGS[i][0]
+		var w: float = SEGS[i][1]
+		var w0: float = w if i == 0 else 0.5 * (w + float(SEGS[i - 1][1]))
+		var w1: float = 0.5 * (w + float(SEGS[i + 1][1])) if i < n - 1 else w
+		for a in ALONG + 1:
+			var u := float(a) / ALONG
+			var r := lerpf(w0, w, smoothstep(0.0, 0.5, u)) if u < 0.5 else lerpf(w, w1, smoothstep(0.5, 1.0, u))
+			r *= 1.0 - 0.07 * (exp(-u / 0.08) + exp(-(1.0 - u) / 0.08)) # (its joints: a slight waist)
+			var dr := 0.0 # (its girth's slope along it: for the normals)
+			if i == n - 1: # (the tip: rounded closed)
+				var e := maxf(u - 0.55, 0.0) / 0.45
+				r *= sqrt(maxf(1.0 - e * e, 0.0)) * 0.97 + 0.03
+				dr = e * 2.0
+			for k in ROUND + 1:
+				var th := TAU * float(k) / ROUND
+				var x := cos(th)
+				var y := sin(th) * 0.95
+				var nrm := Vector3(x, y / 0.95, dr * 0.5).normalized()
+				st.set_uv(Vector2(u, float(k) / ROUND))
+				st.set_uv2(Vector2(float(i), 0.0))
+				st.set_normal(nrm)
+				st.add_vertex(Vector3(x * r, y * r, u * len_))
+			if a > 0:
+				var b0 := (row - 1) * (ROUND + 1)
+				var b1 := row * (ROUND + 1)
+				for k in ROUND:
+					st.add_index(b0 + k)
+					st.add_index(b1 + k + 1)
+					st.add_index(b1 + k)
+					st.add_index(b0 + k)
+					st.add_index(b0 + k + 1)
+					st.add_index(b1 + k + 1)
+			row += 1
+	_abd_mesh = st.commit()
+	return _abd_mesh
+
+
+static func _abdomen_mat(is_male: bool) -> ShaderMaterial:
+	if not _abd_mats.has(is_male):
+		var m := ShaderMaterial.new()
+		m.shader = preload("res://shaders/render/dragonfly_abdomen.gdshader")
+		var lens := PackedFloat32Array()
+		for s: Array in SEGS:
+			lens.append(float(s[0]))
+		m.set_shader_parameter("seg_len", lens)
+		m.set_shader_parameter("green", GREEN)
+		m.set_shader_parameter("colour", BLUE if is_male else VIOLET)
+		_abd_mats[is_male] = m
+	return _abd_mats[is_male]
 
 
 func _part(at: Vector3, sz: Vector3, mat: Material, parent: Node3D) -> MeshInstance3D:
@@ -262,14 +331,14 @@ func _build_adult() -> void:
 		n.position = at
 		prev.add_child(n)
 		_segs.append(n)
-		var c := GREEN if i < 2 else col
-		var m := _tmat(c, 0.35, 0.5)
-		_part(Vector3(0.0, 0.0, float(s[0]) * 0.5), Vector3(float(s[1]) * 2.0, float(s[1]) * 1.9, float(s[0]) * 1.12), m, n)
-		if i >= 2: # (the black stripe down its back, rings at the joints)
-			_part(Vector3(0.0, float(s[1]) * 0.72, float(s[0]) * 0.5), Vector3(float(s[1]) * 0.7, float(s[1]) * 0.55, float(s[0]) * 1.05), dark, n)
-			_part(Vector3(0.0, 0.0, float(s[0]) * 0.97), Vector3(float(s[1]) * 2.05, float(s[1]) * 1.95, 0.6), dark, n)
 		prev = n
 		at = Vector3(0.0, 0.0, float(s[0]))
+	# (drawn as one smooth tube down them, bent in its shader as they are)
+	_abd = MeshInstance3D.new()
+	_abd.mesh = _abdomen_mesh()
+	_abd.material_override = _abdomen_mat(male)
+	_abd.custom_aabb = AABB(Vector3(-4.0, -40.0, -2.0), Vector3(8.0, 48.0, 56.0))
+	_body.add_child(_abd)
 	# (its tip: a male's claspers; a female's short cerci)
 	for side: float in [-1.0, 1.0]:
 		var cl := _bone(dark, _segs[-1])
@@ -980,6 +1049,8 @@ func _pose(dt: float) -> void:
 	for i in n:
 		var share := 0.0 if i < 2 else float(i - 1) / float(n - 1)
 		_segs[i].rotation.x = -_curl * share * 0.9 - (0.03 if not nymph else 0.0)
+	if is_instance_valid(_abd) and not nymph:
+		_abd.set_instance_shader_parameter("curl", _curl)
 	# the wings: beating (fore and hind a little out of step), or out flat
 	var ph := _t * TAU * 28.0
 	for w in _wings:
@@ -1024,6 +1095,8 @@ func _pose(dt: float) -> void:
 	if _teneral < 1.0:
 		for mc: Array in _mats:
 			(mc[0] as StandardMaterial3D).albedo_color = (Color(0.85, 0.84, 0.72) as Color).lerp(mc[1], _teneral)
+		if is_instance_valid(_abd):
+			_abd.set_instance_shader_parameter("hard", _teneral)
 
 
 # --- steering (pilot.gd) -------------------------------------------------------

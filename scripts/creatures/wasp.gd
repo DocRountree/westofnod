@@ -1305,7 +1305,11 @@ func _pose_legs() -> void:
 			ankle = _ankle(hip, foot, L.s, up_l)
 		# the front legs: holding the prey, or cleaning an antenna
 		if pair == 0 and _a.hold > 0.01 and _holding:
-			var f := _body.to_local(_holding.global_position) + Vector3(0.9 * side, -0.1, 0.5)
+			# (on it where it's being chewed, not at its far middle: the prey's
+			# origin is left behind as it eats along it; and never past reach)
+			var at: Vector3 = _meal.call("next_at") if is_instance_valid(_meal) else _holding.global_position
+			var f := _body.to_local(at) + Vector3(0.9 * side, -0.1, 0.5)
+			f = hip + (f - hip).limit_length(0.85 * (L.f + L.t + L.s))
 			foot = foot.lerp(f, _a.hold)
 			ankle = ankle.lerp(f + Vector3(0.7 * side, 0.6, 1.3).normalized() * L.s, _a.hold)
 		if pair == 0 and _a.groom > 0.01 and side == _groom_side:

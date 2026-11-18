@@ -640,7 +640,7 @@ func _pose(dt: float) -> void:
 	super(dt)
 	# (its waddle: rolling side to side as it goes)
 	if not airborne and _climb_k < 0.05 and _gait_now != "stand":
-		_roll += 0.07 * sin(_gphase * TAU) * clampf(_speed * 6.0, 0.0, 1.0)
+		_roll += 0.025 * sin(_gphase * TAU) * clampf(_speed * 6.0, 0.0, 1.0)
 	# (its incisors: the lower's tips showing, the upper's)
 	# the leaf held: in its mouth as it's bitten, then in its forepaws, at its mouth
 	if is_instance_valid(_leaf):
