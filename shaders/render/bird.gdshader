@@ -61,6 +61,8 @@ uniform vec3 patch_at = vec3(0.0); // (its middle, the rest pose's: m; x its sid
 uniform vec2 patch_r = vec2(0.012, 0.009); // (its half length along the body, its half height: m)
 uniform float cov_lead_to = 0.3; // (how far across the coverts the leading edge's colour reaches)
 uniform float cov_lead_u = 0.8; // (and how far out along the wing from the body: a red-winged blackbird's epaulet only on its inner arm)
+uniform float cov_lead_block = 0.0; // 1: the leading edge's colour a block at the shoulder, crisp edged and rounded at its outer back corner, cov_lead_edge a band round its back and outer edges (an epaulet); 0: a soft band along the edge
+uniform vec4 gloss = vec4(0.0); // its plumage glossy, its sheen this tint seen glancing (w how much: a blackbird's blue-black, a grackle's purple)
 uniform vec4 cov_lead_edge = vec4(0.0); // a band just below the leading edge's colour (cov_lead): a red-winged blackbird's yellow border to its red epaulet
 uniform vec4 supercilium = vec4(0.0); // a pale stripe over the eye, bill to nape (rgb; w: how much: a female blackbird's)
 uniform vec4 nape_iris : source_color = vec4(0.4, 0.2, 0.5, 0.0); // the hackles' sheen seen glancing (iridescent: a pigeon's neck)
@@ -368,8 +370,24 @@ void raptor(int pt, float u, float v, vec3 view, float ndv, vec3 vtx, vec3 nrm0,
 			float pale = max(fringe, 0.75 * step(0.66, f.y) * smoothstep(0.0, 0.3, f.x) * (1.0 - smoothstep(0.65, 0.9, f.x)));
 			bk *= mix(1.0, 0.72, bar * (1.0 - fringe));
 			bk = mix(bk, cov_bar_color * (0.82 + 0.3 * f.y), bar * pale);
-			bk = mix(bk, cov_lead.rgb * (0.85 + 0.25 * f.y), cov_lead.w * (1.0 - smoothstep(cov_lead_to - 0.25, cov_lead_to, v + 0.1 * f.y)) * (1.0 - smoothstep(cov_lead_u - 0.1, cov_lead_u + 0.1, u + 0.04 * f.y)));
-			bk = mix(bk, cov_lead_edge.rgb * (0.88 + 0.2 * f.y), cov_lead_edge.w * smoothstep(cov_lead_to - 0.08, cov_lead_to, v + 0.1 * f.y) * (1.0 - smoothstep(cov_lead_to + 0.12, cov_lead_to + 0.2, v + 0.1 * f.y)) * (1.0 - smoothstep(cov_lead_u, cov_lead_u + 0.12, u + 0.04 * f.y)));
+			if (cov_lead_block > 0.5) {
+				// the block: from the shoulder out to cov_lead_u, back to
+				// cov_lead_to, its outer back corner rounded (a superellipse),
+				// its edge crisp, feather by feather a little ragged; a band
+				// of cov_lead_edge round its back and outer edges; more
+				// orange toward its back
+				vec2 q = vec2(max(u, 0.0) / cov_lead_u, max(v, 0.0) / cov_lead_to);
+				float r = pow(pow(q.x, 4.0) + pow(q.y, 4.0), 0.25) + 0.035 * (f.y - 0.5);
+				float aa = max(fwidth(r), 0.01);
+				float red = 1.0 - smoothstep(1.0 - aa, 1.0 + aa, r);
+				float band = smoothstep(1.0 - aa, 1.0 + aa, r) * (1.0 - smoothstep(1.13 - aa, 1.13 + aa, r));
+				vec3 rc = mix(cov_lead.rgb, cov_lead.rgb * vec3(1.02, 1.0, 1.0) + vec3(0.0, 0.12, 0.02), smoothstep(0.4, 1.0, q.y));
+				bk = mix(bk, rc * (0.9 + 0.18 * f.y), cov_lead.w * red);
+				bk = mix(bk, cov_lead_edge.rgb * (0.9 + 0.16 * f.y), cov_lead_edge.w * band);
+			} else {
+				bk = mix(bk, cov_lead.rgb * (0.85 + 0.25 * f.y), cov_lead.w * (1.0 - smoothstep(cov_lead_to - 0.25, cov_lead_to, v + 0.1 * f.y)) * (1.0 - smoothstep(cov_lead_u - 0.1, cov_lead_u + 0.1, u + 0.04 * f.y)));
+				bk = mix(bk, cov_lead_edge.rgb * (0.88 + 0.2 * f.y), cov_lead_edge.w * smoothstep(cov_lead_to - 0.08, cov_lead_to, v + 0.1 * f.y) * (1.0 - smoothstep(cov_lead_to + 0.12, cov_lead_to + 0.2, v + 0.1 * f.y)) * (1.0 - smoothstep(cov_lead_u, cov_lead_u + 0.12, u + 0.04 * f.y)));
+			}
 		}
 		if (pt == 10 && (cov_color.w > 0.0 || cov_bars > 0.0)) { // (a jay's coverts: bright, barred black across each)
 			float lead = 1.0 - smoothstep(0.75, 0.9, u);
@@ -573,6 +591,11 @@ void raptor(int pt, float u, float v, vec3 view, float ndv, vec3 vtx, vec3 nrm0,
 		}
 		rough = 0.72 - 0.35 * max(iridescence, gorget);
 		spec = 0.35;
+		if (gloss.w > 0.0) { // (glossy: its sheen the tint, glancing)
+			c += gloss.rgb * gloss.w * pow(1.0 - ndv, 2.0) * 0.4;
+			rough = mix(rough, 0.55, gloss.w);
+			spec = mix(spec, 0.5, gloss.w);
+		}
 		feather_shade(f, fade, feather_cm * 0.0008, vtx, c, nrm);
 		if (down > 0.0) { // an eyas's down: white, woolly
 			float fl = vnoise(rest.xz * 1400.0) * 0.4 + vnoise(rest.xy * 2600.0) * 0.35 + vnoise(rest.yz * 5200.0 + vec2(rest.x * 900.0, 0.0)) * 0.25;
@@ -654,6 +677,12 @@ void raptor(int pt, float u, float v, vec3 view, float ndv, vec3 vtx, vec3 nrm0,
 		c = mix(c, down_white, down);
 		rough = mix(0.82, 0.32, spk);
 		spec = mix(0.16, 0.55, spk);
+		if (gloss.w > 0.0) { // (its flight feathers glossy too: blue-black where they turn from the light)
+			float ndv_ = clamp(dot(nrm, view), 0.0, 1.0);
+			c += gloss.rgb * gloss.w * pow(1.0 - ndv_, 2.0) * 0.4 * (1.0 - shaft * 0.5);
+			rough = mix(rough, 0.55, gloss.w);
+			spec = mix(spec, 0.5, gloss.w);
+		}
 		return;
 	}
 	if (pt == 6) { // plumes (a heron's): pale, fine; those off the back of its head black

@@ -35,6 +35,7 @@ uniform float wing_droop = 0.0;  // the primaries let down (strutting: dragging)
 uniform float fold_chord = 0.3;  // folded, how much of its arm's and hand's coverts still show
 uniform float fold_pitch = 0.0;
 uniform float fold_tuck = 0.0; // folded, its tips drawn in toward each other over its tail
+uniform float open_tuck = 0.0; // open, how far its flight feathers are drawn in under the coverts (1: the coverts' sheet all over their roots: an epaulet, shown whole)
 uniform float fold_tuck_front = 0.6; // and its wrist, its forearm, ahead of the shoulder: drawn in under the breast's, the shoulder's feathers
 uniform vec3 fold_fan = vec3(0.0); // folded, each bone's feathers (tertials, secondaries, primaries) fanned down over the flank (rad)  // folded, the wing tipped down along the back (an upright bird's: a hawk's)
 
@@ -120,7 +121,11 @@ void bird_pose(vec4 c1, vec4 c2, inout vec3 v, inout vec3 n) {
 		vec3 across = vec3(sin(th), 0.0, -cos(th));
 		float l = c2.y;
 		float bend = feather_load * l * l * 1.6 - wing_droop * (k == 2 ? 1.0 : 0.25) * l * 0.9;
-		q = bone_root(k, e) + dir * c2.x + along * l + across * c2.z + up * (c2.w + bend);
+		// (open, their stack drawn in close under the coverts' sheet, its back
+		// edge over their roots, so the coverts show: a spread wing's bars,
+		// an epaulet; folded, stacked as they lie)
+		float h = mix(c2.w, c2.w * 0.15 - 0.0004, open_tuck * smoothstep(0.2, 0.8, e) * (k < 2 ? 1.0 : 0.6));
+		q = bone_root(k, e) + dir * c2.x + along * l + across * c2.z + up * (h + bend);
 		nn = across * n.x + up * n.y + along * n.z;
 	}
 	mat3 r = rot_x(fold_pitch * (1.0 - e)) * rot_y(-w.y) * rot_z(w.x) * rot_x(w.z); // (swept about the body's upright: back in flight, its tip tucked in, folded)

@@ -651,6 +651,7 @@ func _build() -> void:
 	_mat.set_shader_parameter("fold_tuck", float(S.get("fold_tuck", 0.0)))
 	_mat.set_shader_parameter("tail_k", float(S.get("tail_k", 1.0)))
 	_mat.set_shader_parameter("fold_tuck_front", float(S.get("fold_tuck_front", 0.6)))
+	_mat.set_shader_parameter("open_tuck", float(S.get("open_tuck", 0.0)))
 	for k: String in colors:
 		_mat.set_shader_parameter(k, colors[k])
 	_g.resize(16)
@@ -752,13 +753,15 @@ static func _tube(st: SurfaceTool, pts: Array, part: float, ring := 10, cap := t
 ## A feather: a card, its outline cut in it (len, wide: m; round: where
 ## along it its tip begins to round). c1: how it's posed (bird_rig); root:
 ## its root's reach along its bone (or out from the tail's joint).
-static func _feather(st: SurfaceTool, part: float, idx: float, c1: Color, root: float, len: float, wide: float, lift: float, round_from := 0.8, finger := 0.0) -> void:
+static func _feather(st: SurfaceTool, part: float, idx: float, c1: Color, root: float, len: float, wide: float, lift: float, round_from := 0.8, finger := 0.0, point := 0.0) -> void:
 	var us := [0.0, 0.1, 0.26, 0.45, 0.64, 0.8, 0.9, 0.96, 1.0]
 	var rows := []
+	var from := lerpf(round_from, 0.45, point) # (pointed: tapering from further back, straight to its tip)
 	for u: float in us:
 		var wp := lerpf(0.22, 1.0, smoothstep(0.0, 0.26, u))
-		if u > round_from:
-			wp *= sqrt(maxf(1.0 - pow((u - round_from) / (1.0 - round_from), 2.0), 0.0))
+		if u > from:
+			var x := (u - from) / (1.0 - from)
+			wp *= lerpf(sqrt(maxf(1.0 - x * x, 0.0)), pow(maxf(1.0 - x, 0.0), 0.8) * (1.0 - 0.15 * x), point)
 		wp *= 1.0 - finger * smoothstep(0.4, 0.62, u) # (emarginated: narrowed past a notch to a finger, an eagle's outer primaries)
 		var row := []
 		for k in 5:
@@ -1257,16 +1260,16 @@ func _make_mesh() -> Array:
 		for i in np:
 			var f := float(i) / maxf(np - 1, 1)
 			_feather(st, 11.0, i + (0.0 if side > 0.0 else 40.0), Color(2, 2, side, lerpf(0.2, 1.2, pow(f, 1.1))), wl.z * (0.04 + 0.96 * f), float(prim[i]) * CM, float(S.feather_w) * CM, -0.004 - 0.0012 * i, 0.72,
-					0.5 if i >= np - fingers else 0.0)
+					0.5 if i >= np - fingers else 0.0, float(S.get("feather_point", 0.0)))
 		var sec: Array = S.secondaries # [how many, the outermost's length, the innermost's]
 		var ns := int(sec[0])
 		for i in ns:
 			var f := (i + 0.5) / ns
-			_feather(st, 12.0, i + (0.0 if side > 0.0 else 40.0), Color(2, 1, side, 0.14 - 0.12 * f), wl.y * (1.0 - f), lerpf(sec[1], sec[2], f) * CM, float(S.feather_w) * CM * 1.05, -0.003 + 0.0006 * i, 0.82)
+			_feather(st, 12.0, i + (0.0 if side > 0.0 else 40.0), Color(2, 1, side, 0.14 - 0.12 * f), wl.y * (1.0 - f), lerpf(sec[1], sec[2], f) * CM, float(S.feather_w) * CM * 1.05, -0.003 + 0.0006 * i, 0.82, 0.0, float(S.get("feather_point", 0.0)) * 0.6)
 		var ter: Array = S.get("tertials", [4, 20.0, 13.0])
 		for i in int(ter[0]):
 			var f := (i + 0.5) / float(ter[0])
-			_feather(st, 13.0, i + (0.0 if side > 0.0 else 40.0), Color(2, 0, side, -0.1 - 0.35 * f), wl.x * (0.95 - 0.5 * f), lerpf(ter[1], ter[2], f) * CM, float(S.feather_w) * CM * 1.1, 0.004 + 0.001 * i, 0.8)
+			_feather(st, 13.0, i + (0.0 if side > 0.0 else 40.0), Color(2, 0, side, -0.1 - 0.35 * f), wl.x * (0.95 - 0.5 * f), lerpf(ter[1], ter[2], f) * CM, float(S.feather_w) * CM * 1.1, 0.004 + 0.001 * i, 0.8, 0.0, float(S.get("feather_point", 0.0)) * 0.5)
 	# the tail: its feathers, and its coverts over them (rows, shorter)
 	var tl: Array = S.tail_feathers # [how many, long, wide] (cm)
 	var nt := int(tl[0])
