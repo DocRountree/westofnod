@@ -387,7 +387,7 @@ func setup(w: WorldData) -> void:
 				"item": item_of(L), "gone": [], "img": null})
 
 
-## The terrain's leaf litter, pine needle and rock textures (it's the terrain's material).
+## The terrain's leaf litter, pine needle, sand and rock textures (it's the terrain's material).
 static func setup_terrain(terrain: ShaderMaterial) -> void:
 	var t := OakTree._texture("res://data/population/textures/leaf_litter.png")
 	terrain.set_shader_parameter("litter_tex", t)
@@ -395,6 +395,9 @@ static func setup_terrain(terrain: ShaderMaterial) -> void:
 	var n := OakTree._texture("res://data/population/textures/needle_litter.png")
 	terrain.set_shader_parameter("needle_tex", n)
 	terrain.set_shader_parameter("needle_mean", _mean(n))
+	var sd := OakTree._texture("res://data/population/textures/beach_sand.png")
+	terrain.set_shader_parameter("sand_tex", sd)
+	terrain.set_shader_parameter("sand_mean", _mean(sd))
 	terrain.set_shader_parameter("rock_tex", OakTree._texture("res://data/population/textures/rock.png"))
 	var mo := OakTree._texture("res://data/population/textures/moss.png")
 	terrain.set_shader_parameter("moss_tex", mo)

@@ -224,7 +224,10 @@ Nothing grows under a log or stump, or in a trunk or boulder
   forest floor also has patches of damp, matte mud, and its brown patches carry a
   texture of fallen oak and maple leaves near the eye; the taiga's floor, rusty grey-brown
   needle duff in mottles between dark feather moss, a texture of fallen pine needles (and the
-  odd cone and twig) the same way. Textures:
+  odd cone and twig) the same way; the beaches' sand, grain by grain (quartz, feldspar, dark
+  heavy minerals, bits of shell, the odd pebble: four variants, one picked a tile, so its repeat
+  doesn't show), with the wind's ripples over the dry sand, wandering and forking, their troughs
+  darker. Textures:
   `tools/ground/bake_ground_textures.py`.
 - **Player** (`scripts/avatar.gd`): a figure built from its look (`scripts/character/`) and animated
   procedurally with two-bone IK. The look (`CharacterLook`) is a value for each of a list of fields (`FIELDS`: a

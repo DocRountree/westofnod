@@ -32,7 +32,20 @@
   lays it over the taiga's needle duff as it lays the leaves over the
   forest's litter.
 
-python3 tools/ground/bake_ground_textures.py [--needles | --broad]  (only the needle litter; only the broad fern's frond)
+- beach_sand.png: RGB, 2048 x 2048: four variants two by two, each 1024
+  square, about 0.5 m, its own grains and its own shells and pebbles (how
+  many, where), so the terrain can pick one a tile and its repeat doesn't
+  show; each tileable every way
+  as the litters (nothing in it lies across an edge but single grains,
+  wrapped): beach sand grain by grain, mostly quartz (cream, tan,
+  honey, a few clear and grey), some feldspar (pink, buff), a sprinkle of
+  dark heavy minerals (black, red-brown, green-grey), each grain lit from
+  above, shaded below; here and there a broken bit of shell (white, cream,
+  blue-grey, a little pink, ribbed), a few small rounded pebbles. The
+  terrain lays it over the beaches' sand as it lays the leaves over the
+  forest's litter (and draws the wind's ripples itself, across the tiles).
+
+python3 tools/ground/bake_ground_textures.py [--needles | --broad | --sand]  (only the needle litter; only the broad fern's frond; only the sand)
 """
 import math
 import os
@@ -455,12 +468,102 @@ def litter(size=1024, ss=2):
     return Image.fromarray(canvas.clip(0, 255).astype(np.uint8)).reduce(ss)
 
 
+# ---- sand -------------------------------------------------------------------
+
+def _grain(draw, S, x, y, r, c, light=0.18):
+    """A grain at (x, y), radius r, colour c: lit from above (its upper
+    left), shaded below; wrapped round the tile's edges."""
+    for dx in (-S, 0, S):
+        for dy in (-S, 0, S):
+            X, Y = x + dx, y + dy
+            if X + r < 0 or Y + r < 0 or X - r > S or Y - r > S:
+                continue
+            draw.ellipse([X - r, Y - r, X + r, Y + r], fill=tuple(int(v) for v in np.clip(np.array(c) * (1.0 - light * 0.7), 0, 255)))
+            if r >= 1.2:
+                q = r * 0.55
+                draw.ellipse([X - r * 0.75, Y - r * 0.8, X - r * 0.75 + 2 * q, Y - r * 0.8 + 2 * q], fill=tuple(int(v) for v in np.clip(np.array(c) * (1.0 + light), 0, 255)))
+
+
+def beach_sand(size=1024, ss=2, shells_n=70, pebbles_n=24, heavy_k=0.05, coarse=1.0):
+    """Tileable every way: grains (wrapped round the edges: a grain is too
+    small for a turned neighbour to show its half's missing), shells and
+    pebbles inside only. shells_n, pebbles_n: how many; heavy_k: the share
+    of dark grains; coarse: the grains' size."""
+    S = size * ss
+    base = np.array([196, 178, 142], np.float32)
+    canvas = base[None, None, :] * rng.uniform(0.86, 1.08, (S, S))[..., None]
+    img = Image.fromarray(canvas.clip(0, 255).astype(np.uint8))
+    draw = ImageDraw.Draw(img)
+    quartz = [(222, 206, 170), (206, 186, 146), (230, 218, 190), (190, 168, 128), (214, 196, 156), (176, 170, 160), (238, 232, 214)]
+    feldspar = [(214, 170, 140), (200, 160, 128), (226, 192, 160)]
+    heavy = [(40, 36, 34), (72, 48, 36), (70, 74, 64), (96, 60, 44), (30, 30, 32)]
+    n = int(S * S / (2.2 * ss) ** 2)
+    for i in range(n):
+        u = rng.random()
+        pal = heavy if u < heavy_k else (feldspar if u < heavy_k + 0.15 else quartz)
+        c = np.array(pal[rng.integers(len(pal))], np.float32) * rng.uniform(0.9, 1.08)
+        r = rng.uniform(0.7, 1.7) * ss * (0.8 if pal is heavy else 1.0) * coarse
+        _grain(draw, S, rng.uniform(0, S), rng.uniform(0, S), r, c)
+    # shell fragments: flat, angular, ribbed; inside only
+    shells = [(240, 236, 226), (228, 220, 200), (178, 186, 196), (232, 206, 196), (214, 206, 190)]
+    for i in range(shells_n):
+        r = rng.uniform(2.5, 7.0) * ss
+        cx, cy = rng.uniform(r * 1.5, S - r * 1.5), rng.uniform(r * 1.5, S - r * 1.5)
+        k = rng.integers(3, 6)
+        a0 = rng.uniform(0, math.tau)
+        pts = [(cx + math.cos(a0 + j * math.tau / k + rng.uniform(-0.4, 0.4)) * r * rng.uniform(0.5, 1.0),
+                cy + math.sin(a0 + j * math.tau / k + rng.uniform(-0.4, 0.4)) * r * rng.uniform(0.5, 1.0)) for j in range(k)]
+        c = np.array(shells[rng.integers(len(shells))], np.float32) * rng.uniform(0.9, 1.04)
+        draw.polygon(pts, fill=tuple(int(v) for v in c * 0.82))
+        draw.polygon([(cx + (x - cx) * 0.85 - 0.3 * ss, cy + (y - cy) * 0.85 - 0.3 * ss) for x, y in pts], fill=tuple(int(v) for v in np.clip(c, 0, 255)))
+        ang = rng.uniform(0, math.pi)  # (its ribs)
+        for j in range(-3, 4):
+            ox, oy = math.cos(ang + math.pi / 2) * j * r * 0.28, math.sin(ang + math.pi / 2) * j * r * 0.28
+            draw.line([(cx + ox - math.cos(ang) * r * 0.6, cy + oy - math.sin(ang) * r * 0.6), (cx + ox + math.cos(ang) * r * 0.6, cy + oy + math.sin(ang) * r * 0.6)],
+                      fill=tuple(int(v) for v in c * 0.86), width=max(1, ss // 2))
+    # small pebbles: rounded, lit from above
+    pebbles = [(150, 140, 126), (120, 110, 100), (170, 150, 120), (96, 92, 88), (190, 170, 140), (130, 100, 80)]
+    for i in range(pebbles_n):
+        r = rng.uniform(4.0, 9.0) * ss
+        cx, cy = rng.uniform(r * 1.5, S - r * 1.5), rng.uniform(r * 1.5, S - r * 1.5)
+        c = np.array(pebbles[rng.integers(len(pebbles))], np.float32)
+        draw.ellipse([cx - r * 1.1, cy - r * 0.6 + r * 0.25, cx + r * 1.1, cy + r * 0.6 + r * 0.35], fill=tuple(int(v) for v in c * 0.55))  # (its shadow)
+        for j in range(6):
+            t = j / 5.0
+            rr = r * (1.0 - 0.55 * t)
+            draw.ellipse([cx - rr * 1.05 - t * r * 0.25, cy - rr * 0.8 - t * r * 0.3, cx + rr * 1.05 - t * r * 0.25, cy + rr * 0.8 - t * r * 0.3],
+                         fill=tuple(int(v) for v in np.clip(c * (0.82 + 0.38 * t), 0, 255)))
+    return img.filter(ImageFilter.GaussianBlur(0.35 * ss)).reduce(ss)
+
+
+# (the variants: each its own grains, its own number of shells and pebbles
+# in their own places: few, a scatter of shell, a patch of pebbles, fine)
+SAND_VARIANTS = [dict(shells_n=20, pebbles_n=0), dict(shells_n=140, pebbles_n=6, heavy_k=0.04),
+                 dict(shells_n=45, pebbles_n=34, heavy_k=0.07, coarse=1.1), dict(shells_n=60, pebbles_n=10, heavy_k=0.03, coarse=0.9)]
+
+
+def beach_sand_atlas(size=1024):
+    """The variants, two by two in one image (the terrain picks one for each
+    tile, at random, as well as its turn)."""
+    out = Image.new("RGB", (size * 2, size * 2))
+    tiles = [np.asarray(beach_sand(size, **v), np.float32) for v in SAND_VARIANTS]
+    mean = np.mean([t.reshape(-1, 3).mean(0) for t in tiles], 0)
+    for k, t in enumerate(tiles):  # (each to the same mean: no tile lighter or darker than the next)
+        t = t * (mean / t.reshape(-1, 3).mean(0))[None, None, :]
+        out.paste(Image.fromarray(t.clip(0, 255).astype(np.uint8)), ((k % 2) * size, (k // 2) * size))
+    return out
+
+
 def main():
     import sys
     os.makedirs(OUT, exist_ok=True)
     if "--broad" in sys.argv:
         Image.fromarray(broad_frond(), "RGBA").save(os.path.join(OUT, "broad_fern_frond.png"))
         print("broad_fern_frond.png")
+        return
+    if "--sand" in sys.argv:
+        beach_sand_atlas().save(os.path.join(OUT, "beach_sand.png"))
+        print("beach_sand.png")
         return
     if "--needles" in sys.argv:
         needle_litter().save(os.path.join(OUT, "needle_litter.png"))
@@ -474,6 +577,8 @@ def main():
     print("leaf_litter.png")
     needle_litter().save(os.path.join(OUT, "needle_litter.png"))
     print("needle_litter.png")
+    beach_sand_atlas().save(os.path.join(OUT, "beach_sand.png"))
+    print("beach_sand.png")
 
 
 if __name__ == "__main__":

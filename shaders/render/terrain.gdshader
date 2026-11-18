@@ -70,6 +70,17 @@ uniform vec3 moss_mean = vec3(0.3, 0.32, 0.12); // the texture's mean, where it'
 uniform sampler2D needle_tex : filter_linear_mipmap_anisotropic, repeat_enable; // (sRGB values; tileable every way round)
 uniform float needle_tile = 0.8; // m
 uniform vec3 needle_mean = vec3(0.4, 0.27, 0.16); // the texture's mean (GroundCover sets it)
+// Beach sand grain by grain (tools/ground/bake_ground_textures.py: quartz,
+// feldspar, dark heavy minerals, bits of shell, a pebble here and there),
+// laid over the beaches' sand near the eye as the leaves over the forest's
+// litter; and the wind's ripples over the dry sand, drawn here across the
+// tiles (their troughs darker with the heavy minerals left in them).
+uniform sampler2D sand_tex : filter_linear_mipmap_anisotropic, repeat_enable; // (sRGB values: four variants two by two, each tileable every way round)
+uniform float sand_tile = 0.5; // m (a variant's)
+uniform vec3 sand_mean = vec3(0.76, 0.69, 0.55); // the texture's mean (GroundCover sets it)
+const float RIPPLE_PERIOD = 64.0; // m: the ripples' pattern repeats (their noise's cells wrapped), so it's the same as the origin moves
+const vec2 RIPPLE_DIR = vec2(0.8, 0.6); // (across them: the wind's way)
+const float RIPPLE_WAVE = 64.0 / 700.0; // m apart (a whole number of them across the period, either way)
 // The player's footprints near (Footprints: R pressed in, B the rim pushed
 // up, G mud carried), over print_window (its corner on the map, x and z;
 // its size, m; 0: none): pressed into the mud (forest's, prairie's), the
@@ -106,8 +117,40 @@ vec4 litter_sample4(sampler2D tex, float tile_m, vec3 lp, ivec2 salt) {
 	return textureGrad(tex, f, dx, dy);
 }
 
+// As litter_sample4, from an atlas of variants two by two (beach_sand.png):
+// each tile a variant at random as well as a quarter turn, its own corner
+// of the atlas, so the repeat doesn't show.
+vec3 atlas_sample(sampler2D tex, float tile_m, vec3 lp, ivec2 salt) {
+	vec2 o_tiles = floor(world_origin.xz / tile_m);
+	vec2 uv = (lp.xz + (world_origin.xz - o_tiles * tile_m)) / tile_m;
+	vec2 tile = floor(uv);
+	vec2 f = uv - tile;
+	ivec2 t = ivec2(tile) + ivec2(o_tiles);
+	int turn = int(hash(t + salt) * 4.0) & 3;
+	int pick = int(hash(t + salt * 3 + ivec2(17, -29)) * 4.0) & 3;
+	vec2 dx = dFdx(uv), dy = dFdy(uv);
+	for (int k = 0; k < turn; k++) {
+		f = vec2(f.y, 1.0 - f.x);
+		dx = vec2(dx.y, -dx.x);
+		dy = vec2(dy.y, -dy.x);
+	}
+	f = clamp(f, 0.002, 0.998); // (kept off its neighbours in the atlas)
+	return textureGrad(tex, (f + vec2(float(pick & 1), float(pick >> 1))) * 0.5, dx * 0.5, dy * 0.5).rgb;
+}
+
 vec3 litter_sample(sampler2D tex, float tile_m, vec3 lp, ivec2 salt) {
 	return litter_sample4(tex, tile_m, lp, salt).rgb;
+}
+
+// Value noise whose cells wrap every period cells (as the ripples' pattern).
+float wrap_noise(vec2 p, int period) {
+	ivec2 i = ivec2(floor(p));
+	vec2 f = fract(p);
+	f = f * f * (3.0 - 2.0 * f);
+	ivec2 i0 = ((i % period) + period) % period;
+	ivec2 i1 = (((i + 1) % period) + period) % period;
+	float a = hash(ivec2(i0.x, i0.y)), b = hash(ivec2(i1.x, i0.y)), c = hash(ivec2(i0.x, i1.y)), d = hash(ivec2(i1.x, i1.y));
+	return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
 }
 
 void fragment() {
@@ -204,6 +247,31 @@ void fragment() {
 	col = mix(col, sand, m.a * (1.0 - rocky * 0.7));
 	// the pale grounds (the prairie's, the coast's, the beaches' sand) a
 	// little darker at night (main.gd: night), as the leaves are
+	// the sand, near: its grains; over the dry sand, the wind's ripples
+	// (low on the side the wind comes from, steep on the side away, the
+	// heavy minerals in their troughs), in fields, fading out where too fine
+	// to see and toward the wet sand at the water
+	float sandy = clamp(coast * (1.0 - smoothstep(3.0, 14.0, h + (sh.n35 - 0.5) * 8.0)) + m.a, 0.0, 1.0) * (1.0 - rocky);
+	if (sandy * near > 0.0) {
+		vec3 grains = atlas_sample(sand_tex, sand_tile, local_pos, ivec2(379, 811)) / sand_mean;
+		col *= mix(vec3(1.0), grains, sandy * near * 1.6); // (its speckle brought out: the eye sees it in sand more than an average would)
+		vec2 rq = local_pos.xz + mod(world_origin.xz, RIPPLE_PERIOD);
+		float field = smoothstep(0.35, 0.65, wrap_noise(rq / 16.0, 4));
+		float ph = dot(rq, RIPPLE_DIR) / RIPPLE_WAVE + 2.6 * wrap_noise(rq / 4.0, 16) + 1.6 * wrap_noise(rq, 64) + 0.7 * wrap_noise(rq * 2.0, 128); // (wandering, their crests forking and ending)
+		float tall = 0.35 + 0.65 * smoothstep(0.2, 0.8, wrap_noise(rq / 2.0, 32)) * (0.6 + 0.4 * wrap_noise(rq * 2.0 + 7.3, 128)); // (here high, there low and fading)
+		float fine = fwidth(ph);
+		float amt = sandy * near * field * tall * smoothstep(0.8, 2.0, h) * (1.0 - smoothstep(0.25, 0.55, fine));
+		if (amt > 0.0) {
+			float r = fract(ph);
+			float crest = 0.72; // (the ripple's top: a long gentle rise, then a short steep fall)
+			float hgt = r < crest ? smoothstep(0.0, crest, r) : 1.0 - smoothstep(crest, 1.0, r);
+			float dh = r < crest ? 1.0 / crest : -1.0 / (1.0 - crest); // (its slope, per ripple)
+			dh *= 6.0 * r * (1.0 - r) * 0.012 / RIPPLE_WAVE; // (about 1 cm high)
+			n = normalize(n - vec3(RIPPLE_DIR.x, 0.0, RIPPLE_DIR.y) * dh * amt);
+			NORMAL = normalize((VIEW_MATRIX * vec4(n, 0.0)).xyz);
+			col *= mix(1.0, mix(0.88, 1.03, hgt), amt);
+		}
+	}
 	col *= 1.0 - PRAIRIE_NIGHT_DIM * night * clamp(prairie + coast + m.a * (1.0 - rocky * 0.7), 0.0, 1.0);
 	col = mix(col, seabed, 1.0 - smoothstep(-1.0, 0.2, h));
 	col *= mix(1.0, 0.78, (1.0 - smoothstep(0.0, 0.6, h)) * step(-0.3, h)); // damp line
