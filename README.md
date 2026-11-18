@@ -24,7 +24,9 @@ bun, a mohawk), how it curls (straight, wavy, curly, coily: thicker and shorter 
 (natural hair, or any colour), facial hair (stubble, a moustache, a goatee, a beard, a long one, sideburns); a
 shirt (long or short sleeves, a vest, a belted tunic, none), its colour, a pattern worked into it and the
 pattern's two colours; pants (trousers, shorts, fringed leggings) and their colour; glasses (round, square,
-sunglasses); a hat (wide brim, straw, a knit cap, a headband, a cap) and its colour. Random makes somebody by
+sunglasses); a hat (wide brim, straw, a knit cap, a headband, a cap) and its colour; earrings (dentalium
+shells, turquoise drops, feathers, beaded hoops, abalone discs, quillwork drops with tin cone jingles), a septum
+piercing (a ring, a beaded ring, a bone bar, a silver crescent) and the beads' colour. Random makes somebody by
 chance; Start goes into the game, which keeps the look with its save. In debug mode P opens it over the game
 (it isn't shown on the way in), to change the figure there.
 
@@ -235,7 +237,7 @@ Nothing grows under a log or stump, or in a trunk or boulder
   whose face is one skin (the eyes' sockets, the brow's ridge, the lids, the nose, the lips, the chin shaped
   into it), eyes, ears, brows; hair as a sheet of strands from the crown over the scalp and hanging from the
   hairline, its style's tail, braids, bun or crest, a beard on the jaw's own surface; clothes over the body
-  in cloth that carries the shirt's pattern (`character_cloth.gdshader`); hats and glasses.
+  in cloth that carries the shirt's pattern (`character_cloth.gdshader`); hats and glasses; earrings and septum piercings.
   `tools/character/preview.gd` renders one, or a row of six by chance (`xvfb-run godot --path . --resolution
   1600x900 --script res://tools/character/preview.gd -- <out_dir> [name] [field=value ...] [face | head | chest
   | back | side | hands | row | walk]`). Walking: feet step in turn, arms swing. Climbing: hands and feet hold points on

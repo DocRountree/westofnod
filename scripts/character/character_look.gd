@@ -45,6 +45,11 @@ const FIELDS := [
 	{"key": "glasses", "label": "Glasses", "section": "Accessories", "type": "choice", "options": ["none", "round", "square", "sunglasses"]},
 	{"key": "hat", "label": "Hat", "section": "Accessories", "type": "choice", "options": ["none", "wide_brim", "straw", "knit_cap", "headband", "cap"]},
 	{"key": "hat_color", "label": "Hat colour", "section": "Accessories", "type": "color", "palettes": ["dyes", "colors"], "default": "#5d4027"},
+	{"key": "earrings", "label": "Earrings", "section": "Accessories", "type": "choice",
+		"options": ["none", "dentalium", "turquoise", "feather", "beaded_hoop", "abalone", "quill_drop"]},
+	{"key": "septum", "label": "Septum piercing", "section": "Accessories", "type": "choice",
+		"options": ["none", "ring", "beaded_ring", "bone_bar", "crescent"]},
+	{"key": "bead_color", "label": "Bead colour", "section": "Accessories", "type": "color", "palettes": ["dyes", "colors"], "default": "#a13a26"},
 ]
 
 ## The options' names in the picker, where not their own (underscores to
@@ -53,6 +58,9 @@ const NAMES := {
 	"long_sleeves": "Long sleeves", "tee": "Short sleeves", "none": "None", "long_beard": "Long beard",
 	"chief_bands": "Chief bands", "eye_dazzler": "Eye dazzler", "wide_brim": "Wide brim", "knit_cap": "Knit cap",
 	"fringed_leggings": "Fringed leggings",
+	"dentalium": "Dentalium shells", "turquoise": "Turquoise drops", "feather": "Feathers", "beaded_hoop": "Beaded hoops",
+	"abalone": "Abalone discs", "quill_drop": "Quillwork drops", "beaded_ring": "Beaded ring", "bone_bar": "Bone bar",
+	"crescent": "Silver crescent",
 }
 
 ## The shirt's patterns as the cloth's shader numbers them
@@ -141,7 +149,7 @@ static func random(rng: RandomNumberGenerator, set_ := {}) -> CharacterLook:
 			l.values[f.key] = Color.html(pal[rng.randi() % pal.size()])
 		else:
 			var opts: Array = f.options
-			var plain: bool = f.key in ["glasses", "hat", "facial_hair", "pattern"] and rng.randf() < 0.6
+			var plain: bool = (f.key in ["glasses", "hat", "facial_hair", "pattern", "earrings"] and rng.randf() < 0.6) or (f.key == "septum" and rng.randf() < 0.85)
 			l.values[f.key] = opts[0] if plain else opts[rng.randi() % opts.size()]
 	if l.option("hair_style") == "bald" and rng.randf() < 0.7:
 		l.values["hair_style"] = "short"

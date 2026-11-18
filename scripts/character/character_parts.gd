@@ -141,6 +141,8 @@ static func build(rig: Dictionary, look: CharacterLook) -> Dictionary:
 	_beard(head, look, hair, curl, skin_c, hair_c)
 	_hat(head, look)
 	_glasses(head, look)
+	_earrings(head, look)
+	_septum(head, look)
 
 	# what it wears
 	var accent := look.color("pattern_color")
@@ -769,3 +771,218 @@ static func _glasses(head: Node3D, look: CharacterLook) -> void:
 	gm.metallic_specular = 0.9
 	gm.cull_mode = BaseMaterial3D.CULL_DISABLED
 	glass.put(head, gm)
+
+
+
+# ---- jewellery, in the ways of the peoples of this land
+
+## Where an earlobe's pierced (the head's space; side -1 its right, 1 its left).
+static func _lobe(side: float) -> Vector3:
+	return Vector3(side * 0.0805, 0.0880, 0.0165)
+
+
+static func _metal(c: Color, rough := 0.28) -> StandardMaterial3D:
+	var m := _plain(c, rough)
+	m.metallic = 1.0
+	return m
+
+
+## A ring of wire round c, radius r, in the plane of u and v (unit, square
+## to each other), from angle a0 to a1; its wire's radius w.
+static func _ring(m: M, c: Vector3, u: Vector3, v: Vector3, r: float, w: float, a0 := 0.0, a1 := TAU, n := 18) -> void:
+	var path := []
+	var radii := []
+	for i in n + 1:
+		var a := lerpf(a0, a1, float(i) / n)
+		path.append(c + (u * cos(a) + v * sin(a)) * r)
+		radii.append(w)
+	_strand(m, path, radii, 6)
+
+
+static func _bead(m: M, c: Vector3, r: float, squash := 0.8) -> void:
+	m.blob(c, Vector3(r, r * squash, r), Basis(), 8, 6)
+
+
+## The earrings: each its kind's, hung from both lobes.
+## - dentalium: strands of the tusk shells (traded down the Pacific coast
+##   and across the plains), glass beads between them;
+## - turquoise: a silver hook and bezel, a turquoise stone set in it, a
+##   silver drop under it (the Southwest's silverwork);
+## - feather: a small feather, white, its tip dark, hung on beads;
+## - beaded_hoop: a silver hoop strung with beads round its bottom;
+## - abalone: a disc of the shell, its sheen blue green to pink, on a bead;
+## - quill_drop: a drop wrapped in dyed porcupine quills, banded, a tin
+##   cone jingle at its end.
+static func _earrings(head: Node3D, look: CharacterLook) -> void:
+	var kind := look.option("earrings")
+	if kind == "none":
+		return
+	var bead_c := look.color("bead_color")
+	var silver := M.new()
+	var beads := M.new()
+	var shell := M.new()
+	var dark := M.new()
+	var shell_mat: Material = _plain(Color(0.93, 0.89, 0.78), 0.42)
+	var dark_mat: Material = _plain(Color(0.2, 0.15, 0.1), 0.6)
+	for side: float in [-1.0, 1.0]:
+		var at := _lobe(side)
+		var out := Vector3(side, 0.0, 0.0)
+		# (through the lobe: a loop of wire, under it)
+		_ring(silver, at + Vector3(side * 0.0006, -0.0018, 0.0), Vector3.UP, Vector3.BACK, 0.0022, 0.00045)
+		var top := at + Vector3(side * 0.0008, -0.0040, 0.0)
+		match kind:
+			"dentalium":
+				_bead(beads, top + Vector3(0.0, -0.0012, 0.0), 0.0019)
+				for k in 3:
+					var dz := (k - 1) * 0.0034
+					var y := top.y - 0.0035
+					var x := top.x + out.x * 0.0004 * absf(k - 1)
+					var hang := Vector3(x, y, top.z + dz * 0.6)
+					for piece in 2: # (a bead, a shell; a bead, a shell; a bead)
+						_bead(beads, hang + Vector3(0.0, -0.0013, dz * 0.2), 0.0014)
+						var a := hang + Vector3(0.0, -0.0027, dz * 0.25)
+						var l := 0.019 - piece * 0.003
+						var b := a + Vector3(out.x * 0.0012, -l, dz * 0.35)
+						_strand(shell, [a, a.lerp(b, 0.5) + out * 0.0007, b], [0.0013, 0.0011, 0.0006], 7)
+						hang = b + Vector3(0.0, -0.0004, 0.0)
+					_bead(beads, hang + Vector3(0.0, -0.0012, 0.0), 0.0013)
+			"turquoise":
+				_bead(silver, top + Vector3(0.0, -0.0010, 0.0), 0.0011)
+				_bead(silver, top + Vector3(0.0, -0.0030, 0.0), 0.0011)
+				var c := top + Vector3(out.x * 0.0004, -0.0115, 0.0)
+				silver.blob(c, Vector3(0.0012, 0.0078, 0.0058), Basis(), 14, 8) # (its bezel)
+				beads.blob(c + out * 0.0009, Vector3(0.0010, 0.0066, 0.0047), Basis(), 14, 8)
+				_strand(silver, [c + Vector3(0.0, -0.0078, 0.0), c + Vector3(0.0, -0.0105, 0.0)], [0.0005, 0.0005], 6)
+				silver.blob(c + Vector3(0.0, -0.0128, 0.0), Vector3(0.0012, 0.0030, 0.0022), Basis(), 10, 6)
+			"feather":
+				_bead(beads, top + Vector3(0.0, -0.0012, 0.0), 0.0016)
+				_bead(silver, top + Vector3(0.0, -0.0032, 0.0), 0.0009)
+				_bead(beads, top + Vector3(0.0, -0.0050, 0.0), 0.0016)
+				var q0 := top + Vector3(0.0, -0.0065, 0.0)
+				var dir := Vector3(out.x * 0.12, -1.0, 0.18).normalized()
+				var across := dir.cross(out).normalized() # (its vane: flat, face out to the side)
+				var L := 0.044
+				var light := []
+				var tip := []
+				for i in 13:
+					var t := float(i) / 12.0
+					var p := q0 + dir * L * t + out * 0.004 * t * t + Vector3(0.0, 0.0, 0.003 * t * t)
+					var w := 0.0068 * smoothstep(0.0, 0.2, t) * (1.0 - 0.25 * t) * sqrt(maxf(1.0 - pow(maxf(t - 0.8, 0.0) / 0.2, 2.0), 0.0)) # (its tip rounded)
+					var row := PackedVector3Array([p - across * w, p, p + across * w * 0.85])
+					if t <= 0.67:
+						light.append(row)
+					if t >= 0.66:
+						tip.append(row)
+				var vane := M.new()
+				var vt := M.new()
+				var rows_l: Array[PackedVector3Array] = []
+				rows_l.assign(light)
+				var rows_t: Array[PackedVector3Array] = []
+				rows_t.assign(tip)
+				vane.grid(rows_l, false, PackedFloat32Array(), false, at - out * 0.02)
+				vt.grid(rows_t, false, PackedFloat32Array(), false, at - out * 0.02)
+				var fm := _plain(Color(0.92, 0.9, 0.86), 0.85)
+				fm.cull_mode = BaseMaterial3D.CULL_DISABLED
+				var tm := _plain(Color(0.16, 0.11, 0.07), 0.85)
+				tm.cull_mode = BaseMaterial3D.CULL_DISABLED
+				vane.put(head, fm, "feather")
+				vt.put(head, tm, "feather_tip")
+				_strand(shell, [q0 + dir * -0.002, q0 + dir * L * 0.5 + out * 0.001, q0 + dir * L * 0.98 + out * 0.004 + Vector3(0.0, 0.0, 0.003)], [0.0006, 0.0005, 0.0002], 5)
+			"beaded_hoop":
+				var r := 0.0115
+				var c := at + Vector3(side * 0.0006, -r - 0.0005, 0.0)
+				_ring(silver, c, Vector3.UP, Vector3.BACK, r, 0.00055, 0.0, TAU, 28)
+				for k in 9:
+					var a := PI * (1.25 + 0.5 * float(k) / 8.0) # (round its bottom)
+					_bead(beads, c + (Vector3.UP * sin(a) + Vector3.BACK * cos(a)) * r, 0.0017, 1.0)
+			"abalone":
+				_bead(beads, top + Vector3(0.0, -0.0012, 0.0), 0.0016)
+				var c := top + Vector3(out.x * 0.0006, -0.0125, 0.0)
+				shell.blob(c, Vector3(0.0012, 0.0092, 0.0088), Basis(), 16, 8) # (the shell's back, its outside: chalky)
+				var disc := M.new()
+				disc.blob(c + out * 0.0006, Vector3(0.0009, 0.0086, 0.0082), Basis(), 16, 8)
+				disc.put(head, _abalone(), "abalone")
+			"quill_drop":
+				_bead(beads, top + Vector3(0.0, -0.0012, 0.0), 0.0016)
+				var y := top.y - 0.0028
+				for k in 7: # (its bands: the dyed quills, and white)
+					var h := 0.0042
+					var a := Vector3(top.x, y, top.z)
+					var b := Vector3(top.x, y - h, top.z)
+					_strand(beads if k % 2 == 0 else shell, [a, b], [0.0021, 0.0021], 8)
+					y -= h
+				_strand(dark, [Vector3(top.x, y + 0.0004, top.z), Vector3(top.x, y - 0.0016, top.z)], [0.0008, 0.0008], 6)
+				var cone_top := Vector3(top.x, y - 0.0016, top.z)
+				_strand(silver, [cone_top, cone_top + Vector3(0.0, -0.006, 0.0), cone_top + Vector3(0.0, -0.013, 0.0)], [0.0006, 0.0022, 0.0034], 10)
+	silver.put(head, _metal(Color(0.83, 0.83, 0.85)), "earrings")
+	beads.put(head, _plain(bead_c, 0.25) if kind != "turquoise" else _plain(Color(0.25, 0.68, 0.64), 0.55), "earring_beads")
+	shell.put(head, shell_mat, "earring_shells")
+	dark.put(head, dark_mat)
+
+
+## An abalone shell's inside: its nacre, blue green shading to violet and
+## pink as it turns in the light.
+static func _abalone() -> ShaderMaterial:
+	var sh := Shader.new()
+	sh.code = """shader_type spatial;
+void fragment() {
+	float f = 1.0 - abs(dot(NORMAL, VIEW));
+	vec3 base = 0.5 + 0.5 * cos(6.2832 * (f * 1.4 + UV.x * 1.7 + UV.y * 0.9 + vec3(0.0, 0.33, 0.67)));
+	ALBEDO = mix(vec3(0.16, 0.42, 0.45), base, 0.55);
+	METALLIC = 0.35;
+	ROUGHNESS = 0.18;
+}
+"""
+	var m := ShaderMaterial.new()
+	m.shader = sh
+	return m
+
+
+## The septum piercing, through the nose between its nostrils:
+## - ring: a plain silver ring;
+## - beaded_ring: a ring and a bead on it;
+## - bone_bar: a bar of bone (or a dentalium shell) through it, out both
+##   sides, its ends pointed;
+## - crescent: a small ring and, hung from it by its middle, a silver
+##   crescent (a naja), its horns down round.
+static func _septum(head: Node3D, look: CharacterLook) -> void:
+	var kind := look.option("septum")
+	if kind == "none":
+		return
+	var rk := M.refine(HEAD, 4)
+	var s := _on_head(rk, 0.0838, 0.0, -0.0042) # (through the septum)
+	var lip := _on_head(rk, 0.0735, 0.0, 0.0016) # (over the lip's middle, clear of it)
+	var silver := M.new()
+	var bead := M.new()
+	var bone := M.new()
+	if kind == "bone_bar":
+		var c := s + Vector3(0.0, -0.0006, -0.0008)
+		_strand(bone, [c + Vector3(-0.0175, 0.0008, 0.0012), c + Vector3(-0.009, 0.0002, 0.0002), c, c + Vector3(0.009, 0.0002, 0.0002), c + Vector3(0.0175, 0.0008, 0.0012)],
+				[0.0003, 0.0013, 0.0016, 0.0013, 0.0003], 8)
+		bone.put(head, _plain(Color(0.93, 0.89, 0.78), 0.42), "septum")
+		return
+	var small := kind == "crescent"
+	var b := lip if not small else s.lerp(lip, 0.6)
+	var c := (s + b) * 0.5
+	var v := (b - s).normalized() # (down its middle, from the septum)
+	var r := s.distance_to(b) * 0.5
+	_ring(silver, c, -v, Vector3.RIGHT, r, 0.0007, 0.0, TAU, 24)
+	if kind == "beaded_ring":
+		_bead(bead, b + v * 0.0004, 0.0017, 1.0)
+		_bead(silver, b - Vector3.RIGHT * 0.0028 + v * -0.0003, 0.0009, 1.0)
+		_bead(silver, b + Vector3.RIGHT * 0.0028 + v * -0.0003, 0.0009, 1.0)
+	if small: # its crescent (a naja): hung by its middle, its horns down round, flat to the front
+		var rad := 0.0085
+		var cc := b + Vector3(0.0, -rad - 0.0007, -0.0004)
+		var n := 16
+		var rows: Array[PackedVector3Array] = []
+		for i in n + 1:
+			var a := PI * (0.06 + 0.88 * float(i) / n)
+			var e := Vector3(cos(a), sin(a), 0.0)
+			var p := cc + e * rad
+			var w := 0.0032 * sin(PI * float(i) / n) + 0.0007 # (broad in its middle, its horns fine)
+			var d := Vector3(0.0, 0.0, 0.0005)
+			rows.append(PackedVector3Array([p - e * w - d, p - d, p + d, p - e * w + d]))
+		silver.grid(rows, true, PackedFloat32Array(), true)
+	silver.put(head, _metal(Color(0.83, 0.83, 0.85)), "septum")
+	bead.put(head, _plain(look.color("bead_color"), 0.25))
