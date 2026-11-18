@@ -295,6 +295,8 @@ func _view_input(e: InputEvent) -> void:
 		_turn += (e as InputEventMouseMotion).relative.x * 0.012
 	elif e is InputEventMouseButton and e.pressed and (e as InputEventMouseButton).button_index in [MOUSE_BUTTON_WHEEL_UP, MOUSE_BUTTON_WHEEL_DOWN]:
 		_face = (e as InputEventMouseButton).button_index == MOUSE_BUTTON_WHEEL_UP
+	if e is InputEventMouseButton or e is InputEventMouseMotion:
+		get_viewport().set_input_as_handled() # (the view's own: never on to the game under it, which would take the mouse)
 
 
 func _process(delta: float) -> void:
